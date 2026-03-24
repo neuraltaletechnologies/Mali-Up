@@ -1,4 +1,4 @@
-# kaziya_mobile
+# maliapp_mobile
 
 A new Flutter project.
 

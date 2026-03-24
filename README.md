@@ -2,9 +2,9 @@
 
 ---
 
-# KAZIYA – Smart Business Management Platform (Modular Microservices MVP)
+# MALIAPP – Smart Business Management Platform (Modular Microservices MVP)
 
-**Product Name:** KAZIYA
+**Product Name:** MALIAPP
 **Developed by:** Neuraltale Technologies
 **Product Type:** SaaS – Business Operations & Management Platform
 **Target Market:** SMEs & Growing Businesses in Africa
@@ -54,7 +54,7 @@
 
 ### 1.1 Project Description
 
-KAZIYA is an **African-built, modular SaaS business management platform** that enables SMEs to handle **clients, inventory, sales, payments, and insights** in a unified ecosystem. Unlike complex ERP systems, KAZIYA is designed for **ease-of-use, affordability, and mobile-first accessibility**, targeting African businesses that need online-first solutions.
+MALIAPP is an **African-built, modular SaaS business management platform** that enables SMEs to handle **clients, inventory, sales, payments, and insights** in a unified ecosystem. Unlike complex ERP systems, MALIAPP is designed for **ease-of-use, affordability, and mobile-first accessibility**, targeting African businesses that need online-first solutions.
 
 **Major Goals:**
 
@@ -69,7 +69,7 @@ KAZIYA is an **African-built, modular SaaS business management platform** that e
 
 | Component              | Function             | Core Business Process                                           |
 | ---------------------- | -------------------- | --------------------------------------------------------------- |
-| KAZIYA App             | Flutter Mobile App   | Client management, inventory, sales orders, payments, reporting |
+| MALIAPP App             | Flutter Mobile App   | Client management, inventory, sales orders, payments, reporting |
 | Web Dashboard          | Admin / Owner portal | Reports, analytics, multi-branch management, user roles         |
 | Auth Service           | Microservice         | Login, registration, JWT, password & OTP verification           |
 | Client Service         | Microservice         | CRM, client history, balances, notes,                            |
@@ -94,7 +94,7 @@ KAZIYA is an **African-built, modular SaaS business management platform** that e
 
 ## 1.2 Data Model
 
-KAZIYA follows a **centralized, multi-tenant data model** that supports modular microservices. All modules interact through APIs with the central PostgreSQL database.
+MALIAPP follows a **centralized, multi-tenant data model** that supports modular microservices. All modules interact through APIs with the central PostgreSQL database.
 
 ### 1.2.1 Primary Data Entities and Relationships
 
@@ -269,7 +269,7 @@ KAZIYA follows a **centralized, multi-tenant data model** that supports modular 
 ## 5. Flutter Project Structure
 
 ```
-kaziya_app/
+maliapp_app/
 │
 ├── lib/
 │   ├── main.dart
@@ -364,7 +364,7 @@ report-service/
 
 ## 11. Ownership & Licensing
 
-* KAZIYA is IP of **Neuraltale Technologies**
+* MALIAPP is IP of **Neuraltale Technologies**
 * Offered as SaaS, modular, subscription-based
 * Clients receive usage rights under subscription terms
 

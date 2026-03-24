@@ -3,30 +3,30 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: kaziya_postgres
+    container_name: maliapp_postgres
     environment:
-      POSTGRES_USER: kaziya_user
-      POSTGRES_PASSWORD: kaziya_password
-      POSTGRES_DB: kaziya_db
+      POSTGRES_USER: maliapp_user
+      POSTGRES_PASSWORD: maliapp_password
+      POSTGRES_DB: maliapp_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - kaziya-net
+      - maliapp-net
 
   redis:
     image: redis:7-alpine
-    container_name: kaziya_redis
+    container_name: maliapp_redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - kaziya-net
+      - maliapp-net
 
 networks:
-  kaziya-net:
+  maliapp-net:
     driver: bridge
 
 volumes:
