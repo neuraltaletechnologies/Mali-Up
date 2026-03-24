@@ -1,7 +1,7 @@
-import 'customer.dart';
+import '../domain/models/customer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final customerListProvider = StateProvider<List<Customer>>((ref) {
+final customerListProvider = Provider<List<Customer>>((ref) {
   return [
     Customer(
       id: '1',
