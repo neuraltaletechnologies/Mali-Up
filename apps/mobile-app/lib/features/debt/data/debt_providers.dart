@@ -1,7 +1,7 @@
-import 'debt.dart';
+import '../domain/models/debt.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final debtListProvider = StateProvider<List<Debt>>((ref) {
+final debtListProvider = Provider<List<Debt>>((ref) {
   return [
     Debt(
       id: '1',
