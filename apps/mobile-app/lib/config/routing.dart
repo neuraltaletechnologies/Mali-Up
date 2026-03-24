@@ -7,7 +7,8 @@ import '../features/sales/presentation/screens/sales_screen.dart';
 import '../features/inventory/presentation/screens/inventory_screen.dart';
 import '../features/customer/presentation/screens/customer_list_screen.dart';
 import '../features/debt/presentation/screens/debt_tracking_screen.dart';
-
+import '../features/finance/presentation/screens/expense_list_screen.dart';
+import '../features/finance/presentation/screens/cash_flow_screen.dart';
 
 class AppRouter {
   static const String loginPath = '/login';
@@ -16,6 +17,8 @@ class AppRouter {
   static const String inventoryPath = '/inventory';
   static const String crmPath = '/crm';
   static const String debtPath = '/debt';
+  static const String expensesPath = '/expenses';
+  static const String cashFlowPath = '/cashflow';
   static const String settingsPath = '/settings';
 
   static final GoRouter router = GoRouter(
@@ -41,12 +44,20 @@ class AppRouter {
             builder: (context, state) => const InventoryScreen(),
           ),
           GoRoute(
-            path: crmPath, // Changed from settings to CRM
+            path: crmPath,
             builder: (context, state) => const CustomerListScreen(),
           ),
           GoRoute(
             path: debtPath,
             builder: (context, state) => const DebtTrackingScreen(),
+          ),
+          GoRoute(
+            path: expensesPath,
+            builder: (context, state) => const ExpenseListScreen(),
+          ),
+          GoRoute(
+            path: cashFlowPath,
+            builder: (context, state) => const CashFlowScreen(),
           ),
           GoRoute(
             path: settingsPath,
@@ -57,5 +68,3 @@ class AppRouter {
     ],
   );
 }
-
-

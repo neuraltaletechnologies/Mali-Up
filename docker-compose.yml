@@ -1,34 +1,41 @@
 version: '3.8'
 
 services:
+  # Primary High-Availability PostgreSQL for Business Data
   postgres:
     image: postgres:15-alpine
-    container_name: maliapp_postgres
+    restart: always
     environment:
-      POSTGRES_USER: maliapp_user
-      POSTGRES_PASSWORD: maliapp_password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: maliapp_db
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - maliapp-net
 
-  redis:
-    image: redis:7-alpine
-    container_name: maliapp_redis
+  # MongoDB for Logging and Customer Analytics
+  mongodb:
+    image: mongo:latest
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
     ports:
-      - "6379:6379"
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+  # Redis for High-Speed Session Caching and Locks
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - '6379:6379'
     volumes:
       - redis_data:/data
-    networks:
-      - maliapp-net
-
-networks:
-  maliapp-net:
-    driver: bridge
 
 volumes:
   postgres_data:
+  mongo_data:
   redis_data:

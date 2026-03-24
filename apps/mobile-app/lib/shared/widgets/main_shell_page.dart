@@ -50,13 +50,25 @@ class MainShellPage extends StatelessWidget {
             _DrawerItem(
               icon: Icons.payments_outlined,
               label: 'Expense Management',
-              onTap: () {},
+              onTap: () {
+                context.pop();
+                context.push(AppRouter.expensesPath);
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.swap_horiz_rounded,
+              label: 'Cash Flow & Accounts',
+              onTap: () {
+                context.pop();
+                context.push(AppRouter.cashFlowPath);
+              },
             ),
             _DrawerItem(
               icon: Icons.bar_chart_rounded,
               label: 'Financial Reports',
               onTap: () {},
             ),
+
             const Spacer(),
             const Divider(color: AppColors.glassBorder),
             _DrawerItem(
