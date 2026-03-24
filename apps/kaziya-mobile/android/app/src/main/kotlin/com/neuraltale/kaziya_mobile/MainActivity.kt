@@ -1,4 +1,4 @@
-package com.neuraltale.kaziya_mobile
+package com.neuraltale.maliapp_mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
