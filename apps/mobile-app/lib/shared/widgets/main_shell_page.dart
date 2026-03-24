@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../config/routing.dart';
+import 'logo.dart';
+
 
 class MainShellPage extends StatelessWidget {
   final Widget child;
@@ -10,7 +12,7 @@ class MainShellPage extends StatelessWidget {
   static int _calculateIndex(String location) {
     if (location.startsWith(AppRouter.salesPath)) return 1;
     if (location.startsWith(AppRouter.inventoryPath)) return 2;
-    if (location.startsWith(AppRouter.settingsPath)) return 3;
+    if (location.startsWith(AppRouter.crmPath)) return 3;
     return 0; // Dashboard
   }
 
@@ -20,6 +22,53 @@ class MainShellPage extends StatelessWidget {
     final currentIndex = _calculateIndex(location);
 
     return Scaffold(
+      appBar: currentIndex != 0 ? null : AppBar( // Show AppBar in Shell only for items that don't have their own internal ones, or just use internal ones.
+         title: const Text('MALIAPP'),
+         leading: Builder(
+           builder: (context) => IconButton(
+             icon: const Icon(Icons.menu),
+             onPressed: () => Scaffold.of(context).openDrawer(),
+           ),
+         ),
+      ),
+      drawer: Drawer(
+        backgroundColor: AppColors.background,
+        child: Column(
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: AppColors.surface),
+              child: Center(child: MaliappLogo(size: 60)),
+            ),
+            _DrawerItem(
+              icon: Icons.account_balance_rounded,
+              label: 'Debt Tracking',
+              onTap: () {
+                context.pop();
+                context.push(AppRouter.debtPath);
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.payments_outlined,
+              label: 'Expense Management',
+              onTap: () {},
+            ),
+            _DrawerItem(
+              icon: Icons.bar_chart_rounded,
+              label: 'Financial Reports',
+              onTap: () {},
+            ),
+            const Spacer(),
+            const Divider(color: AppColors.glassBorder),
+            _DrawerItem(
+              icon: Icons.logout_rounded,
+              label: 'Sign Out',
+              onTap: () => context.go(AppRouter.loginPath),
+              color: AppColors.error,
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
       body: child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -42,7 +91,7 @@ class MainShellPage extends StatelessWidget {
                 context.go(AppRouter.inventoryPath);
                 break;
               case 3:
-                context.go(AppRouter.settingsPath);
+                context.go(AppRouter.crmPath);
                 break;
             }
           },
@@ -69,9 +118,9 @@ class MainShellPage extends StatelessWidget {
               label: 'Inventory',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings_rounded),
-              label: 'Settings',
+              icon: Icon(Icons.people_outlined),
+              activeIcon: Icon(Icons.people_rounded),
+              label: 'CRM',
             ),
           ],
         ),
@@ -79,3 +128,22 @@ class MainShellPage extends StatelessWidget {
     );
   }
 }
+
+class _DrawerItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _DrawerItem({required this.icon, required this.label, required this.onTap, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: color ?? AppColors.textPrimary),
+      title: Text(label, style: TextStyle(color: color ?? AppColors.textPrimary)),
+      onTap: onTap,
+    );
+  }
+}
+

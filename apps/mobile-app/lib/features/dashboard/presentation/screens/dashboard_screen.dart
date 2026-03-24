@@ -1,12 +1,19 @@
-import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../config/routing.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../../customer/data/customer_providers.dart';
+import '../../../debt/data/debt_providers.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final customers = ref.watch(customerListProvider);
+    final debts = ref.watch(debtListProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('MALIAPP'),
@@ -44,7 +51,7 @@ class DashboardScreen extends StatelessWidget {
             // KPI Summary Cards
             Row(
               children: [
-                Expanded(
+                const Expanded(
                   child: _KPICard(
                     title: 'Today Revenue',
                     value: 'TSh 1.2M',
@@ -55,36 +62,19 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _KPICard(
-                    title: 'Active Orders',
-                    value: '24',
-                    icon: Icons.shopping_basket_outlined,
+                    title: 'Active Clients',
+                    value: '${customers.length}',
+                    icon: Icons.people_outline,
                     color: AppColors.primary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _KPICard(
-                    title: 'New Customers',
-                    value: '12',
-                    icon: Icons.people_outline,
-                    color: AppColors.secondary,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _KPICard(
-                    title: 'Stock Alerts',
-                    value: '3',
-                    icon: Icons.warning_amber_rounded,
-                    color: AppColors.error,
-                  ),
-                ),
-              ],
-            ),
+            
+            const SizedBox(height: 24),
+            
+            // Debt Quick View Card
+            _DebtQuickView(debts: debts),
             
             const SizedBox(height: 32),
             
@@ -113,6 +103,63 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 }
+
+class _DebtQuickView extends StatelessWidget {
+  final List<dynamic> debts;
+  const _DebtQuickView({required this.debts});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => context.push(AppRouter.debtPath),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.error.withOpacity(0.2)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.surface, AppColors.error.withOpacity(0.05)],
+          ),
+        ),
+        child: Row(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Debt Exposure',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text(
+                      'TSh 4.2M',
+                      style: TextStyle(color: AppColors.error, fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                      child: const Text('PAYABLE', style: TextStyle(color: AppColors.error, fontSize: 8, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const Spacer(),
+            const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 class _KPICard extends StatelessWidget {
   final String title;
