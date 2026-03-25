@@ -25,7 +25,7 @@ class CashFlowScreen extends ConsumerWidget {
             // Accounts Horizontal Scroll
             const Padding(
               padding: EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: Text('My Accounts', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text('My Accounts', style: TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
             ),
             SizedBox(
               height: 160,
@@ -74,7 +74,7 @@ class CashFlowScreen extends ConsumerWidget {
             // Recent Money Movements
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Text('Money Movements', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text('Money Movements', style: TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 16),
             ListView.separated(
@@ -94,7 +94,7 @@ class CashFlowScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.swap_horiz_rounded, color: Colors.white),
+        child: const Icon(Icons.swap_horiz_rounded, color: AppColors.secondary),
       ),
     );
   }
@@ -112,7 +112,7 @@ class _AccountCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -127,7 +127,7 @@ class _AccountCard extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: AppColors.secondary.withOpacity(0.05), borderRadius: BorderRadius.circular(10)),
                 child: Icon(
                   account.type == 'Cash' ? Icons.payments_outlined : (account.type == 'Bank' ? Icons.account_balance_outlined : Icons.smartphone_outlined),
                   color: AppColors.textSecondary,
@@ -138,7 +138,7 @@ class _AccountCard extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Text(account.balance, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(account.balance, style: const TextStyle(color: AppColors.secondary, fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text(account.name, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
         ],
@@ -195,7 +195,7 @@ class _MovementListItem extends StatelessWidget {
           isInflow ? Icons.add_circle_outline : Icons.remove_circle_outline,
           color: isInflow ? AppColors.success : AppColors.error,
         ),
-        title: Text(isInflow ? 'Deposit: Cash Sale' : 'Withdraw: Petty Cash', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+        title: Text(isInflow ? 'Deposit: Cash Sale' : 'Withdraw: Petty Cash', style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w600, fontSize: 14)),
         subtitle: const Text('To Business M-Pesa • Today, 2:30 PM', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
         trailing: Text(isInflow ? '+45,000' : '-12,000', style: TextStyle(color: isInflow ? AppColors.success : AppColors.error, fontWeight: FontWeight.bold)),
       ),

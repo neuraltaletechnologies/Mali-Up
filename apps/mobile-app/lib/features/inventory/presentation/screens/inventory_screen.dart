@@ -92,7 +92,7 @@ class InventoryScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.glassBorder),
                   ),
-                  child: const Icon(Icons.category_outlined, color: Colors.white),
+                  child: const Icon(Icons.category_outlined, color: AppColors.secondary),
                 ),
               ],
             ),
@@ -108,7 +108,7 @@ class InventoryScreen extends StatelessWidget {
               children: [
                 Text(
                   'Products Portfolio',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.secondary),
                 ),
                 Text(
                   'Stock Level',
@@ -143,7 +143,7 @@ class InventoryScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add, color: AppColors.secondary),
       ),
     );
   }
@@ -170,7 +170,7 @@ class _SummaryBox extends StatelessWidget {
         children: [
           Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -245,7 +245,7 @@ class _ProductListItem extends StatelessWidget {
         ),
         child: const Icon(Icons.inventory_2_outlined, color: AppColors.textMuted),
       ),
-      title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+      title: Text(name, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 14)),
       subtitle: Text(sku, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,

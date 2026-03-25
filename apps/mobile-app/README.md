@@ -1,6 +1,6 @@
-# Maliapp Mobile — Flutter App
+# Mali Up Mobile — Flutter App
 
-The flagship mobile application for the Maliapp SaaS ecosystem. Built with Flutter to provide a premium, offline-first experience for business owners and staff.
+The flagship mobile application for the Mali Up SaaS ecosystem. Built with Flutter to provide a premium, offline-first experience for business owners and staff.
 
 ## 🛠 Tech Stack
 - **Framework:** Flutter 3.x
@@ -29,4 +29,4 @@ The app follows a strict Clean Architecture pattern:
 - Persistence queue to ensure data integrity during intermittent connectivity.
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [Mali Up](../../README.md) suite by **Neuraltale**.

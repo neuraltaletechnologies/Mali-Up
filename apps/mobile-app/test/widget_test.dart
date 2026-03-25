@@ -9,17 +9,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:maliapp_mobile/main.dart';
+import 'package:mali_up/main.dart';
 
 void main() {
   testWidgets('Login screen smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: Maliapp(),
+        child: MaliUpApp(),
       ),
     );
 
     expect(find.text('Welcome Back'), findsOneWidget);
-    expect(find.text('Login'), findsOneWidget);
+    expect(find.text('Continue to Workspace'), findsOneWidget);
   });
 }

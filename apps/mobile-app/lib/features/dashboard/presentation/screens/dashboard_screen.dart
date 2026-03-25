@@ -17,7 +17,7 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MALIAPP'),
+        title: const Text('Mali Up'),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -40,7 +40,7 @@ class DashboardScreen extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppColors.secondary,
               ),
             ),
             const Text(
@@ -85,7 +85,7 @@ class DashboardScreen extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppColors.secondary,
               ),
             ),
             const SizedBox(height: 16),
@@ -182,7 +182,7 @@ class _KPICard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,7 +207,7 @@ class _KPICard extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.secondary,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -278,12 +278,12 @@ class _RecentTransactionsList extends StatelessWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppColors.secondary,
               ),
             ),
             TextButton(
               onPressed: () {},
-              child: const Text('View All', style: TextStyle(color: AppColors.primaryLight)),
+              child: const Text('View All', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -292,28 +292,44 @@ class _RecentTransactionsList extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: 4,
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
+            final isExpense = index % 2 != 0;
             return Container(
-              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
               ),
-              child: const ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor: Color(0xFF334155),
-                  child: Icon(Icons.receipt_long_outlined, color: Colors.white, size: 20),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: (isExpense ? AppColors.error : AppColors.success).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isExpense ? Icons.north_east_rounded : Icons.south_west_rounded,
+                    color: isExpense ? AppColors.error : AppColors.success,
+                    size: 20,
+                  ),
                 ),
                 title: Text(
-                  'Sales Invoice #1204',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  isExpense ? 'Shop Rent Payment' : 'Product Sale #2409',
+                  style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 15),
                 ),
-                subtitle: Text('Paid via M-Pesa • Today, 10:45 AM', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                subtitle: Text(
+                  isExpense ? 'Expense • Oct 01, 2026' : 'Revenue • Today, 10:45 AM',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
                 trailing: Text(
-                  'TSh 45,000',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  isExpense ? '-850,000' : '+45,000',
+                  style: TextStyle(
+                    color: isExpense ? AppColors.error : AppColors.success,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                  ),
                 ),
               ),
             );
@@ -323,3 +339,4 @@ class _RecentTransactionsList extends StatelessWidget {
     );
   }
 }
+
