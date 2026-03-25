@@ -1,4 +1,4 @@
-package com.neuraltale.maliapp_mobile
+package com.neuraltale.maliup
 
 import io.flutter.embedding.android.FlutterActivity
 

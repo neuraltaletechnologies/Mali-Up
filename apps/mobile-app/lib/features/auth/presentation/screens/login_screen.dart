@@ -11,40 +11,40 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Background Gradient Base
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.background,
-                  Color(0xFF1E1B4B), // Indigo 950
-                  AppColors.background,
-                ],
-              ),
-            ),
-          ),
-          
-          // Background Accents
+          // Background Accents for Light Theme
           Positioned(
             top: -100,
             right: -100,
-            child: _BlurredCircle(
-              size: 300, 
-              color: AppColors.primary.withOpacity(0.05),
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withOpacity(0.08),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                child: Container(color: Colors.transparent),
+              ),
             ),
           ),
           Positioned(
             bottom: -50,
             left: -50,
-            child: _BlurredCircle(
-              size: 250, 
-              color: AppColors.secondary.withOpacity(0.04),
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.secondary.withOpacity(0.05),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                child: Container(color: Colors.transparent),
+              ),
             ),
           ),
 
@@ -56,119 +56,152 @@ class LoginScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 60),
-                  const MaliappLogo(size: 80),
+                  const MaliUpLogo(size: 80),
                   const SizedBox(height: 60),
                   
-                  // Glassmorphic Login Card
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.03),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.05),
-                            width: 1.5,
+                  // Premium Login Card
+                  Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.secondary.withOpacity(0.08),
+                          blurRadius: 40,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: AppColors.border,
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Welcome Back',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondary, // Navy
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const Text(
+                          'Sign in to manage your business',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        
+                        TextField(
+                          style: const TextStyle(color: AppColors.textPrimary),
+                          decoration: InputDecoration(
+                            labelText: 'Email Address',
+                            labelStyle: const TextStyle(color: AppColors.textSecondary),
+                            prefixIcon: const Icon(Icons.email_outlined, color: AppColors.secondary),
+                            fillColor: AppColors.surface,
+                            filled: true,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        TextField(
+                          obscureText: true,
+                          style: const TextStyle(color: AppColors.textPrimary),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            labelStyle: const TextStyle(color: AppColors.textSecondary),
+                            prefixIcon: const Icon(Icons.lock_outline, color: AppColors.secondary),
+                            suffixIcon: const Icon(Icons.visibility_off_outlined, color: AppColors.textMuted),
+                            fillColor: AppColors.surface,
+                            filled: true,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {},
+                            child: const Text(
+                              'Forgot Password?',
+                              style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => context.go(AppRouter.dashboardPath),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.secondary,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              'Continue to Workspace',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
-                              'Welcome Back',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                              "Don't have an account?",
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
                             ),
-                            const Text(
-                              'Sign in to manage your business',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 32),
-                            
-                            const TextField(
-                              decoration: InputDecoration(
-                                labelText: 'Email Address',
-                                prefixIcon: Icon(Icons.email_outlined),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            
-                            const TextField(
-                              obscureText: true,
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                prefixIcon: Icon(Icons.lock_outline),
-                                suffixIcon: Icon(Icons.visibility_off_outlined),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {},
-                                child: const Text(
-                                  'Forgot Password?',
-                                  style: TextStyle(color: AppColors.primaryLight),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            
-                            ElevatedButton(
-                              onPressed: () => context.go(AppRouter.dashboardPath),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                            TextButton(
+                              onPressed: () {},
                               child: const Text(
-                                'Login',
+                                'Sign Up',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  color: AppColors.secondary,
                                   fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     ),
                   ),
                   
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 32),
                   
                   // Footer info
-                  const Center(
+                  Center(
                     child: Column(
                       children: [
-                        Text(
+                        const Text(
                           'Empowering SMBs across Africa',
                           style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 12,
                           ),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Built by Neuraltale Engineering',
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                            letterSpacing: 1.2,
-                          ),
+                        const SizedBox(height: 12),
+                        Image.asset(
+                          'assets/branding/mali_up_wordmark.png',
+                          height: 18,
+                          color: AppColors.secondary.withOpacity(0.4),
+                          colorBlendMode: BlendMode.srcIn,
                         ),
                       ],
                     ),
@@ -183,20 +216,3 @@ class LoginScreen extends StatelessWidget {
   }
 }
 
-class _BlurredCircle extends StatelessWidget {
-  final double size;
-  final Color color;
-  const _BlurredCircle({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
-    );
-  }
-}

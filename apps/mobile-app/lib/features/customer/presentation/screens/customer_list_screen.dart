@@ -58,7 +58,7 @@ class CustomerListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white),
+        child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.secondary),
       ),
     );
   }
@@ -84,7 +84,7 @@ class _SummaryStat extends StatelessWidget {
           child: Icon(icon, color: AppColors.primaryLight, size: 24),
         ),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(value, style: const TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
         Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
       ],
     );
@@ -102,7 +102,7 @@ class _CustomerCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
       ),
       child: Column(
         children: [
@@ -120,7 +120,7 @@ class _CustomerCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(customer.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(customer.name, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
                     Text(customer.phone, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
                   ],
                 ),

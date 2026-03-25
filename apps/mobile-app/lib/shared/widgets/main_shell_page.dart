@@ -22,22 +22,30 @@ class MainShellPage extends StatelessWidget {
     final currentIndex = _calculateIndex(location);
 
     return Scaffold(
-      appBar: currentIndex != 0 ? null : AppBar( // Show AppBar in Shell only for items that don't have their own internal ones, or just use internal ones.
-         title: const Text('MALIAPP'),
-         leading: Builder(
-           builder: (context) => IconButton(
-             icon: const Icon(Icons.menu),
-             onPressed: () => Scaffold.of(context).openDrawer(),
-           ),
-         ),
+      appBar: currentIndex != 0 ? null : AppBar(
+        title: const MaliUpLogo(size: 32), // Uses Mali Up Wordmark
+        centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search_rounded),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       drawer: Drawer(
-        backgroundColor: AppColors.background,
         child: Column(
           children: [
             const DrawerHeader(
-              decoration: BoxDecoration(color: AppColors.surface),
-              child: Center(child: MaliappLogo(size: 60)),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                border: Border(bottom: BorderSide(color: AppColors.border)),
+              ),
+              child: Center(child: MaliUpLogo(size: 40)),
             ),
             _DrawerItem(
               icon: Icons.account_balance_rounded,
@@ -56,7 +64,7 @@ class MainShellPage extends StatelessWidget {
               },
             ),
             _DrawerItem(
-              icon: Icons.swap_horiz_rounded,
+              icon: Icons.account_balance_wallet_outlined,
               label: 'Cash Flow & Accounts',
               onTap: () {
                 context.pop();
@@ -68,9 +76,14 @@ class MainShellPage extends StatelessWidget {
               label: 'Financial Reports',
               onTap: () {},
             ),
+            const Divider(height: 32, indent: 16, endIndent: 16),
+            _DrawerItem(
+              icon: Icons.settings_outlined,
+              label: 'Business Settings',
+              onTap: () {},
+            ),
 
             const Spacer(),
-            const Divider(color: AppColors.glassBorder),
             _DrawerItem(
               icon: Icons.logout_rounded,
               label: 'Sign Out',
@@ -86,38 +99,24 @@ class MainShellPage extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.background,
           border: Border(
-            top: BorderSide(color: Colors.white.withOpacity(0.05), width: 1),
+            top: BorderSide(color: AppColors.secondary.withOpacity(0.08), width: 1.5),
           ),
         ),
         child: BottomNavigationBar(
           currentIndex: currentIndex,
           onTap: (index) {
             switch (index) {
-              case 0:
-                context.go(AppRouter.dashboardPath);
-                break;
-              case 1:
-                context.go(AppRouter.salesPath);
-                break;
-              case 2:
-                context.go(AppRouter.inventoryPath);
-                break;
-              case 3:
-                context.go(AppRouter.crmPath);
-                break;
+              case 0: context.go(AppRouter.dashboardPath); break;
+              case 1: context.go(AppRouter.salesPath); break;
+              case 2: context.go(AppRouter.inventoryPath); break;
+              case 3: context.go(AppRouter.crmPath); break;
             }
           },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.background,
-          selectedItemColor: AppColors.primaryLight,
-          unselectedItemColor: AppColors.textMuted,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontSize: 12),
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard_rounded),
-              label: 'Dashboard',
+              icon: Icon(Icons.grid_view_outlined),
+              activeIcon: Icon(Icons.grid_view_rounded),
+              label: 'Home',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.receipt_outlined),
@@ -127,12 +126,12 @@ class MainShellPage extends StatelessWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.inventory_2_outlined),
               activeIcon: Icon(Icons.inventory_2_rounded),
-              label: 'Inventory',
+              label: 'Stock',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.people_outlined),
+              icon: Icon(Icons.people_outline_rounded),
               activeIcon: Icon(Icons.people_rounded),
-              label: 'CRM',
+              label: 'Customers',
             ),
           ],
         ),
@@ -140,6 +139,7 @@ class MainShellPage extends StatelessWidget {
     );
   }
 }
+
 
 class _DrawerItem extends StatelessWidget {
   final IconData icon;

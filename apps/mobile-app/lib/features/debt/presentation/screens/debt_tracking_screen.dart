@@ -32,7 +32,7 @@ class DebtTrackingScreen extends ConsumerWidget {
             sliver: SliverToBoxAdapter(
               child: Text(
                 'Recent Debt Movements',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
               ),
             ),
           ),
@@ -57,8 +57,8 @@ class DebtTrackingScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {},
         backgroundColor: AppColors.error,
-        icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-        label: const Text('New Debt', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        icon: const Icon(Icons.add_circle_outline, color: AppColors.secondary),
+        label: const Text('New Debt', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -168,7 +168,7 @@ class _DebtCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(debt.partyName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Text(debt.partyName, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
                 Text(isPayable ? 'To Supplier' : 'From Customer', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
               ],
             ),
@@ -176,7 +176,7 @@ class _DebtCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(debt.amount, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text(debt.amount, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
               Container(
                 margin: const EdgeInsets.only(top: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

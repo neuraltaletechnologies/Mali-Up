@@ -35,7 +35,7 @@ class ExpenseListScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 const Text(
                   'TSh 1,015,000',
-                  style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: AppColors.secondary, fontSize: 32, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -72,8 +72,8 @@ class ExpenseListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {},
         backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.receipt_long_rounded, color: Colors.white),
-        label: const Text('Add Expense', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        icon: const Icon(Icons.receipt_long_rounded, color: AppColors.secondary),
+        label: const Text('Add Expense', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -109,7 +109,7 @@ class _ExpenseCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
       ),
       child: Row(
         children: [
@@ -126,7 +126,7 @@ class _ExpenseCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(expense.category, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Text(expense.category, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
                 Text(expense.note, style: const TextStyle(color: AppColors.textMuted, fontSize: 12), overflow: TextOverflow.ellipsis),
               ],
             ),
@@ -134,7 +134,7 @@ class _ExpenseCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(expense.amount, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text(expense.amount, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
               Text(expense.date, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
             ],
           ),

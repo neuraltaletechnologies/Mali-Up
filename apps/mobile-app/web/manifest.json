@@ -1,11 +1,11 @@
 {
-    "name": "maliapp_mobile",
-    "short_name": "maliapp_mobile",
+    "name": "Mali Up",
+    "short_name": "Mali Up",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Mali Up mobile app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -97,8 +97,8 @@ class SalesScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {},
         backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('New Sale', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        icon: const Icon(Icons.add, color: AppColors.secondary),
+        label: const Text('New Sale', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -183,7 +183,7 @@ class _InvoiceListItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
       ),
       child: Row(
         children: [
@@ -208,9 +208,9 @@ class _InvoiceListItem extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(customer, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(customer, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 4),
-                Text(amount, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                Text(amount, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w500)),
               ],
             ),
           ),

@@ -7,21 +7,22 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const ProviderScope(
-      child: Maliapp(),
+      child: MaliUpApp(),
     ),
   );
 }
 
-class Maliapp extends StatelessWidget {
-  const Maliapp({super.key});
+class MaliUpApp extends StatelessWidget {
+  const MaliUpApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Maliapp',
+      title: 'Mali Up',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       routerConfig: AppRouter.router,
     );
   }
 }
+
