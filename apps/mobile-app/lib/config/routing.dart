@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
+import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../shared/widgets/main_shell_page.dart';
 import '../features/sales/presentation/screens/sales_screen.dart';
@@ -12,6 +13,7 @@ import '../features/finance/presentation/screens/cash_flow_screen.dart';
 
 class AppRouter {
   static const String loginPath = '/login';
+  static const String registerPath = '/register';
   static const String dashboardPath = '/';
   static const String salesPath = '/sales';
   static const String inventoryPath = '/inventory';
@@ -27,6 +29,10 @@ class AppRouter {
       GoRoute(
         path: loginPath,
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: registerPath,
+        builder: (context, state) => const RegisterScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => MainShellPage(child: child),
