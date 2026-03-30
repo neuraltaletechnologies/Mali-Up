@@ -1,8 +1,8 @@
-# Malix Onboarding Experience - Design & Implementation Guide
+# MaliUp Onboarding Experience - Design & Implementation Guide
 
 ## 📱 Overview
 
-The Malix onboarding experience is a modern, premium-quality journey that introduces users to the app's core features. It consists of:
+The MaliUp onboarding experience is a modern, premium-quality journey that introduces users to the app's core features. It consists of:
 
 1. **Splash Screen** (2.5s) - Animated gradient background with logo
 2. **Welcome Screen** - Dashboard management features
@@ -288,7 +288,7 @@ if (isFirstTime) {
 - **Animation:** Floating icon effect, fade entrance
 - **CTA:** Continue button
 
-### Screen 3: Get Started with Malix
+### Screen 3: Get Started with MaliUp
 - **Icon:** 🚀 Rocket
 - **Illustration:** Rocket launch ready illustration
 - **Animation:** Scale entrance, button glow on action
@@ -348,7 +348,7 @@ if (isFirstTime) {
 testWidgets('Splash screen animation completes', (WidgetTester tester) async {
   await tester.pumpWidget(const SplashScreen(onSplashComplete: () {}));
   await tester.pumpAndSettle();
-  expect(find.text('Malix'), findsOneWidget);
+  expect(find.text('MaliUp'), findsOneWidget);
 });
 
 // Test page transitions

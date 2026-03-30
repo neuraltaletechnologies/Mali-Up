@@ -1,4 +1,4 @@
-# 🚀 Malix Onboarding Feature
+# 🚀 MaliUp Onboarding Feature
 
 A premium, modern onboarding experience designed for African SaaS businesses. Features smooth animations, beautiful gradients, and an intuitive user journey.
 
@@ -233,4 +233,4 @@ Designed with attention to:
 
 ## License
 
-Part of Malix SaaS platform
+Part of MaliUp SaaS platform

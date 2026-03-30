@@ -1,4 +1,4 @@
-# Malix Onboarding - Quick Reference & Style Guide
+# MaliUp Onboarding - Quick Reference & Style Guide
 
 ## 🎯 At a Glance
 
@@ -206,7 +206,7 @@ void main() {
       await tester.pumpWidget(const TestApp(
         child: SplashScreen(onSplashComplete: () {}),
       ));
-      expect(find.text('Malix'), findsOneWidget);
+      expect(find.text('MaliUp'), findsOneWidget);
       await tester.pumpAndSettle();
     });
 
