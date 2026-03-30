@@ -9,6 +9,7 @@ class DebtTrackingScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final debts = ref.watch(debtListProvider);
+    final debtItems = debts.maybeWhen(data: (items) => items, orElse: () => const []);
 
     return Scaffold(
       appBar: AppBar(
@@ -42,13 +43,13 @@ class DebtTrackingScreen extends ConsumerWidget {
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  final debt = debts[index];
+                  final debt = debtItems[index];
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _DebtCard(debt: debt),
                   );
                 },
-                childCount: debts.length,
+                childCount: debtItems.length,
               ),
             ),
           ),

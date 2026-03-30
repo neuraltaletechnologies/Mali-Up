@@ -14,6 +14,8 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final customers = ref.watch(customerListProvider);
     final debts = ref.watch(debtListProvider);
+    final customerCount = customers.maybeWhen(data: (items) => items.length, orElse: () => 0);
+    final debtItems = debts.maybeWhen(data: (items) => items, orElse: () => const []);
 
     return Scaffold(
       appBar: AppBar(
@@ -64,7 +66,7 @@ class DashboardScreen extends ConsumerWidget {
                 Expanded(
                   child: _KPICard(
                     title: 'Active Clients',
-                    value: '${customers.length}',
+                    value: '$customerCount',
                     icon: Icons.people_outline,
                     color: AppColors.primary,
                   ),
@@ -75,7 +77,7 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             
             // Debt Quick View Card
-            _DebtQuickView(debts: debts),
+            _DebtQuickView(debts: debtItems),
             
             const SizedBox(height: 32),
             

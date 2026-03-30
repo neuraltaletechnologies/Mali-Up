@@ -44,7 +44,6 @@ final List<OnboardingPage> onboardingPages = [
   ),
   OnboardingPage(
     index: 3,
-    title: 'Get Started with Malix',
     title: 'Get Started with MaliUp',
     description: 'Join thousands of African business owners managing their operations smarter',
     emoji: '🚀',
