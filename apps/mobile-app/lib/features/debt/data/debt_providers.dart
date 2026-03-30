@@ -1,31 +1,23 @@
 import '../domain/models/debt.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final debtListProvider = Provider<List<Debt>>((ref) {
-  return [
-    Debt(
-      id: '1',
-      partyName: 'Main Street Supplier',
-      type: 'Payable',
-      amount: 'TSh 2,450,000',
-      dueDate: 'Oct 30, 2026',
-      status: 'Pending',
-    ),
-    Debt(
-      id: '2',
-      partyName: 'Global Wholesale',
-      type: 'Payable',
-      amount: 'TSh 890,000',
-      dueDate: 'Yesterday',
-      status: 'Overdue',
-    ),
-    Debt(
-      id: '3',
-      partyName: 'Alice Johnson',
-      type: 'Receivable',
-      amount: 'TSh 120,500',
-      dueDate: 'Oct 28, 2026',
-      status: 'Pending',
-    ),
-  ];
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+final debtListProvider = StreamProvider<List<Debt>>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return const Stream.empty();
+
+  final query = FirebaseFirestore.instance
+      .collection('tenants')
+      .doc(user.uid)
+      .collection('debts')
+      .orderBy('dueDate');
+
+  return query.snapshots().map((snapshot) {
+    return snapshot.docs.map((doc) {
+      return Debt.fromFirestore(doc.data(), doc.id);
+    }).toList();
+  });
 });
+
