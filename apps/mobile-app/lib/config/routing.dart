@@ -25,9 +25,10 @@ class AppRouter {
   static const String cashFlowPath = '/cashflow';
   static const String settingsPath = '/settings';
 
-  static final GoRouter router = GoRouter(
-    initialLocation: onboardingPath,
-    routes: [
+  static GoRouter createRouter({required bool showOnboarding}) {
+    return GoRouter(
+      initialLocation: showOnboarding ? onboardingPath : loginPath,
+      routes: [
       GoRoute(
         path: onboardingPath,
         builder: (context, state) => OnboardingFlow(
@@ -80,5 +81,6 @@ class AppRouter {
         ],
       ),
     ],
-  );
+    );
+  }
 }

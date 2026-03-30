@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
 import 'firebase_options.dart';
+
+const String _onboardingCompletedKey = 'onboarding_completed';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,15 +16,24 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  final prefs = await SharedPreferences.getInstance();
+  final hasCompletedOnboarding =
+      prefs.getBool(_onboardingCompletedKey) ?? false;
+
   runApp(
-    const ProviderScope(
-      child: MaliUpApp(),
+    ProviderScope(
+      child: MaliUpApp(hasCompletedOnboarding: hasCompletedOnboarding),
     ),
   );
 }
 
 class MaliUpApp extends StatelessWidget {
-  const MaliUpApp({super.key});
+  final bool hasCompletedOnboarding;
+
+  const MaliUpApp({
+    super.key,
+    required this.hasCompletedOnboarding,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +41,9 @@ class MaliUpApp extends StatelessWidget {
       title: 'Mali Up',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      routerConfig: AppRouter.router,
+      routerConfig: AppRouter.createRouter(
+        showOnboarding: !hasCompletedOnboarding,
+      ),
     );
   }
 }

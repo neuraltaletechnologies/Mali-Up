@@ -156,7 +156,7 @@ class _SplashScreenState extends State<SplashScreen>
                     end: Alignment.bottomRight,
                     colors: [
                       OnboardingColors.white,
-                      Color(0xFFF0F9FF),
+                      Color(0xFFFFFBEB),
                     ],
                   ),
                   boxShadow: [
@@ -204,7 +204,7 @@ class _SplashScreenState extends State<SplashScreen>
                       end: Alignment.bottomRight,
                       colors: [
                         OnboardingColors.white,
-                        Color(0xFFE0F1FE),
+                        Color(0xFFFFF7CC),
                       ],
                     ).createShader(bounds);
                   },

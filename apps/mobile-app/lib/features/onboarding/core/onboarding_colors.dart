@@ -3,20 +3,20 @@ import 'package:flutter/material.dart';
 /// Modern, premium color scheme for onboarding experience
 /// Designed for African market - clean and accessible
 class OnboardingColors {
-  // Primary gradient colors
-  static const Color primaryDeep = Color(0xFF0B5ED7); // Deep Blue
-  static const Color primaryGradient = Color(0xFF00A8E8); // Bright Blue
-  static const Color accentGreen = Color(0xFF16C47F); // Fresh Green
+  // Primary brand colors (white, black, yellow)
+  static const Color primaryDeep = Color(0xFF111111); // Black
+  static const Color primaryGradient = Color(0xFFFACC15); // Yellow
+  static const Color accentGreen = Color(0xFFEAB308); // Amber-yellow accent
   
-  // Secondary palette
-  static const Color successGreen = Color(0xFF10B981); // Standard green
-  static const Color lightGreen = Color(0xFFD1FAE5); // Light green background
-  static const Color lightBlue = Color(0xFFDEF2FF); // Light blue background
+  // Secondary palette tuned to brand
+  static const Color successGreen = Color(0xFFEAB308);
+  static const Color lightGreen = Color(0xFFFFFBEB); // Light yellow background
+  static const Color lightBlue = Color(0xFFF5F5F5); // Light neutral background
   
   // Neutral colors
   static const Color white = Color(0xFFFFFFFF);
-  static const Color background = Color(0xFFF8FAFC); // Very light gray
-  static const Color textDark = Color(0xFF1F2937); // Dark gray text
+  static const Color background = Color(0xFFFFFFFF); // White
+  static const Color textDark = Color(0xFF111111); // Black text
   static const Color textLight = Color(0xFF6B7280); // Medium gray
   static const Color divider = Color(0xFFE5E7EB); // Light divider
   
@@ -26,7 +26,7 @@ class OnboardingColors {
     end: Alignment.bottomRight,
     colors: [
       primaryDeep,
-      primaryGradient,
+      Color(0xFF2A2A2A),
     ],
   );
 
@@ -34,8 +34,8 @@ class OnboardingColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
+      primaryGradient,
       accentGreen,
-      Color(0xFF0EA85D), // Darker green
     ],
   );
 }

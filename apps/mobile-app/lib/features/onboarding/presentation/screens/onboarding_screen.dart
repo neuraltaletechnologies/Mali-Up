@@ -185,7 +185,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 end: Alignment.bottomRight,
                 colors: [
                   OnboardingColors.lightBlue,
-                  Color(0xFFF0F9FF),
+                  Color(0xFFFFFFFF),
                 ],
               )
             : const LinearGradient(
@@ -193,7 +193,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 end: Alignment.bottomRight,
                 colors: [
                   OnboardingColors.lightGreen,
-                  Color(0xFFECFDF5),
+                  Color(0xFFFFFDF0),
                 ],
               ),
         boxShadow: [
@@ -227,7 +227,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           end: Alignment.bottomRight,
           colors: [
             OnboardingColors.lightBlue,
-            Color(0xFFE0F1FE),
+            Color(0xFFFFFFFF),
           ],
         ),
         borderRadius: BorderRadius.circular(24),
@@ -320,7 +320,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           end: Alignment.bottomRight,
           colors: [
             OnboardingColors.lightGreen,
-            Color(0xFFECFDF5),
+            Color(0xFFFFFDF0),
           ],
         ),
         borderRadius: BorderRadius.circular(24),
@@ -376,8 +376,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFFE0F1FE),
-            Color(0xFFDEE4F5),
+            Color(0xFFFFFDF0),
+            Color(0xFFFFFFFF),
           ],
         ),
         borderRadius: BorderRadius.circular(24),
@@ -502,7 +502,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             end: Alignment.bottomRight,
             colors: [
               OnboardingColors.primaryDeep,
-              Color(0xFF0A4ABC),
+              OnboardingColors.accentGreen,
             ],
           ),
           borderRadius: BorderRadius.circular(16),
