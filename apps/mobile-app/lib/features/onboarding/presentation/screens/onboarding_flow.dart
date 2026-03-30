@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'splash_screen.dart';
 import 'onboarding_screen.dart';
 import '../../providers/onboarding_provider.dart';
+
+const String _onboardingCompletedKey = 'onboarding_completed';
 
 /// Main container that manages the onboarding flow
 /// Displays splash screen followed by onboarding screens
@@ -28,11 +31,11 @@ class OnboardingFlow extends ConsumerWidget {
 
     if (onboardingState == OnboardingState.onboarding) {
       return OnboardingScreen(
-        onOnboardingComplete: () {
+        onOnboardingComplete: () async {
           ref.read(onboardingStateProvider.notifier).completeOnboarding();
-          ref
-              .read(hasCompletedOnboardingProvider.notifier)
-              .setCompleted(true);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(_onboardingCompletedKey, true);
+          ref.read(hasCompletedOnboardingProvider.notifier).setCompleted(true);
           onComplete();
         },
       );
