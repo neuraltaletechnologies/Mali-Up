@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 /// 
 /// This file demonstrates different ways to integrate the onboarding
 /// system into your Malix app.
+/// IMPLEMENTATION GUIDE FOR MALIUP ONBOARDING
+/// 
+/// This file demonstrates different ways to integrate the onboarding
+/// system into your MaliUp app.
 
 // ============================================
 // PATTERN 1: Go Router Integration (Recommended)
@@ -305,7 +309,7 @@ class _MaliUpAppState extends State<MaliUpApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Malix',
+      title: 'MaliUp',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: _router,

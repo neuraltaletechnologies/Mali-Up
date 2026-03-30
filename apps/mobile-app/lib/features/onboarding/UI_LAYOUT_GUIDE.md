@@ -1,4 +1,4 @@
-# Malix Onboarding - UI Layout & Wireframes
+# MaliUp Onboarding - UI Layout & Wireframes
 
 ## 📐 Screen Layout Overview
 
@@ -129,7 +129,7 @@
 │   │ business                │   │
 │   └─────────────────────────┘   │
 │                                 │
-│  Get Started with Malix         │
+│  Get Started with MaliUp         │
 │                                 │
 │  Join thousands of African      │
 │  business owners managing...    │

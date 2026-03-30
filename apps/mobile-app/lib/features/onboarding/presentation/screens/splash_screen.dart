@@ -4,7 +4,7 @@ import '../core/onboarding_colors.dart';
 import '../widgets/animated_widgets.dart';
 
 /// Premium splash screen with animated gradient background
-/// Displays Malix branding and smooth transition to onboarding
+/// Displays MaliUp branding and smooth transition to onboarding
 class SplashScreen extends StatefulWidget {
   final VoidCallback onSplashComplete;
 
@@ -210,7 +210,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ).createShader(bounds);
                   },
                   child: Text(
-                    'Malix',
+                    'MaliUp',
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                           color: OnboardingColors.white,
                           fontWeight: FontWeight.bold,
