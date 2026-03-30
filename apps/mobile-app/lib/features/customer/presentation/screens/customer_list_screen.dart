@@ -9,6 +9,7 @@ class CustomerListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final customers = ref.watch(customerListProvider);
+    final customerItems = customers.maybeWhen(data: (items) => items, orElse: () => const []);
 
     return Scaffold(
       appBar: AppBar(
@@ -34,7 +35,7 @@ class CustomerListScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _SummaryStat(label: 'Active Clients', value: '${customers.length}', icon: Icons.people_alt_outlined),
+                _SummaryStat(label: 'Active Clients', value: '${customerItems.length}', icon: Icons.people_alt_outlined),
                 _SummaryStat(label: 'Total Balances', value: 'TSh 3.4M', icon: Icons.account_balance_wallet_outlined),
               ],
             ),
@@ -45,10 +46,10 @@ class CustomerListScreen extends ConsumerWidget {
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              itemCount: customers.length,
+              itemCount: customerItems.length,
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                final customer = customers[index];
+                final customer = customerItems[index];
                 return _CustomerCard(customer: customer);
               },
             ),

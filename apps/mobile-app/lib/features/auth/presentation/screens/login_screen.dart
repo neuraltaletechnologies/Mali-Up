@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 80),
-                  const Center(child: MaliappLogo(size: 80)),
+                  const Center(child: MaliUpLogo(size: 80)),
                   const SizedBox(height: 80),
 
                   Text(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:animations/animations.dart';
-import '../core/onboarding_colors.dart';
+import '../../core/onboarding_colors.dart';
 import '../widgets/animated_widgets.dart';
 
 /// Premium splash screen with animated gradient background
@@ -181,7 +180,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
             ),
-          );
+          ),
         );
       },
     );
@@ -232,7 +231,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ],
             ),
-          );
+          ),
         );
       },
     );

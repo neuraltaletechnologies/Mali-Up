@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
+import '../features/onboarding/presentation/screens/onboarding_flow.dart';
 import '../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../shared/widgets/main_shell_page.dart';
 import '../features/sales/presentation/screens/sales_screen.dart';
@@ -12,6 +13,7 @@ import '../features/finance/presentation/screens/expense_list_screen.dart';
 import '../features/finance/presentation/screens/cash_flow_screen.dart';
 
 class AppRouter {
+  static const String onboardingPath = '/onboarding';
   static const String loginPath = '/login';
   static const String registerPath = '/register';
   static const String dashboardPath = '/';
@@ -24,8 +26,14 @@ class AppRouter {
   static const String settingsPath = '/settings';
 
   static final GoRouter router = GoRouter(
-    initialLocation: loginPath,
+    initialLocation: onboardingPath,
     routes: [
+      GoRoute(
+        path: onboardingPath,
+        builder: (context, state) => OnboardingFlow(
+          onComplete: () => context.go(loginPath),
+        ),
+      ),
       GoRoute(
         path: loginPath,
         builder: (context, state) => const LoginScreen(),

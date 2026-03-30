@@ -94,7 +94,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(child: MaliappLogo(size: 60)),
+              const Center(child: MaliUpLogo(size: 60)),
               const SizedBox(height: 60),
 
               Text(

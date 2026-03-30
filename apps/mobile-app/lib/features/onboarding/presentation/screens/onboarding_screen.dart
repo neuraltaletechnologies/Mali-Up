@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import '../core/onboarding_colors.dart';
-import '../models/onboarding_model.dart';
+import '../../core/onboarding_colors.dart';
+import '../../models/onboarding_model.dart';
 import '../widgets/animated_widgets.dart';
 
 /// Main onboarding experience with 4 screens
