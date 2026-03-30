@@ -5,6 +5,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../config/routing.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,9 +15,61 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _otpSent = false;
+  bool _isLoading = false;
+  String? _verificationId;
+  
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _otpController = TextEditingController();
+  final List<TextEditingController> _otpControllers = List.generate(4, (_) => TextEditingController());
+
+  Future<void> _sendOTP() async {
+    setState(() => _isLoading = true);
+    final phone = '+255${_phoneController.text.trim()}';
+    
+    await _auth.verifyPhoneNumber(
+      phoneNumber: phone,
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        await _auth.signInWithCredential(credential);
+        if (mounted) context.go(AppRouter.dashboardPath);
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Verification failed')),
+        );
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        setState(() {
+          _verificationId = verificationId;
+          _otpSent = true;
+          _isLoading = false;
+        });
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {
+        _verificationId = verificationId;
+      },
+    );
+  }
+
+  Future<void> _verifyOTP() async {
+    setState(() => _isLoading = true);
+    final smsCode = _otpControllers.map((c) => c.text).join();
+    
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: smsCode,
+      );
+      await _auth.signInWithCredential(credential);
+      if (mounted) context.go(AppRouter.dashboardPath);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid OTP')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _otpSent 
-                      ? 'We sent a code to ${_phoneController.text}' 
+                      ? 'We sent a code to +255 ${_phoneController.text}' 
                       : 'Enter your phone number to manage your business',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
@@ -69,14 +123,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 48),
 
-                  if (!_otpSent) ...[
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (!_otpSent) ...[
                     // Phone Input Section
                     TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
                       decoration: InputDecoration(
-                        hintText: 'Phone Number',
+                        hintText: '7xx xxx xxx',
                         prefixIcon: const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
@@ -92,18 +148,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 32),
                     ElevatedButton(
-                      onPressed: () => setState(() => _otpSent = true),
+                      onPressed: _sendOTP,
                       child: const Text('Send Code'),
                     ),
                   ] else ...[
                     // OTP Input Section
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(4, (index) => _OTPBox()),
+                      children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
                     ),
                     const SizedBox(height: 40),
                     ElevatedButton(
-                      onPressed: () => context.go(AppRouter.dashboardPath),
+                      onPressed: _verifyOTP,
                       child: const Text('Verify & Continue'),
                     ),
                     const SizedBox(height: 24),
@@ -145,7 +201,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+
 class _OTPBox extends StatelessWidget {
+  final TextEditingController controller;
+  const _OTPBox({required this.controller});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -156,13 +216,14 @@ class _OTPBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border, width: 2),
       ),
-      child: const Center(
+      child: Center(
         child: TextField(
+          controller: controller,
           textAlign: TextAlign.center,
           keyboardType: TextInputType.number,
           maxLength: 1,
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.secondary),
-          decoration: InputDecoration(
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.secondary),
+          decoration: const InputDecoration(
             counterText: "",
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
@@ -173,3 +234,4 @@ class _OTPBox extends StatelessWidget {
     );
   }
 }
+

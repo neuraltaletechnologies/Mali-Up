@@ -14,4 +14,24 @@ class Debt {
     required this.dueDate,
     required this.status,
   });
+  factory Debt.fromFirestore(Map<String, dynamic> data, String id) {
+    return Debt(
+      id: id,
+      partyName: data['partyName'] ?? '',
+      type: data['type'] ?? 'Receivable',
+      amount: data['amount']?.toString() ?? '0',
+      dueDate: data['dueDate'] ?? '',
+      status: data['status'] ?? 'Pending',
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'partyName': partyName,
+      'type': type,
+      'amount': amount,
+      'dueDate': dueDate,
+      'status': status,
+    };
+  }
 }
