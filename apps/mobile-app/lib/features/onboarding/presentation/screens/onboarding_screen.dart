@@ -10,9 +10,9 @@ class OnboardingScreen extends StatefulWidget {
   final VoidCallback onOnboardingComplete;
 
   const OnboardingScreen({
-    Key? key,
+    super.key,
     required this.onOnboardingComplete,
-  }) : super(key: key);
+  });
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -467,17 +467,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onTap: () {
                   // Navigate to login
                   widget.onOnboardingComplete();
-                },
-              ),
-            ] else ...[
-              // Next button
-              _buildPrimaryButton(
-                label: 'Continue',
-                onTap: () {
-                  _pageController.nextPage(
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeInOut,
-                  );
                 },
               ),
             ],
