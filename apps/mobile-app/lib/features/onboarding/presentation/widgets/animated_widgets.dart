@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Animated stateful chart widget for the "Track Money & Growth" screen
 class AnimatedChart extends StatefulWidget {
-  const AnimatedChart({Key? key}) : super(key: key);
+  const AnimatedChart({super.key});
 
   @override
   State<AnimatedChart> createState() => _AnimatedChartState();
@@ -146,11 +146,11 @@ class AnimatedFloatingIcon extends StatefulWidget {
   final double size;
 
   const AnimatedFloatingIcon({
-    Key? key,
+    super.key,
     required this.icon,
     required this.color,
     this.size = 40,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedFloatingIcon> createState() => _AnimatedFloatingIconState();
@@ -222,11 +222,11 @@ class PulsingGlowWidget extends StatefulWidget {
   final Duration duration;
 
   const PulsingGlowWidget({
-    Key? key,
+    super.key,
     required this.child,
     required this.glowColor,
     this.duration = const Duration(milliseconds: 2000),
-  }) : super(key: key);
+  });
 
   @override
   State<PulsingGlowWidget> createState() => _PulsingGlowWidgetState();
@@ -286,10 +286,10 @@ class EntranceAnimation extends StatefulWidget {
   final Duration delay;
 
   const EntranceAnimation({
-    Key? key,
+    super.key,
     required this.child,
     this.delay = Duration.zero,
-  }) : super(key: key);
+  });
 
   @override
   State<EntranceAnimation> createState() => _EntranceAnimationState();

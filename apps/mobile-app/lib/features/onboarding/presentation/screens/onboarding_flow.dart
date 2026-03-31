@@ -13,9 +13,9 @@ class OnboardingFlow extends ConsumerWidget {
   final VoidCallback onComplete;
 
   const OnboardingFlow({
-    Key? key,
+    super.key,
     required this.onComplete,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

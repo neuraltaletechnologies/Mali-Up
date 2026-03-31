@@ -8,9 +8,9 @@ class SplashScreen extends StatefulWidget {
   final VoidCallback onSplashComplete;
 
   const SplashScreen({
-    Key? key,
+    super.key,
     required this.onSplashComplete,
-  }) : super(key: key);
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -71,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: OnboardingColors.splashGradient,
+          color: OnboardingColors.white,
         ),
         child: Stack(
           children: [
@@ -114,7 +114,7 @@ class _SplashScreenState extends State<SplashScreen>
             height: 200,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: OnboardingColors.accentGreen.withOpacity(0.15),
+              color: OnboardingColors.accentGreen.withOpacity(0.08),
             ),
           ),
         ),
@@ -127,7 +127,7 @@ class _SplashScreenState extends State<SplashScreen>
             height: 250,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: OnboardingColors.white.withOpacity(0.08),
+              color: OnboardingColors.primaryDeep.withOpacity(0.05),
             ),
           ),
         ),
@@ -156,13 +156,13 @@ class _SplashScreenState extends State<SplashScreen>
                     end: Alignment.bottomRight,
                     colors: [
                       OnboardingColors.white,
-                      Color(0xFFFFFBEB),
+                      Color(0xFFFAF6F0),
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
                       color:
-                          OnboardingColors.accentGreen.withOpacity(.3),
+                          OnboardingColors.accentGreen.withOpacity(.15),
                       blurRadius: 30,
                       spreadRadius: -5,
                     ),
@@ -203,15 +203,15 @@ class _SplashScreenState extends State<SplashScreen>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        OnboardingColors.white,
-                        Color(0xFFFFF7CC),
+                        OnboardingColors.primaryDeep,
+                        OnboardingColors.accentGreen,
                       ],
                     ).createShader(bounds);
                   },
                   child: Text(
                     'MaliUp',
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: OnboardingColors.white,
+                          color: OnboardingColors.primaryDeep,
                           fontWeight: FontWeight.bold,
                           fontSize: 48,
                           letterSpacing: 1,
@@ -224,7 +224,7 @@ class _SplashScreenState extends State<SplashScreen>
                   'Smart Business Management\nfor Growing Businesses',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: OnboardingColors.white.withOpacity(0.85),
+                        color: OnboardingColors.textDark,
                         fontSize: 16,
                         height: 1.5,
                       ),
@@ -249,8 +249,8 @@ class _SplashScreenState extends State<SplashScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              OnboardingColors.primaryDeep.withOpacity(0.3),
-              OnboardingColors.primaryDeep.withOpacity(0),
+              OnboardingColors.accentGreen.withOpacity(0.08),
+              OnboardingColors.white.withOpacity(0),
             ],
           ),
         ),

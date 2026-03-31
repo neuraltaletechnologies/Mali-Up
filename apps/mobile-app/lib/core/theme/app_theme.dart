@@ -10,12 +10,10 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
-        background: AppColors.background,
         surface: AppColors.surface,
         error: AppColors.error,
         onPrimary: AppColors.secondary,
         onSecondary: AppColors.background,
-        onBackground: AppColors.textPrimary,
         onSurface: AppColors.textPrimary,
       ),
       scaffoldBackgroundColor: AppColors.background,
