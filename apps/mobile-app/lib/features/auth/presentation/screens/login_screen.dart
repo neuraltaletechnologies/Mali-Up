@@ -19,8 +19,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _verificationId;
   
-  final TextEditingController _phoneController = TextEditingController();
-  final List<TextEditingController> _otpControllers = List.generate(4, (_) => TextEditingController());
+  final TextEditingController _phoneController = TextEditingController(text: '0653520829');
+  final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
 
   Future<void> _sendOTP() async {
     setState(() => _isLoading = true);
