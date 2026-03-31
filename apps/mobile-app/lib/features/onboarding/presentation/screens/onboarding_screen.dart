@@ -18,19 +18,38 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with TickerProviderStateMixin {
   late PageController _pageController;
+  late AnimationController _exitAnimationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+  
   int _currentIndex = 0;
+  bool _isExiting = false;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    _exitAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _exitAnimationController, curve: Curves.easeInOut),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _exitAnimationController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _exitAnimationController.dispose();
     super.dispose();
   }
 
@@ -81,26 +100,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           children: [
             // Empty space for balance
             const SizedBox(width: 40),
-            // Page indicator
-            SmoothPageIndicator(
-              controller: _pageController,
-              count: onboardingPages.length,
-              effect: const CustomizableEffect(
-                activeDotDecoration: DotDecoration(
-                  width: 28,
-                  height: 8,
-                  color: OnboardingColors.primaryDeep,
-                  borderRadius: BorderRadius.all(Radius.circular(4)),
-                ),
-                dotDecoration: DotDecoration(
-                  width: 8,
-                  height: 8,
-                  color: OnboardingColors.divider,
-                  borderRadius: BorderRadius.all(Radius.circular(4)),
-                ),
-                spacing: 6,
-              ),
-            ),
             // Skip button
             if (_currentIndex < onboardingPages.length - 1)
               GestureDetector(
@@ -117,6 +116,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               )
             else
               const SizedBox(width: 40),
+            // Empty space for balance
+            const SizedBox(width: 40),
           ],
         ),
       ),
@@ -449,7 +450,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // Page indicator
+            SmoothPageIndicator(
+              controller: _pageController,
+              count: onboardingPages.length,
+              effect: const CustomizableEffect(
+                activeDotDecoration: DotDecoration(
+                  width: 28,
+                  height: 8,
+                  color: OnboardingColors.accentGreen,
+                  borderRadius: BorderRadius.all(Radius.circular(4)),
+                ),
+                dotDecoration: DotDecoration(
+                  width: 8,
+                  height: 8,
+                  color: OnboardingColors.divider,
+                  borderRadius: BorderRadius.all(Radius.circular(4)),
+                ),
+                spacing: 6,
+              ),
+            ),
+            const SizedBox(height: 32),
             // Action buttons
             if (isLastPage) ...[
               // Register button
