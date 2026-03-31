@@ -3,6 +3,10 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../config/routing.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/account_type.dart';
+import '../widgets/account_type_switcher.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -63,12 +67,110 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  AccountType _selectedAccountType = AccountType.business;
   bool _otpSent = false;
   bool _isLoading = false;
   String? _verificationId;
   
   final TextEditingController _phoneController = TextEditingController(text: '0653520829');
+  final TextEditingController _recoveryEmailController = TextEditingController();
   final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+  }
+
+  Future<void> _sendLoginLinkToEmail() async {
+    final email = _recoveryEmailController.text.trim().toLowerCase();
+
+    if (email.isEmpty) {
+      await _NotificationHelper.showError(context, 'Please enter your recovery email');
+      return;
+    }
+
+    if (!_isValidEmail(email)) {
+      await _NotificationHelper.showError(context, 'Please enter a valid email address');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final actionCodeSettings = ActionCodeSettings(
+        url: 'https://maliup.page.link/login',
+        handleCodeInApp: true,
+        androidPackageName: 'com.neuraltale.maliup',
+        androidInstallApp: true,
+        iOSBundleId: 'com.neuraltale.maliup',
+      );
+
+      await _auth.sendSignInLinkToEmail(
+        email: email,
+        actionCodeSettings: actionCodeSettings,
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('email_for_sign_in', email);
+
+      if (mounted) {
+        await _NotificationHelper.showSuccess(
+          context,
+          'Login link sent to $email. Check your inbox.',
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      final message = switch (e.code) {
+        'invalid-email' => 'This email is invalid.',
+        'missing-continue-uri' => 'Email login setup is incomplete (missing continue URL).',
+        'unauthorized-continue-uri' => 'Continue URL is not authorized in Firebase.',
+        'operation-not-allowed' => 'Email link sign-in is not enabled in Firebase.',
+        _ => 'Could not send email login link: ${e.message ?? e.code}',
+      };
+      if (mounted) {
+        await _NotificationHelper.showError(context, message);
+      }
+    } catch (e) {
+      if (mounted) {
+        await _NotificationHelper.showError(context, 'Unexpected error: ${e.toString()}');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _showEmailRecoveryDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Send Code to Email'),
+          content: TextField(
+            controller: _recoveryEmailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              hintText: 'Enter your recovery email',
+              prefixIcon: Icon(Icons.alternate_email_rounded),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _sendLoginLinkToEmail();
+              },
+              child: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> _sendOTP() async {
     final phone = _phoneController.text.trim();
@@ -97,7 +199,11 @@ class _LoginScreenState extends State<LoginScreen> {
         timeout: const Duration(seconds: 120),
         verificationCompleted: (PhoneAuthCredential credential) async {
           try {
-            await _auth.signInWithCredential(credential);
+            final userCredential = await _auth.signInWithCredential(credential);
+            final user = userCredential.user;
+            if (user != null) {
+              await _persistAccountType(user.uid);
+            }
             if (mounted) {
               await _NotificationHelper.showSuccess(context, 'Authentication successful!');
               Future.delayed(const Duration(milliseconds: 500), () {
@@ -180,7 +286,11 @@ class _LoginScreenState extends State<LoginScreen> {
         verificationId: _verificationId!,
         smsCode: smsCode,
       );
-      await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+      final user = userCredential.user;
+      if (user != null) {
+        await _persistAccountType(user.uid);
+      }
       if (mounted) {
         await _NotificationHelper.showSuccess(context, 'Verification successful!');
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -201,6 +311,34 @@ class _LoginScreenState extends State<LoginScreen> {
         await _NotificationHelper.showError(context, 'Error: ${e.toString()}');
       }
     }
+  }
+
+  Future<void> _persistAccountType(String uid) async {
+    await _firestore.collection('users').doc(uid).set({
+      'defaultAccountType': _selectedAccountType.value,
+      'accountTypes': FieldValue.arrayUnion([_selectedAccountType.value]),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_account_type', _selectedAccountType.value);
+  }
+
+  void _onAccountTypeChanged(AccountType accountType) {
+    setState(() {
+      _selectedAccountType = accountType;
+      _otpSent = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _recoveryEmailController.dispose();
+    for (final controller in _otpControllers) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -246,12 +384,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     _otpSent 
                       ? 'We sent a code to +255 ${_phoneController.text}' 
-                      : 'Enter your phone number to manage your business',
+                      : _selectedAccountType == AccountType.business
+                          ? 'Enter your phone number to manage your business'
+                          : 'Enter your phone number to manage your wealth',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 15,
                       height: 1.5,
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  AccountTypeSwitcher(
+                    selectedType: _selectedAccountType,
+                    onChanged: _onAccountTypeChanged,
                   ),
                   const SizedBox(height: 48),
 
@@ -282,6 +427,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     ElevatedButton(
                       onPressed: _sendOTP,
                       child: const Text('Send Code'),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: TextButton(
+                        onPressed: _showEmailRecoveryDialog,
+                        child: const Text(
+                          'Don\'t have my phone number',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ),
                   ] else ...[
                     // OTP Input Section
