@@ -98,7 +98,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 80),
 
               Text(
-                _otpSent ? 'Verify Phone' : 'Create Your Business',
+                _otpSent ? 'Verify Phone' : 'Manage Your Business',
                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.secondary),
               ),
               const SizedBox(height: 8),

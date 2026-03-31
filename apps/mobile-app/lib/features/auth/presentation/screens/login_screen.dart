@@ -6,6 +6,54 @@ import '../../../../config/routing.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
+// Notification helper for success/error messages
+class _NotificationHelper {
+  static Future<void> showSuccess(BuildContext context, String message) async {
+    _showNotification(context, message, Colors.green, Icons.check_circle);
+  }
+
+  static Future<void> showError(BuildContext context, String message) async {
+    _showNotification(context, message, Colors.red, Icons.error_outline);
+  }
+
+  static Future<void> showInfo(BuildContext context, String message) async {
+    _showNotification(context, message, Colors.blue, Icons.info_outline);
+  }
+
+  static void _showNotification(
+    BuildContext context,
+    String message,
+    Color color,
+    IconData icon,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: color,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -23,37 +71,109 @@ class _LoginScreenState extends State<LoginScreen> {
   final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
 
   Future<void> _sendOTP() async {
-    setState(() => _isLoading = true);
-    final phone = '+255${_phoneController.text.trim()}';
+    final phone = _phoneController.text.trim();
     
-    await _auth.verifyPhoneNumber(
-      phoneNumber: phone,
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        await _auth.signInWithCredential(credential);
-        if (mounted) context.go(AppRouter.dashboardPath);
-      },
-      verificationFailed: (FirebaseAuthException e) {
+    // Validate phone number
+    if (phone.isEmpty) {
+      if (mounted) {
+        await _NotificationHelper.showError(context, 'Please enter your phone number');
+      }
+      return;
+    }
+    
+    if (phone.length != 9) {
+      if (mounted) {
+        await _NotificationHelper.showError(context, 'Phone number must be 9 digits');
+      }
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    final fullPhone = '+255$phone';
+    
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: fullPhone,
+        timeout: const Duration(seconds: 120),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            await _auth.signInWithCredential(credential);
+            if (mounted) {
+              await _NotificationHelper.showSuccess(context, 'Authentication successful!');
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted) context.go(AppRouter.dashboardPath);
+              });
+            }
+          } catch (e) {
+            if (mounted) {
+              await _NotificationHelper.showError(context, 'Sign in failed: ${e.toString()}');
+              setState(() => _isLoading = false);
+            }
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          if (mounted) setState(() => _isLoading = false);
+          String errorMessage = _getFirebaseErrorMessage(e.code);
+          if (mounted) {
+            _NotificationHelper.showError(context, errorMessage);
+          }
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          if (mounted) {
+            setState(() {
+              _verificationId = verificationId;
+              _otpSent = true;
+              _isLoading = false;
+            });
+            _NotificationHelper.showSuccess(context, 'Code sent to $fullPhone');
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          setState(() {
+            _verificationId = verificationId;
+          });
+        },
+      );
+    } catch (e) {
+      if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Verification failed')),
-        );
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        setState(() {
-          _verificationId = verificationId;
-          _otpSent = true;
-          _isLoading = false;
-        });
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        _verificationId = verificationId;
-      },
-    );
+        await _NotificationHelper.showError(context, 'Error: ${e.toString()}');
+      }
+    }
+  }
+
+  String _getFirebaseErrorMessage(String errorCode) {
+    switch (errorCode) {
+      case 'invalid-phone-number':
+        return 'Invalid phone number format';
+      case 'missing-client-identifier':
+        return 'API configuration error. Please contact support.';
+      case 'invalid-api-key':
+        return 'API key not configured. Please contact support.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      case 'app-not-authorized':
+        return 'App not authorized for phone authentication';
+      case 'operation-not-allowed':
+        return 'Phone authentication is not enabled';
+      case 'network-request-failed':
+        return 'Network error. Please check your connection.';
+      default:
+        return 'Verification failed: $errorCode. Please try again.';
+    }
   }
 
   Future<void> _verifyOTP() async {
     setState(() => _isLoading = true);
     final smsCode = _otpControllers.map((c) => c.text).join();
+    
+    if (smsCode.length != 4 || smsCode.contains(' ')) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        await _NotificationHelper.showError(context, 'Please enter all 4 digits');
+      }
+      return;
+    }
     
     try {
       final credential = PhoneAuthProvider.credential(
@@ -61,12 +181,25 @@ class _LoginScreenState extends State<LoginScreen> {
         smsCode: smsCode,
       );
       await _auth.signInWithCredential(credential);
-      if (mounted) context.go(AppRouter.dashboardPath);
+      if (mounted) {
+        await _NotificationHelper.showSuccess(context, 'Verification successful!');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) context.go(AppRouter.dashboardPath);
+        });
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() => _isLoading = false);
+      String errorMessage = e.code == 'invalid-verification-code'
+          ? 'Invalid OTP. Please check and try again.'
+          : 'Verification failed: ${e.message}';
+      if (mounted) {
+        await _NotificationHelper.showError(context, errorMessage);
+      }
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid OTP')),
-      );
+      if (mounted) {
+        await _NotificationHelper.showError(context, 'Error: ${e.toString()}');
+      }
     }
   }
 
