@@ -94,8 +94,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(child: MaliUpLogo(size: 60)),
-              const SizedBox(height: 60),
+                  const SizedBox(height: 80),
+                  const Center(child: MaliUpLogo(size: 80)),
+                  const SizedBox(height: 80),
 
               Text(
                 _otpSent ? 'Verify Phone' : 'Create Your Business',
