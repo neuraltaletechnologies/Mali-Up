@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../core/onboarding_colors.dart';
 import '../../models/onboarding_model.dart';
 import '../widgets/animated_widgets.dart';
+import '../../../../shared/widgets/logo.dart';
 
 /// Main onboarding experience with 4 screens
 /// Includes smooth page transitions and page indicators
@@ -27,6 +29,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   
   int _currentIndex = 0;
   bool _isExiting = false;
+  late Timer _autoAdvanceTimer;
 
   @override
   void initState() {
@@ -44,12 +47,30 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(parent: _exitAnimationController, curve: Curves.easeInOut),
     );
+
+    // Start auto-advance timer (5 seconds per page)
+    _startAutoAdvance();
+  }
+
+  void _startAutoAdvance() {
+    _autoAdvanceTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_currentIndex < onboardingPages.length - 1) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      } else {
+        // Stop auto-advance on last page
+        _autoAdvanceTimer.cancel();
+      }
+    });
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     _exitAnimationController.dispose();
+    _autoAdvanceTimer.cancel();
     super.dispose();
   }
 
@@ -71,14 +92,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             },
           ),
 
-          // Header with skip button
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _buildHeader(),
-          ),
-
           // Bottom controls
           Positioned(
             bottom: 0,
@@ -91,39 +104,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildHeader() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Empty space for balance
-            const SizedBox(width: 40),
-            // Skip button
-            if (_currentIndex < onboardingPages.length - 1)
-              GestureDetector(
-                onTap: () {
-                  _pageController.jumpToPage(onboardingPages.length - 1);
-                },
-                child: Text(
-                  'Skip',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: OnboardingColors.textLight,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              )
-            else
-              const SizedBox(width: 40),
-            // Empty space for balance
-            const SizedBox(width: 40),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildOnboardingPage(OnboardingPage page) {
     return SingleChildScrollView(
       child: Container(
@@ -132,6 +112,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Logo at top
+            const SizedBox(height: 20),
+            const Center(child: MaliUpLogo(size: 60)),
+            const SizedBox(height: 40),
             // Icon/Emoji with animation
             EntranceAnimation(
               delay: Duration.zero,
@@ -452,6 +436,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Skip button (if not on last page)
+            if (!isLastPage)
+              Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: () {
+                    _autoAdvanceTimer.cancel();
+                    _pageController.jumpToPage(onboardingPages.length - 1);
+                  },
+                  child: Text(
+                    'Skip',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: OnboardingColors.textLight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
             // Page indicator
             SmoothPageIndicator(
               controller: _pageController,
