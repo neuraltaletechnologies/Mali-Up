@@ -1,68 +1,95 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../core/onboarding_colors.dart';
-import '../widgets/animated_widgets.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../config/routing.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/logo.dart';
 
-/// Premium splash screen with animated gradient background
-/// Displays MaliUp branding and smooth transition to onboarding
 class SplashScreen extends StatefulWidget {
-  final VoidCallback onSplashComplete;
-
-  const SplashScreen({
-    super.key,
-    required this.onSplashComplete,
-  });
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _logoAnimation;
-  late Animation<double> _taglineAnimation;
+    with TickerProviderStateMixin {
+  late AnimationController _logoAnimationController;
+  late Animation<double> _logoScaleAnimation;
+  late Animation<double> _logoFadeAnimation;
+
+  late AnimationController _taglineAnimationController;
+  late Animation<Offset> _taglineSlideAnimation;
+  late Animation<double> _taglineFadeAnimation;
 
   @override
   void initState() {
     super.initState();
     _setupAnimations();
-    _scheduleNavigation();
+    _navigateToNextScreen();
   }
 
   void _setupAnimations() {
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+    // Logo animation: scale and fade in
+    _logoAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-
-    _logoAnimation = Tween<double>(begin: 0, end: 1).animate(
+    _logoScaleAnimation = CurvedAnimation(
+      parent: _logoAnimationController,
+      curve: Curves.easeOutBack,
+    );
+    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+        parent: _logoAnimationController,
+        curve: const Interval(0.0, 0.7),
       ),
     );
 
-    _taglineAnimation = Tween<double>(begin: 0, end: 1).animate(
+    // Tagline animation: slide up and fade in
+    _taglineAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
+    _taglineSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _taglineAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+    _taglineFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.4, 1.0, curve: Curves.easeInOut),
+        parent: _taglineAnimationController,
+        curve: const Interval(0.2, 1.0),
       ),
     );
 
-    _animationController.forward();
+    // Start animations with a delay
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        _logoAnimationController.forward();
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _taglineAnimationController.forward();
+          }
+        });
+      }
+    });
   }
 
-  void _scheduleNavigation() {
-    Future.delayed(const Duration(milliseconds: 3500), () {
+  void _navigateToNextScreen() {
+    Timer(const Duration(seconds: 4), () {
       if (mounted) {
-        widget.onSplashComplete();
+        context.go(AppRouter.onboardingPath);
       }
     });
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _logoAnimationController.dispose();
+    _taglineAnimationController.dispose();
     super.dispose();
   }
 
@@ -71,187 +98,51 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          color: OnboardingColors.white,
+          gradient: LinearGradient(
+            colors: [AppColors.secondary, AppColors.secondaryLight],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
-        child: Stack(
-          children: [
-            // Animated background circles (decorative)
-            _buildBackgroundDecorations(),
-
-            // Main content
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo area with pulsing glow
-                  _buildLogoSection(),
-
-                  const SizedBox(height: 40),
-
-                  // Tagline with fade animation
-                  _buildTaglineSection(),
-                ],
-              ),
-            ),
-
-            // Bottom accent
-            _buildBottomAccent(),
-          ],
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildLogoSection(),
+              const SizedBox(height: 24),
+              _buildTaglineSection(),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBackgroundDecorations() {
-    return Stack(
-      children: [
-        // Top right circle
-        Positioned(
-          top: -80,
-          right: -80,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: OnboardingColors.accentGreen.withOpacity(0.08),
-            ),
-          ),
-        ),
-        // Bottom left circle
-        Positioned(
-          bottom: -100,
-          left: -100,
-          child: Container(
-            width: 250,
-            height: 250,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: OnboardingColors.primaryDeep.withOpacity(0.05),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildLogoSection() {
-    return AnimatedBuilder(
-      animation: _logoAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: 0.7 + (0.3 * _logoAnimation.value),
-          child: Opacity(
-            opacity: _logoAnimation.value,
-            child: PulsingGlowWidget(
-              glowColor: OnboardingColors.accentGreen,
-              duration: const Duration(milliseconds: 2000),
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      OnboardingColors.white,
-                      Color(0xFFFAF6F0),
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color:
-                          OnboardingColors.accentGreen.withOpacity(.15),
-                      blurRadius: 30,
-                      spreadRadius: -5,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    '📱',
-                    style:
-                        Theme.of(context).textTheme.displaySmall?.copyWith(
-                              fontSize: 60,
-                            ) ??
-                            const TextStyle(fontSize: 60),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+    return FadeTransition(
+      opacity: _logoFadeAnimation,
+      child: ScaleTransition(
+        scale: _logoScaleAnimation,
+        child: const MaliUpLogo(
+          size: 120,
+          light: true, // Use light version of the logo for dark background
+        ),
+      ),
     );
   }
 
   Widget _buildTaglineSection() {
-    return AnimatedBuilder(
-      animation: _taglineAnimation,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _taglineAnimation.value,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Column(
-              children: [
-                // App name
-                ShaderMask(
-                  shaderCallback: (bounds) {
-                    return const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        OnboardingColors.primaryDeep,
-                        OnboardingColors.accentGreen,
-                      ],
-                    ).createShader(bounds);
-                  },
-                  child: Text(
-                    'MaliUp',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: OnboardingColors.primaryDeep,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 48,
-                          letterSpacing: 1,
-                        ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Tagline
-                Text(
-                  'Smart Business Management\nfor Growing Businesses',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: OnboardingColors.textDark,
-                        fontSize: 16,
-                        height: 1.5,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBottomAccent() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        height: 120,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              OnboardingColors.accentGreen.withOpacity(0.08),
-              OnboardingColors.white.withOpacity(0),
-            ],
+    return FadeTransition(
+      opacity: _taglineFadeAnimation,
+      child: SlideTransition(
+        position: _taglineSlideAnimation,
+        child: const Text(
+          'Your Business, Simplified.',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: AppColors.primary,
+            letterSpacing: 0.5,
           ),
         ),
       ),
