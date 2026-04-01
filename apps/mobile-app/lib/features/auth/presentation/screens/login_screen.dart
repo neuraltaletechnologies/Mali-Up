@@ -13,15 +13,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 // Notification helper for success/error messages
 class _NotificationHelper {
   static Future<void> showSuccess(BuildContext context, String message) async {
-    _showNotification(context, message, Colors.green, Icons.check_circle);
+    _showNotification(context, message, AppColors.success, Icons.check_circle_outline_rounded);
   }
 
   static Future<void> showError(BuildContext context, String message) async {
-    _showNotification(context, message, Colors.red, Icons.error_outline);
+    _showNotification(context, message, AppColors.error, Icons.error_outline_rounded);
   }
 
   static Future<void> showInfo(BuildContext context, String message) async {
-    _showNotification(context, message, Colors.blue, Icons.info_outline);
+    _showNotification(context, message, AppColors.info, Icons.info_outline_rounded);
   }
 
   static void _showNotification(
@@ -52,7 +52,7 @@ class _NotificationHelper {
         duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -146,7 +146,8 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Send Code to Email'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Recover via Email'),
           content: TextField(
             controller: _recoveryEmailController,
             keyboardType: TextInputType.emailAddress,
@@ -165,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Navigator.of(context).pop();
                 _sendLoginLinkToEmail();
               },
-              child: const Text('Send'),
+              child: const Text('Send Link'),
             ),
           ],
         );
@@ -176,15 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _sendOTP() async {
     final phone = _phoneController.text.trim();
     
-    // Validate phone number
-    if (phone.isEmpty) {
-      if (mounted) {
-        await _NotificationHelper.showError(context, 'Please enter your phone number');
-      }
-      return;
-    }
-    
-    if (phone.length != 9) {
+    if (phone.isEmpty || phone.length != 9) {
       if (mounted) {
         await _NotificationHelper.showError(context, 'Phone number must be 9 digits');
       }
@@ -254,9 +247,8 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'invalid-phone-number':
         return 'Invalid phone number format';
       case 'missing-client-identifier':
-        return 'API configuration error. Please contact support.';
       case 'invalid-api-key':
-        return 'API key not configured. Please contact support.';
+        return 'API configuration error. Please contact support.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
       case 'app-not-authorized':
@@ -277,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (smsCode.length != 4 || smsCode.contains(' ')) {
       setState(() => _isLoading = false);
       if (mounted) {
-        await _NotificationHelper.showError(context, 'Please enter all 4 digits');
+        await _NotificationHelper.showError(context, 'Please enter all 4 digits of the OTP');
       }
       return;
     }
@@ -333,7 +325,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _useCustomerPhone() {
-    // Keep local 9-digit format because +255 is already shown in UI.
     const localPhone = '653520829';
     setState(() {
       _phoneController.text = localPhone;
@@ -359,200 +350,220 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Minimalist Background Accents
-          Positioned(
-            top: -150,
-            right: -100,
-            child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.05),
-              ),
-            ),
-          ),
-
-          Positioned(
-            top: 12,
-            right: 12,
-            child: SafeArea(
-              child: Material(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(999),
-                child: IconButton(
-                  tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
-                  onPressed: _useCustomerPhone,
-                  icon: const Icon(
-                    Icons.support_agent_rounded,
-                    color: AppColors.secondary,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 80),
-                  const Center(child: MaliUpLogo(size: 80)),
-                  const SizedBox(height: 80),
-
-                  Text(
-                    _otpSent ? 'Verification' : 'Welcome to Mali Up',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.secondary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _otpSent 
-                      ? 'We sent a code to +255 ${_phoneController.text}' 
-                      : _selectedAccountType == AccountType.business
-                          ? 'Enter your phone number to manage your business'
-                          : 'Enter your phone number to manage your wealth',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 15,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  AccountTypeSwitcher(
-                    selectedType: _selectedAccountType,
-                    onChanged: _onAccountTypeChanged,
-                  ),
-                  const SizedBox(height: 48),
-
-                  if (_isLoading)
-                    const Center(child: CircularProgressIndicator())
-                  else if (!_otpSent) ...[
-                    // Phone Input Section
-                    TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
-                      decoration: InputDecoration(
-                        hintText: '7xx xxx xxx',
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('🇹🇿', style: TextStyle(fontSize: 20)),
-                              SizedBox(width: 8),
-                              Text('+255', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: _sendOTP,
-                      child: const Text('Send Code'),
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: TextButton(
-                        onPressed: _showEmailRecoveryDialog,
-                        child: const Text(
-                          'Don\'t have my phone number',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ] else ...[
-                    // OTP Input Section
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
-                    ),
-                    const SizedBox(height: 40),
-                    ElevatedButton(
-                      onPressed: _verifyOTP,
-                      child: const Text('Verify & Continue'),
-                    ),
-                    const SizedBox(height: 24),
-                    Center(
-                      child: TextButton(
-                        onPressed: () => setState(() => _otpSent = false),
-                        child: const Text(
-                          'Change Number',
-                          style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 60),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "Don't have an account?",
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                      TextButton(
-                        onPressed: () => context.push(AppRouter.registerPath),
-                        child: const Text(
-                          'Join Mali Up',
-                          style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
+            onPressed: _useCustomerPhone,
+            icon: const Icon(
+              Icons.support_agent_rounded,
+              color: AppColors.secondary,
             ),
           ),
         ],
       ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 20),
+              const Center(child: MaliUpLogo(size: 60)),
+              const SizedBox(height: 40),
+
+              // --- Header Text ---
+              Text(
+                _otpSent ? 'Enter Code' : 'Welcome Back',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.secondary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _otpSent 
+                  ? 'We sent a 4-digit code to +255 ${_phoneController.text}' 
+                  : 'Login to your ${_selectedAccountType.value} account.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // --- Account Type Switcher ---
+              AccountTypeSwitcher(
+                selectedType: _selectedAccountType,
+                onChanged: _onAccountTypeChanged,
+              ),
+              const SizedBox(height: 32),
+
+              // --- Animated Form Body ---
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.0, 0.1),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: _isLoading
+                    ? const Center(key: ValueKey('loader'), child: CircularProgressIndicator())
+                    : _otpSent
+                        ? _buildOtpForm(key: const ValueKey('otpForm'))
+                        : _buildPhoneForm(key: const ValueKey('phoneForm')),
+              ),
+              
+              const SizedBox(height: 40),
+              _buildFooter(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhoneForm({required Key key}) {
+    return Column(
+      key: key,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
+          decoration: InputDecoration(
+            hintText: '7xx xxx xxx',
+            prefixIcon: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('🇹🇿', style: TextStyle(fontSize: 24)),
+                  SizedBox(width: 8),
+                  Text('+255', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: _sendOTP,
+          child: const Text('Send Code'),
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton(
+            onPressed: _showEmailRecoveryDialog,
+            child: const Text(
+              'Use email instead',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOtpForm({required Key key}) {
+    return Column(
+      key: key,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
+        ),
+        const SizedBox(height: 32),
+        ElevatedButton(
+          onPressed: _verifyOTP,
+          child: const Text('Verify & Continue'),
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton(
+            onPressed: () => setState(() => _otpSent = false),
+            child: const Text(
+              'Change Number',
+              style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooter() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          "Don't have an account?",
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        TextButton(
+          onPressed: () => context.push(AppRouter.registerPath),
+          child: const Text(
+            'Join Mali Up',
+            style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 }
 
-
 class _OTPBox extends StatelessWidget {
   final TextEditingController controller;
   const _OTPBox({required this.controller});
-
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 65,
       height: 70,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 2),
-      ),
-      child: Center(
-        child: TextField(
-          controller: controller,
-          textAlign: TextAlign.center,
-          keyboardType: TextInputType.number,
-          maxLength: 1,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.secondary),
-          decoration: const InputDecoration(
-            counterText: "",
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
+      child: TextField(
+        controller: controller,
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.number,
+        maxLength: 1,
+        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.secondary),
+        decoration: InputDecoration(
+          counterText: "",
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: AppColors.border, width: 2),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: AppColors.border, width: 2),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: AppColors.secondary, width: 2),
           ),
         ),
+        onChanged: (value) {
+          if (value.length == 1) {
+            FocusScope.of(context).nextFocus();
+          }
+        },
       ),
     );
   }
