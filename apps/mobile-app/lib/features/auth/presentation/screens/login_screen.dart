@@ -68,6 +68,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const String _customerPhoneWithCountryCode = '255653520829';
   AccountType _selectedAccountType = AccountType.business;
   bool _otpSent = false;
   bool _isLoading = false;
@@ -331,6 +332,19 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  void _useCustomerPhone() {
+    // Keep local 9-digit format because +255 is already shown in UI.
+    const localPhone = '653520829';
+    setState(() {
+      _phoneController.text = localPhone;
+      _otpSent = false;
+    });
+    _NotificationHelper.showInfo(
+      context,
+      'Customer number loaded: +$_customerPhoneWithCountryCode',
+    );
+  }
+
   @override
   void dispose() {
     _phoneController.dispose();
@@ -357,6 +371,25 @@ class _LoginScreenState extends State<LoginScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.primary.withOpacity(0.05),
+              ),
+            ),
+          ),
+
+          Positioned(
+            top: 12,
+            right: 12,
+            child: SafeArea(
+              child: Material(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(999),
+                child: IconButton(
+                  tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
+                  onPressed: _useCustomerPhone,
+                  icon: const Icon(
+                    Icons.support_agent_rounded,
+                    color: AppColors.secondary,
+                  ),
+                ),
               ),
             ),
           ),
