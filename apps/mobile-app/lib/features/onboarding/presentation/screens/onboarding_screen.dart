@@ -5,7 +5,6 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../core/onboarding_colors.dart';
 import '../../models/onboarding_model.dart';
 import '../widgets/animated_widgets.dart';
-import '../../../../shared/widgets/logo.dart';
 import '../../../../core/services/localization_service.dart';
 
 /// Main onboarding experience with 4 screens
@@ -170,26 +169,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo at top
-            const SizedBox(height: 20),
-            const Center(child: MaliUpLogo(size: 60)),
-            const SizedBox(height: 22),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: OnboardingColors.white,
-                borderRadius: BorderRadius.circular(100),
-                border: Border.all(color: OnboardingColors.divider),
-              ),
-              child: Text(
-                _tr('Step ${page.index + 1} of ${onboardingPages.length}', 'Hatua ${page.index + 1} ya ${onboardingPages.length}'),
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: OnboardingColors.textLight,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 12),
             // Icon/Emoji with animation
             EntranceAnimation(
               delay: Duration.zero,
@@ -238,45 +218,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Widget _buildIconSection(OnboardingPage page) {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: page.index.isEven
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  OnboardingColors.lightBlue,
-                  Color(0xFFFFFFFF),
-                ],
-              )
-            : const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  OnboardingColors.lightGreen,
-                  Color(0xFFFFFDF0),
-                ],
-              ),
-        boxShadow: [
-          BoxShadow(
-            color: (page.index.isEven
-                    ? OnboardingColors.primaryDeep
-                    : OnboardingColors.accentGreen)
-                .withValues(alpha: 0.15),
-            blurRadius: 20,
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          page.emoji ?? '🚀',
-          style: const TextStyle(fontSize: 50),
-        ),
-      ),
+    return Text(
+      page.emoji ?? '🚀',
+      style: const TextStyle(fontSize: 56),
     );
   }
 
@@ -286,18 +230,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       height: 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            OnboardingColors.lightBlue,
-            Color(0xFFFFFFFF),
-          ],
-        ),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: OnboardingColors.primaryDeep.withValues(alpha: 0.2),
-          width: 1.5,
+          color: Colors.transparent,
+          width: 0,
         ),
       ),
       child: Column(
@@ -379,30 +316,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       height: 200,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            OnboardingColors.lightGreen,
-            Color(0xFFFFFDF0),
-          ],
-        ),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: OnboardingColors.accentGreen.withValues(alpha: 0.2),
-          width: 1.5,
+          color: Colors.transparent,
+          width: 0,
         ),
       ),
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Cloud icon
           Icon(
             Icons.cloud_sync_rounded,
             size: 80,
             color: OnboardingColors.accentGreen.withValues(alpha: 0.4),
           ),
-          // Mobile device
           Positioned(
             bottom: 20,
             child: Container(
@@ -416,7 +344,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   width: 2,
                 ),
               ),
-              child: Center(
+              child: const Center(
                 child: Icon(
                   Icons.check_circle,
                   color: OnboardingColors.accentGreen,
@@ -436,61 +364,48 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       height: 200,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFFDF0),
-            Color(0xFFFFFFFF),
-          ],
-        ),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: OnboardingColors.primaryDeep.withValues(alpha: 0.2),
-          width: 1.5,
+          color: Colors.transparent,
+          width: 0,
         ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.rocket_launch_rounded,
-            size: 60,
-            color: OnboardingColors.primaryDeep,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Ready to Launch?',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: OnboardingColors.primaryDeep,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _tr(
-              'Ready to Launch?',
-              'Tayari Kuanza?',
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.rocket_launch_rounded,
+              size: 60,
+              color: OnboardingColors.primaryDeep,
             ),
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: OnboardingColors.primaryDeep,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _tr(
-              'Take control of your business',
-              'Chukua udhibiti wa biashara yako',
+            const SizedBox(height: 16),
+            Text(
+              _tr(
+                'Ready to Launch?',
+                'Tayari Kuanza?',
+              ),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: OnboardingColors.primaryDeep,
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: OnboardingColors.textLight,
-                ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              _tr(
+                'Take control of your business',
+                'Chukua udhibiti wa biashara yako',
+              ),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: OnboardingColors.textLight,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }

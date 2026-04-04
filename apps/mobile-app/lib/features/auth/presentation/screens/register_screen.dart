@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'dart:async';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
@@ -11,6 +12,20 @@ import '../widgets/privacy_policy.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+class _PhoneAuthPrecheckResult {
+  final bool isReady;
+  final String title;
+  final String message;
+  final List<String> fixes;
+
+  const _PhoneAuthPrecheckResult({
+    required this.isReady,
+    required this.title,
+    required this.message,
+    this.fixes = const [],
+  });
+}
 
 enum AccountManagementType {
   personal,
@@ -77,6 +92,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   ];
 
   String _businessCategoryKey = 'retail';
+  bool _phoneAuthReady = false;
 
   @override
   void initState() {
@@ -98,6 +114,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   String _getPhoneAuthErrorMessage(String code, String? fallbackMessage) {
+    final raw = (fallbackMessage ?? '').toUpperCase();
     switch (code) {
       case 'operation-not-allowed':
         return _tr(
@@ -112,9 +129,253 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return _tr('SMS quota exceeded. Check Firebase usage and billing.', 'Kikomo cha SMS kimefikiwa. Angalia matumizi na malipo ya Firebase.');
       case 'network-request-failed':
         return _tr('Network error. Check your internet connection.', 'Hitilafu ya mtandao. Angalia muunganisho wa intaneti.');
+      case 'internal-error':
+        if (raw.contains('BILLING_NOT_ENABLED')) {
+          return _tr(
+            'Firebase billing is not enabled. Enable billing in Google Cloud/Firebase to send SMS OTP.',
+            'Billing ya Firebase haijawashwa. Washa billing kwenye Google Cloud/Firebase ili kutuma SMS OTP.',
+          );
+        }
+        if (raw.contains('REGION') || raw.contains('SMS UNABLE TO BE SENT')) {
+          return _tr(
+            'SMS region policy blocks this phone region. Enable Tanzania (+255) in Firebase Auth > Settings > SMS region policy.',
+            'Sera ya eneo la SMS imezuia eneo hili. Washa Tanzania (+255) kwenye Firebase Auth > Settings > SMS region policy.',
+          );
+        }
+        return _tr('Internal auth error. Check Firebase Auth and billing settings.', 'Hitilafu ya ndani ya uthibitishaji. Angalia mipangilio ya Firebase Auth na billing.');
       default:
         return fallbackMessage ?? _tr('Phone verification failed.', 'Uthibitishaji wa simu umeshindikana.');
     }
+  }
+
+  _PhoneAuthPrecheckResult _buildPrecheckFailure(String code, String? fallbackMessage) {
+    final raw = (fallbackMessage ?? '').toUpperCase();
+
+    if (code == 'operation-not-allowed') {
+      return _PhoneAuthPrecheckResult(
+        isReady: false,
+        title: _tr('Phone Auth Not Enabled', 'Phone Auth Haijawashwa'),
+        message: _getPhoneAuthErrorMessage(code, fallbackMessage),
+        fixes: [
+          _tr('Open Firebase Console > Authentication > Sign-in method.', 'Fungua Firebase Console > Authentication > Sign-in method.'),
+          _tr('Enable Phone provider and Save.', 'Washa Phone provider kisha Save.'),
+        ],
+      );
+    }
+
+    if (code == 'internal-error' && raw.contains('BILLING_NOT_ENABLED')) {
+      return _PhoneAuthPrecheckResult(
+        isReady: false,
+        title: _tr('Billing Required For SMS', 'Billing Inahitajika kwa SMS'),
+        message: _getPhoneAuthErrorMessage(code, fallbackMessage),
+        fixes: [
+          _tr('Open Google Cloud Console for this Firebase project.', 'Fungua Google Cloud Console kwa mradi huu wa Firebase.'),
+          _tr('Enable billing account for project neuraltale-mali-up.', 'Washa billing account kwa mradi neuraltale-mali-up.'),
+          _tr('In Firebase Auth settings, verify SMS region policy allows +255.', 'Kwenye Firebase Auth settings, hakikisha SMS region policy inaruhusu +255.'),
+        ],
+      );
+    }
+
+    if ((code == 'internal-error' && (raw.contains('REGION') || raw.contains('SMS UNABLE TO BE SENT')))) {
+      return _PhoneAuthPrecheckResult(
+        isReady: false,
+        title: _tr('SMS Region Blocked', 'Eneo la SMS Limezuiwa'),
+        message: _getPhoneAuthErrorMessage(code, fallbackMessage),
+        fixes: [
+          _tr('Open Firebase Console > Authentication > Settings.', 'Fungua Firebase Console > Authentication > Settings.'),
+          _tr('Set SMS region policy to include Tanzania (+255).', 'Weka SMS region policy ijumuisha Tanzania (+255).'),
+        ],
+      );
+    }
+
+    if (code == 'network-request-failed') {
+      return _PhoneAuthPrecheckResult(
+        isReady: false,
+        title: _tr('Network Check Failed', 'Ukaguzi wa Mtandao Umeshindikana'),
+        message: _getPhoneAuthErrorMessage(code, fallbackMessage),
+        fixes: [
+          _tr('Check internet connection.', 'Angalia muunganisho wa intaneti.'),
+          _tr('Retry readiness check.', 'Jaribu tena ukaguzi wa utayari.'),
+        ],
+      );
+    }
+
+    return _PhoneAuthPrecheckResult(
+      isReady: false,
+      title: _tr('Phone Auth Readiness Failed', 'Utayari wa Phone Auth Umeshindikana'),
+      message: _getPhoneAuthErrorMessage(code, fallbackMessage),
+      fixes: [
+        _tr('Confirm Phone provider is enabled in Firebase Auth.', 'Hakikisha Phone provider imewashwa kwenye Firebase Auth.'),
+        _tr('Confirm billing is enabled for SMS.', 'Hakikisha billing imewashwa kwa SMS.'),
+      ],
+    );
+  }
+
+  Future<_PhoneAuthPrecheckResult> _runPhoneAuthReadinessCheck() async {
+    final completer = Completer<_PhoneAuthPrecheckResult>();
+    var done = false;
+
+    void finish(_PhoneAuthPrecheckResult result) {
+      if (!done && !completer.isCompleted) {
+        done = true;
+        completer.complete(result);
+      }
+    }
+
+    try {
+      await _auth.verifyPhoneNumber(
+        // Probe number: intentionally non-real to avoid sending SMS.
+        phoneNumber: '+255000000000',
+        timeout: const Duration(seconds: 8),
+        verificationCompleted: (_) {
+          finish(_PhoneAuthPrecheckResult(
+            isReady: true,
+            title: _tr('Phone Auth Ready', 'Phone Auth Iko Tayari'),
+            message: _tr('Firebase Phone Auth is configured correctly.', 'Firebase Phone Auth imepangwa sawa.'),
+          ));
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          if (e.code == 'invalid-phone-number') {
+            finish(_PhoneAuthPrecheckResult(
+              isReady: true,
+              title: _tr('Phone Auth Ready', 'Phone Auth Iko Tayari'),
+              message: _tr(
+                'Configuration check passed. You can continue to send OTP to real numbers.',
+                'Ukaguzi wa mpangilio umefaulu. Unaweza kuendelea kutuma OTP kwa namba halisi.',
+              ),
+            ));
+            return;
+          }
+
+          finish(_buildPrecheckFailure(e.code, e.message));
+        },
+        codeSent: (_, resendToken) {
+          finish(_PhoneAuthPrecheckResult(
+            isReady: true,
+            title: _tr('Phone Auth Ready', 'Phone Auth Iko Tayari'),
+            message: _tr('Phone verification service is reachable.', 'Huduma ya uthibitishaji wa simu inapatikana.'),
+          ));
+        },
+        codeAutoRetrievalTimeout: (_) {
+          finish(_PhoneAuthPrecheckResult(
+            isReady: true,
+            title: _tr('Phone Auth Ready', 'Phone Auth Iko Tayari'),
+            message: _tr('Readiness check completed.', 'Ukaguzi wa utayari umekamilika.'),
+          ));
+        },
+      );
+    } catch (e) {
+      finish(_PhoneAuthPrecheckResult(
+        isReady: false,
+        title: _tr('Readiness Check Failed', 'Ukaguzi wa Utayari Umeshindikana'),
+        message: _tr('Unexpected error: ${e.toString()}', 'Hitilafu isiyotarajiwa: ${e.toString()}'),
+      ));
+    }
+
+    return completer.future.timeout(
+      const Duration(seconds: 12),
+      onTimeout: () => _PhoneAuthPrecheckResult(
+        isReady: false,
+        title: _tr('Check Timed Out', 'Ukaguzi Umeishiwa Muda'),
+        message: _tr('Could not verify Firebase phone auth readiness in time.', 'Haikuwezekana kuthibitisha utayari wa Firebase phone auth kwa muda.'),
+      ),
+    );
+  }
+
+  Future<bool> _showPhoneAuthPrecheckScreen() async {
+    final result = await _runPhoneAuthReadinessCheck();
+    if (!mounted) return false;
+
+    return await showModalBottomSheet<bool>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) {
+            return Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        result.isReady ? Icons.check_circle : Icons.warning_amber_rounded,
+                        color: result.isReady ? Colors.green : Colors.orange,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          result.title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    result.message,
+                    style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+                  ),
+                  if (result.fixes.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      _tr('Recommended Fix Steps:', 'Hatua za Marekebisho Zinazopendekezwa:'),
+                      style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.secondary),
+                    ),
+                    const SizedBox(height: 8),
+                    ...result.fixes.map((step) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text('• $step', style: const TextStyle(color: AppColors.textSecondary)),
+                        )),
+                  ],
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: Text(_tr('Close', 'Funga')),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: result.isReady ? () => Navigator.of(context).pop(true) : null,
+                          child: Text(_tr('Continue', 'Endelea')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ) ??
+        false;
+  }
+
+  Future<void> _precheckAndSendOtp() async {
+    if (_phoneAuthReady) {
+      await _sendRegistrationOTP();
+      return;
+    }
+
+    final ready = await _showPhoneAuthPrecheckScreen();
+    if (!ready) return;
+
+    setState(() => _phoneAuthReady = true);
+    await _sendRegistrationOTP();
   }
 
   String _businessCategoryLabel(String key) {
@@ -645,7 +906,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             const SizedBox(height: 32),
                             ElevatedButton(
                               onPressed: (_agreedToTerms && !_isLoading)
-                                  ? _sendRegistrationOTP
+                                  ? _precheckAndSendOtp
                                   : null,
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
