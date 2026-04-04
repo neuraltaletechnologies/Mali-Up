@@ -11,21 +11,22 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  AppLanguage? _selectedLanguage;
-  bool _isLoadingLanguage = true;
+  late final VoidCallback _languageListener;
+  AppLanguage? _selectedLanguage = LocalizationService.languageNotifier.value;
+  bool _isLoadingLanguage = false;
 
   @override
   void initState() {
     super.initState();
-    _loadLanguage();
-  }
-
-  Future<void> _loadLanguage() async {
-    final language = await LocalizationService.getLanguage();
-    setState(() {
-      _selectedLanguage = language;
-      _isLoadingLanguage = false;
-    });
+    _languageListener = () {
+      if (mounted) {
+        setState(() {
+          _selectedLanguage = LocalizationService.languageNotifier.value;
+          _isLoadingLanguage = false;
+        });
+      }
+    };
+    LocalizationService.languageNotifier.addListener(_languageListener);
   }
 
   Future<void> _changeLanguage(AppLanguage language) async {
@@ -44,6 +45,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    LocalizationService.languageNotifier.removeListener(_languageListener);
+    super.dispose();
   }
 
   @override

@@ -26,42 +26,31 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     with TickerProviderStateMixin {
   late PageController _pageController;
   late AnimationController _exitAnimationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+  late final VoidCallback _languageListener;
   late AppLanguage _language;
   
   int _currentIndex = 0;
-  bool _isExiting = false;
   late Timer _autoAdvanceTimer;
   bool _timerActive = false;
 
   @override
   void initState() {
     super.initState();
-    _loadLanguage();
+    _language = LocalizationService.languageNotifier.value;
+    _languageListener = () {
+      if (mounted) {
+        setState(() => _language = LocalizationService.languageNotifier.value);
+      }
+    };
+    LocalizationService.languageNotifier.addListener(_languageListener);
     _pageController = PageController();
     _exitAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _exitAnimationController, curve: Curves.easeInOut),
-    );
-
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _exitAnimationController, curve: Curves.easeInOut),
-    );
-
     // Start auto-advance timer (5 seconds per page)
     _startAutoAdvance();
-  }
-
-  Future<void> _loadLanguage() async {
-    final language = await LocalizationService.getLanguage();
-    if (mounted) {
-      setState(() => _language = language);
-    }
   }
 
   String _tr(String en, String sw) {
@@ -120,6 +109,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   void dispose() {
+    LocalizationService.languageNotifier.removeListener(_languageListener);
     _pageController.dispose();
     _exitAnimationController.dispose();
     _stopAutoAdvance();
@@ -275,7 +265,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             color: (page.index.isEven
                     ? OnboardingColors.primaryDeep
                     : OnboardingColors.accentGreen)
-                .withOpacity(0.15),
+                .withValues(alpha: 0.15),
             blurRadius: 20,
             spreadRadius: 0,
           ),
@@ -306,7 +296,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: OnboardingColors.primaryDeep.withOpacity(0.2),
+          color: OnboardingColors.primaryDeep.withValues(alpha: 0.2),
           width: 1.5,
         ),
       ),
@@ -317,7 +307,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           Container(
             height: 8,
             decoration: BoxDecoration(
-              color: OnboardingColors.primaryDeep.withOpacity(0.3),
+              color: OnboardingColors.primaryDeep.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -358,7 +348,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         color: OnboardingColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -399,7 +389,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: OnboardingColors.accentGreen.withOpacity(0.2),
+          color: OnboardingColors.accentGreen.withValues(alpha: 0.2),
           width: 1.5,
         ),
       ),
@@ -410,7 +400,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           Icon(
             Icons.cloud_sync_rounded,
             size: 80,
-            color: OnboardingColors.accentGreen.withOpacity(0.4),
+            color: OnboardingColors.accentGreen.withValues(alpha: 0.4),
           ),
           // Mobile device
           Positioned(
@@ -422,7 +412,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 color: OnboardingColors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: OnboardingColors.accentGreen.withOpacity(0.3),
+                  color: OnboardingColors.accentGreen.withValues(alpha: 0.3),
                   width: 2,
                 ),
               ),
@@ -456,7 +446,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: OnboardingColors.primaryDeep.withOpacity(0.2),
+          color: OnboardingColors.primaryDeep.withValues(alpha: 0.2),
           width: 1.5,
         ),
       ),
@@ -542,12 +532,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
           decoration: BoxDecoration(
-            color: OnboardingColors.white.withOpacity(0.92),
+            color: OnboardingColors.white.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: OnboardingColors.divider),
             boxShadow: [
               BoxShadow(
-                color: OnboardingColors.primaryDeep.withOpacity(0.08),
+                color: OnboardingColors.primaryDeep.withValues(alpha: 0.08),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -639,7 +629,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: OnboardingColors.primaryDeep.withOpacity(0.25),
+              color: OnboardingColors.primaryDeep.withValues(alpha: 0.25),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -672,7 +662,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           color: OnboardingColors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: OnboardingColors.primaryDeep.withOpacity(0.3),
+            color: OnboardingColors.primaryDeep.withValues(alpha: 0.3),
             width: 2,
           ),
         ),

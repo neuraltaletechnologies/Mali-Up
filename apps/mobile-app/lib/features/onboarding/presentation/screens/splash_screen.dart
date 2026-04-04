@@ -23,21 +23,21 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _logoAnimation;
   late Animation<double> _taglineAnimation;
-  late AppLanguage _language;
+  late final VoidCallback _languageListener;
+  AppLanguage _language = AppLanguage.english;
 
   @override
   void initState() {
     super.initState();
-    _loadLanguage();
+    _language = LocalizationService.languageNotifier.value;
+    _languageListener = () {
+      if (mounted) {
+        setState(() => _language = LocalizationService.languageNotifier.value);
+      }
+    };
+    LocalizationService.languageNotifier.addListener(_languageListener);
     _setupAnimations();
     _scheduleNavigation();
-  }
-
-  Future<void> _loadLanguage() async {
-    final language = await LocalizationService.getLanguage();
-    if (mounted) {
-      setState(() => _language = language);
-    }
   }
 
   String _tr(String en, String sw) {
@@ -77,6 +77,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    LocalizationService.languageNotifier.removeListener(_languageListener);
     _animationController.dispose();
     super.dispose();
   }
@@ -151,7 +152,7 @@ class _SplashScreenState extends State<SplashScreen>
             height: 210,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: OnboardingColors.accentGreen.withOpacity(0.09),
+              color: OnboardingColors.accentGreen.withValues(alpha: 0.09),
             ),
           ),
         ),
@@ -164,7 +165,7 @@ class _SplashScreenState extends State<SplashScreen>
             height: 250,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: OnboardingColors.primaryDeep.withOpacity(0.05),
+              color: OnboardingColors.primaryDeep.withValues(alpha: 0.05),
             ),
           ),
         ),
@@ -176,7 +177,7 @@ class _SplashScreenState extends State<SplashScreen>
             height: 70,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: OnboardingColors.accentGreen.withOpacity(0.12),
+              color: OnboardingColors.accentGreen.withValues(alpha: 0.12),
             ),
           ),
         ),
@@ -203,11 +204,11 @@ class _SplashScreenState extends State<SplashScreen>
                   borderRadius: BorderRadius.circular(32),
                   color: OnboardingColors.white,
                   border: Border.all(
-                    color: OnboardingColors.accentGreen.withOpacity(0.22),
+                    color: OnboardingColors.accentGreen.withValues(alpha: 0.22),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: OnboardingColors.accentGreen.withOpacity(.22),
+                      color: OnboardingColors.accentGreen.withValues(alpha: 0.22),
                       blurRadius: 28,
                       spreadRadius: -8,
                       offset: const Offset(0, 10),
@@ -263,20 +264,10 @@ class _SplashScreenState extends State<SplashScreen>
                   _tr(
                     'Smart Business Management\nfor Growing Businesses',
                     'Usimamizi Mahususi wa Biashara\nkwa Biashara Zinazokua',
-                  )
-                          fontWeight: FontWeight.bold,
-                          fontSize: 48,
-                          letterSpacing: 1,
-                        ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                // Tagline
-                Text(
-                  'Smart Business Management\nfor Growing Businesses',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: OnboardingColors.textDark.withOpacity(0.82),
+                    color: OnboardingColors.textDark.withValues(alpha: 0.82),
                         fontSize: 16,
                         height: 1.55,
                       ),
@@ -316,8 +307,8 @@ class _SplashScreenState extends State<SplashScreen>
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            OnboardingColors.accentGreen.withOpacity(0.10),
-            OnboardingColors.white.withOpacity(0),
+            OnboardingColors.accentGreen.withValues(alpha: 0.10),
+            OnboardingColors.white.withValues(alpha: 0),
           ],
         ),
       ),

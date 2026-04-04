@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "596683133951",
+    "project_id": "neuraltale-mali-up",
+    "storage_bucket": "neuraltale-mali-up.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:596683133951:android:04cfb6886a833d03a6cdca",
+        "android_client_info": {
+          "package_name": "com.neuraltale.maliup"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChtvxfDDal92MUPeDMMJAwCWRtrNNrXJI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

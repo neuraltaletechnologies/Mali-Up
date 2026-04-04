@@ -42,14 +42,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String _customerPhoneWithCountryCode = '255653520829';
-  late AppLanguage _language;
+  late final VoidCallback _languageListener;
+  AppLanguage _language = LocalizationService.languageNotifier.value;
   AccountManagementType _selectedManagementType = AccountManagementType.personal;
   
   bool _otpSent = false;
   bool _isLoading = false;
   bool _agreedToTerms = false;
   String? _verificationId;
-  String _businessCategory = 'Retail';
   
   // Owner Details (used for all account types)
   final TextEditingController _ownerNameController = TextEditingController();
@@ -62,45 +62,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
   
   final List<TextEditingController> _otpControllers = List.generate(4, (_) => TextEditingController());
   
-  final List<String> _businessCategoriesEn = [
-    'Retail',
-    'Wholesale',
-    'Manufacturing',
-    'Services',
-    'Agriculture',
-    'Technology',
-    'Healthcare',
-    'Education',
-    'Food & Beverage',
-    'Transportation',
-    'Other',
+  final List<String> _businessCategoryKeys = [
+    'retail',
+    'wholesale',
+    'manufacturing',
+    'services',
+    'agriculture',
+    'technology',
+    'healthcare',
+    'education',
+    'food_and_beverage',
+    'transportation',
+    'other',
   ];
 
-  final List<String> _businessCategoriesSw = [
-    'Kuuza Rejareja',
-    'Kuuza Kwa Jumla',
-    'Utengenezaji',
-    'Huduma',
-    'Kilimo',
-    'Teknolohia',
-    'Afya',
-    'Elimu',
-    'Chakula na Vinywaji',
-    'Usafiri',
-    'Nyingineyo',
-  ];
+  String _businessCategoryKey = 'retail';
 
   @override
   void initState() {
     super.initState();
-    _loadLanguage();
-  }
-
-  Future<void> _loadLanguage() async {
-    final language = await LocalizationService.getLanguage();
-    if (mounted) {
-      setState(() => _language = language);
-    }
+    _languageListener = () {
+      if (mounted) {
+        setState(() => _language = LocalizationService.languageNotifier.value);
+      }
+    };
+    LocalizationService.languageNotifier.addListener(_languageListener);
   }
 
   String _tr(String en, String sw) {
@@ -108,7 +94,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   List<String> _getBusinessCategories() {
-    return _language == AppLanguage.swahili ? _businessCategoriesSw : _businessCategoriesEn;
+    return _businessCategoryKeys;
+  }
+
+  String _businessCategoryLabel(String key) {
+    switch (key) {
+      case 'retail':
+        return _tr('Retail', 'Kuuza Rejareja');
+      case 'wholesale':
+        return _tr('Wholesale', 'Kuuza Kwa Jumla');
+      case 'manufacturing':
+        return _tr('Manufacturing', 'Utengenezaji');
+      case 'services':
+        return _tr('Services', 'Huduma');
+      case 'agriculture':
+        return _tr('Agriculture', 'Kilimo');
+      case 'technology':
+        return _tr('Technology', 'Teknolojia');
+      case 'healthcare':
+        return _tr('Healthcare', 'Afya');
+      case 'education':
+        return _tr('Education', 'Elimu');
+      case 'food_and_beverage':
+        return _tr('Food & Beverage', 'Chakula na Vinywaji');
+      case 'transportation':
+        return _tr('Transportation', 'Usafiri');
+      case 'other':
+      default:
+        return _tr('Other', 'Nyingineyo');
+    }
   }
 
   Future<void> _sendRegistrationOTP() async {
@@ -217,7 +231,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _selectedManagementType == AccountManagementType.both) {
           await _firestore.collection('tenants').doc(user.uid).set({
             'businessName': _businessNameController.text.trim(),
-            'businessCategory': _businessCategory,
+            'businessCategory': _businessCategoryKey,
             'placeOfBusiness': _placeOfBusinessController.text.trim(),
             'ownerName': displayName,
             'ownerPhone': user.phoneNumber,
@@ -273,6 +287,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    LocalizationService.languageNotifier.removeListener(_languageListener);
     _ownerNameController.dispose();
     _businessNameController.dispose();
     _placeOfBusinessController.dispose();
@@ -330,7 +345,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.secondary.withOpacity(0.06),
+                      color: AppColors.secondary.withValues(alpha: 0.06),
                       blurRadius: 18,
                       offset: const Offset(0, 8),
                     ),
@@ -508,10 +523,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       child: DropdownButton<String>(
                                         isExpanded: true,
                                         underline: const SizedBox.shrink(),
-                                        value: _businessCategory,
+                                        value: _businessCategoryKey,
                                         onChanged: (String? newValue) {
                                           setState(() {
-                                            _businessCategory = newValue ?? _getBusinessCategories()[0];
+                                            _businessCategoryKey = newValue ?? _businessCategoryKeys.first;
                                           });
                                         },
                                         items: _getBusinessCategories().map((String category) {
@@ -519,7 +534,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             value: category,
                                             child: Padding(
                                               padding: const EdgeInsets.symmetric(horizontal: 16),
-                                              child: Text(category),
+                                              child: Text(_businessCategoryLabel(category)),
                                             ),
                                           );
                                         }).toList(),
@@ -734,7 +749,7 @@ class _GlowTextFieldState extends State<_GlowTextField> {
           boxShadow: _hasFocus
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.18),
+                    color: AppColors.primary.withValues(alpha: 0.18),
                     blurRadius: 16,
                     spreadRadius: 1,
                   ),
