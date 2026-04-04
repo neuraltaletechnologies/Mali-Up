@@ -97,6 +97,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return _businessCategoryKeys;
   }
 
+  String _getPhoneAuthErrorMessage(String code, String? fallbackMessage) {
+    switch (code) {
+      case 'operation-not-allowed':
+        return _tr(
+          'Phone sign-in is disabled for this Firebase project. Enable Phone provider in Firebase Auth > Sign-in method.',
+          'Kuingia kwa simu kumezimwa kwenye mradi huu wa Firebase. Washa Phone provider kwenye Firebase Auth > Sign-in method.',
+        );
+      case 'invalid-phone-number':
+        return _tr('Invalid phone number format.', 'Muundo wa namba ya simu si sahihi.');
+      case 'too-many-requests':
+        return _tr('Too many attempts. Try again later.', 'Majaribio mengi sana. Jaribu tena baadaye.');
+      case 'quota-exceeded':
+        return _tr('SMS quota exceeded. Check Firebase usage and billing.', 'Kikomo cha SMS kimefikiwa. Angalia matumizi na malipo ya Firebase.');
+      case 'network-request-failed':
+        return _tr('Network error. Check your internet connection.', 'Hitilafu ya mtandao. Angalia muunganisho wa intaneti.');
+      default:
+        return fallbackMessage ?? _tr('Phone verification failed.', 'Uthibitishaji wa simu umeshindikana.');
+    }
+  }
+
   String _businessCategoryLabel(String key) {
     switch (key) {
       case 'retail':
@@ -177,7 +197,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       },
       verificationFailed: (FirebaseAuthException e) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? _tr('Error', 'Hitilafu'))));
+        final message = _getPhoneAuthErrorMessage(e.code, e.message);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       },
       codeSent: (String vid, int? resendToken) {
         setState(() {
