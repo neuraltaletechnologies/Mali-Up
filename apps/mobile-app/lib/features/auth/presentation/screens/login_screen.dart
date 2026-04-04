@@ -158,6 +158,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _phoneAuthReady = false;
   String? _verificationId;
+  String? _feedbackText;
+  EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   
   final TextEditingController _phoneController = TextEditingController(text: '0653520829');
   final TextEditingController _recoveryEmailController = TextEditingController();
@@ -179,6 +181,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String _tr(String en, String sw) {
     return _language == AppLanguage.swahili ? sw : en;
+  }
+
+  void _setFeedback(String text, EmotionalStatusTone tone) {
+    if (!mounted) return;
+    setState(() {
+      _feedbackText = text;
+      _feedbackTone = tone;
+    });
   }
 
   bool _isValidEmail(String email) {
@@ -227,15 +237,21 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           _tr('OTP sent to $email. Check your inbox.', 'OTP imetumwa kwa $email. Angalia ujumbe wako.'),
         );
+        _setFeedback(
+          _tr('Email OTP sent. Check your inbox.', 'OTP ya barua pepe imetumwa. Angalia kikasha.'),
+          EmotionalStatusTone.success,
+        );
       }
     } on FirebaseAuthException catch (e) {
       final message = _tr('Could not send email OTP: ${e.message ?? e.code}', 'Imeshindikana kutuma OTP ya barua pepe: ${e.message ?? e.code}');
       if (mounted) {
         await _NotificationHelper.showError(context, message);
+        _setFeedback(_tr('Email OTP failed to send.', 'Kutuma OTP ya barua pepe kumeshindikana.'), EmotionalStatusTone.error);
       }
     } catch (e) {
       if (mounted) {
         await _NotificationHelper.showError(context, _tr('Unexpected error: ${e.toString()}', 'Hitilafu isiyotarajiwa: ${e.toString()}'));
+        _setFeedback(_tr('Unexpected issue. Try again.', 'Tatizo lisilotarajiwa. Jaribu tena.'), EmotionalStatusTone.warning);
       }
     } finally {
       if (mounted) {
@@ -278,10 +294,12 @@ class _LoginScreenState extends State<LoginScreen> {
       await _firestore.collection('email_otp_auth').doc(email).delete();
       if (mounted) {
         await _NotificationHelper.showSuccess(context, _tr('Email OTP verified.', 'OTP ya barua pepe imethibitishwa.'));
+        _setFeedback(_tr('Email verified successfully.', 'Barua pepe imethibitishwa kikamilifu.'), EmotionalStatusTone.success);
         context.go(AppRouter.dashboardPath);
       }
     } catch (e) {
       await _NotificationHelper.showError(context, _tr('Failed to verify email OTP.', 'Imeshindikana kuthibitisha OTP ya barua pepe.'));
+      _setFeedback(_tr('Could not verify email OTP.', 'Imeshindikana kuthibitisha OTP ya barua pepe.'), EmotionalStatusTone.error);
     }
   }
 
@@ -408,6 +426,7 @@ class _LoginScreenState extends State<LoginScreen> {
             await _auth.signInWithCredential(credential);
             if (mounted) {
               await _NotificationHelper.showSuccess(context, _tr('Authentication successful!', 'Uthibitisho umefanikiwa!'));
+              _setFeedback(_tr('Welcome back. You are in.', 'Karibu tena. Umeingia.'), EmotionalStatusTone.success);
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) context.go(AppRouter.dashboardPath);
               });
@@ -415,6 +434,7 @@ class _LoginScreenState extends State<LoginScreen> {
           } catch (e) {
             if (mounted) {
               await _NotificationHelper.showError(context, _tr('Sign in failed: ${e.toString()}', 'Kuingia kumeshindikana: ${e.toString()}'));
+              _setFeedback(_tr('Could not sign in automatically.', 'Haikuwezekana kuingia kiotomatiki.'), EmotionalStatusTone.error);
               setState(() => _isLoading = false);
             }
           }
@@ -424,6 +444,7 @@ class _LoginScreenState extends State<LoginScreen> {
           String errorMessage = _getFirebaseErrorMessage(e.code);
           if (mounted) {
             _NotificationHelper.showError(context, errorMessage);
+            _setFeedback(_tr('OTP request failed.', 'Ombi la OTP limeshindwa.'), EmotionalStatusTone.error);
           }
         },
         codeSent: (String verificationId, int? resendToken) {
@@ -434,6 +455,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _isLoading = false;
             });
             _NotificationHelper.showSuccess(context, 'Code sent to $fullPhone');
+            _setFeedback(_tr('OTP sent. Enter your code.', 'OTP imetumwa. Weka msimbo wako.'), EmotionalStatusTone.success);
           }
         },
         codeAutoRetrievalTimeout: (String verificationId) {
@@ -446,6 +468,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         await _NotificationHelper.showError(context, 'Error: ${e.toString()}');
+        _setFeedback(_tr('Network or auth issue detected.', 'Tatizo la mtandao au uthibitisho limegunduliwa.'), EmotionalStatusTone.warning);
       }
     }
   }
@@ -735,6 +758,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await _auth.signInWithCredential(credential);
       if (mounted) {
         await _NotificationHelper.showSuccess(context, _tr('Verification successful!', 'Uthibitisho umefanikiwa!'));
+        _setFeedback(_tr('OTP verified. Entering app...', 'OTP imethibitishwa. Inaingia kwenye app...'), EmotionalStatusTone.success);
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) context.go(AppRouter.dashboardPath);
         });
@@ -746,11 +770,13 @@ class _LoginScreenState extends State<LoginScreen> {
           : _tr('Verification failed: ${e.message}', 'Uthibitisho umeshindikana: ${e.message}');
       if (mounted) {
         await _NotificationHelper.showError(context, errorMessage);
+        _setFeedback(_tr('Incorrect OTP code. Try again.', 'OTP si sahihi. Jaribu tena.'), EmotionalStatusTone.error);
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         await _NotificationHelper.showError(context, _tr('Error: ${e.toString()}', 'Hitilafu: ${e.toString()}'));
+        _setFeedback(_tr('Verification interrupted.', 'Uthibitishaji umekatizwa.'), EmotionalStatusTone.warning);
       }
     }
   }
@@ -853,6 +879,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 1.5,
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  EmotionalStatusChip(
+                    visible: _feedbackText != null,
+                    text: _feedbackText ?? '',
+                    tone: _feedbackTone,
+                  ),
                   const SizedBox(height: 24),
                   Container(
                     width: double.infinity,
@@ -906,24 +938,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 22),
-                                ElevatedButton(
-                                  onPressed: _isLoading ? null : _precheckAndSendOtp,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (_isLoading) ...[
-                                        const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                EmotionalTapScale(
+                                  enabled: !_isLoading,
+                                  hapticStyle: TapHapticStyle.medium,
+                                  child: ElevatedButton(
+                                    onPressed: _isLoading ? null : _precheckAndSendOtp,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (_isLoading) ...[
+                                          const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 10),
+                                          const SizedBox(width: 10),
+                                        ],
+                                        Text(_isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Send OTP', 'Tuma OTP')),
                                       ],
-                                      Text(_isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Send OTP', 'Tuma OTP')),
-                                    ],
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 10),
@@ -958,24 +994,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                   children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
                                 ),
                                 const SizedBox(height: 26),
-                                ElevatedButton(
-                                  onPressed: _isLoading ? null : _verifyOTP,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (_isLoading) ...[
-                                        const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                EmotionalTapScale(
+                                  enabled: !_isLoading,
+                                  hapticStyle: TapHapticStyle.medium,
+                                  child: ElevatedButton(
+                                    onPressed: _isLoading ? null : _verifyOTP,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (_isLoading) ...[
+                                          const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 10),
+                                          const SizedBox(width: 10),
+                                        ],
+                                        Text(_isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Continue', 'Thibitisha na Endelea')),
                                       ],
-                                      Text(_isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Continue', 'Thibitisha na Endelea')),
-                                    ],
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 14),

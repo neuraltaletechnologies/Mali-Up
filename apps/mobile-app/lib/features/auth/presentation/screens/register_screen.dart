@@ -66,6 +66,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _agreedToTerms = false;
   String? _verificationId;
+  String? _feedbackText;
+  EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   
   // Owner Details (used for all account types)
   final TextEditingController _ownerNameController = TextEditingController();
@@ -108,6 +110,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String _tr(String en, String sw) {
     return _language == AppLanguage.swahili ? sw : en;
+  }
+
+  void _setFeedback(String text, EmotionalStatusTone tone) {
+    if (!mounted) return;
+    setState(() {
+      _feedbackText = text;
+      _feedbackTone = tone;
+    });
   }
 
   List<String> _getBusinessCategories() {
@@ -460,6 +470,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       verificationFailed: (FirebaseAuthException e) {
         setState(() => _isLoading = false);
         final message = _getPhoneAuthErrorMessage(e.code, e.message);
+        _setFeedback(_tr('Could not send OTP yet.', 'Bado haikuwezekana kutuma OTP.'), EmotionalStatusTone.error);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       },
       codeSent: (String vid, int? resendToken) {
@@ -468,6 +479,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _otpSent = true;
           _isLoading = false;
         });
+        _setFeedback(_tr('OTP sent. Check SMS and continue.', 'OTP imetumwa. Angalia SMS na endelea.'), EmotionalStatusTone.success);
       },
       codeAutoRetrievalTimeout: (vid) => _verificationId = vid,
     );
@@ -543,6 +555,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
+    _setFeedback(_tr('Registration failed. Please retry.', 'Usajili umeshindikana. Tafadhali jaribu tena.'), EmotionalStatusTone.error);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(_tr('Registration failed', 'Ujisajili umeshindwa'))),
     );
@@ -563,6 +576,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _phoneController.text = localPhone;
       _otpSent = false;
     });
+    _setFeedback(_tr('Demo number loaded.', 'Namba ya mfano imewekwa.'), EmotionalStatusTone.neutral);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(_tr('Customer number loaded: +255653520829', 'Namba ya mteja iliyokamatia: +255653520829'))),
     );
@@ -637,6 +651,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ? _tr('Enter code sent to ${_phoneController.text}', 'Weka namba iliyotumwa kwa ${_phoneController.text}')
                         : _tr('Set up your account to get started', 'Tekeleza akaunti yako kuanza'),
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  ),
+                  const SizedBox(height: 10),
+                  EmotionalStatusChip(
+                    visible: _feedbackText != null,
+                    text: _feedbackText ?? '',
+                    tone: _feedbackTone,
                   ),
                   const SizedBox(height: 24),
 
@@ -926,29 +946,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ],
                             ),
                             const SizedBox(height: 32),
-                            ElevatedButton(
-                              onPressed: (_agreedToTerms && !_isLoading)
-                                  ? _precheckAndSendOtp
-                                  : null,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (_isLoading) ...[
-                                    const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(Colors.white),
+                            EmotionalTapScale(
+                              enabled: _agreedToTerms && !_isLoading,
+                              hapticStyle: TapHapticStyle.medium,
+                              child: ElevatedButton(
+                                onPressed: (_agreedToTerms && !_isLoading)
+                                    ? _precheckAndSendOtp
+                                    : null,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_isLoading) ...[
+                                      const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
                                       ),
+                                      const SizedBox(width: 10),
+                                    ],
+                                    Text(
+                                      _isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Continue', 'Endelea'),
                                     ),
-                                    const SizedBox(width: 10),
                                   ],
-                                  Text(
-                                    _isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Continue', 'Endelea'),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ],
@@ -971,27 +995,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   List.generate(4, (i) => _OTPBox(controller: _otpControllers[i])),
                             ),
                             const SizedBox(height: 28),
-                            ElevatedButton(
-                              onPressed: _isLoading ? null : _verifyAndRegister,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (_isLoading) ...[
-                                    const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(Colors.white),
+                            EmotionalTapScale(
+                              enabled: !_isLoading,
+                              hapticStyle: TapHapticStyle.medium,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _verifyAndRegister,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_isLoading) ...[
+                                      const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
                                       ),
+                                      const SizedBox(width: 10),
+                                    ],
+                                    Text(
+                                      _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Finish', 'Thibitisha na Maliza'),
                                     ),
-                                    const SizedBox(width: 10),
                                   ],
-                                  Text(
-                                    _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Finish', 'Thibitisha na Maliza'),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ],
