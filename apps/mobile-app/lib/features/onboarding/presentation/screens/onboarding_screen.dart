@@ -178,46 +178,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
             EntranceAnimation(
               delay: const Duration(milliseconds: 120),
               child: EmotionalLottieSpot(
                 scene: _lottieSceneForPage(page.index),
-                size: 112,
-                fallbackMood: _companionMoodForPage(page.index),
+                size: 220,
+                fallbackMood: CompanionMood.calm,
               ),
-            ),
-            const SizedBox(height: 18),
-            // Icon/Emoji with animation
-            EntranceAnimation(
-              delay: Duration.zero,
-              child: _buildIconSection(page),
             ),
             const SizedBox(height: 40),
-
-            // Dynamic content based on page
-            if (page.index == 1)
-              EntranceAnimation(
-                delay: const Duration(milliseconds: 200),
-                child: AnimatedChart(),
-              )
-            else if (page.index == 0)
-              EntranceAnimation(
-                delay: const Duration(milliseconds: 200),
-                child: _buildDashboardIllustration(),
-              )
-            else if (page.index == 2)
-              EntranceAnimation(
-                delay: const Duration(milliseconds: 200),
-                child: _buildCloudSyncIllustration(),
-              )
-            else
-              EntranceAnimation(
-                delay: const Duration(milliseconds: 200),
-                child: _buildCTAIllustration(),
-              ),
-
-            const SizedBox(height: 50),
 
             // Text content
             EntranceAnimation(
@@ -228,202 +198,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 switchOutCurve: Curves.easeIn,
                 child: _buildTextContent(page),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIconSection(OnboardingPage page) {
-    return Text(
-      page.emoji ?? '✨',
-      style: const TextStyle(fontSize: 34),
-    );
-  }
-
-  Widget _buildDashboardIllustration() {
-    return Container(
-      width: 280,
-      height: 200,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.transparent,
-          width: 0,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header bar
-          Container(
-            height: 8,
-            decoration: BoxDecoration(
-              color: OnboardingColors.primaryDeep.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Stat boxes
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatBox('12,500', 'Sales', Colors.orange, 120),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatBox('345', 'Clients', OnboardingColors.primaryDeep, 200),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatBox('28', 'Products', OnboardingColors.accentGreen, 280),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatBox('92+', 'Orders', Colors.purple, 360),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatBox(String value, String label, Color color, int delayMs) {
-    return EntranceAnimation(
-      delay: Duration(milliseconds: delayMs),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: OnboardingColors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: color.withValues(alpha: 0.2),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-            ),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: OnboardingColors.textLight,
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCloudSyncIllustration() {
-    return Container(
-      width: 280,
-      height: 200,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.transparent,
-          width: 0,
-        ),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Icon(
-            Icons.cloud_sync_rounded,
-            size: 80,
-            color: OnboardingColors.accentGreen.withValues(alpha: 0.4),
-          ),
-          Positioned(
-            bottom: 20,
-            child: Container(
-              width: 60,
-              height: 100,
-              decoration: BoxDecoration(
-                color: OnboardingColors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: OnboardingColors.accentGreen.withValues(alpha: 0.3),
-                  width: 2,
-                ),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.check_circle,
-                  color: OnboardingColors.accentGreen,
-                  size: 24,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCTAIllustration() {
-    return Container(
-      width: 280,
-      height: 200,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.transparent,
-          width: 0,
-        ),
-      ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.rocket_launch_rounded,
-              size: 60,
-              color: OnboardingColors.primaryDeep,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _tr(
-                'Ready to Launch?',
-                'Tayari Kuanza?',
-              ),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: OnboardingColors.primaryDeep,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _tr(
-                'Take control of your business',
-                'Chukua udhibiti wa biashara yako',
-              ),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: OnboardingColors.textLight,
-                  ),
             ),
           ],
         ),
@@ -624,25 +398,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  CompanionMood _companionMoodForPage(int index) {
-    switch (index) {
-      case 1:
-        return CompanionMood.focused;
-      case 2:
-        return CompanionMood.excited;
-      case 3:
-        return CompanionMood.celebrating;
-      default:
-        return CompanionMood.calm;
-    }
-  }
-
   EmotionalLottieScene _lottieSceneForPage(int index) {
     switch (index) {
+      case 0:
+        return EmotionalLottieScene.dashboard;
+      case 1:
+        return EmotionalLottieScene.onboarding;
+      case 2:
+        return EmotionalLottieScene.authVerify;
       case 3:
         return EmotionalLottieScene.celebrate;
       default:
-        return EmotionalLottieScene.onboarding;
+        return EmotionalLottieScene.authWelcome;
     }
   }
 }
