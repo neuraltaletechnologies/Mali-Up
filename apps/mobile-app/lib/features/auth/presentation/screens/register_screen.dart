@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../config/routing.dart';
+import '../../../../core/services/localization_service.dart';
 import '../models/account_type.dart';
 import '../widgets/terms_and_conditions.dart';
 import '../widgets/privacy_policy.dart';
@@ -18,14 +19,14 @@ enum AccountManagementType {
 }
 
 extension AccountManagementTypeX on AccountManagementType {
-  String get label {
+  String label(bool isSwahili) {
     switch (this) {
       case AccountManagementType.personal:
-        return 'Personal Management';
+        return isSwahili ? 'Usimamizi wa Kibinafsi' : 'Personal Management';
       case AccountManagementType.business:
-        return 'Business Management';
+        return isSwahili ? 'Usimamizi wa Biashara' : 'Business Management';
       case AccountManagementType.both:
-        return 'Personal & Business';
+        return isSwahili ? 'Kibinafsi na Biashara' : 'Personal & Business';
     }
   }
 }
@@ -41,6 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String _customerPhoneWithCountryCode = '255653520829';
+  late AppLanguage _language;
   AccountManagementType _selectedManagementType = AccountManagementType.personal;
   
   bool _otpSent = false;
@@ -60,7 +62,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   
   final List<TextEditingController> _otpControllers = List.generate(4, (_) => TextEditingController());
   
-  final List<String> _businessCategories = [
+  final List<String> _businessCategoriesEn = [
     'Retail',
     'Wholesale',
     'Manufacturing',
@@ -74,18 +76,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Other',
   ];
 
+  final List<String> _businessCategoriesSw = [
+    'Kuuza Rejareja',
+    'Kuuza Kwa Jumla',
+    'Utengenezaji',
+    'Huduma',
+    'Kilimo',
+    'Teknolohia',
+    'Afya',
+    'Elimu',
+    'Chakula na Vinywaji',
+    'Usafiri',
+    'Nyingineyo',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final language = await LocalizationService.getLanguage();
+    if (mounted) {
+      setState(() => _language = language);
+    }
+  }
+
+  String _tr(String en, String sw) {
+    return _language == AppLanguage.swahili ? sw : en;
+  }
+
+  List<String> _getBusinessCategories() {
+    return _language == AppLanguage.swahili ? _businessCategoriesSw : _businessCategoriesEn;
+  }
+
   Future<void> _sendRegistrationOTP() async {
     // Validate owner details
     if (_ownerNameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your full name')),
+        SnackBar(content: Text(_tr('Please enter your full name', 'Tafadhali weka jina lako kamili'))),
       );
       return;
     }
     
     if (_phoneController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter phone number')),
+        SnackBar(content: Text(_tr('Please enter phone number', 'Tafadhali weka namba ya simu'))),
       );
       return;
     }
@@ -95,13 +132,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _selectedManagementType == AccountManagementType.both) {
       if (_businessNameController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter business name')),
+          SnackBar(content: Text(_tr('Please enter business name', 'Tafadhali weka jina la biashara'))),
         );
         return;
       }
       if (_placeOfBusinessController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter place of business')),
+          SnackBar(content: Text(_tr('Please enter place of business', 'Tafadhali weka mahali pa biashara'))),
         );
         return;
       }
@@ -111,7 +148,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (recoveryEmail.isNotEmpty &&
         !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(recoveryEmail)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email')),
+        SnackBar(content: Text(_tr('Please enter a valid email', 'Tafadhali weka barua pepe halali'))),
       );
       return;
     }
@@ -126,7 +163,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       },
       verificationFailed: (FirebaseAuthException e) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Error')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? _tr('Error', 'Hitilafu'))));
       },
       codeSent: (String vid, int? resendToken) {
         setState(() {
@@ -209,7 +246,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration failed')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_tr('Registration failed', 'Ujisajili umeshindwa'))),
+    );
     }
   }
 
@@ -228,7 +267,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _otpSent = false;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Customer number loaded: +255653520829')),
+      SnackBar(content: Text(_tr('Customer number loaded: +255653520829', 'Namba ya mteja iliyokamatia: +255653520829'))),
     );
   }
 
@@ -270,14 +309,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 40),
 
               Text(
-                _otpSent ? 'Verify Phone' : 'Create Your Account',
+                _otpSent ? _tr('Verify Phone', 'Thibitisha Simu') : _tr('Create Your Account', 'Tengeneza Akaunti Yako'),
                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.secondary),
               ),
               const SizedBox(height: 8),
               Text(
                 _otpSent
-                    ? 'Enter code sent to ${_phoneController.text}'
-                    : 'Set up your account to get started',
+                    ? _tr('Enter code sent to ${_phoneController.text}', 'Weka namba iliyotumwa kwa ${_phoneController.text}')
+                    : _tr('Set up your account to get started', 'Tekeleza akaunti yako kuanza'),
                 style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
               ),
               const SizedBox(height: 24),
@@ -316,7 +355,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Your Details',
+                                    _tr('Your Details', 'Maelezo Yako'),
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -324,44 +363,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  const Text('Full Name', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(_tr('Full Name', 'Jina Kamili'), style: const TextStyle(fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 8),
                                   _GlowTextField(
                                     controller: _ownerNameController,
-                                    decoration: const InputDecoration(
-                                      hintText: 'e.g. John Mushi',
-                                      prefixIcon: Icon(Icons.person_rounded),
+                                    decoration: InputDecoration(
+                                      hintText: _tr('e.g. John Mushi', 'mfano: John Mushi'),
+                                      prefixIcon: const Icon(Icons.person_rounded),
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  const Text('Email (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(_tr('Email (Optional)', 'Barua Pepe (Kisimu)'), style: const TextStyle(fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 8),
                                   _GlowTextField(
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
                                     textInputAction: TextInputAction.next,
-                                    decoration: const InputDecoration(
-                                      hintText: 'e.g. you@example.com',
-                                      prefixIcon: Icon(Icons.alternate_email_rounded),
+                                    decoration: InputDecoration(
+                                      hintText: _tr('e.g. you@example.com', 'mfano: you@example.com'),
+                                      prefixIcon: const Icon(Icons.alternate_email_rounded),
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  const Text('Mobile Number', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(_tr('Mobile Number', 'Namba ya Simu'), style: const TextStyle(fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 8),
                                   _GlowTextField(
                                     controller: _phoneController,
                                     keyboardType: TextInputType.phone,
-                                    decoration: const InputDecoration(
-                                      hintText: '7xx xxx xxx',
+                                    decoration: InputDecoration(
+                                      hintText: _tr('7xx xxx xxx', '7xx xxx xxx'),
                                       prefixIcon: Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 16),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Text('🇹🇿', style: TextStyle(fontSize: 18)),
-                                            SizedBox(width: 8),
+                                            const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                                            const SizedBox(width: 8),
                                             Text('+255',
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                     color: AppColors.secondary,
                                                     fontWeight: FontWeight.bold)),
                                           ],
@@ -386,7 +425,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'What would you like to manage?',
+                                    _tr('What would you like to manage?', 'Unataaka kusimamia nini?'),
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -414,7 +453,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           value: type,
                                           child: Padding(
                                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                                            child: Text(type.label),
+                                            child: Text(type.label(_language == AppLanguage.swahili)),
                                           ),
                                         );
                                       }).toList(),
@@ -439,7 +478,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Business Details',
+                                      _tr('Business Details', 'Maelezo ya Biashara'),
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -447,19 +486,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 16),
-                                    const Text('Business Name',
-                                        style: TextStyle(fontWeight: FontWeight.bold)),
+                                    Text(_tr('Business Name', 'Jina la Biashara'),
+                                        style: const TextStyle(fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 8),
                                     _GlowTextField(
                                       controller: _businessNameController,
-                                      decoration: const InputDecoration(
-                                        hintText: 'e.g. Neuraltale Tech',
-                                        prefixIcon: Icon(Icons.business_rounded),
+                                      decoration: InputDecoration(
+                                        hintText: _tr('e.g. Neuraltale Tech', 'mfano: Neuraltale Tech'),
+                                        prefixIcon: const Icon(Icons.business_rounded),
                                       ),
                                     ),
                                     const SizedBox(height: 16),
-                                    const Text('Business Type',
-                                        style: TextStyle(fontWeight: FontWeight.bold)),
+                                    Text(_tr('Business Type', 'Aina ya Biashara'),
+                                        style: const TextStyle(fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 8),
                                     Container(
                                       decoration: BoxDecoration(
@@ -472,10 +511,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         value: _businessCategory,
                                         onChanged: (String? newValue) {
                                           setState(() {
-                                            _businessCategory = newValue ?? 'Retail';
+                                            _businessCategory = newValue ?? _getBusinessCategories()[0];
                                           });
                                         },
-                                        items: _businessCategories.map((String category) {
+                                        items: _getBusinessCategories().map((String category) {
                                           return DropdownMenuItem<String>(
                                             value: category,
                                             child: Padding(
@@ -487,14 +526,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 16),
-                                    const Text('Place of Business',
-                                        style: TextStyle(fontWeight: FontWeight.bold)),
+                                    Text(_tr('Place of Business', 'Mahali pa Biashara'),
+                                        style: const TextStyle(fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 8),
                                     _GlowTextField(
                                       controller: _placeOfBusinessController,
-                                      decoration: const InputDecoration(
-                                        hintText: 'e.g. Dar es Salaam',
-                                        prefixIcon: Icon(Icons.location_on_rounded),
+                                      decoration: InputDecoration(
+                                        hintText: _tr('e.g. Dar es Salaam', 'mfano: Dar es Salaam'),
+                                        prefixIcon: const Icon(Icons.location_on_rounded),
                                       ),
                                     ),
                                   ],
@@ -524,9 +563,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           color: AppColors.textSecondary,
                                         ),
                                         children: [
-                                          const TextSpan(text: 'I agree to the '),
+                                          TextSpan(text: _tr('I agree to the ', 'Nakubali ')),
                                           TextSpan(
-                                            text: 'Terms & Conditions',
+                                            text: _tr('Terms & Conditions', 'Masharti na Hali'),
                                             style: const TextStyle(
                                               color: AppColors.primary,
                                               fontWeight: FontWeight.bold,
@@ -542,9 +581,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                                 );
                                               },
                                           ),
-                                          const TextSpan(text: ' and '),
+                                          TextSpan(text: _tr(' and ', ' na ')),
                                           TextSpan(
-                                            text: 'Privacy Policy',
+                                            text: _tr('Privacy Policy', 'Sera ya Faragha'),
                                             style: const TextStyle(
                                               color: AppColors.primary,
                                               fontWeight: FontWeight.bold,
@@ -588,7 +627,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     const SizedBox(width: 10),
                                   ],
                                   Text(
-                                    _isLoading ? 'Sending OTP...' : 'Continue',
+                                    _isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Continue', 'Endelea'),
                                   ),
                                 ],
                               ),
@@ -599,9 +638,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           key: const ValueKey('register-otp'),
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Enter OTP to Complete Registration',
-                              style: TextStyle(
+                            Text(
+                              _tr('Enter OTP to Complete Registration', 'Weka OTP kumaliza Ujisajili'),
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.secondary,
                               ),
@@ -631,7 +670,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     const SizedBox(width: 10),
                                   ],
                                   Text(
-                                    _isLoading ? 'Verifying...' : 'Verify & Finish',
+                                    _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Finish', 'Thibitisha na Maliza'),
                                   ),
                                 ],
                               ),
@@ -645,9 +684,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Center(
                 child: TextButton(
                   onPressed: () => context.pop(),
-                  child: const Text(
-                    'Already have an account? Manage Account',
-                    style: TextStyle(
+                  child: Text(
+                    _tr('Already have an account? Manage Account', 'Una akaunti tayari? Simamia Akaunti'),
+                    style: const TextStyle(
                         color: AppColors.textSecondary, fontWeight: FontWeight.bold),
                   ),
                 ),

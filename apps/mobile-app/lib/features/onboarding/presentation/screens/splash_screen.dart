@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/onboarding_colors.dart';
 import '../widgets/animated_widgets.dart';
 import '../../../../shared/widgets/logo.dart';
+import '../../../../core/services/localization_service.dart';
 
 /// Premium splash screen with animated gradient background
 /// Displays MaliUp branding and smooth transition to onboarding
@@ -22,12 +23,25 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _logoAnimation;
   late Animation<double> _taglineAnimation;
+  late AppLanguage _language;
 
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
     _setupAnimations();
     _scheduleNavigation();
+  }
+
+  Future<void> _loadLanguage() async {
+    final language = await LocalizationService.getLanguage();
+    if (mounted) {
+      setState(() => _language = language);
+    }
+  }
+
+  String _tr(String en, String sw) {
+    return _language == AppLanguage.swahili ? sw : en;
   }
 
   void _setupAnimations() {
@@ -234,9 +248,22 @@ class _SplashScreenState extends State<SplashScreen>
                     ).createShader(bounds);
                   },
                   child: Text(
-                    'MaliUp',
+                    _tr('MaliUp', 'MaliUp'),
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                           color: OnboardingColors.primaryDeep,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 48,
+                          letterSpacing: 1,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Tagline
+                Text(
+                  _tr(
+                    'Smart Business Management\nfor Growing Businesses',
+                    'Usimamizi Mahususi wa Biashara\nkwa Biashara Zinazokua',
+                  )
                           fontWeight: FontWeight.bold,
                           fontSize: 48,
                           letterSpacing: 1,

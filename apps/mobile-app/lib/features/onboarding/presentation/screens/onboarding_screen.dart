@@ -6,6 +6,7 @@ import '../../core/onboarding_colors.dart';
 import '../../models/onboarding_model.dart';
 import '../widgets/animated_widgets.dart';
 import '../../../../shared/widgets/logo.dart';
+import '../../../../core/services/localization_service.dart';
 
 /// Main onboarding experience with 4 screens
 /// Includes smooth page transitions and page indicators
@@ -27,6 +28,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AnimationController _exitAnimationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  late AppLanguage _language;
   
   int _currentIndex = 0;
   bool _isExiting = false;
@@ -36,6 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
     _pageController = PageController();
     _exitAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -52,6 +55,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     // Start auto-advance timer (5 seconds per page)
     _startAutoAdvance();
+  }
+
+  Future<void> _loadLanguage() async {
+    final language = await LocalizationService.getLanguage();
+    if (mounted) {
+      setState(() => _language = language);
+    }
+  }
+
+  String _tr(String en, String sw) {
+    return _language == AppLanguage.swahili ? sw : en;
   }
 
   void _startAutoAdvance() {
@@ -178,7 +192,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 border: Border.all(color: OnboardingColors.divider),
               ),
               child: Text(
-                'Step ${page.index + 1} of ${onboardingPages.length}',
+                _tr('Step ${page.index + 1} of ${onboardingPages.length}', 'Hatua ${page.index + 1} ya ${onboardingPages.length}'),
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: OnboardingColors.textLight,
                       fontWeight: FontWeight.w700,
@@ -465,7 +479,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Take control of your business',
+            _tr(
+              'Ready to Launch?',
+              'Tayari Kuanza?',
+            ),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: OnboardingColors.primaryDeep,
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _tr(
+              'Take control of your business',
+              'Chukua udhibiti wa biashara yako',
+            ),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: OnboardingColors.textLight,
@@ -477,11 +506,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Widget _buildTextContent(OnboardingPage page) {
+    final isSwahili = _language == AppLanguage.swahili;
     return Column(
       key: ValueKey<int>(page.index),
       children: [
         Text(
-          page.title,
+          page.getTitle(isSwahili),
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.displaySmall?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -491,7 +521,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         const SizedBox(height: 12),
         Text(
-          page.description,
+          page.getDescription(isSwahili),
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: OnboardingColors.textLight,
@@ -529,7 +559,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               Row(
                 children: [
                   Text(
-                    isLastPage ? 'Ready to continue' : 'Auto sliding onboarding',
+                    isLastPage ? _tr('Ready to continue', 'Tayari kuendelea') : _tr('Auto sliding onboarding', 'Kuweka pepe zisizokamatia'),
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           color: OnboardingColors.textLight,
                           fontWeight: FontWeight.w700,
@@ -540,7 +570,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     GestureDetector(
                       onTap: _onSkipTap,
                       child: Text(
-                        'Skip',
+                        _tr('Skip', 'Ruka'),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: OnboardingColors.textDark,
                               fontWeight: FontWeight.w700,
@@ -572,12 +602,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               const SizedBox(height: 20),
               if (isLastPage) ...[
                 _buildPrimaryButton(
-                  label: 'Register Business',
+                  label: _tr('Register Business', 'Jisajili Biashara'),
                   onTap: _onPrimaryTap,
                 ),
                 const SizedBox(height: 12),
                 _buildSecondaryButton(
-                  label: 'Already have an account? Login',
+                  label: _tr('Already have an account? Login', 'Una akaunti tayari? Ingia'),
                   onTap: _onSecondaryTap,
                 ),
               ],
