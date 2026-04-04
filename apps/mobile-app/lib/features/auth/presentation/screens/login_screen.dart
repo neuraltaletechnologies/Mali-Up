@@ -3,10 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../config/routing.dart';
+import '../../../../core/services/localization_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/account_type.dart';
-import '../widgets/account_type_switcher.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 class _GlowTextField extends StatefulWidget {
@@ -136,47 +135,70 @@ class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String _customerPhoneWithCountryCode = '255653520829';
-  AccountType _selectedAccountType = AccountType.business;
+  AppLanguage _language = AppLanguage.english;
   bool _otpSent = false;
   bool _isLoading = false;
   String? _verificationId;
   
   final TextEditingController _phoneController = TextEditingController(text: '0653520829');
   final TextEditingController _recoveryEmailController = TextEditingController();
+  final TextEditingController _emailOtpController = TextEditingController();
   final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
   final FocusNode _phoneFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final language = await LocalizationService.getLanguage();
+    if (!mounted) return;
+    setState(() => _language = language);
+  }
+
+  String _tr(String en, String sw) {
+    return _language == AppLanguage.swahili ? sw : en;
+  }
 
   bool _isValidEmail(String email) {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
   }
 
-  Future<void> _sendLoginLinkToEmail() async {
+  Future<void> _sendEmailOtpCode() async {
     final email = _recoveryEmailController.text.trim().toLowerCase();
 
     if (email.isEmpty) {
-      await _NotificationHelper.showError(context, 'Please enter your Email');
+      await _NotificationHelper.showError(context, _tr('Please enter your email', 'Tafadhali weka barua pepe yako'));
       return;
     }
 
     if (!_isValidEmail(email)) {
-      await _NotificationHelper.showError(context, 'Please enter a valid email address');
+      await _NotificationHelper.showError(context, _tr('Please enter a valid email address', 'Tafadhali weka barua pepe sahihi'));
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      final actionCodeSettings = ActionCodeSettings(
-        url: 'https://maliup.page.link/login',
-        handleCodeInApp: true,
-        androidPackageName: 'com.neuraltale.maliup',
-        androidInstallApp: true,
-        iOSBundleId: 'com.neuraltale.maliup',
-      );
+      final otp = (100000 + DateTime.now().millisecondsSinceEpoch % 900000).toString();
+      final expiresAt = DateTime.now().add(const Duration(minutes: 10));
 
-      await _auth.sendSignInLinkToEmail(
-        email: email,
-        actionCodeSettings: actionCodeSettings,
-      );
+      await _firestore.collection('email_otp_auth').doc(email).set({
+        'email': email,
+        'code': otp,
+        'expiresAt': Timestamp.fromDate(expiresAt),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // If Firebase Trigger Email extension is installed, this sends OTP email.
+      await _firestore.collection('mail').add({
+        'to': email,
+        'message': {
+          'subject': _tr('Your Mali Up OTP Code', 'Namba ya OTP ya Mali Up'),
+          'text': _tr('Your OTP code is $otp. It expires in 10 minutes.', 'Namba yako ya OTP ni $otp. Itaisha ndani ya dakika 10.'),
+        },
+      });
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('email_for_sign_in', email);
@@ -184,23 +206,17 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         await _NotificationHelper.showSuccess(
           context,
-          'Login link sent to $email. Check your inbox.',
+          _tr('OTP sent to $email. Check your inbox.', 'OTP imetumwa kwa $email. Angalia ujumbe wako.'),
         );
       }
     } on FirebaseAuthException catch (e) {
-      final message = switch (e.code) {
-        'invalid-email' => 'This email is invalid.',
-        'missing-continue-uri' => 'Email login setup is incomplete (missing continue URL).',
-        'unauthorized-continue-uri' => 'Continue URL is not authorized in Firebase.',
-        'operation-not-allowed' => 'Email link sign-in is not enabled in Firebase.',
-        _ => 'Could not send email login link: ${e.message ?? e.code}',
-      };
+      final message = _tr('Could not send email OTP: ${e.message ?? e.code}', 'Imeshindikana kutuma OTP ya barua pepe: ${e.message ?? e.code}');
       if (mounted) {
         await _NotificationHelper.showError(context, message);
       }
     } catch (e) {
       if (mounted) {
-        await _NotificationHelper.showError(context, 'Unexpected error: ${e.toString()}');
+        await _NotificationHelper.showError(context, _tr('Unexpected error: ${e.toString()}', 'Hitilafu isiyotarajiwa: ${e.toString()}'));
       }
     } finally {
       if (mounted) {
@@ -209,47 +225,110 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _verifyEmailOtpAndContinue() async {
+    final email = _recoveryEmailController.text.trim().toLowerCase();
+    final code = _emailOtpController.text.trim();
+
+    if (code.length != 6) {
+      await _NotificationHelper.showError(context, _tr('Enter the 6-digit OTP', 'Weka OTP ya namba 6'));
+      return;
+    }
+
+    try {
+      final doc = await _firestore.collection('email_otp_auth').doc(email).get();
+      if (!doc.exists) {
+        await _NotificationHelper.showError(context, _tr('OTP not found. Request a new OTP.', 'OTP haijapatikana. Omba OTP mpya.'));
+        return;
+      }
+
+      final data = doc.data()!;
+      final savedCode = data['code'] as String?;
+      final expiresAt = (data['expiresAt'] as Timestamp?)?.toDate();
+      final isExpired = expiresAt == null || DateTime.now().isAfter(expiresAt);
+
+      if (isExpired) {
+        await _NotificationHelper.showError(context, _tr('OTP expired. Request a new one.', 'OTP imekwisha muda. Omba nyingine.'));
+        return;
+      }
+
+      if (savedCode != code) {
+        await _NotificationHelper.showError(context, _tr('Invalid OTP code.', 'Namba ya OTP si sahihi.'));
+        return;
+      }
+
+      await _firestore.collection('email_otp_auth').doc(email).delete();
+      if (mounted) {
+        await _NotificationHelper.showSuccess(context, _tr('Email OTP verified.', 'OTP ya barua pepe imethibitishwa.'));
+        context.go(AppRouter.dashboardPath);
+      }
+    } catch (e) {
+      await _NotificationHelper.showError(context, _tr('Failed to verify email OTP.', 'Imeshindikana kuthibitisha OTP ya barua pepe.'));
+    }
+  }
+
   Future<void> _showEmailRecoveryDialog() async {
     bool isSending = false;
+    bool otpSent = false;
     await showDialog<void>(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Recover With Email'),
+              title: Text(_tr('Recover With Email OTP', 'Rejesha kwa OTP ya Barua Pepe')),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'If you no longer have your phone number, we can send a secure login link to your email.',
-                    style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+                  Text(
+                    _tr(
+                      'Enter your email to receive a 6-digit OTP code.',
+                      'Weka barua pepe yako upokee OTP ya namba 6.',
+                    ),
+                    style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
                   ),
                   const SizedBox(height: 14),
                   _GlowTextField(
                     controller: _recoveryEmailController,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.done,
-                    hintText: 'Enter your email',
+                    hintText: _tr('Enter your email', 'Weka barua pepe yako'),
                     prefixIcon: const Icon(Icons.alternate_email_rounded),
                   ),
+                  if (otpSent) ...[
+                    const SizedBox(height: 12),
+                    _GlowTextField(
+                      controller: _emailOtpController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      hintText: _tr('Enter 6-digit OTP', 'Weka OTP ya namba 6'),
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    ),
+                  ],
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: isSending ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(_tr('Cancel', 'Ghairi')),
                 ),
                 ElevatedButton(
                   onPressed: isSending
                       ? null
                       : () async {
                           setDialogState(() => isSending = true);
-                          await _sendLoginLinkToEmail();
-                          if (mounted) {
-                            Navigator.of(context).pop();
+                          if (!otpSent) {
+                            await _sendEmailOtpCode();
+                            if (mounted) {
+                              setDialogState(() {
+                                otpSent = true;
+                                isSending = false;
+                              });
+                            }
+                            return;
                           }
+                          await _verifyEmailOtpAndContinue();
+                          if (mounted) Navigator.of(context).pop();
                         },
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -262,7 +341,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(width: 8),
                       ],
-                      Text(isSending ? 'Sending...' : 'Send OPT'),
+                      Text(
+                        isSending
+                            ? _tr('Please wait...', 'Tafadhali subiri...')
+                            : otpSent
+                                ? _tr('Verify OTP', 'Thibitisha OTP')
+                                : _tr('Send OTP to Email', 'Tuma OTP kwa Barua Pepe'),
+                      ),
                     ],
                   ),
                 ),
@@ -280,14 +365,14 @@ class _LoginScreenState extends State<LoginScreen> {
     // Validate phone number
     if (phone.isEmpty) {
       if (mounted) {
-        await _NotificationHelper.showError(context, 'Please enter your phone number');
+        await _NotificationHelper.showError(context, _tr('Please enter your phone number', 'Tafadhali weka namba yako ya simu'));
       }
       return;
     }
     
     if (phone.length != 9) {
       if (mounted) {
-        await _NotificationHelper.showError(context, 'Phone number must be 9 digits');
+        await _NotificationHelper.showError(context, _tr('Phone number must be 9 digits', 'Namba ya simu lazima iwe na tarakimu 9'));
       }
       return;
     }
@@ -303,18 +388,15 @@ class _LoginScreenState extends State<LoginScreen> {
           try {
             final userCredential = await _auth.signInWithCredential(credential);
             final user = userCredential.user;
-            if (user != null) {
-              await _persistAccountType(user.uid);
-            }
             if (mounted) {
-              await _NotificationHelper.showSuccess(context, 'Authentication successful!');
+              await _NotificationHelper.showSuccess(context, _tr('Authentication successful!', 'Uthibitisho umefanikiwa!'));
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) context.go(AppRouter.dashboardPath);
               });
             }
           } catch (e) {
             if (mounted) {
-              await _NotificationHelper.showError(context, 'Sign in failed: ${e.toString()}');
+              await _NotificationHelper.showError(context, _tr('Sign in failed: ${e.toString()}', 'Kuingia kumeshindikana: ${e.toString()}'));
               setState(() => _isLoading = false);
             }
           }
@@ -353,21 +435,21 @@ class _LoginScreenState extends State<LoginScreen> {
   String _getFirebaseErrorMessage(String errorCode) {
     switch (errorCode) {
       case 'invalid-phone-number':
-        return 'Invalid phone number format';
+        return _tr('Invalid phone number format', 'Muundo wa namba ya simu si sahihi');
       case 'missing-client-identifier':
-        return 'API configuration error. Please contact support.';
+        return _tr('API configuration error. Please contact support.', 'Hitilafu ya mpangilio wa API. Wasiliana na msaada.');
       case 'invalid-api-key':
-        return 'API key not configured. Please contact support.';
+        return _tr('API key not configured. Please contact support.', 'API key haijapangwa. Wasiliana na msaada.');
       case 'too-many-requests':
-        return 'Too many attempts. Please try again later.';
+        return _tr('Too many attempts. Please try again later.', 'Majaribio mengi sana. Jaribu tena baadaye.');
       case 'app-not-authorized':
-        return 'App not authorized for phone authentication';
+        return _tr('App not authorized for phone authentication', 'App haijaidhinishwa kwa uthibitisho wa simu');
       case 'operation-not-allowed':
-        return 'Phone authentication is not enabled';
+        return _tr('Phone authentication is not enabled', 'Uthibitisho wa simu haujawashwa');
       case 'network-request-failed':
-        return 'Network error. Please check your connection.';
+        return _tr('Network error. Please check your connection.', 'Hitilafu ya mtandao. Tafadhali angalia muunganisho wako.');
       default:
-        return 'Verification failed: $errorCode. Please try again.';
+        return _tr('Verification failed: $errorCode. Please try again.', 'Uthibitisho umeshindikana: $errorCode. Tafadhali jaribu tena.');
     }
   }
 
@@ -390,11 +472,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
-      if (user != null) {
-        await _persistAccountType(user.uid);
-      }
       if (mounted) {
-        await _NotificationHelper.showSuccess(context, 'Verification successful!');
+        await _NotificationHelper.showSuccess(context, _tr('Verification successful!', 'Uthibitisho umefanikiwa!'));
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) context.go(AppRouter.dashboardPath);
         });
@@ -402,35 +481,17 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
       String errorMessage = e.code == 'invalid-verification-code'
-          ? 'Invalid OTP. Please check and try again.'
-          : 'Verification failed: ${e.message}';
+          ? _tr('Invalid OTP. Please check and try again.', 'OTP si sahihi. Tafadhali angalia na ujaribu tena.')
+          : _tr('Verification failed: ${e.message}', 'Uthibitisho umeshindikana: ${e.message}');
       if (mounted) {
         await _NotificationHelper.showError(context, errorMessage);
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        await _NotificationHelper.showError(context, 'Error: ${e.toString()}');
+        await _NotificationHelper.showError(context, _tr('Error: ${e.toString()}', 'Hitilafu: ${e.toString()}'));
       }
     }
-  }
-
-  Future<void> _persistAccountType(String uid) async {
-    await _firestore.collection('users').doc(uid).set({
-      'defaultAccountType': _selectedAccountType.value,
-      'accountTypes': FieldValue.arrayUnion([_selectedAccountType.value]),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('selected_account_type', _selectedAccountType.value);
-  }
-
-  void _onAccountTypeChanged(AccountType accountType) {
-    setState(() {
-      _selectedAccountType = accountType;
-      _otpSent = false;
-    });
   }
 
   void _useCustomerPhone() {
@@ -450,6 +511,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _phoneController.dispose();
     _recoveryEmailController.dispose();
+    _emailOtpController.dispose();
     _phoneFocusNode.dispose();
     for (final controller in _otpControllers) {
       controller.dispose();
@@ -507,7 +569,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 36),
 
                   Text(
-                    _otpSent ? 'Verification' : 'Welcome to Mali Up',
+                    _otpSent ? _tr('Verification', 'Uthibitisho') : _tr('Welcome to Mali Up', 'Karibu Mali Up'),
                     style: const TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w900,
@@ -518,20 +580,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _otpSent 
-                      ? 'We sent a code to +255 ${_phoneController.text}' 
-                      : _selectedAccountType == AccountType.business
-                          ? 'Enter your phone number to manage your business'
-                          : 'Enter your phone number to manage your wealth',
+                      ? _tr('We sent a code to +255 ${_phoneController.text}', 'Tumepeleka msimbo kwa +255 ${_phoneController.text}')
+                      : _tr('Enter your phone number to continue', 'Weka namba yako ya simu kuendelea'),
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 15,
                       height: 1.5,
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  AccountTypeSwitcher(
-                    selectedType: _selectedAccountType,
-                    onChanged: _onAccountTypeChanged,
                   ),
                   const SizedBox(height: 24),
 
@@ -557,9 +612,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   key: const ValueKey('phone-step'),
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'Phone Number',
-                                      style: TextStyle(
+                                    Text(
+                                      _tr('Phone Number', 'Namba ya Simu'),
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.secondary,
                                       ),
@@ -602,7 +657,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                             const SizedBox(width: 10),
                                           ],
-                                          Text(_isLoading ? 'Sending OTP...' : 'Send OTP'),
+                                          Text(_isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Send OTP', 'Tuma OTP')),
                                         ],
                                       ),
                                     ),
@@ -610,9 +665,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Center(
                                       child: TextButton(
                                         onPressed: _isLoading ? null : _showEmailRecoveryDialog,
-                                        child: const Text(
-                                          'Don\'t have my phone number',
-                                          style: TextStyle(
+                                        child: Text(
+                                          _tr('Don\'t have my phone number', 'Sina namba yangu ya simu sasa'),
+                                          style: const TextStyle(
                                             color: AppColors.textSecondary,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -625,9 +680,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   key: const ValueKey('otp-step'),
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'Enter OTP Code',
-                                      style: TextStyle(
+                                    Text(
+                                      _tr('Enter OTP Code', 'Weka Msimbo wa OTP'),
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.secondary,
                                       ),
@@ -654,7 +709,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                             const SizedBox(width: 10),
                                           ],
-                                          Text(_isLoading ? 'Verifying...' : 'Verify & Continue'),
+                                          Text(_isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Continue', 'Thibitisha na Endelea')),
                                         ],
                                       ),
                                     ),
@@ -662,9 +717,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     Center(
                                       child: TextButton(
                                         onPressed: () => setState(() => _otpSent = false),
-                                        child: const Text(
-                                          'Change Number',
-                                          style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold),
+                                        child: Text(
+                                          _tr('Change Number', 'Badili Namba'),
+                                          style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold),
                                         ),
                                       ),
                                     ),
@@ -677,15 +732,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
-                        "Don't have an account?",
-                        style: TextStyle(color: AppColors.textSecondary),
+                      Text(
+                        _tr("Don't have an account?", 'Huna akaunti?'),
+                        style: const TextStyle(color: AppColors.textSecondary),
                       ),
                       TextButton(
                         onPressed: () => context.push(AppRouter.registerPath),
-                        child: const Text(
-                          'Join Mali Up',
-                          style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
+                        child: Text(
+                          _tr('Join Mali Up', 'Jiunge na Mali Up'),
+                          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
