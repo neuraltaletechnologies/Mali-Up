@@ -862,14 +862,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Center(child: MaliUpLogo(size: 80)),
                   const SizedBox(height: 14),
                   Center(
-                    child: EmotionalLottieSpot(
-                      scene: _otpSent ? EmotionalLottieScene.authVerify : EmotionalLottieScene.authWelcome,
-                      size: 98,
-                      fallbackMood: _isLoading
+                    child: EmotionalCompanion(
+                      mood: _isLoading
                           ? CompanionMood.focused
                           : _otpSent
                               ? CompanionMood.excited
                               : CompanionMood.calm,
+                      size: 88,
                     ),
                   ),
                   const SizedBox(height: 20),
