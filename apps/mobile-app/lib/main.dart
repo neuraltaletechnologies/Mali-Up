@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
+import 'package:mali_up/core/services/localization_service.dart';
 import 'firebase_options.dart';
 
 const String _onboardingCompletedKey = 'onboarding_completed';
@@ -19,20 +20,27 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final hasCompletedOnboarding =
       prefs.getBool(_onboardingCompletedKey) ?? false;
+  final hasSelectedLanguage = 
+      await LocalizationService.hasLanguageBeenSelected();
 
   runApp(
     ProviderScope(
-      child: MaliUpApp(hasCompletedOnboarding: hasCompletedOnboarding),
+      child: MaliUpApp(
+        hasCompletedOnboarding: hasCompletedOnboarding,
+        hasSelectedLanguage: hasSelectedLanguage,
+      ),
     ),
   );
 }
 
 class MaliUpApp extends StatelessWidget {
   final bool hasCompletedOnboarding;
+  final bool hasSelectedLanguage;
 
   const MaliUpApp({
     super.key,
     required this.hasCompletedOnboarding,
+    required this.hasSelectedLanguage,
   });
 
   @override
@@ -42,7 +50,8 @@ class MaliUpApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: AppRouter.createRouter(
-        showOnboarding: !hasCompletedOnboarding,
+        showLanguageSelection: !hasSelectedLanguage,
+        showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
       ),
     );
   }
