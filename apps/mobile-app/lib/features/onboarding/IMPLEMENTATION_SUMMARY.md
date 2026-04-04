@@ -49,7 +49,7 @@ Added to `pubspec.yaml`:
 ```yaml
 smooth_page_indicator: ^1.1.0   # Page indicator
 animations: ^2.0.11             # Material motion
-lottie: ^2.7.0                  # Advanced animations (optional)
+lottie: ^2.7.0                  # Advanced animations 
 ```
 
 ---
@@ -398,7 +398,7 @@ lib/features/onboarding/
 ### Step 5: Deploy
 - [ ] Final testing on real devices
 - [ ] Performance verification
-- [ ] Analytics setup (optional)
+- [ ] Analytics setup 
 - [ ] Release to app stores
 
 ---

@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _recoveryEmailController.text.trim().toLowerCase();
 
     if (email.isEmpty) {
-      await _NotificationHelper.showError(context, 'Please enter your recovery email');
+      await _NotificationHelper.showError(context, 'Please enter your Email');
       return;
     }
 
@@ -146,12 +146,12 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Send Code to Email'),
+          title: const Text('Send OTP to Email'),
           content: TextField(
             controller: _recoveryEmailController,
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
-              hintText: 'Enter your recovery email',
+              hintText: 'Enter your Email',
               prefixIcon: Icon(Icons.alternate_email_rounded),
             ),
           ),
@@ -459,7 +459,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 32),
                     ElevatedButton(
                       onPressed: _sendOTP,
-                      child: const Text('Send Code'),
+                      child: const Text('Send OTP'),
                     ),
                     const SizedBox(height: 12),
                     Center(

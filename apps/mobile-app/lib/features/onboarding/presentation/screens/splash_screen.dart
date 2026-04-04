@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/onboarding_colors.dart';
 import '../widgets/animated_widgets.dart';
+import '../../../../shared/widgets/logo.dart';
 
 /// Premium splash screen with animated gradient background
 /// Displays MaliUp branding and smooth transition to onboarding
@@ -69,34 +70,56 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
+      body: DecoratedBox(
         decoration: const BoxDecoration(
-          color: OnboardingColors.white,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFFFFF),
+              Color(0xFFFFFDF3),
+            ],
+          ),
         ),
-        child: Stack(
-          children: [
-            // Animated background circles (decorative)
-            _buildBackgroundDecorations(),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              // Animated background circles (decorative)
+              _buildBackgroundDecorations(),
 
-            // Main content
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo area with pulsing glow
-                  _buildLogoSection(),
+              // Main content
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Logo area with pulsing glow
+                    _buildLogoSection(),
 
-                  const SizedBox(height: 40),
+                    const SizedBox(height: 34),
 
-                  // Tagline with fade animation
-                  _buildTaglineSection(),
-                ],
+                    // Tagline with fade animation
+                    _buildTaglineSection(),
+                  ],
+                ),
               ),
-            ),
 
-            // Bottom accent
-            _buildBottomAccent(),
-          ],
+              // Subtle loading cue and bottom accent
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 36),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildLoadingIndicator(),
+                      const SizedBox(height: 22),
+                      _buildBottomAccent(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -107,27 +130,39 @@ class _SplashScreenState extends State<SplashScreen>
       children: [
         // Top right circle
         Positioned(
-          top: -80,
-          right: -80,
+          top: -72,
+          right: -64,
           child: Container(
-            width: 200,
-            height: 200,
+            width: 210,
+            height: 210,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: OnboardingColors.accentGreen.withOpacity(0.08),
+              color: OnboardingColors.accentGreen.withOpacity(0.09),
             ),
           ),
         ),
         // Bottom left circle
         Positioned(
-          bottom: -100,
-          left: -100,
+          bottom: -86,
+          left: -96,
           child: Container(
             width: 250,
             height: 250,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: OnboardingColors.primaryDeep.withOpacity(0.05),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 140,
+          left: 18,
+          child: Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: OnboardingColors.accentGreen.withOpacity(0.12),
             ),
           ),
         ),
@@ -147,36 +182,26 @@ class _SplashScreenState extends State<SplashScreen>
               glowColor: OnboardingColors.accentGreen,
               duration: const Duration(milliseconds: 2000),
               child: Container(
-                width: 120,
-                height: 120,
+                width: 148,
+                height: 148,
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      OnboardingColors.white,
-                      Color(0xFFFAF6F0),
-                    ],
+                  borderRadius: BorderRadius.circular(32),
+                  color: OnboardingColors.white,
+                  border: Border.all(
+                    color: OnboardingColors.accentGreen.withOpacity(0.22),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color:
-                          OnboardingColors.accentGreen.withOpacity(.15),
-                      blurRadius: 30,
-                      spreadRadius: -5,
+                      color: OnboardingColors.accentGreen.withOpacity(.22),
+                      blurRadius: 28,
+                      spreadRadius: -8,
+                      offset: const Offset(0, 10),
                     ),
                   ],
                 ),
-                child: Center(
-                  child: Text(
-                    '📱',
-                    style:
-                        Theme.of(context).textTheme.displaySmall?.copyWith(
-                              fontSize: 60,
-                            ) ??
-                            const TextStyle(fontSize: 60),
-                  ),
+                child: const Center(
+                  child: MaliUpLogo(size: 86),
                 ),
               ),
             ),
@@ -224,9 +249,9 @@ class _SplashScreenState extends State<SplashScreen>
                   'Smart Business Management\nfor Growing Businesses',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: OnboardingColors.textDark,
+                        color: OnboardingColors.textDark.withOpacity(0.82),
                         fontSize: 16,
-                        height: 1.5,
+                        height: 1.55,
                       ),
                 ),
               ],
@@ -237,22 +262,36 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _buildBottomAccent() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        height: 120,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              OnboardingColors.accentGreen.withOpacity(0.08),
-              OnboardingColors.white.withOpacity(0),
-            ],
+  Widget _buildLoadingIndicator() {
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(100),
+          child: LinearProgressIndicator(
+            value: _animationController.value,
+            minHeight: 5,
+            backgroundColor: OnboardingColors.divider,
+            valueColor: const AlwaysStoppedAnimation<Color>(
+              OnboardingColors.accentGreen,
+            ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomAccent() {
+    return Container(
+      height: 64,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            OnboardingColors.accentGreen.withOpacity(0.10),
+            OnboardingColors.white.withOpacity(0),
+          ],
         ),
       ),
     );

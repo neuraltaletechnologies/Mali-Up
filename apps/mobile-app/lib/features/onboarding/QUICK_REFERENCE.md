@@ -247,7 +247,7 @@ dependencies:
   # Typography
   google_fonts: ^8.0.2
   
-  # Advanced animations (optional)
+  # Advanced animations 
   lottie: ^2.7.0
 
 dev_dependencies:
