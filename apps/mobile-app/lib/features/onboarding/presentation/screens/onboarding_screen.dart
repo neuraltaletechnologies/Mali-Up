@@ -6,6 +6,7 @@ import '../../core/onboarding_colors.dart';
 import '../../models/onboarding_model.dart';
 import '../widgets/animated_widgets.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 
 /// Main onboarding experience with 4 screens
 /// Includes smooth page transitions and page indicators
@@ -121,6 +122,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       backgroundColor: OnboardingColors.background,
       body: Stack(
         children: [
+          const AmbientEmotionBackground(
+            palette: [
+              OnboardingColors.primaryDeep,
+              OnboardingColors.accentGreen,
+              Color(0xFFFFD27A),
+            ],
+            intensity: 1.1,
+          ),
           // Page view for onboarding screens
           PageView.builder(
             controller: _pageController,
@@ -170,6 +179,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 12),
+            EntranceAnimation(
+              delay: const Duration(milliseconds: 120),
+              child: EmotionalCompanion(
+                mood: _companionMoodForPage(page.index),
+              ),
+            ),
+            const SizedBox(height: 18),
             // Icon/Emoji with animation
             EntranceAnimation(
               delay: Duration.zero,
@@ -472,7 +488,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                   const Spacer(),
                   if (!isLastPage)
-                    GestureDetector(
+                    EmotionalTapScale(
                       onTap: _onSkipTap,
                       child: Text(
                         _tr('Skip', 'Ruka'),
@@ -527,7 +543,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     required String label,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return EmotionalTapScale(
       onTap: onTap,
       child: Container(
         width: double.infinity,
@@ -568,7 +584,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     required String label,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return EmotionalTapScale(
       onTap: onTap,
       child: Container(
         width: double.infinity,
@@ -593,5 +609,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
       ),
     );
+  }
+
+  CompanionMood _companionMoodForPage(int index) {
+    switch (index) {
+      case 1:
+        return CompanionMood.focused;
+      case 2:
+        return CompanionMood.excited;
+      case 3:
+        return CompanionMood.celebrating;
+      default:
+        return CompanionMood.calm;
+    }
   }
 }

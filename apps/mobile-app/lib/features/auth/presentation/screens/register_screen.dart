@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../models/account_type.dart';
@@ -596,27 +597,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Center(child: MaliUpLogo(size: 80)),
-              const SizedBox(height: 40),
+      body: Stack(
+        children: [
+          const AmbientEmotionBackground(
+            palette: [
+              AppColors.primary,
+              AppColors.secondaryLight,
+              AppColors.info,
+            ],
+            intensity: 0.78,
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Center(child: MaliUpLogo(size: 80)),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: EmotionalCompanion(
+                      mood: _isLoading
+                          ? CompanionMood.focused
+                          : _otpSent
+                              ? CompanionMood.celebrating
+                              : CompanionMood.calm,
+                      size: 88,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
 
-              Text(
-                _otpSent ? _tr('Verify Phone', 'Thibitisha Simu') : _tr('Create Your Account', 'Tengeneza Akaunti Yako'),
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.secondary),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _otpSent
-                    ? _tr('Enter code sent to ${_phoneController.text}', 'Weka namba iliyotumwa kwa ${_phoneController.text}')
-                    : _tr('Set up your account to get started', 'Tekeleza akaunti yako kuanza'),
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-              ),
-              const SizedBox(height: 24),
+                  Text(
+                    _otpSent ? _tr('Verify Phone', 'Thibitisha Simu') : _tr('Create Your Account', 'Tengeneza Akaunti Yako'),
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.secondary),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _otpSent
+                        ? _tr('Enter code sent to ${_phoneController.text}', 'Weka namba iliyotumwa kwa ${_phoneController.text}')
+                        : _tr('Set up your account to get started', 'Tekeleza akaunti yako kuanza'),
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  ),
+                  const SizedBox(height: 24),
 
               Container(
                 width: double.infinity,
@@ -977,20 +999,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
 
-              const SizedBox(height: 32),
-              Center(
-                child: TextButton(
-                  onPressed: () => context.pop(),
-                  child: Text(
-                    _tr('Already have an account? Manage Account', 'Una akaunti tayari? Simamia Akaunti'),
-                    style: const TextStyle(
-                        color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 32),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => context.pop(),
+                      child: Text(
+                        _tr('Already have an account? Manage Account', 'Una akaunti tayari? Simamia Akaunti'),
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

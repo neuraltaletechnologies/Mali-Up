@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -786,18 +787,13 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Minimalist Background Accents
-          Positioned(
-            top: -150,
-            right: -100,
-            child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.05),
-              ),
-            ),
+          const AmbientEmotionBackground(
+            palette: [
+              AppColors.primary,
+              AppColors.secondaryLight,
+              AppColors.success,
+            ],
+            intensity: 0.8,
           ),
 
           Positioned(
@@ -824,7 +820,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const SizedBox(height: 52),
                   const Center(child: MaliUpLogo(size: 80)),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: EmotionalCompanion(
+                      mood: _isLoading
+                          ? CompanionMood.focused
+                          : _otpSent
+                              ? CompanionMood.excited
+                              : CompanionMood.calm,
+                      size: 88,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
                   Text(
                     _otpSent ? _tr('Verification', 'Uthibitisho') : _tr('Welcome to Mali Up', 'Karibu Mali Up'),
