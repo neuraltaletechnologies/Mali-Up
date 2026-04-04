@@ -80,6 +80,7 @@ flutter:
 
   assets:
     - assets/branding/
+    - assets/lottie/
 
 flutter_launcher_icons:
   android: true

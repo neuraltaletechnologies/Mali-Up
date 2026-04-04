@@ -160,6 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _verificationId;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
+  int _successBurstTrigger = 0;
   
   final TextEditingController _phoneController = TextEditingController(text: '0653520829');
   final TextEditingController _recoveryEmailController = TextEditingController();
@@ -189,6 +190,11 @@ class _LoginScreenState extends State<LoginScreen> {
       _feedbackText = text;
       _feedbackTone = tone;
     });
+  }
+
+  void _triggerSuccessBurst() {
+    if (!mounted) return;
+    setState(() => _successBurstTrigger++);
   }
 
   bool _isValidEmail(String email) {
@@ -241,6 +247,7 @@ class _LoginScreenState extends State<LoginScreen> {
           _tr('Email OTP sent. Check your inbox.', 'OTP ya barua pepe imetumwa. Angalia kikasha.'),
           EmotionalStatusTone.success,
         );
+        _triggerSuccessBurst();
       }
     } on FirebaseAuthException catch (e) {
       final message = _tr('Could not send email OTP: ${e.message ?? e.code}', 'Imeshindikana kutuma OTP ya barua pepe: ${e.message ?? e.code}');
@@ -271,6 +278,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final doc = await _firestore.collection('email_otp_auth').doc(email).get();
+      if (!mounted) return;
       if (!doc.exists) {
         await _NotificationHelper.showError(context, _tr('OTP not found. Request a new OTP.', 'OTP haijapatikana. Omba OTP mpya.'));
         return;
@@ -282,22 +290,26 @@ class _LoginScreenState extends State<LoginScreen> {
       final isExpired = expiresAt == null || DateTime.now().isAfter(expiresAt);
 
       if (isExpired) {
+        if (!mounted) return;
         await _NotificationHelper.showError(context, _tr('OTP expired. Request a new one.', 'OTP imekwisha muda. Omba nyingine.'));
         return;
       }
 
       if (savedCode != code) {
+        if (!mounted) return;
         await _NotificationHelper.showError(context, _tr('Invalid OTP code.', 'Namba ya OTP si sahihi.'));
         return;
       }
 
       await _firestore.collection('email_otp_auth').doc(email).delete();
-      if (mounted) {
-        await _NotificationHelper.showSuccess(context, _tr('Email OTP verified.', 'OTP ya barua pepe imethibitishwa.'));
-        _setFeedback(_tr('Email verified successfully.', 'Barua pepe imethibitishwa kikamilifu.'), EmotionalStatusTone.success);
-        context.go(AppRouter.dashboardPath);
-      }
+      if (!mounted) return;
+      await _NotificationHelper.showSuccess(context, _tr('Email OTP verified.', 'OTP ya barua pepe imethibitishwa.'));
+      _setFeedback(_tr('Email verified successfully.', 'Barua pepe imethibitishwa kikamilifu.'), EmotionalStatusTone.success);
+      _triggerSuccessBurst();
+      if (!mounted) return;
+      context.go(AppRouter.dashboardPath);
     } catch (e) {
+      if (!mounted) return;
       await _NotificationHelper.showError(context, _tr('Failed to verify email OTP.', 'Imeshindikana kuthibitisha OTP ya barua pepe.'));
       _setFeedback(_tr('Could not verify email OTP.', 'Imeshindikana kuthibitisha OTP ya barua pepe.'), EmotionalStatusTone.error);
     }
@@ -308,7 +320,7 @@ class _LoginScreenState extends State<LoginScreen> {
     bool otpSent = false;
     await showDialog<void>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -346,7 +358,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isSending ? null : () => Navigator.of(context).pop(),
+                  onPressed: isSending ? null : () => Navigator.of(dialogContext).pop(),
                   child: Text(_tr('Cancel', 'Ghairi')),
                 ),
                 ElevatedButton(
@@ -356,16 +368,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           setDialogState(() => isSending = true);
                           if (!otpSent) {
                             await _sendEmailOtpCode();
-                            if (mounted) {
-                              setDialogState(() {
-                                otpSent = true;
-                                isSending = false;
-                              });
-                            }
+                            if (!dialogContext.mounted) return;
+                            setDialogState(() {
+                              otpSent = true;
+                              isSending = false;
+                            });
                             return;
                           }
                           await _verifyEmailOtpAndContinue();
-                          if (mounted) Navigator.of(context).pop();
+                          if (!dialogContext.mounted) return;
+                          Navigator.of(dialogContext).pop();
                         },
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -456,6 +468,7 @@ class _LoginScreenState extends State<LoginScreen> {
             });
             _NotificationHelper.showSuccess(context, 'Code sent to $fullPhone');
             _setFeedback(_tr('OTP sent. Enter your code.', 'OTP imetumwa. Weka msimbo wako.'), EmotionalStatusTone.success);
+            _triggerSuccessBurst();
           }
         },
         codeAutoRetrievalTimeout: (String verificationId) {
@@ -759,6 +772,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         await _NotificationHelper.showSuccess(context, _tr('Verification successful!', 'Uthibitisho umefanikiwa!'));
         _setFeedback(_tr('OTP verified. Entering app...', 'OTP imethibitishwa. Inaingia kwenye app...'), EmotionalStatusTone.success);
+        _triggerSuccessBurst();
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) context.go(AppRouter.dashboardPath);
         });
@@ -848,13 +862,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Center(child: MaliUpLogo(size: 80)),
                   const SizedBox(height: 14),
                   Center(
-                    child: EmotionalCompanion(
-                      mood: _isLoading
+                    child: EmotionalLottieSpot(
+                      scene: _otpSent ? EmotionalLottieScene.authVerify : EmotionalLottieScene.authWelcome,
+                      size: 98,
+                      fallbackMood: _isLoading
                           ? CompanionMood.focused
                           : _otpSent
                               ? CompanionMood.excited
                               : CompanionMood.calm,
-                      size: 88,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -880,10 +895,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  EmotionalStatusChip(
-                    visible: _feedbackText != null,
-                    text: _feedbackText ?? '',
-                    tone: _feedbackTone,
+                  SizedBox(
+                    height: 52,
+                    child: Stack(
+                      alignment: Alignment.centerLeft,
+                      children: [
+                        EmotionalStatusChip(
+                          visible: _feedbackText != null,
+                          text: _feedbackText ?? '',
+                          tone: _feedbackTone,
+                        ),
+                        if (_feedbackTone == EmotionalStatusTone.success)
+                          Positioned.fill(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: EmotionalSuccessBurst(trigger: _successBurstTrigger),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Container(

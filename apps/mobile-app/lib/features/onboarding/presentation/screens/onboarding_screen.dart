@@ -181,8 +181,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             const SizedBox(height: 12),
             EntranceAnimation(
               delay: const Duration(milliseconds: 120),
-              child: EmotionalCompanion(
-                mood: _companionMoodForPage(page.index),
+              child: EmotionalLottieSpot(
+                scene: _lottieSceneForPage(page.index),
+                size: 112,
+                fallbackMood: _companionMoodForPage(page.index),
               ),
             ),
             const SizedBox(height: 18),
@@ -235,8 +237,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildIconSection(OnboardingPage page) {
     return Text(
-      page.emoji ?? '🚀',
-      style: const TextStyle(fontSize: 56),
+      page.emoji ?? '✨',
+      style: const TextStyle(fontSize: 34),
     );
   }
 
@@ -269,11 +271,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           Row(
             children: [
               Expanded(
-                child: _buildStatBox('12,500', 'Sales', Colors.orange),
+                child: _buildStatBox('12,500', 'Sales', Colors.orange, 120),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildStatBox('345', 'Clients', OnboardingColors.primaryDeep),
+                child: _buildStatBox('345', 'Clients', OnboardingColors.primaryDeep, 200),
               ),
             ],
           ),
@@ -281,11 +283,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           Row(
             children: [
               Expanded(
-                child: _buildStatBox('28', 'Products', OnboardingColors.accentGreen),
+                child: _buildStatBox('28', 'Products', OnboardingColors.accentGreen, 280),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildStatBox('92+', 'Orders', Colors.purple),
+                child: _buildStatBox('92+', 'Orders', Colors.purple, 360),
               ),
             ],
           ),
@@ -294,34 +296,37 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  Widget _buildStatBox(String value, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: OnboardingColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1,
+  Widget _buildStatBox(String value, String label, Color color, int delayMs) {
+    return EntranceAnimation(
+      delay: Duration(milliseconds: delayMs),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: OnboardingColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: color.withValues(alpha: 0.2),
+            width: 1,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-          ),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: OnboardingColors.textLight,
-                ),
-          ),
-        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+            ),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: OnboardingColors.textLight,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -629,6 +634,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return CompanionMood.celebrating;
       default:
         return CompanionMood.calm;
+    }
+  }
+
+  EmotionalLottieScene _lottieSceneForPage(int index) {
+    switch (index) {
+      case 3:
+        return EmotionalLottieScene.celebrate;
+      default:
+        return EmotionalLottieScene.onboarding;
     }
   }
 }
