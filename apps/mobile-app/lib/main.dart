@@ -17,6 +17,8 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  await LocalizationService.initialize();
+
   final prefs = await SharedPreferences.getInstance();
   final hasCompletedOnboarding =
       prefs.getBool(_onboardingCompletedKey) ?? false;
@@ -45,14 +47,19 @@ class MaliUpApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Mali Up',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      routerConfig: AppRouter.createRouter(
-        showLanguageSelection: !hasSelectedLanguage,
-        showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
-      ),
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: LocalizationService.languageNotifier,
+      builder: (context, language, child) {
+        return MaterialApp.router(
+          title: 'Mali Up',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          routerConfig: AppRouter.createRouter(
+            showLanguageSelection: !hasSelectedLanguage,
+            showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
+          ),
+        );
+      },
     );
   }
 }

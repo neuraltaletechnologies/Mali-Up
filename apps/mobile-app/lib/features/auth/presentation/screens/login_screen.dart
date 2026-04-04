@@ -51,7 +51,7 @@ class _GlowTextFieldState extends State<_GlowTextField> {
           boxShadow: _hasFocus
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.18),
+                    color: AppColors.primary.withValues(alpha: 0.18),
                     blurRadius: 16,
                     spreadRadius: 1,
                   ),
@@ -135,6 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String _customerPhoneWithCountryCode = '255653520829';
+  late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
   bool _otpSent = false;
   bool _isLoading = false;
@@ -149,13 +150,13 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _loadLanguage();
-  }
-
-  Future<void> _loadLanguage() async {
-    final language = await LocalizationService.getLanguage();
-    if (!mounted) return;
-    setState(() => _language = language);
+    _language = LocalizationService.languageNotifier.value;
+    _languageListener = () {
+      if (mounted) {
+        setState(() => _language = LocalizationService.languageNotifier.value);
+      }
+    };
+    LocalizationService.languageNotifier.addListener(_languageListener);
   }
 
   String _tr(String en, String sw) {
@@ -386,8 +387,7 @@ class _LoginScreenState extends State<LoginScreen> {
         timeout: const Duration(seconds: 120),
         verificationCompleted: (PhoneAuthCredential credential) async {
           try {
-            final userCredential = await _auth.signInWithCredential(credential);
-            final user = userCredential.user;
+            await _auth.signInWithCredential(credential);
             if (mounted) {
               await _NotificationHelper.showSuccess(context, _tr('Authentication successful!', 'Uthibitisho umefanikiwa!'));
               Future.delayed(const Duration(milliseconds: 500), () {
@@ -470,8 +470,7 @@ class _LoginScreenState extends State<LoginScreen> {
         verificationId: _verificationId!,
         smsCode: smsCode,
       );
-      final userCredential = await _auth.signInWithCredential(credential);
-      final user = userCredential.user;
+      await _auth.signInWithCredential(credential);
       if (mounted) {
         await _NotificationHelper.showSuccess(context, _tr('Verification successful!', 'Uthibitisho umefanikiwa!'));
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -509,7 +508,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _phoneController.dispose();
     _recoveryEmailController.dispose();
     _emailOtpController.dispose();
     _phoneFocusNode.dispose();
@@ -534,7 +532,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.05),
+                color: AppColors.primary.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -549,10 +547,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: IconButton(
                   tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
                   onPressed: _useCustomerPhone,
-                  icon: const Icon(
-                    Icons.support_agent_rounded,
-                    color: AppColors.secondary,
-                  ),
+                  icon: const Icon(Icons.support_agent_rounded),
                 ),
               ),
             ),
@@ -589,7 +584,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
@@ -599,132 +593,133 @@ class _LoginScreenState extends State<LoginScreen> {
                       border: Border.all(color: AppColors.border),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.secondary.withOpacity(0.06),
+                          color: AppColors.secondary.withValues(alpha: 0.06),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
                       ],
+
                     ),
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       child: !_otpSent
-                              ? Column(
-                                  key: const ValueKey('phone-step'),
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _tr('Phone Number', 'Namba ya Simu'),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.secondary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    _GlowTextField(
-                                      controller: _phoneController,
-                                      focusNode: _phoneFocusNode,
-                                      keyboardType: TextInputType.phone,
-                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
-                                      decoration: InputDecoration(
-                                        hintText: '7xx xxx xxx',
-                                        prefixIcon: const Padding(
-                                          padding: EdgeInsets.symmetric(horizontal: 16),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text('🇹🇿', style: TextStyle(fontSize: 20)),
-                                              SizedBox(width: 8),
-                                              Text('+255', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 22),
-                                    ElevatedButton(
-                                      onPressed: _isLoading ? null : _sendOTP,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (_isLoading) ...[
-                                            const SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                          ],
-                                          Text(_isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Send OTP', 'Tuma OTP')),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Center(
-                                      child: TextButton(
-                                        onPressed: _isLoading ? null : _showEmailRecoveryDialog,
-                                        child: Text(
-                                          _tr('Don\'t have my phone number', 'Sina namba yangu ya simu sasa'),
-                                          style: const TextStyle(
-                                            color: AppColors.textSecondary,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Column(
-                                  key: const ValueKey('otp-step'),
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _tr('Enter OTP Code', 'Weka Msimbo wa OTP'),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.secondary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
-                                    ),
-                                    const SizedBox(height: 26),
-                                    ElevatedButton(
-                                      onPressed: _isLoading ? null : _verifyOTP,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (_isLoading) ...[
-                                            const SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                          ],
-                                          Text(_isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Continue', 'Thibitisha na Endelea')),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Center(
-                                      child: TextButton(
-                                        onPressed: () => setState(() => _otpSent = false),
-                                        child: Text(
-                                          _tr('Change Number', 'Badili Namba'),
-                                          style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                          ? Column(
+                              key: const ValueKey('phone-step'),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _tr('Phone Number', 'Namba ya Simu'),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.secondary,
+                                  ),
                                 ),
+                                const SizedBox(height: 8),
+                                _GlowTextField(
+                                  controller: _phoneController,
+                                  focusNode: _phoneFocusNode,
+                                  keyboardType: TextInputType.phone,
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                                  decoration: const InputDecoration(
+                                    hintText: '7xx xxx xxx',
+                                    prefixIcon: Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 16),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text('🇹🇿', style: TextStyle(fontSize: 20)),
+                                          SizedBox(width: 8),
+                                          Text('+255', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 22),
+                                ElevatedButton(
+                                  onPressed: _isLoading ? null : _sendOTP,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (_isLoading) ...[
+                                        const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                      ],
+                                      Text(_isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Send OTP', 'Tuma OTP')),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Center(
+                                  child: TextButton(
+                                    onPressed: _isLoading ? null : _showEmailRecoveryDialog,
+                                    child: Text(
+                                      _tr('Don\'t have my phone number', 'Sina namba yangu ya simu sasa'),
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              key: const ValueKey('otp-step'),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _tr('Enter OTP Code', 'Weka Msimbo wa OTP'),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.secondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
+                                ),
+                                const SizedBox(height: 26),
+                                ElevatedButton(
+                                  onPressed: _isLoading ? null : _verifyOTP,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (_isLoading) ...[
+                                        const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                      ],
+                                      Text(_isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Continue', 'Thibitisha na Endelea')),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Center(
+                                  child: TextButton(
+                                    onPressed: () => setState(() => _otpSent = false),
+                                    child: Text(
+                                      _tr('Change Number', 'Badili Namba'),
+                                      style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
 

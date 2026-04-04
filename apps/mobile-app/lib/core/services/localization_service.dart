@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppLanguage {
@@ -37,11 +38,18 @@ extension AppLanguageX on AppLanguage {
 class LocalizationService {
   static const String _languageKey = 'app_language';
   static const String _languageSelectedKey = 'language_selected';
+  static final ValueNotifier<AppLanguage> languageNotifier =
+      ValueNotifier<AppLanguage>(AppLanguage.english);
+
+  static Future<void> initialize() async {
+    languageNotifier.value = await getLanguage();
+  }
 
   static Future<void> setLanguage(AppLanguage language) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_languageKey, language.code);
     await prefs.setBool(_languageSelectedKey, true);
+    languageNotifier.value = language;
   }
 
   static Future<AppLanguage> getLanguage() async {
@@ -66,5 +74,6 @@ class LocalizationService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_languageKey);
     await prefs.remove(_languageSelectedKey);
+    languageNotifier.value = AppLanguage.english;
   }
 }
