@@ -85,7 +85,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (recoveryEmail.isNotEmpty &&
         !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(recoveryEmail)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid recovery email')),
+        const SnackBar(content: Text('Please enter a valid Email')),
       );
       return;
     }
@@ -287,7 +287,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text('Recovery Email (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text('Email ', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _emailController,
@@ -395,7 +395,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text('Recovery Email (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Email ', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _emailController,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../core/onboarding_colors.dart';
@@ -30,6 +31,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   int _currentIndex = 0;
   bool _isExiting = false;
   late Timer _autoAdvanceTimer;
+  bool _timerActive = false;
 
   @override
   void initState() {
@@ -53,6 +55,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   void _startAutoAdvance() {
+    _stopAutoAdvance();
+    _timerActive = true;
     _autoAdvanceTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (_currentIndex < onboardingPages.length - 1) {
         _pageController.nextPage(
@@ -60,17 +64,51 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           curve: Curves.easeInOut,
         );
       } else {
-        // Stop auto-advance on last page
-        _autoAdvanceTimer.cancel();
+        _stopAutoAdvance();
       }
     });
+  }
+
+  void _stopAutoAdvance() {
+    if (_timerActive) {
+      _autoAdvanceTimer.cancel();
+      _timerActive = false;
+    }
+  }
+
+  void _restartAutoAdvanceIfNeeded() {
+    if (_currentIndex < onboardingPages.length - 1) {
+      _startAutoAdvance();
+    } else {
+      _stopAutoAdvance();
+    }
+  }
+
+  void _onSkipTap() {
+    HapticFeedback.selectionClick();
+    _stopAutoAdvance();
+    _pageController.animateToPage(
+      onboardingPages.length - 1,
+      duration: const Duration(milliseconds: 380),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _onPrimaryTap() {
+    HapticFeedback.lightImpact();
+    widget.onOnboardingComplete();
+  }
+
+  void _onSecondaryTap() {
+    HapticFeedback.selectionClick();
+    widget.onOnboardingComplete();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     _exitAnimationController.dispose();
-    _autoAdvanceTimer.cancel();
+    _stopAutoAdvance();
     super.dispose();
   }
 
@@ -85,10 +123,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             controller: _pageController,
             onPageChanged: (index) {
               setState(() => _currentIndex = index);
+              _restartAutoAdvanceIfNeeded();
             },
             itemCount: onboardingPages.length,
             itemBuilder: (context, index) {
-              return _buildOnboardingPage(onboardingPages[index]);
+              return AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, child) {
+                  final page = _pageController.hasClients
+                      ? (_pageController.page ?? _currentIndex.toDouble())
+                      : _currentIndex.toDouble();
+                  final delta = (index - page);
+                  final parallaxX = (delta * 28).clamp(-28.0, 28.0);
+
+                  return Transform.translate(
+                    offset: Offset(parallaxX, 0),
+                    child: child,
+                  );
+                },
+                child: _buildOnboardingPage(onboardingPages[index]),
+              );
             },
           ),
 
@@ -115,7 +169,23 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             // Logo at top
             const SizedBox(height: 20),
             const Center(child: MaliUpLogo(size: 60)),
-            const SizedBox(height: 40),
+            const SizedBox(height: 22),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: OnboardingColors.white,
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: OnboardingColors.divider),
+              ),
+              child: Text(
+                'Step ${page.index + 1} of ${onboardingPages.length}',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: OnboardingColors.textLight,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 26),
             // Icon/Emoji with animation
             EntranceAnimation(
               delay: Duration.zero,
@@ -150,7 +220,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             // Text content
             EntranceAnimation(
               delay: const Duration(milliseconds: 400),
-              child: _buildTextContent(page),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                child: _buildTextContent(page),
+              ),
             ),
           ],
         ),
@@ -403,6 +478,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildTextContent(OnboardingPage page) {
     return Column(
+      key: ValueKey<int>(page.index),
       children: [
         Text(
           page.title,
@@ -432,71 +508,81 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Skip button (if not on last page)
-            if (!isLastPage)
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {
-                    _autoAdvanceTimer.cancel();
-                    _pageController.jumpToPage(onboardingPages.length - 1);
-                  },
-                  child: Text(
-                    'Skip',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: OnboardingColors.textLight,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 16),
-            // Page indicator
-            SmoothPageIndicator(
-              controller: _pageController,
-              count: onboardingPages.length,
-              effect: const CustomizableEffect(
-                activeDotDecoration: DotDecoration(
-                  width: 28,
-                  height: 8,
-                  color: OnboardingColors.accentGreen,
-                  borderRadius: BorderRadius.all(Radius.circular(4)),
-                ),
-                dotDecoration: DotDecoration(
-                  width: 8,
-                  height: 8,
-                  color: OnboardingColors.divider,
-                  borderRadius: BorderRadius.all(Radius.circular(4)),
-                ),
-                spacing: 6,
-              ),
-            ),
-            const SizedBox(height: 32),
-            // Action buttons
-            if (isLastPage) ...[
-              // Register button
-              _buildPrimaryButton(
-                label: 'Register Business',
-                onTap: () {
-                  // Navigate to registration
-                  widget.onOnboardingComplete();
-                },
-              ),
-              const SizedBox(height: 12),
-              // Login button
-              _buildSecondaryButton(
-                label: 'Already have an account? Login',
-                onTap: () {
-                  // Navigate to login
-                  widget.onOnboardingComplete();
-                },
+        padding: const EdgeInsets.all(20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          decoration: BoxDecoration(
+            color: OnboardingColors.white.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: OnboardingColors.divider),
+            boxShadow: [
+              BoxShadow(
+                color: OnboardingColors.primaryDeep.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
             ],
-          ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    isLastPage ? 'Ready to continue' : 'Auto sliding onboarding',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: OnboardingColors.textLight,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const Spacer(),
+                  if (!isLastPage)
+                    GestureDetector(
+                      onTap: _onSkipTap,
+                      child: Text(
+                        'Skip',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: OnboardingColors.textDark,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SmoothPageIndicator(
+                controller: _pageController,
+                count: onboardingPages.length,
+                effect: const CustomizableEffect(
+                  activeDotDecoration: DotDecoration(
+                    width: 28,
+                    height: 8,
+                    color: OnboardingColors.accentGreen,
+                    borderRadius: BorderRadius.all(Radius.circular(4)),
+                  ),
+                  dotDecoration: DotDecoration(
+                    width: 8,
+                    height: 8,
+                    color: OnboardingColors.divider,
+                    borderRadius: BorderRadius.all(Radius.circular(4)),
+                  ),
+                  spacing: 6,
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (isLastPage) ...[
+                _buildPrimaryButton(
+                  label: 'Register Business',
+                  onTap: _onPrimaryTap,
+                ),
+                const SizedBox(height: 12),
+                _buildSecondaryButton(
+                  label: 'Already have an account? Login',
+                  onTap: _onSecondaryTap,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

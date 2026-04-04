@@ -326,7 +326,7 @@ class _MaliUpAppState extends State<MaliUpApp> {
 - [ ] Add dependencies to pubspec.yaml:
   - smooth_page_indicator
   - animations
-  - lottie (optional)
+  - lottie 
 
 - [ ] Import onboarding feature:
   - import 'package:mali_up/features/onboarding/...';
@@ -347,7 +347,7 @@ class _MaliUpAppState extends State<MaliUpApp> {
   - [ ] Use SharedPreferences or local storage
   - [ ] Check on app restart
 
-- [ ] Customize (optional):
+- [ ] Customize :
   - [ ] Edit colors in onboarding_colors.dart
   - [ ] Modify screen content in onboarding_model.dart
   - [ ] Adjust animations in animated_widgets.dart
