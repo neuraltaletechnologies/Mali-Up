@@ -43,3 +43,31 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase configuration - NEVER commit real credentials
+lib/firebase_options.dart
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+
+# iOS certificates and provisioning profiles
+ios/Certificates/
+ios/*.mobileprovision
+ios/*.p8
+
+# Android keystore
+android/app/*.keystore
+android/app/*.jks
+android/key.properties
+
+# Secrets
+/secrets/
+*.pem
+*.key
+*.der
+
+# IDE credential files
+launch.json
+settings.json
