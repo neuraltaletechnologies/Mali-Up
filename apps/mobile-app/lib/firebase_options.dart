@@ -26,17 +26,17 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'YOUR_API_KEY',
-    appId: 'YOUR_APP_ID',
+    appId: 'neuraltale-mali-up',
     messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
+    projectId: 'neuraltale-mali-up',
     storageBucket: 'YOUR_STORAGE_BUCKET',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'YOUR_API_KEY',
-    appId: 'YOUR_APP_ID',
+    appId: 'neuraltale-mali-up',
     messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
+    projectId: 'neuraltale-mali-up',
     storageBucket: 'YOUR_STORAGE_BUCKET',
     iosBundleId: 'com.neuraltale.maliup',
   );
