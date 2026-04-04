@@ -68,6 +68,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _verificationId;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
+  int _successBurstTrigger = 0;
   
   // Owner Details (used for all account types)
   final TextEditingController _ownerNameController = TextEditingController();
@@ -118,6 +119,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _feedbackText = text;
       _feedbackTone = tone;
     });
+  }
+
+  void _triggerSuccessBurst() {
+    if (!mounted) return;
+    setState(() => _successBurstTrigger++);
   }
 
   List<String> _getBusinessCategories() {
@@ -480,6 +486,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _isLoading = false;
         });
         _setFeedback(_tr('OTP sent. Check SMS and continue.', 'OTP imetumwa. Angalia SMS na endelea.'), EmotionalStatusTone.success);
+        _triggerSuccessBurst();
       },
       codeAutoRetrievalTimeout: (vid) => _verificationId = vid,
     );
@@ -551,9 +558,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           }, SetOptions(merge: true));
         }
         
-        if (mounted) context.go(AppRouter.dashboardPath);
+        if (mounted) {
+          _setFeedback(_tr('Account ready. Welcome to Mali Up!', 'Akaunti iko tayari. Karibu Mali Up!'), EmotionalStatusTone.success);
+          _triggerSuccessBurst();
+          await Future.delayed(const Duration(milliseconds: 420));
+        }
+        if (mounted) {
+          context.go(AppRouter.dashboardPath);
+        }
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     _setFeedback(_tr('Registration failed. Please retry.', 'Usajili umeshindikana. Tafadhali jaribu tena.'), EmotionalStatusTone.error);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -630,13 +645,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const Center(child: MaliUpLogo(size: 80)),
                   const SizedBox(height: 14),
                   Center(
-                    child: EmotionalCompanion(
-                      mood: _isLoading
+                    child: EmotionalLottieSpot(
+                      scene: _otpSent ? EmotionalLottieScene.authVerify : EmotionalLottieScene.authWelcome,
+                      size: 98,
+                      fallbackMood: _isLoading
                           ? CompanionMood.focused
                           : _otpSent
                               ? CompanionMood.celebrating
                               : CompanionMood.calm,
-                      size: 88,
                     ),
                   ),
                   const SizedBox(height: 22),
@@ -653,10 +669,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
                   ),
                   const SizedBox(height: 10),
-                  EmotionalStatusChip(
-                    visible: _feedbackText != null,
-                    text: _feedbackText ?? '',
-                    tone: _feedbackTone,
+                  SizedBox(
+                    height: 52,
+                    child: Stack(
+                      alignment: Alignment.centerLeft,
+                      children: [
+                        EmotionalStatusChip(
+                          visible: _feedbackText != null,
+                          text: _feedbackText ?? '',
+                          tone: _feedbackTone,
+                        ),
+                        if (_feedbackTone == EmotionalStatusTone.success)
+                          Positioned.fill(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: EmotionalSuccessBurst(trigger: _successBurstTrigger),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
 

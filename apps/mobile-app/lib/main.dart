@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
 import 'package:mali_up/core/services/localization_service.dart';
+import 'package:mali_up/core/services/motion_service.dart';
 import 'firebase_options.dart';
 
 const String _onboardingCompletedKey = 'onboarding_completed';
@@ -18,6 +19,7 @@ Future<void> main() async {
   );
 
   await LocalizationService.initialize();
+  await MotionService.initialize();
 
   final prefs = await SharedPreferences.getInstance();
   final hasCompletedOnboarding =
@@ -50,14 +52,19 @@ class MaliUpApp extends StatelessWidget {
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: LocalizationService.languageNotifier,
       builder: (context, language, child) {
-        return MaterialApp.router(
-          title: 'Mali Up',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          routerConfig: AppRouter.createRouter(
-            showLanguageSelection: !hasSelectedLanguage,
-            showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
-          ),
+        return ValueListenableBuilder<bool>(
+          valueListenable: MotionService.reducedMotionNotifier,
+          builder: (context, reducedMotion, child) {
+            return MaterialApp.router(
+              title: 'Mali Up',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              routerConfig: AppRouter.createRouter(
+                showLanguageSelection: !hasSelectedLanguage,
+                showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
+              ),
+            );
+          },
         );
       },
     );
