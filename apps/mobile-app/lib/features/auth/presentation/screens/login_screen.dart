@@ -9,6 +9,73 @@ import '../models/account_type.dart';
 import '../widgets/account_type_switcher.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+class _GlowTextField extends StatefulWidget {
+  final TextEditingController controller;
+  final FocusNode? focusNode;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final String? hintText;
+  final Widget? prefixIcon;
+  final TextStyle? style;
+  final InputDecoration? decoration;
+
+  const _GlowTextField({
+    required this.controller,
+    this.focusNode,
+    this.keyboardType,
+    this.textInputAction,
+    this.hintText,
+    this.prefixIcon,
+    this.style,
+    this.decoration,
+  });
+
+  @override
+  State<_GlowTextField> createState() => _GlowTextFieldState();
+}
+
+class _GlowTextFieldState extends State<_GlowTextField> {
+  bool _hasFocus = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      onFocusChange: (focused) {
+        if (_hasFocus != focused) {
+          setState(() => _hasFocus = focused);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: _hasFocus
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.18),
+                    blurRadius: 16,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : const [],
+        ),
+        child: TextField(
+          controller: widget.controller,
+          focusNode: widget.focusNode,
+          keyboardType: widget.keyboardType,
+          textInputAction: widget.textInputAction,
+          style: widget.style,
+          decoration: widget.decoration ??
+              InputDecoration(
+                hintText: widget.hintText,
+                prefixIcon: widget.prefixIcon,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
 
 // Notification helper for success/error messages
 class _NotificationHelper {
@@ -77,6 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController(text: '0653520829');
   final TextEditingController _recoveryEmailController = TextEditingController();
   final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
+  final FocusNode _phoneFocusNode = FocusNode();
 
   bool _isValidEmail(String email) {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
@@ -142,32 +210,65 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _showEmailRecoveryDialog() async {
+    bool isSending = false;
     await showDialog<void>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Send OTP to Email'),
-          content: TextField(
-            controller: _recoveryEmailController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              hintText: 'Enter your Email',
-              prefixIcon: Icon(Icons.alternate_email_rounded),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _sendLoginLinkToEmail();
-              },
-              child: const Text('Send'),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Recover With Email'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'If you no longer have your phone number, we can send a secure login link to your email.',
+                    style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+                  ),
+                  const SizedBox(height: 14),
+                  _GlowTextField(
+                    controller: _recoveryEmailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.done,
+                    hintText: 'Enter your email',
+                    prefixIcon: const Icon(Icons.alternate_email_rounded),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSending ? null : () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          setDialogState(() => isSending = true);
+                          await _sendLoginLinkToEmail();
+                          if (mounted) {
+                            Navigator.of(context).pop();
+                          }
+                        },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isSending) ...[
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(isSending ? 'Sending...' : 'Send OPT'),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -349,6 +450,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _phoneController.dispose();
     _recoveryEmailController.dispose();
+    _phoneFocusNode.dispose();
     for (final controller in _otpControllers) {
       controller.dispose();
     }
@@ -400,14 +502,14 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 52),
                   const Center(child: MaliUpLogo(size: 80)),
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 36),
 
                   Text(
                     _otpSent ? 'Verification' : 'Welcome to Mali Up',
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 30,
                       fontWeight: FontWeight.w900,
                       color: AppColors.secondary,
                       letterSpacing: -0.5,
@@ -426,76 +528,150 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   AccountTypeSwitcher(
                     selectedType: _selectedAccountType,
                     onChanged: _onAccountTypeChanged,
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 24),
 
-                  if (_isLoading)
-                    const Center(child: CircularProgressIndicator())
-                  else if (!_otpSent) ...[
-                    // Phone Input Section
-                    TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
-                      decoration: InputDecoration(
-                        hintText: '7xx xxx xxx',
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('🇹🇿', style: TextStyle(fontSize: 20)),
-                              SizedBox(width: 8),
-                              Text('+255', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
-                            ],
-                          ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.secondary.withOpacity(0.06),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: _sendOTP,
-                      child: const Text('Send OTP'),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: !_otpSent
+                              ? Column(
+                                  key: const ValueKey('phone-step'),
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Phone Number',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _GlowTextField(
+                                      controller: _phoneController,
+                                      focusNode: _phoneFocusNode,
+                                      keyboardType: TextInputType.phone,
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                                      decoration: InputDecoration(
+                                        hintText: '7xx xxx xxx',
+                                        prefixIcon: const Padding(
+                                          padding: EdgeInsets.symmetric(horizontal: 16),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text('🇹🇿', style: TextStyle(fontSize: 20)),
+                                              SizedBox(width: 8),
+                                              Text('+255', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 22),
+                                    ElevatedButton(
+                                      onPressed: _isLoading ? null : _sendOTP,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (_isLoading) ...[
+                                            const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                          ],
+                                          Text(_isLoading ? 'Sending OTP...' : 'Send OTP'),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Center(
+                                      child: TextButton(
+                                        onPressed: _isLoading ? null : _showEmailRecoveryDialog,
+                                        child: const Text(
+                                          'Don\'t have my phone number',
+                                          style: TextStyle(
+                                            color: AppColors.textSecondary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  key: const ValueKey('otp-step'),
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Enter OTP Code',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
+                                    ),
+                                    const SizedBox(height: 26),
+                                    ElevatedButton(
+                                      onPressed: _isLoading ? null : _verifyOTP,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (_isLoading) ...[
+                                            const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                          ],
+                                          Text(_isLoading ? 'Verifying...' : 'Verify & Continue'),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Center(
+                                      child: TextButton(
+                                        onPressed: () => setState(() => _otpSent = false),
+                                        child: const Text(
+                                          'Change Number',
+                                          style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                     ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: TextButton(
-                        onPressed: _showEmailRecoveryDialog,
-                        child: const Text(
-                          'Don\'t have my phone number',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ] else ...[
-                    // OTP Input Section
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
-                    ),
-                    const SizedBox(height: 40),
-                    ElevatedButton(
-                      onPressed: _verifyOTP,
-                      child: const Text('Verify & Continue'),
-                    ),
-                    const SizedBox(height: 24),
-                    Center(
-                      child: TextButton(
-                        onPressed: () => setState(() => _otpSent = false),
-                        child: const Text(
-                          'Change Number',
-                          style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
 
                   const SizedBox(height: 60),
                   Row(
