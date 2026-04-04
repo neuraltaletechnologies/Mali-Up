@@ -461,6 +461,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Container(
+          key: ValueKey<bool>(isLastPage),
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
           decoration: BoxDecoration(
             color: OnboardingColors.white.withValues(alpha: 0.92),
@@ -474,65 +475,72 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    isLastPage ? _tr('Ready to continue', 'Tayari kuendelea') : _tr('Auto sliding onboarding', 'Kuweka pepe zisizokamatia'),
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: OnboardingColors.textLight,
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const Spacer(),
-                  if (!isLastPage)
-                    EmotionalTapScale(
-                      onTap: _onSkipTap,
-                      child: Text(
-                        _tr('Skip', 'Ruka'),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: OnboardingColors.textDark,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: Column(
+              key: ValueKey<int>(_currentIndex),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      isLastPage ? _tr('Ready to continue', 'Tayari kuendelea') : _tr('Auto sliding onboarding', 'Kuweka pepe zisizokamatia'),
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: OnboardingColors.textLight,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
+                    const Spacer(),
+                    if (!isLastPage)
+                      EmotionalTapScale(
+                        hapticStyle: TapHapticStyle.selection,
+                        onTap: _onSkipTap,
+                        child: Text(
+                          _tr('Skip', 'Ruka'),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: OnboardingColors.textDark,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SmoothPageIndicator(
+                  controller: _pageController,
+                  count: onboardingPages.length,
+                  effect: const CustomizableEffect(
+                    activeDotDecoration: DotDecoration(
+                      width: 28,
+                      height: 8,
+                      color: OnboardingColors.accentGreen,
+                      borderRadius: BorderRadius.all(Radius.circular(4)),
+                    ),
+                    dotDecoration: DotDecoration(
+                      width: 8,
+                      height: 8,
+                      color: OnboardingColors.divider,
+                      borderRadius: BorderRadius.all(Radius.circular(4)),
+                    ),
+                    spacing: 6,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                if (isLastPage) ...[
+                  _buildPrimaryButton(
+                    label: _tr('Register Business', 'Jisajili Biashara'),
+                    onTap: _onPrimaryTap,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSecondaryButton(
+                    label: _tr('Already have an account? Login', 'Una akaunti tayari? Ingia'),
+                    onTap: _onSecondaryTap,
+                  ),
                 ],
-              ),
-              const SizedBox(height: 14),
-              SmoothPageIndicator(
-                controller: _pageController,
-                count: onboardingPages.length,
-                effect: const CustomizableEffect(
-                  activeDotDecoration: DotDecoration(
-                    width: 28,
-                    height: 8,
-                    color: OnboardingColors.accentGreen,
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                  ),
-                  dotDecoration: DotDecoration(
-                    width: 8,
-                    height: 8,
-                    color: OnboardingColors.divider,
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                  ),
-                  spacing: 6,
-                ),
-              ),
-              const SizedBox(height: 20),
-              if (isLastPage) ...[
-                _buildPrimaryButton(
-                  label: _tr('Register Business', 'Jisajili Biashara'),
-                  onTap: _onPrimaryTap,
-                ),
-                const SizedBox(height: 12),
-                _buildSecondaryButton(
-                  label: _tr('Already have an account? Login', 'Una akaunti tayari? Ingia'),
-                  onTap: _onSecondaryTap,
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),

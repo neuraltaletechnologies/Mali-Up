@@ -1,10 +1,13 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 
 enum CompanionMood { calm, focused, excited, celebrating }
+enum TapHapticStyle { none, selection, light, medium }
+enum EmotionalStatusTone { neutral, success, warning, error }
 
 class AmbientEmotionBackground extends StatefulWidget {
   final List<Color> palette;
@@ -250,12 +253,14 @@ class EmotionalTapScale extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
   final bool enabled;
+  final TapHapticStyle hapticStyle;
 
   const EmotionalTapScale({
     super.key,
     required this.child,
     this.onTap,
     this.enabled = true,
+    this.hapticStyle = TapHapticStyle.light,
   });
 
   @override
@@ -275,7 +280,10 @@ class _EmotionalTapScaleState extends State<EmotionalTapScale> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => _setScale(0.97),
+      onTapDown: (_) {
+        _setScale(0.97);
+        _triggerHaptic(widget.hapticStyle);
+      },
       onTapCancel: () => _setScale(1),
       onTapUp: (_) => _setScale(1),
       onTap: widget.enabled ? widget.onTap : null,
@@ -286,5 +294,134 @@ class _EmotionalTapScaleState extends State<EmotionalTapScale> {
         child: widget.child,
       ),
     );
+  }
+
+  void _triggerHaptic(TapHapticStyle style) {
+    switch (style) {
+      case TapHapticStyle.selection:
+        HapticFeedback.selectionClick();
+        break;
+      case TapHapticStyle.light:
+        HapticFeedback.lightImpact();
+        break;
+      case TapHapticStyle.medium:
+        HapticFeedback.mediumImpact();
+        break;
+      case TapHapticStyle.none:
+        break;
+    }
+  }
+}
+
+class EmotionalStatusChip extends StatefulWidget {
+  final bool visible;
+  final String text;
+  final EmotionalStatusTone tone;
+
+  const EmotionalStatusChip({
+    super.key,
+    required this.visible,
+    required this.text,
+    this.tone = EmotionalStatusTone.neutral,
+  });
+
+  @override
+  State<EmotionalStatusChip> createState() => _EmotionalStatusChipState();
+}
+
+class _EmotionalStatusChipState extends State<EmotionalStatusChip>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      child: !widget.visible
+          ? const SizedBox.shrink()
+          : RepaintBoundary(
+              key: ValueKey<String>('status-${widget.text}-${widget.tone.name}'),
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  final pulse = 0.88 + (_controller.value * 0.12);
+                  return Opacity(
+                    opacity: pulse,
+                    child: child,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _palette(widget.tone).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: _palette(widget.tone).withValues(alpha: 0.32),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _icon(widget.tone),
+                        size: 16,
+                        color: _palette(widget.tone),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        widget.text,
+                        style: TextStyle(
+                          color: _palette(widget.tone),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
+  IconData _icon(EmotionalStatusTone tone) {
+    switch (tone) {
+      case EmotionalStatusTone.success:
+        return Icons.check_circle;
+      case EmotionalStatusTone.warning:
+        return Icons.bolt;
+      case EmotionalStatusTone.error:
+        return Icons.error_outline;
+      case EmotionalStatusTone.neutral:
+        return Icons.circle;
+    }
+  }
+
+  Color _palette(EmotionalStatusTone tone) {
+    switch (tone) {
+      case EmotionalStatusTone.success:
+        return AppColors.success;
+      case EmotionalStatusTone.warning:
+        return AppColors.warning;
+      case EmotionalStatusTone.error:
+        return AppColors.error;
+      case EmotionalStatusTone.neutral:
+        return AppColors.info;
+    }
   }
 }
