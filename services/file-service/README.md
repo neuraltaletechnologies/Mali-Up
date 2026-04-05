@@ -1,6 +1,6 @@
-# Maliapp File Service
+# MaliUp File Service
 
-Microservice managing centralized file storage for the Maliapp ecosystem.
+Microservice managing centralized file storage for the MaliUp ecosystem.
 
 ## 🚀 Responsibilities
 - Uploading and serving receipt photos and invoice attachments.
@@ -9,4 +9,4 @@ Microservice managing centralized file storage for the Maliapp ecosystem.
 - Temporary link generation for private documents.
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

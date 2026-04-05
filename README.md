@@ -1,16 +1,16 @@
-# Maliapp — SaaS Business Management Suite
+# MaliUp — SaaS Business Management Suite
 
-![Neuraltale](https://img.shields.io/badge/Neuraltale-Maliapp-6366f1?style=for-the-badge)
+![Neuraltale](https://img.shields.io/badge/Neuraltale-MaliUp-6366f1?style=for-the-badge)
 ![Version](https://img.shields.io/badge/Version-1.0-blue?style=for-the-badge)
 ![Stack](https://img.shields.io/badge/Flutter-Fastify-informational?style=for-the-badge)
 
-Maliapp is a cloud-native, multi-tenant SaaS mobile application designed and engineered by **Neuraltale** to empower small and medium-sized businesses (SMBs) across Africa and emerging markets. Built on a microservice architecture, Maliapp delivers a full-stack business management suite inside a single, elegant mobile application.
+MaliUp is a cloud-native, multi-tenant SaaS mobile application designed and engineered by **Neuraltale** to empower small and medium-sized businesses (SMBs) across Africa and emerging markets. Built on a microservice architecture, MaliUp delivers a full-stack business management suite inside a single, elegant mobile application.
 
 ---
 
 ## 🏗 System Architecture
 
-Maliapp uses a **Multi-Tenant Microservice Architecture**.
+MaliUp uses a **Multi-Tenant Microservice Architecture**.
 
 - **Frontend:** Flutter (Mobile) & Next.js (Web Dashboard).
 - **Backend:** Node.js (Fastify + TypeScript) Microservices.
@@ -27,7 +27,7 @@ Maliapp uses a **Multi-Tenant Microservice Architecture**.
 ## 📂 Project Structure
 
 ```text
-Maliapp/
+MaliUp/
 ├── apps/
 │   ├── mobile-app/          # Flutter Mobile Application
 │   └── web-app/             # Next.js Admin/Owner Dashboard

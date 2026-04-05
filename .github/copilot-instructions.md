@@ -1,7 +1,7 @@
-# Copilot Instructions for MALIAPP
+# Copilot Instructions for MaliUp
 
 ## Project Overview
-- **MALIAPP** is a modular SaaS business management platform for African SMEs, built with a microservices architecture.
+- **MaliUp** is a modular SaaS business management platform for African SMEs, built with a microservices architecture.
 - The system is composed of multiple independent services (auth, client, inventory, sales, payment, notification, reporting), each as a NestJS (Node.js/TypeScript) microservice.
 - The frontend consists of a Flutter mobile app and a Next.js/React web dashboard.
 - All services interact with a centralized, multi-tenant PostgreSQL database.
@@ -37,7 +37,7 @@
 ## References
 - See [README.md](../README.md) for full architecture, data model, and workflow details.
 - Example service directories: `auth-service/`, `client-service/`, `inventory-service/`, etc.
-- Example Flutter structure: `maliapp_app/lib/screens/`, `maliapp_app/lib/services/`, etc.
+- Example Flutter structure: `MaliUp_app/lib/screens/`, `MaliUp_app/lib/services/`, etc.
 
 ---
 **For AI agents:**

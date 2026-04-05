@@ -1,4 +1,4 @@
-# Maliapp Purchase Service
+# MaliUp Purchase Service
 
 Microservice managing the procurement lifecycle from supplier management to purchase orders.
 
@@ -10,4 +10,4 @@ Microservice managing the procurement lifecycle from supplier management to purc
 - Reorder suggestions based on lead times.
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

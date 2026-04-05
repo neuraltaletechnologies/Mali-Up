@@ -1,4 +1,4 @@
-# Maliapp Analytics Service
+# MaliUp Analytics Service
 
 Microservice responsible for aggregating data and generating actionable business intelligence.
 
@@ -11,4 +11,4 @@ Microservice responsible for aggregating data and generating actionable business
 - PDF and Excel export logic.
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

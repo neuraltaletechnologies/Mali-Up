@@ -1,4 +1,4 @@
-# Maliapp Debt Service
+# MaliUp Debt Service
 
 Microservice dedicated to tracking receivables and payables to ensure healthy cash flow.
 
@@ -11,4 +11,4 @@ Microservice dedicated to tracking receivables and payables to ensure healthy ca
 - Bad debt write-off workflows.
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

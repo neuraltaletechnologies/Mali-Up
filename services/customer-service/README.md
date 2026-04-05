@@ -1,4 +1,4 @@
-# Maliapp Customer Service (CRM)
+# MaliUp Customer Service (CRM)
 
 Microservice for building and maintaining customer relationships through a lightweight CRM.
 
@@ -10,4 +10,4 @@ Microservice for building and maintaining customer relationships through a light
 - Import/Export of customer contacts.
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

@@ -1,6 +1,6 @@
-# Maliapp Auth Service
+# MaliUp Auth Service
 
-Microservice responsible for high-security authentication and authorization across the Maliapp ecosystem.
+Microservice responsible for high-security authentication and authorization across the MaliUp ecosystem.
 
 ## 🚀 Responsibilities
 - User registration and login flow.
@@ -23,4 +23,4 @@ Microservice responsible for high-security authentication and authorization acro
 - `POST /auth/2fa/verify`
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

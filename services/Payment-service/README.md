@@ -1,4 +1,4 @@
-# Maliapp Payment Service
+# MaliUp Payment Service
 
 Microservice responsible for processing online payments and mobile money integrations.
 
@@ -9,4 +9,4 @@ Microservice responsible for processing online payments and mobile money integra
 - Payment reconciliation.
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
