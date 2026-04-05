@@ -1,6 +1,6 @@
-# Maliapp Sales Service
+# MaliUp Sales Service
 
-The core revenue-generating microservice for Maliapp, managing the entire sales and invoicing lifecycle.
+The core revenue-generating microservice for MaliUp, managing the entire sales and invoicing lifecycle.
 
 ## 🚀 Responsibilities
 - Point of Sale (POS) transaction processing.
@@ -20,4 +20,4 @@ The core revenue-generating microservice for Maliapp, managing the entire sales 
 - **Notification Service:** Sends invoices to customers via WhatsApp/Email.
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

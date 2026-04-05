@@ -1,4 +1,4 @@
-# Maliapp Inventory Service
+# MaliUp Inventory Service
 
 Microservice providing full inventory control, tracking stock levels, movements, and valuations.
 
@@ -15,4 +15,4 @@ Microservice providing full inventory control, tracking stock levels, movements,
 - **Purchase Service:** Updates stock upon Goods Received (GRN).
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

@@ -1,4 +1,4 @@
-# Maliapp Finance Service
+# MaliUp Finance Service
 
 Microservice providing real-time visibility into the business's cash position and expense management.
 
@@ -11,4 +11,4 @@ Microservice providing real-time visibility into the business's cash position an
 - Daily cash reconciliation.
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

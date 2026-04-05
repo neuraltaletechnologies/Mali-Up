@@ -1,4 +1,4 @@
-# Maliapp Notification Service
+# MaliUp Notification Service
 
 Centralized service for handling all outgoing communications with users and customers.
 
@@ -13,4 +13,4 @@ Centralized service for handling all outgoing communications with users and cust
 - **Providers:** Firebase, Twilio/SMS-Gateway, SendGrid/Nodemailer
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

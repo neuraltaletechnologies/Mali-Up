@@ -1,4 +1,4 @@
-# Maliapp User Service
+# MaliUp User Service
 
 Microservice responsible for Role-Based Access Control (RBAC) and user profile management.
 
@@ -16,4 +16,4 @@ Microservice responsible for Role-Based Access Control (RBAC) and user profile m
 - **Messaging:** RabbitMQ
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

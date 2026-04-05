@@ -1,6 +1,6 @@
-# Maliapp Web — Admin Dashboard
+# MaliUp Web — Admin Dashboard
 
-The web-based administrative portal for Maliapp, providing business owners and administrators with high-level analytics, multi-tenant management, and configuration tools.
+The web-based administrative portal for MaliUp, providing business owners and administrators with high-level analytics, multi-tenant management, and configuration tools.
 
 ## 🛠 Tech Stack
 - **Framework:** Next.js / React
@@ -22,4 +22,4 @@ npm run dev
 ```
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.

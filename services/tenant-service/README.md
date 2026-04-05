@@ -1,4 +1,4 @@
-# Maliapp Tenant Service
+# MaliUp Tenant Service
 
 Microservice managing the multi-tenant infrastructure, onboarding, and SaaS subscriptions.
 
@@ -17,4 +17,4 @@ Microservice managing the multi-tenant infrastructure, onboarding, and SaaS subs
 - **Messaging:** RabbitMQ (Publishes `tenant.created` events)
 
 ---
-Part of the [Maliapp](../../README.md) suite by **Neuraltale**.
+Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
