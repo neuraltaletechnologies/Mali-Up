@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../onboarding/core/onboarding_colors.dart';
 import '../models/account_type.dart';
 import '../widgets/terms_and_conditions.dart';
 import '../widgets/privacy_policy.dart';
@@ -51,12 +53,14 @@ class RegisterScreen extends StatefulWidget {
   final String? initialFullName;
   final String? initialPhone;
   final String? initialEmail;
+  final bool fromOnboarding;
 
   const RegisterScreen({
     super.key,
     this.initialFullName,
     this.initialPhone,
     this.initialEmail,
+    this.fromOnboarding = false,
   });
 
   @override
@@ -648,17 +652,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
-            onPressed: _useCustomerPhone,
-            icon: const Icon(Icons.support_agent_rounded),
-          ),
-        ],
-      ),
+      appBar: widget.fromOnboarding
+          ? null
+          : AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              actions: [
+                IconButton(
+                  tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
+                  onPressed: _useCustomerPhone,
+                  icon: const Icon(Icons.support_agent_rounded),
+                ),
+              ],
+            ),
       body: Stack(
         children: [
           const AmbientEmotionBackground(
@@ -671,10 +677,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.fromLTRB(32, 0, 32, 180),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (widget.fromOnboarding) ...[
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Text(
+                        _tr('Final step: create your account', 'Hatua ya mwisho: tengeneza akaunti yako'),
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                   const Center(child: MaliUpLogo(size: 80)),
                   const SizedBox(height: 14),
                   Center(
@@ -757,7 +783,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _tr('Your Details', 'Maelezo Yako'),
+                                    _tr('Personal Details', 'Maelezo Binafsi'),
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -783,7 +809,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     textInputAction: TextInputAction.next,
                                     decoration: InputDecoration(
                                       hintText: _tr('e.g. you@example.com', 'mfano: you@example.com'),
-                                      prefixIcon: const Icon(Icons.alternate_email_rounded),
+                                      prefixIcon: const Icon(Icons.email_rounded),
                                     ),
                                   ),
                                   const SizedBox(height: 16),
@@ -827,7 +853,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _tr('What would you like to manage?', 'Unataaka kusimamia nini?'),
+                                    _tr('What do you want to manage?', 'Unataka kusimamia nini?'),
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -1105,7 +1131,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
+          if (widget.fromOnboarding)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildOnboardingBottomCard(),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOnboardingBottomCard() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          decoration: BoxDecoration(
+            color: OnboardingColors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: OnboardingColors.divider),
+            boxShadow: [
+              BoxShadow(
+                color: OnboardingColors.primaryDeep.withValues(alpha: 0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _tr('Step 4 of 4: Account Setup', 'Hatua ya 4 kati ya 4: Usanidi wa Akaunti'),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const AnimatedSmoothIndicator(
+                activeIndex: 3,
+                count: 4,
+                effect: CustomizableEffect(
+                  activeDotDecoration: DotDecoration(
+                    width: 28,
+                    height: 8,
+                    color: OnboardingColors.accentGreen,
+                    borderRadius: BorderRadius.all(Radius.circular(4)),
+                  ),
+                  dotDecoration: DotDecoration(
+                    width: 8,
+                    height: 8,
+                    color: OnboardingColors.divider,
+                    borderRadius: BorderRadius.all(Radius.circular(4)),
+                  ),
+                  spacing: 6,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

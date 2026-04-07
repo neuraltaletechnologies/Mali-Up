@@ -54,23 +54,18 @@ class MaliUpApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AppLanguage>(
-      valueListenable: LocalizationService.languageNotifier,
-      builder: (context, language, child) {
-        return ValueListenableBuilder<bool>(
-          valueListenable: MotionService.reducedMotionNotifier,
-          builder: (context, reducedMotion, child) {
-            return MaterialApp.router(
-              title: 'Mali Up',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              routerConfig: AppRouter.createRouter(
-                showLanguageSelection: !hasSelectedLanguage,
-                showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
-                hasActiveSession: hasActiveSession,
-              ),
-            );
-          },
+    return ValueListenableBuilder<bool>(
+      valueListenable: MotionService.reducedMotionNotifier,
+      builder: (context, reducedMotion, child) {
+        return MaterialApp.router(
+          title: 'Mali Up',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          routerConfig: AppRouter.createRouter(
+            showLanguageSelection: !hasSelectedLanguage,
+            showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
+            hasActiveSession: hasActiveSession,
+          ),
         );
       },
     );
