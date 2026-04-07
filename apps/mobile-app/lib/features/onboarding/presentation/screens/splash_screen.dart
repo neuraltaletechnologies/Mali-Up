@@ -262,8 +262,8 @@ class _SplashScreenState extends State<SplashScreen>
                 // Tagline
                 Text(
                   _tr(
-                    'Smart Business Management\nfor Growing Businesses',
-                    'Usimamizi Mahususi wa Biashara\nkwa Biashara Zinazokua',
+                    'Run your business with clarity, every day.',
+                    'Endesha biashara yako kwa ufasaha, kila siku.',
                   ),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(

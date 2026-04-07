@@ -172,13 +172,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'Kuingia kwa simu kumezimwa kwenye mradi huu wa Firebase. Washa Phone provider kwenye Firebase Auth > Sign-in method.',
         );
       case 'invalid-phone-number':
-        return _tr('Invalid phone number format.', 'Muundo wa namba ya simu si sahihi.');
+        return _tr('That number looks off. Please check and try again.', 'Namba hiyo inaonekana si sahihi. Tafadhali hakiki kisha ujaribu tena.');
       case 'too-many-requests':
-        return _tr('Too many attempts. Try again later.', 'Majaribio mengi sana. Jaribu tena baadaye.');
+        return _tr('Let\'s pause for a bit, then try again.', 'Tusimame kidogo, kisha ujaribu tena.');
       case 'quota-exceeded':
         return _tr('SMS quota exceeded. Check Firebase usage and billing.', 'Kikomo cha SMS kimefikiwa. Angalia matumizi na malipo ya Firebase.');
       case 'network-request-failed':
-        return _tr('Network error. Check your internet connection.', 'Hitilafu ya mtandao. Angalia muunganisho wa intaneti.');
+        return _tr('We\'re having trouble connecting. Check internet and try again.', 'Tunapata shida ya muunganisho. Angalia intaneti kisha ujaribu tena.');
       case 'internal-error':
         if (raw.contains('BILLING_NOT_ENABLED')) {
           return _tr(
@@ -194,7 +194,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
         return _tr('Internal auth error. Check Firebase Auth and billing settings.', 'Hitilafu ya ndani ya uthibitishaji. Angalia mipangilio ya Firebase Auth na billing.');
       default:
-        return fallbackMessage ?? _tr('Phone verification failed.', 'Uthibitishaji wa simu umeshindikana.');
+        return fallbackMessage ?? _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.');
     }
   }
 
@@ -470,14 +470,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // Validate owner details
     if (_ownerNameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_tr('Oops!! you forgot your full name', 'Tafadhali weka jina lako kamili'))),
+        SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
       );
       return;
     }
     
     if (_phoneController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_tr('Please enter phone number', 'Tafadhali weka namba ya simu'))),
+        SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
       );
       return;
     }
@@ -487,13 +487,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _selectedManagementType == AccountManagementType.both) {
       if (_businessNameController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_tr('Please enter business name', 'Tafadhali weka jina la biashara'))),
+          SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
         );
         return;
       }
       if (_placeOfBusinessController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_tr('Please enter place of business', 'Tafadhali weka mahali pa biashara'))),
+          SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
         );
         return;
       }
@@ -503,7 +503,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (recoveryEmail.isNotEmpty &&
         !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(recoveryEmail)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_tr('Please enter a valid email', 'Tafadhali weka barua pepe halali'))),
+        SnackBar(content: Text(_tr('That email looks incorrect. Please check it.', 'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.'))),
       );
       return;
     }
@@ -519,7 +519,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       verificationFailed: (FirebaseAuthException e) {
         setState(() => _isLoading = false);
         final message = _getPhoneAuthErrorMessage(e.code, e.message);
-        _setFeedback(_tr('Could not send OTP yet.', 'Bado haikuwezekana kutuma OTP.'), EmotionalStatusTone.error);
+        _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.error);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       },
       codeSent: (String vid, int? resendToken) {
@@ -528,7 +528,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _otpSent = true;
           _isLoading = false;
         });
-        _setFeedback(_tr('OTP sent. Check SMS and continue.', 'OTP imetumwa. Angalia SMS na endelea.'), EmotionalStatusTone.success);
+        _setFeedback(_tr('Code sent. Check your messages.', 'Msimbo umetumwa. Angalia ujumbe wako.'), EmotionalStatusTone.success);
         _triggerSuccessBurst();
       },
       codeAutoRetrievalTimeout: (vid) => _verificationId = vid,
@@ -606,7 +606,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
         
         if (mounted) {
-          _setFeedback(_tr('Account ready. Welcome to Mali Up!', 'Akaunti iko tayari. Karibu Mali Up!'), EmotionalStatusTone.success);
+          _setFeedback(_tr('Great news, your workspace is ready.', 'Habari njema, workspace yako iko tayari.'), EmotionalStatusTone.success);
           _triggerSuccessBurst();
           await Future.delayed(const Duration(milliseconds: 420));
         }
@@ -617,9 +617,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-    _setFeedback(_tr('Registration failed. Please retry.', 'Usajili umeshindikana. Tafadhali jaribu tena.'), EmotionalStatusTone.error);
+    _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.error);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_tr('Registration failed', 'Ujisajili umeshindwa'))),
+      SnackBar(content: Text(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'))),
     );
     }
   }
@@ -672,17 +672,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
             intensity: 0.78,
           ),
-          Positioned(
-            top: 12,
-            right: 12,
+          Align(
+            alignment: Alignment.topRight,
             child: SafeArea(
-              child: Material(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(999),
-                child: IconButton(
-                  tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
-                  onPressed: _useCustomerPhone,
-                  icon: const Icon(Icons.support_agent_rounded),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8, right: 12),
+                child: Material(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  child: IconButton(
+                    tooltip: 'Use customer care number +$_customerPhoneWithCountryCode',
+                    onPressed: _useCustomerPhone,
+                    icon: const Icon(Icons.support_agent_rounded),
+                  ),
                 ),
               ),
             ),
@@ -697,7 +699,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const Center(child: MaliUpLogo(size: 80)),
                   const SizedBox(height: 20),
                   Text(
-                    _otpSent ? _tr('Verify Phone', 'Thibitisha Simu') : _tr('Create Your Account', 'Tengeneza Akaunti Yako'),
+                    _otpSent ? _tr('Confirm your phone number', 'Thibitisha namba yako ya simu') : _tr('Let\'s get you started', 'Tuanze kukuweka tayari'),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontSize: 30,
                           fontWeight: FontWeight.w900,
@@ -708,8 +710,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _otpSent
-                        ? _tr('Enter code sent to ${_phoneController.text}', 'Weka namba iliyotumwa kwa ${_phoneController.text}')
-                        : _tr('Set up your account to get started', 'Tekeleza akaunti yako kuanza'),
+                        ? _tr('We sent a code to +255 ${_phoneController.text}.', 'Tumetuma msimbo kwa +255 ${_phoneController.text}.')
+                        : _tr('Tell us about you and your business.', 'Tuambie kuhusu wewe na biashara yako.'),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.textSecondary,
                           fontSize: 15,
@@ -773,7 +775,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _tr('Personal Details', 'Maelezo Binafsi'),
+                                    _tr('About you', 'Kuhusu wewe'),
                                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w700,
@@ -782,7 +784,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    _tr('Full Name', 'Jina Kamili'),
+                                    _tr('Your Full name', 'Jina lako kamili'),
                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -791,13 +793,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   _GlowTextField(
                                     controller: _ownerNameController,
                                     decoration: InputDecoration(
-                                      hintText: _tr('e.g. John Mushi', 'mfano: John Mushi'),
+                                      hintText: _tr('Example: Amina Juma', 'Mfano: Amina Juma'),
                                       prefixIcon: const Icon(Icons.person_rounded),
                                     ),
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    _tr('Email (Optional)', 'Barua Pepe (Kisimu)'),
+                                    _tr('Recovery email (optional)', 'Barua pepe ya kurejesha (hiari)'),
                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -814,7 +816,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    _tr('Mobile Number', 'Namba ya Simu'),
+                                    _tr('Mobile number', 'Namba ya simu'),
                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -858,7 +860,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _tr('What do you want to manage?', 'Unataka kusimamia nini?'),
+                                    _tr('What would you like to manage first?', 'Ungependa kusimamia nini kwanza?'),
                                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w700,
@@ -911,7 +913,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      _tr('Business Details', 'Maelezo ya Biashara'),
+                                      _tr('Tell us about your business', 'Tuambie kuhusu biashara yako'),
                                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w700,
@@ -919,7 +921,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           ),
                                     ),
                                     const SizedBox(height: 16),
-                                    Text(_tr('Business Name', 'Jina la Biashara'),
+                                    Text(_tr('Brand or shop name', 'Jina la chapa au duka'),
                                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                               fontWeight: FontWeight.w700,
                                             )),
@@ -932,7 +934,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 16),
-                                    Text(_tr('Business Type', 'Aina ya Biashara'),
+                                    Text(_tr('Business category', 'Kundi la biashara'),
                                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                               fontWeight: FontWeight.w700,
                                             )),
@@ -963,7 +965,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 16),
-                                    Text(_tr('Place of Business', 'Mahali pa Biashara'),
+                                    Text(_tr('Where you operate', 'Unapofanyia biashara'),
                                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                               fontWeight: FontWeight.w700,
                                             )),
@@ -1002,7 +1004,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           color: AppColors.textSecondary,
                                         ),
                                         children: [
-                                          TextSpan(text: _tr('I agree to the ', 'Nakubali ')),
+                                          TextSpan(text: _tr('Continuing means you accept our ', 'Kuendelea kunamaanisha unakubali ')),
                                           TextSpan(
                                             text: _tr('Terms & Conditions', 'Masharti na Hali'),
                                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1069,7 +1071,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       const SizedBox(width: 10),
                                     ],
                                     Text(
-                                      _isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Continue', 'Endelea'),
+                                      _isLoading ? _tr('Code on the way...', 'Msimbo unakuja...') : _tr('Send verification code', 'Tuma msimbo wa uthibitisho'),
                                     ),
                                   ],
                                 ),
@@ -1082,7 +1084,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _tr('Enter OTP to Complete Registration', 'Weka OTP kumaliza Ujisajili'),
+                              _tr('Confirm your phone number', 'Thibitisha namba yako ya simu'),
                               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.secondary,
@@ -1116,7 +1118,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       const SizedBox(width: 10),
                                     ],
                                     Text(
-                                      _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Finish', 'Thibitisha na Maliza'),
+                                      _isLoading ? _tr('Almost done...', 'Karibu kumaliza...') : _tr('Verify and finish', 'Thibitisha na umalize'),
                                     ),
                                   ],
                                 ),
@@ -1132,7 +1134,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: TextButton(
                       onPressed: () => context.push(AppRouter.loginPath),
                       child: Text(
-                        _tr('Already have an account? Manage Account', 'Una akaunti tayari? Simamia Akaunti'),
+                        _tr('Have an account already? Sign in instead', 'Una akaunti tayari? Ingia badala yake'),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w700,

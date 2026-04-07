@@ -28,9 +28,9 @@ extension AppLanguageX on AppLanguage {
   String get nativeLabel {
     switch (this) {
       case AppLanguage.english:
-        return 'English';
+        return 'Continue in English';
       case AppLanguage.swahili:
-        return 'Kiswahili';
+        return 'Endelea kwa Kiswahili';
     }
   }
 }

@@ -234,12 +234,12 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _recoveryEmailController.text.trim().toLowerCase();
 
     if (email.isEmpty) {
-      await _NotificationHelper.showError(context, _tr('Please enter your email to continue.', 'Tafadhali weka barua pepe yako ili tuendelee.'));
+      await _NotificationHelper.showError(context, _tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'));
       return;
     }
 
     if (!_isValidEmail(email)) {
-      await _NotificationHelper.showError(context, _tr('Please enter a valid email address.', 'Tafadhali weka barua pepe sahihi.'));
+      await _NotificationHelper.showError(context, _tr('That email looks incorrect. Please check it.', 'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.'));
       return;
     }
 
@@ -309,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final doc = await _firestore.collection('email_otp_auth').doc(email).get();
       if (!mounted) return;
       if (!doc.exists) {
-        await _NotificationHelper.showError(context, _tr('We could not find that code. Please request a new one.', 'Hatukuweza kupata msimbo huo. Tafadhali omba mwingine mpya.'));
+        await _NotificationHelper.showError(context, _tr('No account yet, but you can create one in a minute.', 'Bado hakuna akaunti, lakini unaweza kuunda moja kwa dakika moja.'));
         return;
       }
 
@@ -320,13 +320,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (isExpired) {
         if (!mounted) return;
-        await _NotificationHelper.showError(context, _tr('This code has expired. Please request a new one.', 'Msimbo huu umeisha muda wake. Tafadhali omba mwingine mpya.'));
+        await _NotificationHelper.showError(context, _tr('That code has expired. Request a new one.', 'Msimbo huo umeisha muda. Omba msimbo mpya.'));
         return;
       }
 
       if (savedCode != code) {
         if (!mounted) return;
-        await _NotificationHelper.showError(context, _tr('That code does not match. Please check and try again.', 'Msimbo huo haulingani. Tafadhali hakiki kisha jaribu tena.'));
+        await _NotificationHelper.showError(context, _tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena msimbo kisha endelea.'));
         return;
       }
 
@@ -446,14 +446,14 @@ class _LoginScreenState extends State<LoginScreen> {
     // Validate phone number
     if (phone.isEmpty) {
       if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Please enter your phone number to continue.', 'Tafadhali weka namba yako ya simu ili tuendelee.'));
+        await _NotificationHelper.showError(context, _tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'));
       }
       return;
     }
     
     if (phone.length != 9) {
       if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Please enter a valid 9-digit phone number.', 'Tafadhali weka namba sahihi ya simu yenye tarakimu 9.'));
+        await _NotificationHelper.showError(context, _tr('That number looks off. Please check and try again.', 'Namba hiyo inaonekana si sahihi. Tafadhali hakiki kisha ujaribu tena.'));
       }
       return;
     }
@@ -469,8 +469,8 @@ class _LoginScreenState extends State<LoginScreen> {
           try {
             await _auth.signInWithCredential(credential);
             if (mounted) {
-              await _NotificationHelper.showSuccess(context, _tr('Authentication successful!', 'Uthibitisho umefanikiwa!'));
-              _setFeedback(_tr('Welcome back. You are now signed in.', 'Karibu tena. Sasa umeingia salama.'), EmotionalStatusTone.success);
+              await _NotificationHelper.showSuccess(context, _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'));
+              _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) context.go(AppRouter.dashboardPath);
               });
@@ -488,7 +488,7 @@ class _LoginScreenState extends State<LoginScreen> {
           String errorMessage = _getFirebaseErrorMessage(e.code);
           if (mounted) {
             _NotificationHelper.showError(context, errorMessage);
-            _setFeedback(_tr('We could not send a code right now.', 'Hatukuweza kutuma msimbo kwa sasa.'), EmotionalStatusTone.error);
+            _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.error);
           }
         },
         codeSent: (String verificationId, int? resendToken) {
@@ -499,7 +499,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _isLoading = false;
             });
             _NotificationHelper.showSuccess(context, _tr('A verification code was sent to $fullPhone', 'Msimbo wa uthibitisho umetumwa kwa $fullPhone'));
-            _setFeedback(_tr('OTP sent. Enter your code.', 'OTP imetumwa. Weka msimbo wako.'), EmotionalStatusTone.success);
+            _setFeedback(_tr('Code sent. Check your messages.', 'Msimbo umetumwa. Angalia ujumbe wako.'), EmotionalStatusTone.success);
             _triggerSuccessBurst();
           }
         },
@@ -512,8 +512,8 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        await _NotificationHelper.showError(context, _tr('Something went wrong: ${e.toString()}', 'Kuna tatizo limetokea: ${e.toString()}'));
-        _setFeedback(_tr('Please check your connection and try again.', 'Tafadhali hakiki mtandao kisha ujaribu tena.'), EmotionalStatusTone.warning);
+        await _NotificationHelper.showError(context, _tr('We\'re having trouble connecting. Check internet and try again.', 'Tunapata shida ya muunganisho. Angalia intaneti kisha ujaribu tena.'));
+        _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.warning);
       }
     }
   }
@@ -521,21 +521,21 @@ class _LoginScreenState extends State<LoginScreen> {
   String _getFirebaseErrorMessage(String errorCode) {
     switch (errorCode) {
       case 'invalid-phone-number':
-        return _tr('Please enter a valid phone number format.', 'Tafadhali weka muundo sahihi wa namba ya simu.');
+        return _tr('That number looks off. Please check and try again.', 'Namba hiyo inaonekana si sahihi. Tafadhali hakiki kisha ujaribu tena.');
       case 'missing-client-identifier':
         return _tr('API configuration error. Please contact support.', 'Hitilafu ya mpangilio wa API. Wasiliana na msaada.');
       case 'invalid-api-key':
         return _tr('API key not configured. Please contact support.', 'API key haijapangwa. Wasiliana na msaada.');
       case 'too-many-requests':
-        return _tr('You have tried several times. Please wait a moment and try again.', 'Umejaribu mara kadhaa. Tafadhali subiri kidogo kisha ujaribu tena.');
+        return _tr('Let\'s pause for a bit, then try again.', 'Tusimame kidogo, kisha ujaribu tena.');
       case 'app-not-authorized':
         return _tr('App not authorized for phone authentication', 'App haijaidhinishwa kwa uthibitisho wa simu');
       case 'operation-not-allowed':
-        return _tr('Phone authentication is not enabled', 'Uthibitisho wa simu haujawashwa');
+        return _tr('Phone verification setup still needs attention.', 'Mipangilio ya uthibitisho wa simu bado inahitaji marekebisho.');
       case 'network-request-failed':
-        return _tr('Network connection issue. Please check your internet and try again.', 'Kuna tatizo la mtandao. Tafadhali hakiki intaneti yako kisha ujaribu tena.');
+        return _tr('We\'re having trouble connecting. Check internet and try again.', 'Tunapata shida ya muunganisho. Angalia intaneti kisha ujaribu tena.');
       default:
-        return _tr('Verification was not completed: $errorCode. Please try again.', 'Uthibitishaji haujakamilika: $errorCode. Tafadhali jaribu tena.');
+        return _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.');
     }
   }
 
@@ -548,13 +548,13 @@ class _LoginScreenState extends State<LoginScreen> {
           'Kuingia kwa simu kumezimwa. Washa Phone provider kwenye Firebase Auth > Sign-in method.',
         );
       case 'invalid-phone-number':
-        return _tr('Please enter a valid phone number format.', 'Tafadhali weka muundo sahihi wa namba ya simu.');
+        return _tr('That number looks off. Please check and try again.', 'Namba hiyo inaonekana si sahihi. Tafadhali hakiki kisha ujaribu tena.');
       case 'too-many-requests':
-        return _tr('You have tried several times. Please wait a moment and try again.', 'Umejaribu mara kadhaa. Tafadhali subiri kidogo kisha ujaribu tena.');
+        return _tr('Let\'s pause for a bit, then try again.', 'Tusimame kidogo, kisha ujaribu tena.');
       case 'quota-exceeded':
         return _tr('SMS quota exceeded. Check Firebase usage and billing.', 'Kikomo cha SMS kimefikiwa. Angalia matumizi na malipo ya Firebase.');
       case 'network-request-failed':
-        return _tr('Network connection issue. Please check your internet.', 'Kuna tatizo la mtandao. Tafadhali hakiki intaneti yako.');
+        return _tr('We\'re having trouble connecting. Check internet and try again.', 'Tunapata shida ya muunganisho. Angalia intaneti kisha ujaribu tena.');
       case 'internal-error':
         if (raw.contains('BILLING_NOT_ENABLED')) {
           return _tr(
@@ -570,7 +570,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         return _tr('Internal auth error. Check Firebase Auth and billing settings.', 'Hitilafu ya ndani ya uthibitishaji. Angalia mipangilio ya Firebase Auth na billing.');
       default:
-        return fallbackMessage ?? _tr('Phone verification was not completed yet.', 'Uthibitishaji wa simu haujakamilika bado.');
+        return fallbackMessage ?? _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.');
     }
   }
 
@@ -812,8 +812,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await _auth.signInWithCredential(credential);
       if (mounted) {
-        await _NotificationHelper.showSuccess(context, _tr('Verification successful. Welcome!', 'Uthibitishaji umefanikiwa. Karibu!'));
-        _setFeedback(_tr('Code confirmed. Taking you to your workspace...', 'Msimbo umethibitishwa. Tunakupeleka kwenye workspace yako...'), EmotionalStatusTone.success);
+        await _NotificationHelper.showSuccess(context, _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'));
+        _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
         _triggerSuccessBurst();
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) context.go(AppRouter.dashboardPath);
@@ -822,17 +822,17 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
       String errorMessage = e.code == 'invalid-verification-code'
-          ? _tr('That code is not correct yet. Please check and try again.', 'Msimbo huo bado si sahihi. Tafadhali hakiki kisha ujaribu tena.')
-          : _tr('Verification was not completed: ${e.message}', 'Uthibitishaji haujakamilika: ${e.message}');
+          ? _tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena msimbo kisha endelea.')
+          : _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.');
       if (mounted) {
         await _NotificationHelper.showError(context, errorMessage);
-        _setFeedback(_tr('Please try the code again carefully.', 'Tafadhali jaribu msimbo tena kwa umakini.'), EmotionalStatusTone.error);
+        _setFeedback(_tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena msimbo kisha endelea.'), EmotionalStatusTone.error);
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Something went wrong: ${e.toString()}', 'Kuna tatizo limetokea: ${e.toString()}'));
-        _setFeedback(_tr('Verification paused. Please try again.', 'Uthibitishaji umesimama kwa muda. Tafadhali jaribu tena.'), EmotionalStatusTone.warning);
+        await _NotificationHelper.showError(context, _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'));
+        _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.warning);
       }
     }
   }
@@ -878,17 +878,19 @@ class _LoginScreenState extends State<LoginScreen> {
             intensity: 0.8,
           ),
 
-          Positioned(
-            top: 12,
-            right: 12,
+          Align(
+            alignment: Alignment.topRight,
             child: SafeArea(
-              child: Material(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(999),
-                child: IconButton(
-                  tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
-                  onPressed: _useCustomerPhone,
-                  icon: const Icon(Icons.support_agent_rounded),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8, right: 12),
+                child: Material(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  child: IconButton(
+                    tooltip: 'Use customer care number +$_customerPhoneWithCountryCode',
+                    onPressed: _useCustomerPhone,
+                      icon: const Icon(Icons.support_agent_rounded),
+                  ),
                 ),
               ),
             ),
@@ -905,7 +907,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
 
                   Text(
-                    _otpSent ? _tr('Verification', 'Uthibitishaji') : _tr('Welcome to Mali Up', 'Karibu Mali Up'),
+                    _otpSent ? _tr('Check your phone for the code', 'Angalia simu yako kwa msimbo') : _tr('Good to see you again', 'Vizuri kukuona tena'),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontSize: 30,
                           fontWeight: FontWeight.w900,
@@ -916,8 +918,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _otpSent 
-                      ? _tr('We sent a code to +255 ${_phoneController.text}', 'Tumepeleka msimbo kwa +255 ${_phoneController.text}')
-                      : _tr('Enter your phone number to continue', 'Weka namba yako ya simu kuendelea'),
+                      ? _tr('We sent a code to +255 ${_phoneController.text}.', 'Tumetuma msimbo kwa +255 ${_phoneController.text}.')
+                      : _tr('Start with your phone number and we\'ll send a code.', 'Anza na namba yako ya simu, tutakutumia msimbo.'),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.textSecondary,
                           fontSize: 15,
@@ -970,7 +972,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _tr('Phone Number', 'Namba ya Simu'),
+                                  _tr('Your business phone', 'Namba yako ya biashara'),
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.secondary,
@@ -1021,7 +1023,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                           const SizedBox(width: 10),
                                         ],
-                                        Text(_isLoading ? _tr('Sending OTP...', 'Inatuma OTP...') : _tr('Send OTP', 'Tuma OTP')),
+                                        Text(_isLoading ? _tr('One moment, we\'re sending a code...', 'Subiri kidogo, tunatuma msimbo...') : _tr('Get verification code', 'Pata msimbo wa uthibitisho')),
                                       ],
                                     ),
                                   ),
@@ -1031,7 +1033,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: TextButton(
                                     onPressed: _isLoading ? null : _showEmailRecoveryDialog,
                                     child: Text(
-                                      _tr('I can\'t access this phone number', 'Siwezi kufikia namba hii ya simu'),
+                                      _tr('I can\'t access this number', 'Siwezi kufikia namba hii'),
                                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                         color: AppColors.textSecondary,
                                         fontWeight: FontWeight.w700,
@@ -1046,7 +1048,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _tr('Enter OTP Code', 'Weka Msimbo wa OTP'),
+                                  _tr('Check your phone for the code', 'Angalia simu yako kwa msimbo'),
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.secondary,
@@ -1077,7 +1079,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                           const SizedBox(width: 10),
                                         ],
-                                        Text(_isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Verify & Continue', 'Thibitisha na Endelea')),
+                                        Text(_isLoading ? _tr('Almost there...', 'Karibu kufika...') : _tr('Continue to workspace', 'Endelea kwenye workspace')),
                                       ],
                                     ),
                                   ),
@@ -1087,7 +1089,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: TextButton(
                                     onPressed: () => setState(() => _otpSent = false),
                                     child: Text(
-                                      _tr('Change Number', 'Badili Namba'),
+                                      _tr('Use a different number', 'Tumia namba nyingine'),
                                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w700),
                                     ),
                                   ),
@@ -1102,13 +1104,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        _tr("Don't have an account?", 'Huna akaunti?'),
+                        _tr('First time here?', 'Mara yako ya kwanza hapa?'),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                       ),
                       TextButton(
                         onPressed: () => context.push(AppRouter.registerPath),
                         child: Text(
-                          _tr('Join Mali Up', 'Jiunge na Mali Up'),
+                          _tr('Get started', 'Anza sasa'),
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w700),
                         ),
                       ),
