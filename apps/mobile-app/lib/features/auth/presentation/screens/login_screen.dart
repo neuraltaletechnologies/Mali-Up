@@ -279,10 +279,10 @@ class _LoginScreenState extends State<LoginScreen> {
         _triggerSuccessBurst();
       }
     } on FirebaseAuthException catch (e) {
-      final message = _tr('We could not send the email code right now: ${e.message ?? e.code}', 'Hatukuweza kutuma msimbo wa barua pepe sasa: ${e.message ?? e.code}');
+      final message = _tr('We could not send the email code right now: ${e.message ?? e.code}', 'Hatukuweza kutuma OTP wa barua pepe sasa: ${e.message ?? e.code}');
       if (mounted) {
         await _NotificationHelper.showError(context, message);
-        _setFeedback(_tr('Email code not sent yet. Please try again shortly.', 'Msimbo wa barua pepe haujatumwa bado. Tafadhali jaribu tena baada ya muda mfupi.'), EmotionalStatusTone.error);
+        _setFeedback(_tr('Email code not sent yet. Please try again shortly.', 'OTP wa barua pepe haujatumwa bado. Tafadhali jaribu tena baada ya muda mfupi.'), EmotionalStatusTone.error);
       }
     } catch (e) {
       if (mounted) {
@@ -301,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final code = _emailOtpController.text.trim();
 
     if (code.length != 6) {
-      await _NotificationHelper.showError(context, _tr('Please enter the 6-digit code.', 'Tafadhali weka msimbo wa namba 6.'));
+      await _NotificationHelper.showError(context, _tr('Please enter the 6-digit code.', 'Tafadhali weka OTP wa namba 6.'));
       return;
     }
 
@@ -320,13 +320,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (isExpired) {
         if (!mounted) return;
-        await _NotificationHelper.showError(context, _tr('That code has expired. Request a new one.', 'Msimbo huo umeisha muda. Omba msimbo mpya.'));
+        await _NotificationHelper.showError(context, _tr('That code has expired. Request a new one.', 'OTP huo umeisha muda. Omba OTP mpya.'));
         return;
       }
 
       if (savedCode != code) {
         if (!mounted) return;
-        await _NotificationHelper.showError(context, _tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena msimbo kisha endelea.'));
+        await _NotificationHelper.showError(context, _tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena OTP kisha endelea.'));
         return;
       }
 
@@ -339,8 +339,8 @@ class _LoginScreenState extends State<LoginScreen> {
       context.go(AppRouter.dashboardPath);
     } catch (e) {
       if (!mounted) return;
-      await _NotificationHelper.showError(context, _tr('We could not verify your email code right now.', 'Hatukuweza kuthibitisha msimbo wako wa barua pepe sasa.'));
-      _setFeedback(_tr('Email code verification was not completed.', 'Uthibitishaji wa msimbo wa barua pepe haujakamilika.'), EmotionalStatusTone.error);
+      await _NotificationHelper.showError(context, _tr('We could not verify your email code right now.', 'Hatukuweza kuthibitisha OTP wako wa barua pepe sasa.'));
+      _setFeedback(_tr('Email code verification was not completed.', 'Uthibitishaji wa OTP wa barua pepe haujakamilika.'), EmotionalStatusTone.error);
     }
   }
 
@@ -353,7 +353,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text(_tr('Recover With Email OTP', 'Rejesha kwa OTP ya Barua Pepe')),
+              title: Text(_tr('Recover With Email OTP', 'Tumia Barua Pepe')),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,8 +498,8 @@ class _LoginScreenState extends State<LoginScreen> {
               _otpSent = true;
               _isLoading = false;
             });
-            _NotificationHelper.showSuccess(context, _tr('A verification code was sent to $fullPhone', 'Msimbo wa uthibitisho umetumwa kwa $fullPhone'));
-            _setFeedback(_tr('Code sent. Check your messages.', 'Msimbo umetumwa. Angalia ujumbe wako.'), EmotionalStatusTone.success);
+            _NotificationHelper.showSuccess(context, _tr('A verification code was sent to $fullPhone', 'OTP wa uthibitisho umetumwa kwa $fullPhone'));
+            _setFeedback(_tr('Code sent. Check your messages.', 'OTP umetumwa. Angalia ujumbe wako.'), EmotionalStatusTone.success);
             _triggerSuccessBurst();
           }
         },
@@ -822,11 +822,11 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
       String errorMessage = e.code == 'invalid-verification-code'
-          ? _tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena msimbo kisha endelea.')
+          ? _tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena OTP kisha endelea.')
           : _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.');
       if (mounted) {
         await _NotificationHelper.showError(context, errorMessage);
-        _setFeedback(_tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena msimbo kisha endelea.'), EmotionalStatusTone.error);
+        _setFeedback(_tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena OTP kisha endelea.'), EmotionalStatusTone.error);
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -907,7 +907,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
 
                   Text(
-                    _otpSent ? _tr('Check your phone for the code', 'Angalia simu yako kwa msimbo') : _tr('Good to see you again', 'Vizuri kukuona tena'),
+                    _otpSent ? _tr('Check your phone for the code', 'Angalia simu yako kwa OTP') : _tr('Good to see you again', 'Karibu tena'),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontSize: 30,
                           fontWeight: FontWeight.w900,
@@ -918,8 +918,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _otpSent 
-                      ? _tr('We sent a code to +255 ${_phoneController.text}.', 'Tumetuma msimbo kwa +255 ${_phoneController.text}.')
-                      : _tr('Start with your phone number and we\'ll send a code.', 'Anza na namba yako ya simu, tutakutumia msimbo.'),
+                      ? _tr('We sent a code to +255 ${_phoneController.text}.', 'Tumetuma OTP kwa +255 ${_phoneController.text}.')
+                      : _tr('Start with your phone number and we\'ll send a code.', 'Anza na namba yako ya simu, tutakutumia OTP.'),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.textSecondary,
                           fontSize: 15,
@@ -972,7 +972,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _tr('Your business phone', 'Namba yako ya biashara'),
+                                  _tr('Your business phone', 'Namba yako ulio sajiliaara'),
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.secondary,
@@ -1023,7 +1023,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                           const SizedBox(width: 10),
                                         ],
-                                        Text(_isLoading ? _tr('One moment, we\'re sending a code...', 'Subiri kidogo, tunatuma msimbo...') : _tr('Get verification code', 'Pata msimbo wa uthibitisho')),
+                                        Text(_isLoading ? _tr('One moment, we\'re sending a code...', 'Subiri kidogo, tunatuma OTP...') : _tr('Get verification code', 'Pata OTP wa uthibitisho')),
                                       ],
                                     ),
                                   ),
@@ -1033,7 +1033,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: TextButton(
                                     onPressed: _isLoading ? null : _showEmailRecoveryDialog,
                                     child: Text(
-                                      _tr('I can\'t access this number', 'Siwezi kufikia namba hii'),
+                                      _tr('I can\'t access this number', 'Siwezi kufikia namba yangu'),
                                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                         color: AppColors.textSecondary,
                                         fontWeight: FontWeight.w700,
@@ -1048,7 +1048,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _tr('Check your phone for the code', 'Angalia simu yako kwa msimbo'),
+                                  _tr('Check your phone for the code', 'Angalia simu yako kwa OTP'),
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.secondary,
@@ -1110,7 +1110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextButton(
                         onPressed: () => context.push(AppRouter.registerPath),
                         child: Text(
-                          _tr('Get started', 'Anza sasa'),
+                          _tr('Get started', 'Sajiri sasa'),
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w700),
                         ),
                       ),

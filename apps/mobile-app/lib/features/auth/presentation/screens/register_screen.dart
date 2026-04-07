@@ -528,7 +528,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _otpSent = true;
           _isLoading = false;
         });
-        _setFeedback(_tr('Code sent. Check your messages.', 'Msimbo umetumwa. Angalia ujumbe wako.'), EmotionalStatusTone.success);
+        _setFeedback(_tr('Code sent. Check your messages.', 'OTP umetumwa. Angalia ujumbe wako.'), EmotionalStatusTone.success);
         _triggerSuccessBurst();
       },
       codeAutoRetrievalTimeout: (vid) => _verificationId = vid,
@@ -699,7 +699,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const Center(child: MaliUpLogo(size: 80)),
                   const SizedBox(height: 20),
                   Text(
-                    _otpSent ? _tr('Confirm your phone number', 'Thibitisha namba yako ya simu') : _tr('Let\'s get you started', 'Tuanze kukuweka tayari'),
+                    _otpSent ? _tr('Confirm your phone number', 'Thibitisha namba yako ya simu') : _tr('Let\'s get you started', 'Karibu, tuanze pamoja'),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontSize: 30,
                           fontWeight: FontWeight.w900,
@@ -710,7 +710,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _otpSent
-                        ? _tr('We sent a code to +255 ${_phoneController.text}.', 'Tumetuma msimbo kwa +255 ${_phoneController.text}.')
+                        ? _tr('We sent a code to +255 ${_phoneController.text}.', 'Tumetuma OTP kwa +255 ${_phoneController.text}.')
                         : _tr('Tell us about you and your business.', 'Tuambie kuhusu wewe na biashara yako.'),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.textSecondary,
@@ -775,7 +775,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _tr('About you', 'Kuhusu wewe'),
+                                    _tr('Personal information', 'Taafira Binafsi'),
                                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w700,
@@ -1004,7 +1004,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           color: AppColors.textSecondary,
                                         ),
                                         children: [
-                                          TextSpan(text: _tr('Continuing means you accept our ', 'Kuendelea kunamaanisha unakubali ')),
+                                          TextSpan(text: _tr('Accept our ', 'Kuendelea kunamaanisha unakubali ')),
                                           TextSpan(
                                             text: _tr('Terms & Conditions', 'Masharti na Hali'),
                                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1071,7 +1071,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       const SizedBox(width: 10),
                                     ],
                                     Text(
-                                      _isLoading ? _tr('Code on the way...', 'Msimbo unakuja...') : _tr('Send verification code', 'Tuma msimbo wa uthibitisho'),
+                                      _isLoading ? _tr('Code on the way...', 'OTP unakuja...') : _tr('Send verification code', 'Tuma OTP wa uthibitisho'),
                                     ),
                                   ],
                                 ),
