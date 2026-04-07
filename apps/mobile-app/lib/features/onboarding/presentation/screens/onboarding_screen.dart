@@ -264,13 +264,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               children: [
                 Row(
                   children: [
-                    Text(
-                      isLastPage ? _tr('Ready to continue', 'Tayari kuendelea') : _tr('Auto sliding onboarding', 'Kuweka pepe zisizokamatia'),
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: OnboardingColors.textLight,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
                     const Spacer(),
                     if (!isLastPage)
                       EmotionalTapScale(
