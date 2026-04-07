@@ -4,6 +4,29 @@ import 'app_colors.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
+    final baseTextTheme = GoogleFonts.manropeTextTheme(
+      const TextTheme(
+        displayLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, height: 1.1),
+        displayMedium: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, height: 1.15),
+        headlineLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, height: 1.2),
+        headlineMedium: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, height: 1.2),
+        titleLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+        titleMedium: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+        bodyLarge: TextStyle(color: AppColors.textPrimary, height: 1.5),
+        bodyMedium: TextStyle(color: AppColors.textSecondary, height: 1.45),
+      ),
+    );
+
+    final appTextTheme = baseTextTheme.copyWith(
+      displayLarge: GoogleFonts.sora(textStyle: baseTextTheme.displayLarge),
+      displayMedium: GoogleFonts.sora(textStyle: baseTextTheme.displayMedium),
+      headlineLarge: GoogleFonts.sora(textStyle: baseTextTheme.headlineLarge),
+      headlineMedium: GoogleFonts.sora(textStyle: baseTextTheme.headlineMedium),
+      titleLarge: GoogleFonts.sora(textStyle: baseTextTheme.titleLarge),
+      titleMedium: GoogleFonts.sora(textStyle: baseTextTheme.titleMedium),
+      labelLarge: GoogleFonts.sora(textStyle: baseTextTheme.labelLarge),
+    );
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -17,30 +40,18 @@ class AppTheme {
         onSurface: AppColors.textPrimary,
       ),
       scaffoldBackgroundColor: AppColors.background,
-      textTheme: GoogleFonts.outfitTextTheme(
-        const TextTheme(
-          displayLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-          displayMedium: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-          headlineLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-          headlineMedium: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-          titleLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-          titleMedium: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w500),
-          bodyLarge: TextStyle(color: AppColors.textPrimary),
-          bodyMedium: TextStyle(color: AppColors.textSecondary),
-        ),
-      ),
+      textTheme: appTextTheme,
 
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
+        titleTextStyle: GoogleFonts.sora(
           color: AppColors.textPrimary,
           fontSize: 22,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w700,
         ),
-        iconTheme: IconThemeData(color: AppColors.textPrimary, size: 24),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary, size: 24),
       ),
 
       cardTheme: CardThemeData(
@@ -61,7 +72,7 @@ class AppTheme {
         indicator: const UnderlineTabIndicator(
           borderSide: BorderSide(color: AppColors.primary, width: 3),
         ),
-        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        labelStyle: GoogleFonts.sora(fontWeight: FontWeight.w700, fontSize: 15),
       ),
 
       drawerTheme: const DrawerThemeData(
@@ -76,10 +87,10 @@ class AppTheme {
         backgroundColor: AppColors.background,
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        titleTextStyle: const TextStyle(
+        titleTextStyle: GoogleFonts.sora(
           color: AppColors.textPrimary,
           fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w700,
         ),
       ),
 
@@ -98,7 +109,7 @@ class AppTheme {
 
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: AppColors.primary,
-        selectionColor: AppColors.primary.withOpacity(0.3),
+        selectionColor: AppColors.primary.withValues(alpha: 0.3),
         selectionHandleColor: AppColors.primary,
       ),
 
@@ -150,7 +161,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+          textStyle: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3),
         ),
       ),
 

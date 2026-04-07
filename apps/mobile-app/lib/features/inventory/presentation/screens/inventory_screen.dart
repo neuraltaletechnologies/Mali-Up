@@ -101,18 +101,25 @@ class InventoryScreen extends StatelessWidget {
           const SizedBox(height: 24),
           
           // Product List Header
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(horizontal: 24),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Products Portfolio',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.secondary,
+                  ),
                 ),
                 Text(
                   'Stock Level',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -168,9 +175,22 @@ class _SummaryBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: AppColors.secondary,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -190,9 +210,9 @@ class _AlertCard extends StatelessWidget {
       width: 250,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -203,8 +223,22 @@ class _AlertCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12), overflow: TextOverflow.ellipsis),
-                Text(subtitle, style: TextStyle(color: color.withOpacity(0.8), fontSize: 11)),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color.withValues(alpha: 0.8),
+                    fontSize: 11,
+                  ),
+                ),
               ],
             ),
           ),
@@ -245,21 +279,40 @@ class _ProductListItem extends StatelessWidget {
         ),
         child: const Icon(Icons.inventory_2_outlined, color: AppColors.textMuted),
       ),
-      title: Text(name, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 14)),
-      subtitle: Text(sku, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+      title: Text(
+        name,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: AppColors.secondary,
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+        ),
+      ),
+      subtitle: Text(
+        sku,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppColors.textMuted,
+          fontSize: 12,
+        ),
+      ),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
             '$stock $unit', 
-            style: TextStyle(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: isLow ? AppColors.error : AppColors.success, 
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
           ),
-          Text(price, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+          Text(
+            price,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
         ],
       ),
     );

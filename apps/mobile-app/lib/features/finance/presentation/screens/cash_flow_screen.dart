@@ -23,9 +23,16 @@ class CashFlowScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Accounts Horizontal Scroll
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: Text('My Accounts', style: TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text(
+                'My Accounts',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppColors.secondary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             SizedBox(
               height: 160,
@@ -55,7 +62,13 @@ class CashFlowScreen extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    const Text('Monthly Flow Summary', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    Text(
+                      'Monthly Flow Summary',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -72,9 +85,16 @@ class CashFlowScreen extends ConsumerWidget {
             const SizedBox(height: 32),
             
             // Recent Money Movements
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Text('Money Movements', style: TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text(
+                'Money Movements',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppColors.secondary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             ListView.separated(
@@ -112,11 +132,11 @@ class _AccountCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.05)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.surface, const Color(0xFF334155).withOpacity(0.4)],
+          colors: [AppColors.surface, const Color(0xFF334155).withValues(alpha: 0.4)],
         ),
       ),
       child: Column(
@@ -127,20 +147,40 @@ class _AccountCard extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.secondary.withOpacity(0.05), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(10)),
                 child: Icon(
                   account.type == 'Cash' ? Icons.payments_outlined : (account.type == 'Bank' ? Icons.account_balance_outlined : Icons.smartphone_outlined),
                   color: AppColors.textSecondary,
                   size: 20,
                 ),
               ),
-              const Text('TZS', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold)),
+              Text(
+                'TZS',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const Spacer(),
-          Text(account.balance, style: const TextStyle(color: AppColors.secondary, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            account.balance,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: AppColors.secondary,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(account.name, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          Text(
+            account.name,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
@@ -165,11 +205,24 @@ class _FlowStat extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 14),
               const SizedBox(width: 4),
-              Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: color,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -195,9 +248,28 @@ class _MovementListItem extends StatelessWidget {
           isInflow ? Icons.add_circle_outline : Icons.remove_circle_outline,
           color: isInflow ? AppColors.success : AppColors.error,
         ),
-        title: Text(isInflow ? 'Deposit: Cash Sale' : 'Withdraw: Petty Cash', style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w600, fontSize: 14)),
-        subtitle: const Text('To Business M-Pesa • Today, 2:30 PM', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-        trailing: Text(isInflow ? '+45,000' : '-12,000', style: TextStyle(color: isInflow ? AppColors.success : AppColors.error, fontWeight: FontWeight.bold)),
+        title: Text(
+          isInflow ? 'Deposit: Cash Sale' : 'Withdraw: Petty Cash',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        subtitle: Text(
+          'To Business M-Pesa • Today, 2:30 PM',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontSize: 12,
+          ),
+        ),
+        trailing: Text(
+          isInflow ? '+45,000' : '-12,000',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: isInflow ? AppColors.success : AppColors.error,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }

@@ -31,11 +31,21 @@ class ExpenseListScreen extends ConsumerWidget {
             ),
             child: Column(
               children: [
-                const Text('October 2026', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                Text(
+                  'October 2026',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'TSh 1,015,000',
-                  style: TextStyle(color: AppColors.secondary, fontSize: 32, fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppColors.secondary,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -73,7 +83,13 @@ class ExpenseListScreen extends ConsumerWidget {
         onPressed: () {},
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.receipt_long_rounded, color: AppColors.secondary),
-        label: const Text('Add Expense', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
+        label: Text(
+          'Add Expense',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -89,11 +105,17 @@ class _FilterTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+        color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: isSelected ? AppColors.primary : AppColors.glassBorder),
       ),
-      child: Text(label, style: TextStyle(color: isSelected ? AppColors.primaryLight : AppColors.textMuted, fontSize: 12)),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: isSelected ? AppColors.primaryLight : AppColors.textMuted,
+          fontSize: 12,
+        ),
+      ),
     );
   }
 }
@@ -109,7 +131,7 @@ class _ExpenseCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -126,16 +148,41 @@ class _ExpenseCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(expense.category, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
-                Text(expense.note, style: const TextStyle(color: AppColors.textMuted, fontSize: 12), overflow: TextOverflow.ellipsis),
+                Text(
+                  expense.category,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  expense.note,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(expense.amount, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
-              Text(expense.date, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+              Text(
+                expense.amount,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                expense.date,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                ),
+              ),
             ],
           ),
         ],

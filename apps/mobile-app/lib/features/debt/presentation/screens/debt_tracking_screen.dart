@@ -28,12 +28,16 @@ class DebtTrackingScreen extends ConsumerWidget {
             ),
           ),
           
-          const SliverPadding(
+          SliverPadding(
             padding: EdgeInsets.symmetric(horizontal: 24),
             sliver: SliverToBoxAdapter(
               child: Text(
                 'Recent Debt Movements',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.secondary,
+                ),
               ),
             ),
           ),
@@ -59,7 +63,13 @@ class DebtTrackingScreen extends ConsumerWidget {
         onPressed: () {},
         backgroundColor: AppColors.error,
         icon: const Icon(Icons.add_circle_outline, color: AppColors.secondary),
-        label: const Text('New Debt', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
+        label: Text(
+          'New Debt',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -76,11 +86,11 @@ class _DebtOverviewBoard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.surface, AppColors.background.withOpacity(0.8)],
+          colors: [AppColors.surface, AppColors.background.withValues(alpha: 0.8)],
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -88,14 +98,17 @@ class _DebtOverviewBoard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
-              SizedBox(width: 8),
+              const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+              const SizedBox(width: 8),
               Text(
                 'Debt Exposure Summary',
-                style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -128,8 +141,22 @@ class _BigStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: TextStyle(color: color, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: -1)),
-        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            color: color,
+            fontSize: 32,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -1,
+          ),
+        ),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontSize: 13,
+          ),
+        ),
       ],
     );
   }
@@ -149,14 +176,14 @@ class _DebtCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isPayable ? AppColors.error.withOpacity(0.1) : AppColors.success.withOpacity(0.1)),
+        border: Border.all(color: isPayable ? AppColors.error.withValues(alpha: 0.1) : AppColors.success.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: (isPayable ? AppColors.error : AppColors.success).withOpacity(0.1),
+              color: (isPayable ? AppColors.error : AppColors.success).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -169,25 +196,47 @@ class _DebtCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(debt.partyName, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
-                Text(isPayable ? 'To Supplier' : 'From Customer', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                Text(
+                  debt.partyName,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  isPayable ? 'To Supplier' : 'From Customer',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(debt.amount, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
+              Text(
+                debt.amount,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               Container(
                 margin: const EdgeInsets.only(top: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   debt.status.toUpperCase(),
-                  style: TextStyle(color: statusColor, fontSize: 9, fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: statusColor,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
