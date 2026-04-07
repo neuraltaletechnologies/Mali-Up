@@ -79,14 +79,27 @@ class _SummaryStat extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.background.withOpacity(0.5),
+            color: AppColors.background.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: AppColors.primaryLight, size: 24),
         ),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: AppColors.secondary,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontSize: 11,
+          ),
+        ),
       ],
     );
   }
@@ -103,17 +116,20 @@ class _CustomerCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.05)),
       ),
       child: Column(
         children: [
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                 child: Text(
                   customer.name[0],
-                  style: const TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primaryLight,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -121,20 +137,39 @@ class _CustomerCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(customer.name, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(customer.phone, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                    Text(
+                      customer.name,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      customer.phone,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('Outstanding Balance', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                  Text(
+                    'Outstanding Balance',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                      fontSize: 10,
+                    ),
+                  ),
                   Text(
                     customer.balance,
-                    style: TextStyle(
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: customer.balance == 'TSh 0' ? AppColors.textMuted : AppColors.error, 
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       fontSize: 14,
                     ),
                   ),
@@ -153,15 +188,25 @@ class _CustomerCard extends StatelessWidget {
                 children: customer.tags.map<Widget>((tag) => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(5),
                   ),
-                  child: Text(tag, style: const TextStyle(color: AppColors.primaryLight, fontSize: 10, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    tag,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.primaryLight,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 )).toList(),
               ),
               Text(
                 'Last Tx: ${customer.lastTransactionDate}',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                ),
               ),
             ],
           ),

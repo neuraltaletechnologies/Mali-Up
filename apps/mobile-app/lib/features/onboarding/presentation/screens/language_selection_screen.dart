@@ -84,7 +84,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                     ),
                     child: const MaliUpLogo(size: 80),
                   ),
@@ -195,23 +195,23 @@ class _LanguageOptionState extends State<_LanguageOption> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: _isPressed
-                ? AppColors.primary.withOpacity(0.2)
+                ? AppColors.primary.withValues(alpha: 0.2)
                 : _isHovered
-                    ? AppColors.primary.withOpacity(0.1)
+                    ? AppColors.primary.withValues(alpha: 0.1)
                     : AppColors.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _isPressed
                   ? AppColors.primary
                   : _isHovered
-                      ? AppColors.primary.withOpacity(0.3)
+                      ? AppColors.primary.withValues(alpha: 0.3)
                       : AppColors.border,
               width: _isPressed ? 2 : 1,
             ),
             boxShadow: _isHovered
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.15),
+                      color: AppColors.primary.withValues(alpha: 0.15),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -226,16 +226,16 @@ class _LanguageOptionState extends State<_LanguageOption> {
                 children: [
                   Text(
                     widget.language.label,
-                    style: const TextStyle(
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.secondary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     widget.language.nativeLabel,
-                    style: const TextStyle(
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontSize: 14,
                       color: AppColors.textSecondary,
                     ),

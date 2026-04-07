@@ -122,7 +122,7 @@ class _NotificationHelper {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w500,
                   fontSize: 14,
@@ -363,7 +363,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Enter your email to receive a 6-digit OTP code.',
                       'Weka barua pepe yako upokee OTP ya namba 6.',
                     ),
-                    style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   _GlowTextField(
@@ -715,10 +718,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       Expanded(
                         child: Text(
                           result.title,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: AppColors.secondary,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -727,18 +729,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 12),
                   Text(
                     result.message,
-                    style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
                   ),
                   if (result.fixes.isNotEmpty) ...[
                     const SizedBox(height: 14),
                     Text(
                       _tr('Recommended Fix Steps:', 'Hatua za Marekebisho Zinazopendekezwa:'),
-                      style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.secondary),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.secondary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     ...result.fixes.map((step) => Padding(
                           padding: const EdgeInsets.only(bottom: 6),
-                          child: Text('• $step', style: const TextStyle(color: AppColors.textSecondary)),
+                          child: Text(
+                            '• $step',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         )),
                   ],
                   const SizedBox(height: 18),
@@ -889,38 +902,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const SizedBox(height: 52),
                   const Center(child: MaliUpLogo(size: 80)),
-                  const SizedBox(height: 14),
-                  Center(
-                    child: EmotionalCompanion(
-                      mood: _isLoading
-                          ? CompanionMood.focused
-                          : _otpSent
-                              ? CompanionMood.excited
-                              : CompanionMood.calm,
-                      size: 88,
-                    ),
-                  ),
                   const SizedBox(height: 20),
 
                   Text(
                     _otpSent ? _tr('Verification', 'Uthibitishaji') : _tr('Welcome to Mali Up', 'Karibu Mali Up'),
-                    style: const TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.secondary,
-                      letterSpacing: -0.5,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.secondary,
+                          letterSpacing: -0.5,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _otpSent 
                       ? _tr('We sent a code to +255 ${_phoneController.text}', 'Tumepeleka msimbo kwa +255 ${_phoneController.text}')
                       : _tr('Enter your phone number to continue', 'Weka namba yako ya simu kuendelea'),
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 15,
-                      height: 1.5,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontSize: 15,
+                          height: 1.5,
+                        ),
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
@@ -969,27 +971,31 @@ class _LoginScreenState extends State<LoginScreen> {
                               children: [
                                 Text(
                                   _tr('Phone Number', 'Namba ya Simu'),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.secondary,
-                                  ),
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.secondary,
+                                      ),
                                 ),
                                 const SizedBox(height: 8),
                                 _GlowTextField(
                                   controller: _phoneController,
                                   focusNode: _phoneFocusNode,
                                   keyboardType: TextInputType.phone,
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
-                                  decoration: const InputDecoration(
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.secondary,
+                                  ),
+                                  decoration: InputDecoration(
                                     hintText: '7xx xxx xxx',
                                     prefixIcon: Padding(
                                       padding: EdgeInsets.symmetric(horizontal: 16),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Text('🇹🇿', style: TextStyle(fontSize: 20)),
+                                          Text('🇹🇿', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 20)),
                                           SizedBox(width: 8),
-                                          Text('+255', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
+                                          Text('+255', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w700, fontSize: 16)),
                                         ],
                                       ),
                                     ),
@@ -1026,7 +1032,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     onPressed: _isLoading ? null : _showEmailRecoveryDialog,
                                     child: Text(
                                       _tr('I can\'t access this phone number', 'Siwezi kufikia namba hii ya simu'),
-                                      style: const TextStyle(
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                         color: AppColors.textSecondary,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -1041,8 +1047,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               children: [
                                 Text(
                                   _tr('Enter OTP Code', 'Weka Msimbo wa OTP'),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
                                     color: AppColors.secondary,
                                   ),
                                 ),
@@ -1082,7 +1088,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     onPressed: () => setState(() => _otpSent = false),
                                     child: Text(
                                       _tr('Change Number', 'Badili Namba'),
-                                      style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold),
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w700),
                                     ),
                                   ),
                                 ),
@@ -1097,13 +1103,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Text(
                         _tr("Don't have an account?", 'Huna akaunti?'),
-                        style: const TextStyle(color: AppColors.textSecondary),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                       ),
                       TextButton(
                         onPressed: () => context.push(AppRouter.registerPath),
                         child: Text(
                           _tr('Join Mali Up', 'Jiunge na Mali Up'),
-                          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -1139,7 +1145,7 @@ class _OTPBox extends StatelessWidget {
           textAlign: TextAlign.center,
           keyboardType: TextInputType.number,
           maxLength: 1,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.secondary),
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.secondary),
           decoration: const InputDecoration(
             counterText: "",
             border: InputBorder.none,

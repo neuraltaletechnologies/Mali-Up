@@ -59,15 +59,18 @@ class AppRouter {
         ),
         GoRoute(
           path: loginPath,
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final extra = state.extra;
             if (extra is Map<String, dynamic>) {
-              return LoginScreen(
-                initialPhone: extra['phone'] as String?,
-                autoSendOtp: extra['autoSendOtp'] as bool? ?? false,
+              return _buildAuthTransitionPage(
+                state,
+                LoginScreen(
+                  initialPhone: extra['phone'] as String?,
+                  autoSendOtp: extra['autoSendOtp'] as bool? ?? false,
+                ),
               );
             }
-            return const LoginScreen();
+            return _buildAuthTransitionPage(state, const LoginScreen());
           },
         ),
         GoRoute(
@@ -83,19 +86,7 @@ class AppRouter {
                   )
                 : const RegisterScreen();
 
-            return CustomTransitionPage<void>(
-              key: state.pageKey,
-              child: screen,
-              transitionDuration: const Duration(milliseconds: 500),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                final curved = CurvedAnimation(parent: animation, curve: Curves.easeInOut);
-                final offset = Tween<Offset>(
-                  begin: const Offset(1, 0),
-                  end: Offset.zero,
-                ).animate(curved);
-                return SlideTransition(position: offset, child: child);
-              },
-            );
+            return _buildAuthTransitionPage(state, screen);
           },
         ),
         ShellRoute(
@@ -136,6 +127,34 @@ class AppRouter {
           ],
         ),
       ],
+    );
+  }
+
+  static CustomTransitionPage<void> _buildAuthTransitionPage(
+    GoRouterState state,
+    Widget child,
+  ) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 420),
+      reverseTransitionDuration: const Duration(milliseconds: 320),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        final fade = Tween<double>(begin: 0.0, end: 1.0).animate(curved);
+        final slide = Tween<Offset>(
+          begin: const Offset(0.08, 0),
+          end: Offset.zero,
+        ).animate(curved);
+
+        return FadeTransition(
+          opacity: fade,
+          child: SlideTransition(
+            position: slide,
+            child: child,
+          ),
+        );
+      },
     );
   }
 }

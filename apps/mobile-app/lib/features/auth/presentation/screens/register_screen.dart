@@ -363,10 +363,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Expanded(
                         child: Text(
                           result.title,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: AppColors.secondary,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -375,18 +374,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 12),
                   Text(
                     result.message,
-                    style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
                   ),
                   if (result.fixes.isNotEmpty) ...[
                     const SizedBox(height: 14),
                     Text(
                       _tr('Recommended Fix Steps:', 'Hatua za Marekebisho Zinazopendekezwa:'),
-                      style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.secondary),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.secondary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     ...result.fixes.map((step) => Padding(
                           padding: const EdgeInsets.only(bottom: 6),
-                          child: Text('• $step', style: const TextStyle(color: AppColors.textSecondary)),
+                          child: Text(
+                            '• $step',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         )),
                   ],
                   const SizedBox(height: 18),
@@ -652,19 +662,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: widget.fromOnboarding
-          ? null
-          : AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              actions: [
-                IconButton(
-                  tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
-                  onPressed: _useCustomerPhone,
-                  icon: const Icon(Icons.support_agent_rounded),
-                ),
-              ],
-            ),
       body: Stack(
         children: [
           const AmbientEmotionBackground(
@@ -675,56 +672,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
             intensity: 0.78,
           ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: SafeArea(
+              child: Material(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(999),
+                child: IconButton(
+                  tooltip: 'Use customer number +$_customerPhoneWithCountryCode',
+                  onPressed: _useCustomerPhone,
+                  icon: const Icon(Icons.support_agent_rounded),
+                ),
+              ),
+            ),
+          ),
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(32, 0, 32, 180),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.fromOnboarding) ...[
-                    const SizedBox(height: 18),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Text(
-                        _tr('Final step: create your account', 'Hatua ya mwisho: tengeneza akaunti yako'),
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
+                  const SizedBox(height: 52),
                   const Center(child: MaliUpLogo(size: 80)),
-                  const SizedBox(height: 14),
-                  Center(
-                    child: EmotionalCompanion(
-                      mood: _isLoading
-                          ? CompanionMood.focused
-                          : _otpSent
-                              ? CompanionMood.celebrating
-                              : CompanionMood.calm,
-                      size: 88,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-
+                  const SizedBox(height: 20),
                   Text(
                     _otpSent ? _tr('Verify Phone', 'Thibitisha Simu') : _tr('Create Your Account', 'Tengeneza Akaunti Yako'),
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.secondary),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.secondary,
+                          letterSpacing: -0.5,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _otpSent
                         ? _tr('Enter code sent to ${_phoneController.text}', 'Weka namba iliyotumwa kwa ${_phoneController.text}')
                         : _tr('Set up your account to get started', 'Tekeleza akaunti yako kuanza'),
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontSize: 15,
+                          height: 1.5,
+                        ),
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
@@ -751,7 +741,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(24),
@@ -784,14 +774,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 children: [
                                   Text(
                                     _tr('Personal Details', 'Maelezo Binafsi'),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.secondary,
-                                    ),
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.secondary,
+                                        ),
                                   ),
                                   const SizedBox(height: 16),
-                                  Text(_tr('Full Name', 'Jina Kamili'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(
+                                    _tr('Full Name', 'Jina Kamili'),
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
                                   const SizedBox(height: 8),
                                   _GlowTextField(
                                     controller: _ownerNameController,
@@ -801,7 +796,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  Text(_tr('Email (Optional)', 'Barua Pepe (Kisimu)'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(
+                                    _tr('Email (Optional)', 'Barua Pepe (Kisimu)'),
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
                                   const SizedBox(height: 8),
                                   _GlowTextField(
                                     controller: _emailController,
@@ -813,7 +813,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  Text(_tr('Mobile Number', 'Namba ya Simu'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(
+                                    _tr('Mobile Number', 'Namba ya Simu'),
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
                                   const SizedBox(height: 8),
                                   _GlowTextField(
                                     controller: _phoneController,
@@ -825,12 +830,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                                            Text('🇹🇿', style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 18)),
                                             const SizedBox(width: 8),
                                             Text('+255',
-                                                style: const TextStyle(
+                                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                                     color: AppColors.secondary,
-                                                    fontWeight: FontWeight.bold)),
+                                                    fontWeight: FontWeight.w700)),
                                           ],
                                         ),
                                       ),
@@ -854,11 +859,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 children: [
                                   Text(
                                     _tr('What do you want to manage?', 'Unataka kusimamia nini?'),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.secondary,
-                                    ),
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.secondary,
+                                        ),
                                   ),
                                   const SizedBox(height: 12),
                                   Container(
@@ -907,15 +912,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   children: [
                                     Text(
                                       _tr('Business Details', 'Maelezo ya Biashara'),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.secondary,
-                                      ),
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.secondary,
+                                          ),
                                     ),
                                     const SizedBox(height: 16),
                                     Text(_tr('Business Name', 'Jina la Biashara'),
-                                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            )),
                                     const SizedBox(height: 8),
                                     _GlowTextField(
                                       controller: _businessNameController,
@@ -926,7 +933,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                     const SizedBox(height: 16),
                                     Text(_tr('Business Type', 'Aina ya Biashara'),
-                                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            )),
                                     const SizedBox(height: 8),
                                     Container(
                                       decoration: BoxDecoration(
@@ -955,7 +964,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                     const SizedBox(height: 16),
                                     Text(_tr('Place of Business', 'Mahali pa Biashara'),
-                                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            )),
                                     const SizedBox(height: 8),
                                     _GlowTextField(
                                       controller: _placeOfBusinessController,
@@ -986,7 +997,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     padding: const EdgeInsets.only(top: 12),
                                     child: RichText(
                                       text: TextSpan(
-                                        style: const TextStyle(
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                           fontSize: 13,
                                           color: AppColors.textSecondary,
                                         ),
@@ -994,9 +1005,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           TextSpan(text: _tr('I agree to the ', 'Nakubali ')),
                                           TextSpan(
                                             text: _tr('Terms & Conditions', 'Masharti na Hali'),
-                                            style: const TextStyle(
+                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                               color: AppColors.primary,
-                                              fontWeight: FontWeight.bold,
+                                              fontWeight: FontWeight.w700,
                                               decoration: TextDecoration.underline,
                                             ),
                                             recognizer: TapGestureRecognizer()
@@ -1012,9 +1023,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           TextSpan(text: _tr(' and ', ' na ')),
                                           TextSpan(
                                             text: _tr('Privacy Policy', 'Sera ya Faragha'),
-                                            style: const TextStyle(
+                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                               color: AppColors.primary,
-                                              fontWeight: FontWeight.bold,
+                                              fontWeight: FontWeight.w700,
                                               decoration: TextDecoration.underline,
                                             ),
                                             recognizer: TapGestureRecognizer()
@@ -1072,10 +1083,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           children: [
                             Text(
                               _tr('Enter OTP to Complete Registration', 'Weka OTP kumaliza Ujisajili'),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.secondary,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.secondary,
+                                  ),
                             ),
                             const SizedBox(height: 12),
                             Row(
@@ -1119,11 +1130,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 32),
                   Center(
                     child: TextButton(
-                      onPressed: () => context.pop(),
+                      onPressed: () => context.push(AppRouter.loginPath),
                       child: Text(
                         _tr('Already have an account? Manage Account', 'Una akaunti tayari? Simamia Akaunti'),
-                        style: const TextStyle(
-                            color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w700,
+                            ),
                       ),
                     ),
                   ),
@@ -1164,13 +1177,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                _tr('Step 4 of 4: Account Setup', 'Hatua ya 4 kati ya 4: Usanidi wa Akaunti'),
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
               const SizedBox(height: 12),
               const AnimatedSmoothIndicator(
                 activeIndex: 3,
@@ -1197,6 +1203,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
+
+
 }
 
 class _GlowTextField extends StatefulWidget {
@@ -1260,7 +1268,7 @@ class _OTPBox extends StatelessWidget {
     return Container(
       width: 65, height: 70,
       decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border, width: 2)),
-      child: Center(child: TextField(controller: controller, textAlign: TextAlign.center, keyboardType: TextInputType.number, maxLength: 1, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold), decoration: const InputDecoration(counterText: "", border: InputBorder.none))),
+      child: Center(child: TextField(controller: controller, textAlign: TextAlign.center, keyboardType: TextInputType.number, maxLength: 1, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.secondary), decoration: const InputDecoration(counterText: "", border: InputBorder.none))),
     );
   }
 }

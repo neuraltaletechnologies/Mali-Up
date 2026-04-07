@@ -45,7 +45,7 @@ class SalesScreen extends StatelessWidget {
                   decoration: InputDecoration(
                     hintText: 'Search invoices, customers...',
                     prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-                    fillColor: AppColors.background.withOpacity(0.5),
+                    fillColor: AppColors.background.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -98,7 +98,13 @@ class SalesScreen extends StatelessWidget {
         onPressed: () {},
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: AppColors.secondary),
-        label: const Text('New Sale', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
+        label: Text(
+          'New Sale',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -116,9 +122,22 @@ class _OverviewStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontSize: 12,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }
@@ -135,7 +154,7 @@ class _FilterChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withOpacity(0.15) : AppColors.surface,
+        color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isSelected ? AppColors.primary : AppColors.glassBorder,
@@ -144,9 +163,9 @@ class _FilterChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
           color: isSelected ? AppColors.primaryLight : AppColors.textSecondary,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
           fontSize: 13,
         ),
       ),
@@ -183,14 +202,14 @@ class _InvoiceListItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.article_outlined, color: statusColor, size: 24),
@@ -203,14 +222,39 @@ class _InvoiceListItem extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(id, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                    Text(date, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                    Text(
+                      id,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      date,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(customer, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  customer,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(amount, style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w500)),
+                Text(
+                  amount,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -218,12 +262,16 @@ class _InvoiceListItem extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               status.toUpperCase(),
-              style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: statusColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

@@ -81,21 +81,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               children: [
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Good morning, Neuraltale',
-                            style: TextStyle(
+                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                               fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.secondary,
                             ),
                           ),
                           Text(
                             "Here's what's happening today",
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
@@ -189,11 +192,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 32),
 
                 // Sales Chart Section
-                const Text(
+                Text(
                   'Sales Performance',
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.secondary,
                   ),
                 ),
@@ -251,22 +254,37 @@ class _DebtQuickView extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Debt Exposure',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'TSh 4.2M',
-                      style: TextStyle(color: AppColors.error, fontSize: 24, fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: AppColors.error,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                      child: const Text('PAYABLE', style: TextStyle(color: AppColors.error, fontSize: 8, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'PAYABLE',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.error,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -318,7 +336,7 @@ class _KPICard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             title,
-            style: const TextStyle(
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppColors.textSecondary,
               fontSize: 12,
             ),
@@ -326,10 +344,10 @@ class _KPICard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: AppColors.secondary,
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -393,17 +411,23 @@ class _RecentTransactionsList extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Recent Transactions',
-              style: TextStyle(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 color: AppColors.secondary,
               ),
             ),
             TextButton(
               onPressed: () {},
-              child: const Text('View All', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
+              child: Text(
+                'View All',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
@@ -437,15 +461,22 @@ class _RecentTransactionsList extends StatelessWidget {
                 ),
                 title: Text(
                   isExpense ? 'Shop Rent Payment' : 'Product Sale #2409',
-                  style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 15),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
                 subtitle: Text(
                   isExpense ? 'Expense • Oct 01, 2026' : 'Revenue • Today, 10:45 AM',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
                 ),
                 trailing: Text(
                   isExpense ? '-850,000' : '+45,000',
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: isExpense ? AppColors.error : AppColors.success,
                     fontWeight: FontWeight.w900,
                     fontSize: 15,
