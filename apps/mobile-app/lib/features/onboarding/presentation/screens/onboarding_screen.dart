@@ -102,11 +102,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     widget.onOnboardingComplete();
   }
 
-  void _onSecondaryTap() {
-    HapticFeedback.selectionClick();
-    widget.onOnboardingComplete();
-  }
-
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
@@ -302,13 +297,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 const SizedBox(height: 20),
                 if (isLastPage) ...[
                   _buildPrimaryButton(
-                    label: _tr('Register Business', 'Jisajili Biashara'),
+                    label: _tr('Continue', 'Endelea'),
                     onTap: _onPrimaryTap,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSecondaryButton(
-                    label: _tr('Already have an account? Login', 'Una akaunti tayari? Ingia'),
-                    onTap: _onSecondaryTap,
                   ),
                 ],
               ],
@@ -351,37 +341,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             label,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: OnboardingColors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSecondaryButton({
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return EmotionalTapScale(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          color: OnboardingColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: OnboardingColors.primaryDeep.withValues(alpha: 0.3),
-            width: 2,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: OnboardingColors.primaryDeep,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),

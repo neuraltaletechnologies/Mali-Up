@@ -48,7 +48,16 @@ extension AccountManagementTypeX on AccountManagementType {
 }
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  final String? initialFullName;
+  final String? initialPhone;
+  final String? initialEmail;
+
+  const RegisterScreen({
+    super.key,
+    this.initialFullName,
+    this.initialPhone,
+    this.initialEmail,
+  });
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -98,9 +107,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _businessCategoryKey = 'retail';
   bool _phoneAuthReady = false;
 
+  String _normalizeLocalPhone(String input) {
+    final digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('255') && digits.length >= 12) {
+      return digits.substring(3);
+    }
+    if (digits.startsWith('0') && digits.length >= 10) {
+      return digits.substring(1);
+    }
+    return digits;
+  }
+
   @override
   void initState() {
     super.initState();
+    if (widget.initialFullName != null) {
+      _ownerNameController.text = widget.initialFullName!.trim();
+    }
+    if (widget.initialPhone != null) {
+      _phoneController.text = _normalizeLocalPhone(widget.initialPhone!);
+    }
+    if (widget.initialEmail != null) {
+      _emailController.text = widget.initialEmail!.trim();
+    }
     _languageListener = () {
       if (mounted) {
         setState(() => _language = LocalizationService.languageNotifier.value);
@@ -521,10 +550,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         await _firestore.collection('users').doc(user.uid).set({
           'phone': user.phoneNumber,
+          'name': displayName,
           'displayName': displayName,
+          if (recoveryEmail.isNotEmpty) 'email': recoveryEmail,
+          'businessName': _businessNameController.text.trim(),
           'defaultAccountType': accountTypes.first,
           'accountTypes': accountTypes,
           if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
+          'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 

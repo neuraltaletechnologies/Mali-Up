@@ -142,7 +142,14 @@ class _NotificationHelper {
 }
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? initialPhone;
+  final bool autoSendOtp;
+
+  const LoginScreen({
+    super.key,
+    this.initialPhone,
+    this.autoSendOtp = false,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -168,9 +175,24 @@ class _LoginScreenState extends State<LoginScreen> {
   final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
   final FocusNode _phoneFocusNode = FocusNode();
 
+  String _normalizeLocalPhone(String input) {
+    final digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('255') && digits.length >= 12) {
+      return digits.substring(3);
+    }
+    if (digits.startsWith('0') && digits.length >= 10) {
+      return digits.substring(1);
+    }
+    return digits;
+  }
+
   @override
   void initState() {
     super.initState();
+    final initial = widget.initialPhone;
+    if (initial != null && initial.trim().isNotEmpty) {
+      _phoneController.text = _normalizeLocalPhone(initial);
+    }
     _language = LocalizationService.languageNotifier.value;
     _languageListener = () {
       if (mounted) {
@@ -178,6 +200,13 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
+
+    if (widget.autoSendOtp) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await _precheckAndSendOtp();
+      });
+    }
   }
 
   String _tr(String en, String sw) {
