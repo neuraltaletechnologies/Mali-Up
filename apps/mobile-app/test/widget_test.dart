@@ -14,7 +14,10 @@ void main() {
   testWidgets('Login screen smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: MaliUpApp(),
+        child: MaliUpApp(
+          hasCompletedOnboarding: true,
+          hasSelectedLanguage: true,
+        ),
       ),
     );
 
