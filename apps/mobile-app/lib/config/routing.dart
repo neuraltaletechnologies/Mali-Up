@@ -1,9 +1,9 @@
 import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/onboarding/presentation/screens/onboarding_flow.dart';
 import '../features/onboarding/presentation/screens/language_selection_screen.dart';
-import '../features/onboarding/presentation/screens/user_identification_screen.dart';
 import '../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
 import '../shared/widgets/main_shell_page.dart';
@@ -17,7 +17,6 @@ import '../features/finance/presentation/screens/cash_flow_screen.dart';
 class AppRouter {
   static const String languageSelectionPath = '/language-selection';
   static const String onboardingPath = '/onboarding';
-  static const String identifyPath = '/identify';
   static const String loginPath = '/login';
   static const String registerPath = '/register';
   static const String dashboardPath = '/';
@@ -52,12 +51,11 @@ class AppRouter {
         GoRoute(
           path: onboardingPath,
           builder: (context, state) => OnboardingFlow(
-            onComplete: () => context.go(identifyPath),
+            onComplete: () => context.go(
+              registerPath,
+              extra: {'fromOnboarding': true},
+            ),
           ),
-        ),
-        GoRoute(
-          path: identifyPath,
-          builder: (context, state) => const UserIdentificationScreen(),
         ),
         GoRoute(
           path: loginPath,
@@ -74,16 +72,30 @@ class AppRouter {
         ),
         GoRoute(
           path: registerPath,
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final extra = state.extra;
-            if (extra is Map<String, dynamic>) {
-              return RegisterScreen(
-                initialFullName: extra['fullName'] as String?,
-                initialPhone: extra['phone'] as String?,
-                initialEmail: extra['email'] as String?,
-              );
-            }
-            return const RegisterScreen();
+            final screen = (extra is Map<String, dynamic>)
+                ? RegisterScreen(
+                    initialFullName: extra['fullName'] as String?,
+                    initialPhone: extra['phone'] as String?,
+                    initialEmail: extra['email'] as String?,
+                    fromOnboarding: extra['fromOnboarding'] as bool? ?? false,
+                  )
+                : const RegisterScreen();
+
+            return CustomTransitionPage<void>(
+              key: state.pageKey,
+              child: screen,
+              transitionDuration: const Duration(milliseconds: 500),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                final curved = CurvedAnimation(parent: animation, curve: Curves.easeInOut);
+                final offset = Tween<Offset>(
+                  begin: const Offset(1, 0),
+                  end: Offset.zero,
+                ).animate(curved);
+                return SlideTransition(position: offset, child: child);
+              },
+            );
           },
         ),
         ShellRoute(

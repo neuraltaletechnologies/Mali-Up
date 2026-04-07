@@ -32,7 +32,6 @@ class OnboardingFlow extends ConsumerWidget {
     if (onboardingState == OnboardingState.onboarding) {
       return OnboardingScreen(
         onOnboardingComplete: () async {
-          ref.read(onboardingStateProvider.notifier).completeOnboarding();
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool(_onboardingCompletedKey, true);
           ref.read(hasCompletedOnboardingProvider.notifier).setCompleted(true);

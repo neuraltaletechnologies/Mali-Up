@@ -234,12 +234,12 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _recoveryEmailController.text.trim().toLowerCase();
 
     if (email.isEmpty) {
-      await _NotificationHelper.showError(context, _tr('Oops!! you forgot your email', 'Tafadhali weka barua pepe yako'));
+      await _NotificationHelper.showError(context, _tr('Please enter your email to continue.', 'Tafadhali weka barua pepe yako ili tuendelee.'));
       return;
     }
 
     if (!_isValidEmail(email)) {
-      await _NotificationHelper.showError(context, _tr('Please enter a valid email address', 'Tafadhali weka barua pepe sahihi'));
+      await _NotificationHelper.showError(context, _tr('Please enter a valid email address.', 'Tafadhali weka barua pepe sahihi.'));
       return;
     }
 
@@ -279,15 +279,15 @@ class _LoginScreenState extends State<LoginScreen> {
         _triggerSuccessBurst();
       }
     } on FirebaseAuthException catch (e) {
-      final message = _tr('Could not send email OTP: ${e.message ?? e.code}', 'Imeshindikana kutuma OTP ya barua pepe: ${e.message ?? e.code}');
+      final message = _tr('We could not send the email code right now: ${e.message ?? e.code}', 'Hatukuweza kutuma msimbo wa barua pepe sasa: ${e.message ?? e.code}');
       if (mounted) {
         await _NotificationHelper.showError(context, message);
-        _setFeedback(_tr('Email OTP failed to send.', 'Kutuma OTP ya barua pepe kumeshindikana.'), EmotionalStatusTone.error);
+        _setFeedback(_tr('Email code not sent yet. Please try again shortly.', 'Msimbo wa barua pepe haujatumwa bado. Tafadhali jaribu tena baada ya muda mfupi.'), EmotionalStatusTone.error);
       }
     } catch (e) {
       if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Unexpected error: ${e.toString()}', 'Hitilafu isiyotarajiwa: ${e.toString()}'));
-        _setFeedback(_tr('Unexpected issue. Try again.', 'Tatizo lisilotarajiwa. Jaribu tena.'), EmotionalStatusTone.warning);
+        await _NotificationHelper.showError(context, _tr('Something unexpected happened: ${e.toString()}', 'Kuna jambo lisilotarajiwa limetokea: ${e.toString()}'));
+        _setFeedback(_tr('Something went wrong. Please try again.', 'Kuna tatizo limetokea. Tafadhali jaribu tena.'), EmotionalStatusTone.warning);
       }
     } finally {
       if (mounted) {
@@ -301,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final code = _emailOtpController.text.trim();
 
     if (code.length != 6) {
-      await _NotificationHelper.showError(context, _tr('Enter the 6-digit OTP', 'Weka OTP ya namba 6'));
+      await _NotificationHelper.showError(context, _tr('Please enter the 6-digit code.', 'Tafadhali weka msimbo wa namba 6.'));
       return;
     }
 
@@ -309,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final doc = await _firestore.collection('email_otp_auth').doc(email).get();
       if (!mounted) return;
       if (!doc.exists) {
-        await _NotificationHelper.showError(context, _tr('OTP not found. Request a new OTP.', 'OTP haijapatikana. Omba OTP mpya.'));
+        await _NotificationHelper.showError(context, _tr('We could not find that code. Please request a new one.', 'Hatukuweza kupata msimbo huo. Tafadhali omba mwingine mpya.'));
         return;
       }
 
@@ -320,13 +320,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (isExpired) {
         if (!mounted) return;
-        await _NotificationHelper.showError(context, _tr('OTP expired. Request a new one.', 'OTP imekwisha muda. Omba nyingine.'));
+        await _NotificationHelper.showError(context, _tr('This code has expired. Please request a new one.', 'Msimbo huu umeisha muda wake. Tafadhali omba mwingine mpya.'));
         return;
       }
 
       if (savedCode != code) {
         if (!mounted) return;
-        await _NotificationHelper.showError(context, _tr('Invalid OTP code.', 'Namba ya OTP si sahihi.'));
+        await _NotificationHelper.showError(context, _tr('That code does not match. Please check and try again.', 'Msimbo huo haulingani. Tafadhali hakiki kisha jaribu tena.'));
         return;
       }
 
@@ -339,8 +339,8 @@ class _LoginScreenState extends State<LoginScreen> {
       context.go(AppRouter.dashboardPath);
     } catch (e) {
       if (!mounted) return;
-      await _NotificationHelper.showError(context, _tr('Failed to verify email OTP.', 'Imeshindikana kuthibitisha OTP ya barua pepe.'));
-      _setFeedback(_tr('Could not verify email OTP.', 'Imeshindikana kuthibitisha OTP ya barua pepe.'), EmotionalStatusTone.error);
+      await _NotificationHelper.showError(context, _tr('We could not verify your email code right now.', 'Hatukuweza kuthibitisha msimbo wako wa barua pepe sasa.'));
+      _setFeedback(_tr('Email code verification was not completed.', 'Uthibitishaji wa msimbo wa barua pepe haujakamilika.'), EmotionalStatusTone.error);
     }
   }
 
@@ -443,14 +443,14 @@ class _LoginScreenState extends State<LoginScreen> {
     // Validate phone number
     if (phone.isEmpty) {
       if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Oops!! you forgot your phone number', 'Tafadhali weka namba yako ya simu'));
+        await _NotificationHelper.showError(context, _tr('Please enter your phone number to continue.', 'Tafadhali weka namba yako ya simu ili tuendelee.'));
       }
       return;
     }
     
     if (phone.length != 9) {
       if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Phone number must be 9 digits', 'Namba ya simu lazima iwe na tarakimu 9'));
+        await _NotificationHelper.showError(context, _tr('Please enter a valid 9-digit phone number.', 'Tafadhali weka namba sahihi ya simu yenye tarakimu 9.'));
       }
       return;
     }
@@ -467,15 +467,15 @@ class _LoginScreenState extends State<LoginScreen> {
             await _auth.signInWithCredential(credential);
             if (mounted) {
               await _NotificationHelper.showSuccess(context, _tr('Authentication successful!', 'Uthibitisho umefanikiwa!'));
-              _setFeedback(_tr('Welcome back. You are in.', 'Karibu tena. Umeingia.'), EmotionalStatusTone.success);
+              _setFeedback(_tr('Welcome back. You are now signed in.', 'Karibu tena. Sasa umeingia salama.'), EmotionalStatusTone.success);
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) context.go(AppRouter.dashboardPath);
               });
             }
           } catch (e) {
             if (mounted) {
-              await _NotificationHelper.showError(context, _tr('Sign in failed: ${e.toString()}', 'Kuingia kumeshindikana: ${e.toString()}'));
-              _setFeedback(_tr('Could not sign in automatically.', 'Haikuwezekana kuingia kiotomatiki.'), EmotionalStatusTone.error);
+              await _NotificationHelper.showError(context, _tr('We could not sign you in automatically: ${e.toString()}', 'Hatukuweza kukuingiza kiotomatiki: ${e.toString()}'));
+              _setFeedback(_tr('Automatic sign-in was not completed yet.', 'Uingizaji wa kiotomatiki haujakamilika bado.'), EmotionalStatusTone.error);
               setState(() => _isLoading = false);
             }
           }
@@ -485,7 +485,7 @@ class _LoginScreenState extends State<LoginScreen> {
           String errorMessage = _getFirebaseErrorMessage(e.code);
           if (mounted) {
             _NotificationHelper.showError(context, errorMessage);
-            _setFeedback(_tr('OTP request failed.', 'Ombi la OTP limeshindwa.'), EmotionalStatusTone.error);
+            _setFeedback(_tr('We could not send a code right now.', 'Hatukuweza kutuma msimbo kwa sasa.'), EmotionalStatusTone.error);
           }
         },
         codeSent: (String verificationId, int? resendToken) {
@@ -495,7 +495,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _otpSent = true;
               _isLoading = false;
             });
-            _NotificationHelper.showSuccess(context, 'Code sent to $fullPhone');
+            _NotificationHelper.showSuccess(context, _tr('A verification code was sent to $fullPhone', 'Msimbo wa uthibitisho umetumwa kwa $fullPhone'));
             _setFeedback(_tr('OTP sent. Enter your code.', 'OTP imetumwa. Weka msimbo wako.'), EmotionalStatusTone.success);
             _triggerSuccessBurst();
           }
@@ -509,8 +509,8 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        await _NotificationHelper.showError(context, 'Error: ${e.toString()}');
-        _setFeedback(_tr('Network or auth issue detected.', 'Tatizo la mtandao au uthibitisho limegunduliwa.'), EmotionalStatusTone.warning);
+        await _NotificationHelper.showError(context, _tr('Something went wrong: ${e.toString()}', 'Kuna tatizo limetokea: ${e.toString()}'));
+        _setFeedback(_tr('Please check your connection and try again.', 'Tafadhali hakiki mtandao kisha ujaribu tena.'), EmotionalStatusTone.warning);
       }
     }
   }
@@ -518,21 +518,21 @@ class _LoginScreenState extends State<LoginScreen> {
   String _getFirebaseErrorMessage(String errorCode) {
     switch (errorCode) {
       case 'invalid-phone-number':
-        return _tr('Invalid phone number format', 'Muundo wa namba ya simu si sahihi');
+        return _tr('Please enter a valid phone number format.', 'Tafadhali weka muundo sahihi wa namba ya simu.');
       case 'missing-client-identifier':
         return _tr('API configuration error. Please contact support.', 'Hitilafu ya mpangilio wa API. Wasiliana na msaada.');
       case 'invalid-api-key':
         return _tr('API key not configured. Please contact support.', 'API key haijapangwa. Wasiliana na msaada.');
       case 'too-many-requests':
-        return _tr('Too many attempts. Please try again later.', 'Majaribio mengi sana. Jaribu tena baadaye.');
+        return _tr('You have tried several times. Please wait a moment and try again.', 'Umejaribu mara kadhaa. Tafadhali subiri kidogo kisha ujaribu tena.');
       case 'app-not-authorized':
         return _tr('App not authorized for phone authentication', 'App haijaidhinishwa kwa uthibitisho wa simu');
       case 'operation-not-allowed':
         return _tr('Phone authentication is not enabled', 'Uthibitisho wa simu haujawashwa');
       case 'network-request-failed':
-        return _tr('Network error. Please check your connection.', 'Hitilafu ya mtandao. Tafadhali angalia muunganisho wako.');
+        return _tr('Network connection issue. Please check your internet and try again.', 'Kuna tatizo la mtandao. Tafadhali hakiki intaneti yako kisha ujaribu tena.');
       default:
-        return _tr('Verification failed: $errorCode. Please try again.', 'Uthibitisho umeshindikana: $errorCode. Tafadhali jaribu tena.');
+        return _tr('Verification was not completed: $errorCode. Please try again.', 'Uthibitishaji haujakamilika: $errorCode. Tafadhali jaribu tena.');
     }
   }
 
@@ -545,13 +545,13 @@ class _LoginScreenState extends State<LoginScreen> {
           'Kuingia kwa simu kumezimwa. Washa Phone provider kwenye Firebase Auth > Sign-in method.',
         );
       case 'invalid-phone-number':
-        return _tr('Invalid phone number format.', 'Muundo wa namba ya simu si sahihi.');
+        return _tr('Please enter a valid phone number format.', 'Tafadhali weka muundo sahihi wa namba ya simu.');
       case 'too-many-requests':
-        return _tr('Too many attempts. Try again later.', 'Majaribio mengi sana. Jaribu tena baadaye.');
+        return _tr('You have tried several times. Please wait a moment and try again.', 'Umejaribu mara kadhaa. Tafadhali subiri kidogo kisha ujaribu tena.');
       case 'quota-exceeded':
         return _tr('SMS quota exceeded. Check Firebase usage and billing.', 'Kikomo cha SMS kimefikiwa. Angalia matumizi na malipo ya Firebase.');
       case 'network-request-failed':
-        return _tr('Network error. Check your internet connection.', 'Hitilafu ya mtandao. Angalia muunganisho wa intaneti.');
+        return _tr('Network connection issue. Please check your internet.', 'Kuna tatizo la mtandao. Tafadhali hakiki intaneti yako.');
       case 'internal-error':
         if (raw.contains('BILLING_NOT_ENABLED')) {
           return _tr(
@@ -567,7 +567,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         return _tr('Internal auth error. Check Firebase Auth and billing settings.', 'Hitilafu ya ndani ya uthibitishaji. Angalia mipangilio ya Firebase Auth na billing.');
       default:
-        return fallbackMessage ?? _tr('Phone verification failed.', 'Uthibitishaji wa simu umeshindikana.');
+        return fallbackMessage ?? _tr('Phone verification was not completed yet.', 'Uthibitishaji wa simu haujakamilika bado.');
     }
   }
 
@@ -787,7 +787,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (smsCode.length != 4 || smsCode.contains(' ')) {
       setState(() => _isLoading = false);
       if (mounted) {
-        await _NotificationHelper.showError(context, 'Please enter all 4 digits');
+        await _NotificationHelper.showError(context, _tr('Please enter all 4 digits.', 'Tafadhali weka tarakimu zote 4.'));
       }
       return;
     }
@@ -799,8 +799,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       await _auth.signInWithCredential(credential);
       if (mounted) {
-        await _NotificationHelper.showSuccess(context, _tr('Verification successful!', 'Uthibitisho umefanikiwa!'));
-        _setFeedback(_tr('OTP verified. Entering app...', 'OTP imethibitishwa. Inaingia kwenye app...'), EmotionalStatusTone.success);
+        await _NotificationHelper.showSuccess(context, _tr('Verification successful. Welcome!', 'Uthibitishaji umefanikiwa. Karibu!'));
+        _setFeedback(_tr('Code confirmed. Taking you to your workspace...', 'Msimbo umethibitishwa. Tunakupeleka kwenye workspace yako...'), EmotionalStatusTone.success);
         _triggerSuccessBurst();
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) context.go(AppRouter.dashboardPath);
@@ -809,17 +809,17 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
       String errorMessage = e.code == 'invalid-verification-code'
-          ? _tr('Invalid OTP. Please check and try again.', 'OTP si sahihi. Tafadhali angalia na ujaribu tena.')
-          : _tr('Verification failed: ${e.message}', 'Uthibitisho umeshindikana: ${e.message}');
+          ? _tr('That code is not correct yet. Please check and try again.', 'Msimbo huo bado si sahihi. Tafadhali hakiki kisha ujaribu tena.')
+          : _tr('Verification was not completed: ${e.message}', 'Uthibitishaji haujakamilika: ${e.message}');
       if (mounted) {
         await _NotificationHelper.showError(context, errorMessage);
-        _setFeedback(_tr('Incorrect OTP code. Try again.', 'OTP si sahihi. Jaribu tena.'), EmotionalStatusTone.error);
+        _setFeedback(_tr('Please try the code again carefully.', 'Tafadhali jaribu msimbo tena kwa umakini.'), EmotionalStatusTone.error);
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Error: ${e.toString()}', 'Hitilafu: ${e.toString()}'));
-        _setFeedback(_tr('Verification interrupted.', 'Uthibitishaji umekatizwa.'), EmotionalStatusTone.warning);
+        await _NotificationHelper.showError(context, _tr('Something went wrong: ${e.toString()}', 'Kuna tatizo limetokea: ${e.toString()}'));
+        _setFeedback(_tr('Verification paused. Please try again.', 'Uthibitishaji umesimama kwa muda. Tafadhali jaribu tena.'), EmotionalStatusTone.warning);
       }
     }
   }
@@ -903,7 +903,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
 
                   Text(
-                    _otpSent ? _tr('Verification', 'Uthibitisho') : _tr('Welcome to Mali Up', 'Karibu Mali Up'),
+                    _otpSent ? _tr('Verification', 'Uthibitishaji') : _tr('Welcome to Mali Up', 'Karibu Mali Up'),
                     style: const TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w900,
@@ -1025,7 +1025,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: TextButton(
                                     onPressed: _isLoading ? null : _showEmailRecoveryDialog,
                                     child: Text(
-                                      _tr('Don\'t have my phone number', 'Sina namba yangu ya simu sasa'),
+                                      _tr('I can\'t access this phone number', 'Siwezi kufikia namba hii ya simu'),
                                       style: const TextStyle(
                                         color: AppColors.textSecondary,
                                         fontWeight: FontWeight.w700,
