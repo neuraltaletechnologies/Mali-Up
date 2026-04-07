@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -17,7 +16,6 @@ class UserIdentificationScreen extends StatefulWidget {
 
 class _UserIdentificationScreenState extends State<UserIdentificationScreen>
     with SingleTickerProviderStateMixin {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   final TextEditingController _nameController = TextEditingController();
@@ -93,24 +91,6 @@ class _UserIdentificationScreenState extends State<UserIdentificationScreen>
     return '+255$local';
   }
 
-  Future<bool> _existsInUsersByPhone(String e164Phone, String localPhone) async {
-    final byE164 = await _firestore
-        .collection('users')
-        .where('phone', isEqualTo: e164Phone)
-        .limit(1)
-        .get();
-    if (byE164.docs.isNotEmpty) {
-      return true;
-    }
-
-    final byLocal = await _firestore
-        .collection('users')
-        .where('phone', isEqualTo: localPhone)
-        .limit(1)
-        .get();
-    return byLocal.docs.isNotEmpty;
-  }
-
   Future<bool> _existsViaServerCallable({
     required String localPhone,
     required String e164Phone,
@@ -144,7 +124,7 @@ class _UserIdentificationScreenState extends State<UserIdentificationScreen>
     final email = _emailController.text.trim().toLowerCase();
 
     if (name.isEmpty) {
-      _showSnack('Please enter your full name', isError: true);
+      _showSnack('Oops!! you forgot your full name', isError: true);
       return;
     }
 
@@ -162,28 +142,11 @@ class _UserIdentificationScreenState extends State<UserIdentificationScreen>
 
     try {
       final e164Phone = _toE164Tz(localPhone);
-      bool exists;
-
-      try {
-        exists = await _existsViaServerCallable(
-          localPhone: localPhone,
-          e164Phone: e164Phone,
-          email: email,
-        );
-      } on FirebaseFunctionsException {
-        // Fallback keeps UX resilient while backend callable is being rolled out.
-        final existsByPhone = await _existsInUsersByPhone(e164Phone, localPhone);
-        final existsByRecoveryEmail = email.isEmpty
-            ? false
-            : (await _firestore
-                    .collection('users')
-                    .where('recoveryEmail', isEqualTo: email)
-                    .limit(1)
-                    .get())
-                .docs
-                .isNotEmpty;
-        exists = existsByPhone || existsByRecoveryEmail;
-      }
+      final exists = await _existsViaServerCallable(
+        localPhone: localPhone,
+        e164Phone: e164Phone,
+        email: email,
+      );
 
       if (!mounted) {
         return;
@@ -210,7 +173,10 @@ class _UserIdentificationScreenState extends State<UserIdentificationScreen>
         );
       }
     } on FirebaseFunctionsException catch (e) {
-      _showSnack(e.message ?? e.code, isError: true);
+      _showSnack(
+        e.message ?? 'Identity service is unavailable. Please try again.',
+        isError: true,
+      );
     } catch (_) {
       _showSnack('Something went wrong. Please try again.', isError: true);
     } finally {

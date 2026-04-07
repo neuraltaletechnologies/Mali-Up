@@ -294,21 +294,42 @@ class EmotionalLottieSpot extends StatelessWidget {
           width: size,
           height: size,
           child: RepaintBoundary(
-            child: Lottie.network(
-              _urlForScene(scene),
-              repeat: repeat,
-              fit: BoxFit.contain,
-              frameRate: FrameRate.max,
-              errorBuilder: (context, error, stackTrace) => Lottie.asset(
-                _fallbackAssetForScene(scene),
-                repeat: repeat,
-                fit: BoxFit.contain,
-              ),
-            ),
+            child: (_primaryLocalAssetForScene(scene) != null)
+                ? Lottie.asset(
+                    _primaryLocalAssetForScene(scene)!,
+                    repeat: repeat,
+                    fit: BoxFit.contain,
+                  )
+                : Lottie.network(
+                    _urlForScene(scene),
+                    repeat: repeat,
+                    fit: BoxFit.contain,
+                    frameRate: FrameRate.max,
+                    errorBuilder: (context, error, stackTrace) => Lottie.asset(
+                      _fallbackAssetForScene(scene),
+                      repeat: repeat,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
           ),
         );
       },
     );
+  }
+
+  String? _primaryLocalAssetForScene(EmotionalLottieScene scene) {
+    switch (scene) {
+      case EmotionalLottieScene.dashboard:
+        return 'assets/lottie/Appointment booking with smartphone.json';
+      case EmotionalLottieScene.onboarding:
+        return 'assets/lottie/Revenue.json';
+      case EmotionalLottieScene.authVerify:
+        return 'assets/lottie/Assistant-Bot.json';
+      case EmotionalLottieScene.celebrate:
+        return 'assets/lottie/DATA.json';
+      case EmotionalLottieScene.authWelcome:
+        return null;
+    }
   }
 
   String _urlForScene(EmotionalLottieScene scene) {
@@ -322,7 +343,7 @@ class EmotionalLottieSpot extends StatelessWidget {
       case EmotionalLottieScene.celebrate:
         return 'https://assets1.lottiefiles.com/packages/lf20_touohxv0.json';
       case EmotionalLottieScene.dashboard:
-        return 'https://assets2.lottiefiles.com/packages/lf20_gzl797gs.json';
+        return 'https://app.lottiefiles.com/animation/6a8b31f5-f8e1-4719-a797-62dbb4c21a33';
     }
   }
 

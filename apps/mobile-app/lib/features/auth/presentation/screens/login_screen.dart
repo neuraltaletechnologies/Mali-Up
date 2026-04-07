@@ -234,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _recoveryEmailController.text.trim().toLowerCase();
 
     if (email.isEmpty) {
-      await _NotificationHelper.showError(context, _tr('Please enter your email', 'Tafadhali weka barua pepe yako'));
+      await _NotificationHelper.showError(context, _tr('Oops!! you forgot your email', 'Tafadhali weka barua pepe yako'));
       return;
     }
 
@@ -443,7 +443,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // Validate phone number
     if (phone.isEmpty) {
       if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Please enter your phone number', 'Tafadhali weka namba yako ya simu'));
+        await _NotificationHelper.showError(context, _tr('Oops!! you forgot your phone number', 'Tafadhali weka namba yako ya simu'));
       }
       return;
     }
