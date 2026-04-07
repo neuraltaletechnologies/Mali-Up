@@ -265,7 +265,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         hapticStyle: TapHapticStyle.selection,
                         onTap: _onSkipTap,
                         child: Text(
-                          _tr('Continue without tour', 'Endelea bila utangulizi'),
+                          _tr('Continue without tour', 'Ruka'),
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: OnboardingColors.textDark,
                                 fontWeight: FontWeight.w700,
@@ -297,7 +297,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 const SizedBox(height: 20),
                 if (isLastPage)
                   _buildPrimaryButton(
-                    label: _tr('Let\'s get started', 'Tuanzie hapa'),
+                    label: _tr('Let\'s get started', 'Tuanze'),
                     onTap: _onPrimaryTap,
                   ),
               ],

@@ -42,10 +42,9 @@ final List<OnboardingPage> onboardingPages = [
   OnboardingPage(
     index: 1,
     titleEn: 'See where every shilling goes',
-    titleSw: 'Ona kila shilingi inaenda wapi',
+    titleSw: 'Ona kila shilingi iendapo',
     descriptionEn: 'Follow income, expenses, and cash flow in real time.',
     descriptionSw: 'Fuatilia mapato, matumizi na mzunguko wa fedha kwa wakati halisi.',
-    emoji: '📈',
     icon: Icons.trending_up_rounded,
   ),
   OnboardingPage(
@@ -54,16 +53,14 @@ final List<OnboardingPage> onboardingPages = [
     titleSw: 'Fanya maamuzi kwa kujiamini ukitumia taarifa wazi',
     descriptionEn: 'See what is working and what needs attention.',
     descriptionSw: 'Ona kinachofanya kazi na kinachohitaji kuangaliwa.',
-    emoji: '☁️',
     icon: Icons.cloud_sync_rounded,
   ),
   OnboardingPage(
     index: 3,
     titleEn: 'Let\'s get your workspace ready',
-    titleSw: 'Tukusaidie kuandaa workspace yako',
+    titleSw: 'Tukusaidie kuandaa eneo yako',
     descriptionEn: 'Tell us what matters most in your business, we\'ll set it up.',
     descriptionSw: 'Tuambie kilicho muhimu zaidi kwenye biashara yako, tukuwekee mipangilio.',
-    emoji: '🚀',
     icon: Icons.rocket_launch_rounded,
   ),
 ];

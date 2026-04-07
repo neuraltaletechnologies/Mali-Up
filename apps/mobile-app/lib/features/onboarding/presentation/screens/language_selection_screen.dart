@@ -92,7 +92,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 
                   // Title
                   Text(
-                    'Great to have you here',
+                    'Welcome to Mali Up',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.secondary,
