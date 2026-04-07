@@ -32,6 +32,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   int _currentIndex = 0;
   late Timer _autoAdvanceTimer;
   bool _timerActive = false;
+  Timer? _finalTransitionTimer;
+  bool _isFinishing = false;
 
   @override
   void initState() {
@@ -97,9 +99,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  void _onPrimaryTap() {
-    HapticFeedback.lightImpact();
-    widget.onOnboardingComplete();
+  void _scheduleFinalTransitionIfNeeded() {
+    final isLastPage = _currentIndex == onboardingPages.length - 1;
+    _finalTransitionTimer?.cancel();
+
+    if (!isLastPage) {
+      return;
+    }
+
+    _finalTransitionTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (!mounted || _isFinishing) {
+        return;
+      }
+      if (_currentIndex != onboardingPages.length - 1) {
+        return;
+      }
+      _isFinishing = true;
+      HapticFeedback.selectionClick();
+      widget.onOnboardingComplete();
+    });
   }
 
   @override
@@ -108,6 +126,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _pageController.dispose();
     _exitAnimationController.dispose();
     _stopAutoAdvance();
+    _finalTransitionTimer?.cancel();
     super.dispose();
   }
 
@@ -131,6 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             onPageChanged: (index) {
               setState(() => _currentIndex = index);
               _restartAutoAdvanceIfNeeded();
+              _scheduleFinalTransitionIfNeeded();
             },
             itemCount: onboardingPages.length,
             itemBuilder: (context, index) {
@@ -295,55 +315,30 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                 ),
                 const SizedBox(height: 20),
-                if (isLastPage) ...[
-                  _buildPrimaryButton(
-                    label: _tr('Continue', 'Endelea'),
-                    onTap: _onPrimaryTap,
+                if (isLastPage)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(OnboardingColors.primaryDeep),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _tr('Preparing your setup...', 'Tunaandaa mipangilio yako...'),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: OnboardingColors.textDark,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
                   ),
-                ],
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPrimaryButton({
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return EmotionalTapScale(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              OnboardingColors.primaryDeep,
-              OnboardingColors.accentGreen,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: OnboardingColors.primaryDeep.withValues(alpha: 0.25),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: OnboardingColors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
           ),
         ),
       ),

@@ -456,7 +456,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // Validate owner details
     if (_ownerNameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_tr('Please enter your full name', 'Tafadhali weka jina lako kamili'))),
+        SnackBar(content: Text(_tr('Oops!! you forgot your full name', 'Tafadhali weka jina lako kamili'))),
       );
       return;
     }

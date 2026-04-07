@@ -37,7 +37,6 @@ final List<OnboardingPage> onboardingPages = [
     titleSw: 'Endesha Biashara Yako Mahali Pamoja',
     descriptionEn: 'Sales, stock, and customers. All in one workspace.',
     descriptionSw: 'Mauzo, stoo, na wateja. Yote katika sehemu moja.',
-    emoji: '📊',
     icon: Icons.dashboard_outlined,
   ),
   OnboardingPage(
@@ -60,10 +59,10 @@ final List<OnboardingPage> onboardingPages = [
   ),
   OnboardingPage(
     index: 3,
-    titleEn: 'Welcome to Malix',
-    titleSw: 'Karibu Malix',
-    descriptionEn: 'Let us personalize your workspace in under a minute.',
-    descriptionSw: 'Tukupangie workspace yako binafsi ndani ya dakika moja.',
+    titleEn: 'Tell Us About Yourself',
+    titleSw: 'Tuambie Kuhusu Wewe',
+    descriptionEn: 'A quick step to personalize your workspace.',
+    descriptionSw: 'Hatua ya haraka kukupangia workspace yako binafsi.',
     emoji: '🚀',
     icon: Icons.rocket_launch_rounded,
   ),
