@@ -92,7 +92,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 
                   // Title
                   Text(
-                    'Welcome to Mali Up',
+                    'Great to have you here',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.secondary,
@@ -104,7 +104,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Text(
-                      'Choose your preferred language to get started',
+                      'Pick the language you\'re most comfortable with.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.textSecondary,
