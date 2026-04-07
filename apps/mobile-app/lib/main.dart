@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
@@ -26,12 +27,14 @@ Future<void> main() async {
       prefs.getBool(_onboardingCompletedKey) ?? false;
   final hasSelectedLanguage = 
       await LocalizationService.hasLanguageBeenSelected();
+    final hasActiveSession = FirebaseAuth.instance.currentUser != null;
 
   runApp(
     ProviderScope(
       child: MaliUpApp(
         hasCompletedOnboarding: hasCompletedOnboarding,
         hasSelectedLanguage: hasSelectedLanguage,
+        hasActiveSession: hasActiveSession,
       ),
     ),
   );
@@ -40,11 +43,13 @@ Future<void> main() async {
 class MaliUpApp extends StatelessWidget {
   final bool hasCompletedOnboarding;
   final bool hasSelectedLanguage;
+  final bool hasActiveSession;
 
   const MaliUpApp({
     super.key,
     required this.hasCompletedOnboarding,
     required this.hasSelectedLanguage,
+    required this.hasActiveSession,
   });
 
   @override
@@ -62,6 +67,7 @@ class MaliUpApp extends StatelessWidget {
               routerConfig: AppRouter.createRouter(
                 showLanguageSelection: !hasSelectedLanguage,
                 showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
+                hasActiveSession: hasActiveSession,
               ),
             );
           },
