@@ -1,0 +1,338 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-heading);
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    scroll-behavior: smooth;
+  }
+}
+
+/* Mali Up brand variables */
+:root {
+  --mali-navy: #0C1B2E;
+  --mali-navy-mid: #142038;
+  --mali-amber: #F5A623;
+  --mali-amber-light: #FBBF24;
+  --mali-green: #22C55E;
+  --mali-white: #FFFFFF;
+  --mali-card: #FFFFFF;
+}
+
+/* Fonts */
+.font-heading {
+  font-family: var(--font-heading), system-ui, sans-serif;
+}
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(12, 27, 46, 0.08);
+}
+
+.glass-amber {
+  background: rgba(245, 166, 35, 0.12);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(245, 166, 35, 0.28);
+}
+
+/* Scroll reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition: opacity 0.75s ease, transform 0.75s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-36px);
+  transition: opacity 0.75s ease, transform 0.75s ease;
+}
+.reveal-left.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+.reveal-right {
+  opacity: 0;
+  transform: translateX(36px);
+  transition: opacity 0.75s ease, transform 0.75s ease;
+}
+.reveal-right.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Keyframes */
+@keyframes float-phone {
+  0%, 100% { transform: translateY(0px) rotate(-2deg); }
+  50%       { transform: translateY(-18px) rotate(-2deg); }
+}
+@keyframes pulse-ring {
+  0%, 100% { transform: scale(0.92); opacity: 0.7; }
+  50%       { transform: scale(1.06); opacity: 0.3; }
+}
+@keyframes shimmer-btn {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes fade-in-hero {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes count-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-float-phone  { animation: float-phone  5.5s ease-in-out infinite; }
+.animate-pulse-ring   { animation: pulse-ring   3s   ease-in-out infinite; }
+.animate-ticker       { animation: ticker       28s  linear     infinite; }
+.animate-spin-slow    { animation: spin-slow    22s  linear     infinite; }
+.animate-count-pop    { animation: count-pop    0.6s ease       both; }
+
+.shimmer-btn {
+  background: linear-gradient(135deg, #F5A623 0%, #FBBF24 40%, #F5A623 65%, #D97706 100%);
+  background-size: 300% 300%;
+  animation: shimmer-btn 2.8s ease infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar       { width: 4px; }
+::-webkit-scrollbar-track { background: #E5E7EB; }
+::-webkit-scrollbar-thumb { background: #F5A623; border-radius: 2px; }
+
+/* ── Emotional design micro-interactions ── */
+
+/* Confetti particle fall */
+@keyframes confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translateY(200px) rotate(540deg) scale(0.5); opacity: 0; }
+}
+
+/* Magnetic button glow pulse on hover */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(245,166,35,0.3); }
+  50%       { box-shadow: 0 0 40px rgba(245,166,35,0.6); }
+}
+.btn-glow:hover { animation: glow-pulse 1.4s ease-in-out infinite; }
+
+/* Soft entrance for success states */
+@keyframes success-pop {
+  0%   { transform: scale(0.7) translateY(10px); opacity: 0; }
+  60%  { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.success-pop { animation: success-pop 0.55s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+/* Smooth tab dot expand */
+@keyframes dot-expand {
+  from { width: 8px; border-radius: 4px; }
+  to   { width: 28px; border-radius: 4px; }
+}
+
+/* Input focus ring breathe */
+@keyframes focus-breathe {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(245,166,35,0.15); }
+  50%       { box-shadow: 0 0 0 4px rgba(245,166,35,0.25); }
+}
+
+/* Floating card entrance */
+@keyframes float-card-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.88); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Stat number count entrance */
+@keyframes stat-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Ripple on button click */
+@keyframes ripple-out {
+  from { transform: scale(0); opacity: 0.4; }
+  to   { transform: scale(4);  opacity: 0; }
+}
+.ripple-dot {
+  position: absolute;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  background: rgba(255,255,255,0.3);
+  pointer-events: none;
+  transform-origin: center;
+  animation: ripple-out 0.55s ease-out both;
+}
+
+/* Ticker pause on hover */
+.animate-ticker:hover { animation-play-state: paused; }
+
+/* Smooth section fade-up stagger for reveal children */
+.reveal-stagger > * {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.22,1,0.36,1);
+}
+.reveal-stagger.visible > *:nth-child(1) { opacity:1; transform:none; transition-delay:0s; }
+.reveal-stagger.visible > *:nth-child(2) { opacity:1; transform:none; transition-delay:0.1s; }
+.reveal-stagger.visible > *:nth-child(3) { opacity:1; transform:none; transition-delay:0.2s; }
+.reveal-stagger.visible > *:nth-child(4) { opacity:1; transform:none; transition-delay:0.3s; }
+
+/* Logo hover heartbeat */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%       { transform: scale(1.12); }
+  28%       { transform: scale(1); }
+  42%       { transform: scale(1.07); }
+  56%       { transform: scale(1); }
+}
+.logo-heartbeat:hover { animation: heartbeat 0.9s ease-in-out; }
+
+/* ── Scroll-reveal base ── */
+.reveal, .reveal-left, .reveal-right {
+  opacity: 0;
+  transition: opacity 0.65s ease, transform 0.65s cubic-bezier(0.22,1,0.36,1);
+}
+.reveal              { transform: translateY(28px); }
+.reveal-left         { transform: translateX(-28px); }
+.reveal-right        { transform: translateX(28px); }
+
+.reveal.visible,
+.reveal-left.visible,
+.reveal-right.visible {
+  opacity: 1;
+  transform: translate(0);
+}

@@ -265,7 +265,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         hapticStyle: TapHapticStyle.selection,
                         onTap: _onSkipTap,
                         child: Text(
-                          _tr('Continue without tour', 'Ruka'),
+                          _tr('Skip', 'Ruka'),
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: OnboardingColors.textDark,
                                 fontWeight: FontWeight.w700,

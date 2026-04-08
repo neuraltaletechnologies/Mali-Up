@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,13053,o=>{o.q("/_next/static/media/phone_035.0wvox0oqap5co.png")}]);

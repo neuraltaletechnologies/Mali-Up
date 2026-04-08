@@ -907,7 +907,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
 
                   Text(
-                    _otpSent ? _tr('Check your phone for the code', 'Angalia simu yako kwa OTP') : _tr('Good to see you again', 'Karibu tena'),
+                    _otpSent ? _tr('Check your phone for the code', 'Angalia simu yako kwa OTP') : _tr('Welcome back', 'Karibu tena'),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontSize: 30,
                           fontWeight: FontWeight.w900,
@@ -972,7 +972,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _tr('Your business phone', 'Namba yako ulio sajiliaara'),
+                                  _tr('Your phone number', 'Namba yako ulio sajiliaara'),
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.secondary,
@@ -1033,7 +1033,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: TextButton(
                                     onPressed: _isLoading ? null : _showEmailRecoveryDialog,
                                     child: Text(
-                                      _tr('I can\'t access this number', 'Siwezi kufikia namba yangu'),
+                                      _tr('I can\'t access my phone number', 'Siwezi kufikia namba yangu'),
                                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                         color: AppColors.textSecondary,
                                         fontWeight: FontWeight.w700,
