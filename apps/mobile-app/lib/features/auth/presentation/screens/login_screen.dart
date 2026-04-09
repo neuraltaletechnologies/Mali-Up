@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -10,6 +11,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEV BYPASS — set to true to skip real SMS OTP during development.
+// Automatically has no effect in release builds (kDebugMode == false).
+// Dev OTP code: 9015  |  Any phone number is accepted.
+// ─────────────────────────────────────────────────────────────────────────────
+const bool _kDevBypassOtp = true;  // flip to false to test real Firebase flow
+const String _kDevOtpCode = '9015'; // must match controller pre-fill below
 
 class _PhoneAuthPrecheckResult {
   final bool isReady;
@@ -442,7 +451,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _sendOTP() async {
     final phone = _phoneController.text.trim();
-    
+
     // Validate phone number
     if (phone.isEmpty) {
       if (mounted) {
@@ -450,14 +459,41 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       return;
     }
-    
+
     if (phone.length != 9) {
       if (mounted) {
         await _NotificationHelper.showError(context, _tr('That number looks off. Please check and try again.', 'Namba hiyo inaonekana si sahihi. Tafadhali hakiki kisha ujaribu tena.'));
       }
       return;
     }
-    
+
+    // ── DEV BYPASS ──────────────────────────────────────────────────────────
+    // In debug builds with _kDevBypassOtp enabled, skip the real Firebase
+    // SMS call and immediately show the OTP entry screen pre-filled with
+    // the dev code. No network call is made.
+    if (kDebugMode && _kDevBypassOtp) {
+      setState(() {
+        _otpSent = true;
+        _isLoading = false;
+        _verificationId = '__dev_bypass__';
+      });
+      if (mounted) {
+        _NotificationHelper.showInfo(
+          context,
+          _tr(
+            '🛠 Dev mode: Enter $_kDevOtpCode to bypass OTP.',
+            '🛠 Hali ya Maendeleo: Weka $_kDevOtpCode kupita OTP.',
+          ),
+        );
+        _setFeedback(
+          _tr('Dev mode active — use code $_kDevOtpCode', 'Hali ya Maendeleo — tumia OTP $_kDevOtpCode'),
+          EmotionalStatusTone.neutral,
+        );
+      }
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     setState(() => _isLoading = true);
     final fullPhone = '+255$phone';
     
@@ -796,7 +832,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _verifyOTP() async {
     setState(() => _isLoading = true);
     final smsCode = _otpControllers.map((c) => c.text).join();
-    
+
     if (smsCode.length != 4 || smsCode.contains(' ')) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -804,7 +840,41 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       return;
     }
-    
+
+    // ── DEV BYPASS ──────────────────────────────────────────────────────────
+    // Skip Firebase credential check in debug builds. Accept the dev code
+    // and navigate directly to the dashboard.
+    if (kDebugMode && _kDevBypassOtp && _verificationId == '__dev_bypass__') {
+      if (smsCode != _kDevOtpCode) {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          await _NotificationHelper.showError(
+            context,
+            _tr(
+              '🛠 Dev mode: Wrong code. Use $_kDevOtpCode.',
+              '🛠 Hali ya Maendeleo: OTP si sahihi. Tumia $_kDevOtpCode.',
+            ),
+          );
+        }
+        return;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('dev_bypass_session', true);
+      if (mounted) {
+        await _NotificationHelper.showSuccess(
+          context,
+          _tr('🛠 Dev bypass — entering app.', '🛠 Dev bypass — unaingia kwenye app.'),
+        );
+        _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
+        _triggerSuccessBurst();
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) context.go(AppRouter.dashboardPath);
+        });
+      }
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     try {
       final credential = PhoneAuthProvider.credential(
         verificationId: _verificationId!,

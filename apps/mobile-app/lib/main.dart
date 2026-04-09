@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -27,7 +28,8 @@ Future<void> main() async {
       prefs.getBool(_onboardingCompletedKey) ?? false;
   final hasSelectedLanguage = 
       await LocalizationService.hasLanguageBeenSelected();
-    final hasActiveSession = FirebaseAuth.instance.currentUser != null;
+  final hasDevBypassSession = kDebugMode && (prefs.getBool('dev_bypass_session') ?? false);
+  final hasActiveSession = FirebaseAuth.instance.currentUser != null || hasDevBypassSession;
 
   runApp(
     ProviderScope(
