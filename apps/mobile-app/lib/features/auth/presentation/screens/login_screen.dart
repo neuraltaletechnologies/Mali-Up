@@ -817,6 +817,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _precheckAndSendOtp() async {
+    // ── DEV BYPASS ──────────────────────────────────────────────────────────
+    // When dev bypass is enabled, do not run Firebase readiness checks.
+    // This avoids billing/SMS region errors during development.
+    if (kDebugMode && _kDevBypassOtp) {
+      await _sendOTP();
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     if (_phoneAuthReady) {
       await _sendOTP();
       return;
