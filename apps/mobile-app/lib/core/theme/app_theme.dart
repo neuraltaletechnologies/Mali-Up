@@ -1,30 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
-    final baseTextTheme = GoogleFonts.manropeTextTheme(
-      const TextTheme(
-        displayLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, height: 1.1),
-        displayMedium: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, height: 1.15),
-        headlineLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, height: 1.2),
-        headlineMedium: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, height: 1.2),
-        titleLarge: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-        titleMedium: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-        bodyLarge: TextStyle(color: AppColors.textPrimary, height: 1.5),
-        bodyMedium: TextStyle(color: AppColors.textSecondary, height: 1.45),
-      ),
+    final base = ThemeData(useMaterial3: true, brightness: Brightness.light);
+    final baseTextTheme = base.textTheme.apply(
+      bodyColor: AppColors.textPrimary,
+      displayColor: AppColors.textPrimary,
     );
 
     final appTextTheme = baseTextTheme.copyWith(
-      displayLarge: GoogleFonts.sora(textStyle: baseTextTheme.displayLarge),
-      displayMedium: GoogleFonts.sora(textStyle: baseTextTheme.displayMedium),
-      headlineLarge: GoogleFonts.sora(textStyle: baseTextTheme.headlineLarge),
-      headlineMedium: GoogleFonts.sora(textStyle: baseTextTheme.headlineMedium),
-      titleLarge: GoogleFonts.sora(textStyle: baseTextTheme.titleLarge),
-      titleMedium: GoogleFonts.sora(textStyle: baseTextTheme.titleMedium),
-      labelLarge: GoogleFonts.sora(textStyle: baseTextTheme.labelLarge),
+      displayLarge: baseTextTheme.displayLarge?.copyWith(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w800,
+        height: 1.1,
+      ),
+      displayMedium: baseTextTheme.displayMedium?.copyWith(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w800,
+        height: 1.15,
+      ),
+      headlineLarge: baseTextTheme.headlineLarge?.copyWith(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w700,
+        height: 1.2,
+      ),
+      headlineMedium: baseTextTheme.headlineMedium?.copyWith(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w700,
+        height: 1.2,
+      ),
+      titleLarge: baseTextTheme.titleLarge?.copyWith(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+      titleMedium: baseTextTheme.titleMedium?.copyWith(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+      bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+        color: AppColors.textPrimary,
+        height: 1.5,
+      ),
+      bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+        color: AppColors.textSecondary,
+        height: 1.45,
+      ),
     );
 
     return ThemeData(
@@ -46,7 +67,7 @@ class AppTheme {
         backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.sora(
+        titleTextStyle: const TextStyle(
           color: AppColors.textPrimary,
           fontSize: 22,
           fontWeight: FontWeight.w700,
@@ -72,7 +93,7 @@ class AppTheme {
         indicator: const UnderlineTabIndicator(
           borderSide: BorderSide(color: AppColors.primary, width: 3),
         ),
-        labelStyle: GoogleFonts.sora(fontWeight: FontWeight.w700, fontSize: 15),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
       ),
 
       drawerTheme: const DrawerThemeData(
@@ -87,7 +108,7 @@ class AppTheme {
         backgroundColor: AppColors.background,
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        titleTextStyle: GoogleFonts.sora(
+        titleTextStyle: const TextStyle(
           color: AppColors.textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w700,
@@ -161,7 +182,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3),
         ),
       ),
 

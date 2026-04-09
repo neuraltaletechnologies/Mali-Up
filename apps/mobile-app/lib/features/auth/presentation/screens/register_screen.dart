@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/gestures.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
@@ -15,6 +16,15 @@ import '../widgets/privacy_policy.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEV BYPASS — set to true to skip real SMS OTP during development.
+// Automatically has no effect in release builds (kDebugMode == false).
+// Dev OTP code: 9015  |  Any phone number is accepted.
+// ─────────────────────────────────────────────────────────────────────────────
+const bool _kDevBypassOtp = true;  // flip to false to test real Firebase flow
+const String _kDevOtpCode = '9015';
 
 class _PhoneAuthPrecheckResult {
   final bool isReady;
@@ -508,6 +518,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    // ── DEV BYPASS ──────────────────────────────────────────────────────────
+    // In debug builds with _kDevBypassOtp enabled, skip the real Firebase
+    // SMS call and immediately show the OTP entry screen.
+    if (kDebugMode && _kDevBypassOtp) {
+      setState(() {
+        _otpSent = true;
+        _isLoading = false;
+        _verificationId = '__dev_bypass__';
+
+        // Prefill the OTP inputs for faster dev iteration.
+        for (var i = 0; i < _otpControllers.length; i++) {
+          _otpControllers[i].text = i < _kDevOtpCode.length ? _kDevOtpCode[i] : '';
+        }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_tr('🛠 Dev mode: Enter $_kDevOtpCode to bypass OTP.', '🛠 Hali ya Maendeleo: Weka $_kDevOtpCode kupita OTP.'))),
+        );
+        _setFeedback(
+          _tr('Dev mode active — use code $_kDevOtpCode', 'Hali ya Maendeleo — tumia OTP $_kDevOtpCode'),
+          EmotionalStatusTone.neutral,
+        );
+      }
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     setState(() => _isLoading = true);
     final phone = '+255${_phoneController.text.trim()}';
     
@@ -538,6 +575,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _verifyAndRegister() async {
     setState(() => _isLoading = true);
     final smsCode = _otpControllers.map((c) => c.text).join();
+
+    // ── DEV BYPASS ──────────────────────────────────────────────────────────
+    // Skip Firebase credential check in debug builds. Accept the dev code
+    // and navigate directly to the dashboard.
+    if (kDebugMode && _kDevBypassOtp && _verificationId == '__dev_bypass__') {
+      if (smsCode != _kDevOtpCode) {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_tr('🛠 Dev mode: Wrong code. Use $_kDevOtpCode.', '🛠 Hali ya Maendeleo: OTP si sahihi. Tumia $_kDevOtpCode.'))),
+          );
+        }
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('dev_bypass_session', true);
+
+      if (mounted) {
+        _setFeedback(
+          _tr('🛠 Dev bypass — entering app.', '🛠 Dev bypass — unaingia kwenye app.'),
+          EmotionalStatusTone.success,
+        );
+        _triggerSuccessBurst();
+        await Future.delayed(const Duration(milliseconds: 320));
+        if (mounted) context.go(AppRouter.dashboardPath);
+      }
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     final credential = PhoneAuthProvider.credential(verificationId: _verificationId!, smsCode: smsCode);
     await _completeRegistration(credential);
   }
