@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/debt_providers.dart';
 
 class DebtTrackingScreen extends ConsumerWidget {
@@ -12,15 +13,44 @@ class DebtTrackingScreen extends ConsumerWidget {
     final debtItems = debts.maybeWhen(data: (items) => items, orElse: () => const []);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Debt & Payables'),
-        actions: [
-          IconButton(icon: const Icon(Icons.filter_list), onPressed: () {}),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: CustomScrollView(
         slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Control debt exposure',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: AppColors.secondary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'See what you owe and what is owed to you, with clear status tracking.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const EmotionalLottieSpot(
+                    scene: EmotionalLottieScene.celebrate,
+                    size: 62,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24),

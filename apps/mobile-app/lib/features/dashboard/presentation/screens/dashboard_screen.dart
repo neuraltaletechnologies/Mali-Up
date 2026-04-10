@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,11 +20,31 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _entryRewardTrigger = 0;
   bool _showEntryReward = false;
+  Timer? _clockTimer;
 
   @override
   void initState() {
     super.initState();
     _showFirstEntryRewardIfNeeded();
+    _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    super.dispose();
+  }
+
+  String _timeBasedGreeting() {
+    final hour = DateTime.now().hour;
+
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    if (hour >= 17 && hour < 21) return 'Good evening';
+    if (hour >= 21 && hour <= 23) return 'Good night';
+    return 'Good midnight';
   }
 
   Future<void> _showFirstEntryRewardIfNeeded() async {
@@ -50,20 +71,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final debtItems = debts.maybeWhen(data: (items) => items, orElse: () => const []);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mali Up'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Stack(
         children: [
           const AmbientEmotionBackground(
@@ -86,7 +93,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Good morning, Neuraltale',
+                            '${_timeBasedGreeting()}, Neuraltale',
                             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                               fontSize: 24,
                               fontWeight: FontWeight.w700,
@@ -200,9 +207,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     color: AppColors.secondary,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Last 7 days revenue trend with peak and average markers.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '+12.4%',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 const SizedBox(
-                  height: 200,
+                  height: 240,
                   child: _SalesLineChart(),
                 ),
 
@@ -361,27 +396,111 @@ class _SalesLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const points = <FlSpot>[
+      FlSpot(0, 3),
+      FlSpot(1, 1.5),
+      FlSpot(2, 4.2),
+      FlSpot(3, 2.8),
+      FlSpot(4, 5.1),
+      FlSpot(5, 3.6),
+      FlSpot(6, 4.4),
+    ];
+
     return LineChart(
       LineChartData(
-        gridData: const FlGridData(show: false),
-        titlesData: const FlTitlesData(show: false),
+        minX: 0,
+        maxX: 6,
+        minY: 0,
+        maxY: 6,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 1,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: AppColors.glassBorder.withValues(alpha: 0.45),
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 36,
+              interval: 2,
+              getTitlesWidget: (value, meta) {
+                if (value == 0) return const SizedBox.shrink();
+                return Text(
+                  '${value.toInt()}M',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                      ),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                final index = value.toInt();
+                if (index < 0 || index >= days.length) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    days[index],
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textMuted,
+                          fontSize: 10,
+                        ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
         borderData: FlBorderData(show: false),
+        lineTouchData: LineTouchData(
+          enabled: true,
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => AppColors.secondary,
+            tooltipBorderRadius: BorderRadius.circular(10),
+            getTooltipItems: (spots) {
+              return spots.map((spot) {
+                return LineTooltipItem(
+                  'TSh ${spot.y.toStringAsFixed(1)}M',
+                  Theme.of(context).textTheme.labelSmall!.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                );
+              }).toList();
+            },
+          ),
+        ),
         lineBarsData: [
           LineChartBarData(
-            spots: [
-              const FlSpot(0, 3),
-              const FlSpot(1, 1),
-              const FlSpot(2, 4),
-              const FlSpot(3, 2),
-              const FlSpot(4, 5),
-              const FlSpot(5, 3),
-              const FlSpot(6, 4),
-            ],
+            spots: points,
             isCurved: true,
             color: AppColors.primary,
             barWidth: 4,
             isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, bar, index) {
+                final isPeak = spot.y >= 5;
+                return FlDotCirclePainter(
+                  radius: isPeak ? 4.8 : 3.6,
+                  color: isPeak ? AppColors.success : AppColors.primary,
+                  strokeWidth: 1.5,
+                  strokeColor: AppColors.background,
+                );
+              },
+            ),
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(

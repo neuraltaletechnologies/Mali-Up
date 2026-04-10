@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/customer_providers.dart';
 
 class CustomerListScreen extends ConsumerWidget {
@@ -12,16 +13,42 @@ class CustomerListScreen extends ConsumerWidget {
     final customerItems = customers.maybeWhen(data: (items) => items, orElse: () => const []);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Customers (CRM)'),
-        actions: [
-          IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.sort), onPressed: () {}),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Build stronger customer trust',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Follow balances, tags, and recent activity for every customer.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const EmotionalLottieSpot(
+                  scene: EmotionalLottieScene.authVerify,
+                  size: 62,
+                ),
+              ],
+            ),
+          ),
+
           // CRM Summary Header
           Container(
             padding: const EdgeInsets.all(24),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/finance_providers.dart';
 
 class ExpenseListScreen extends ConsumerWidget {
@@ -11,15 +12,42 @@ class ExpenseListScreen extends ConsumerWidget {
     final expenses = ref.watch(expenseListProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Expenses'),
-        actions: [
-          IconButton(icon: const Icon(Icons.calendar_month_outlined), onPressed: () {}),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Stay in control of spending',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Track category-wise expenses and keep monthly costs predictable.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const EmotionalLottieSpot(
+                  scene: EmotionalLottieScene.dashboard,
+                  size: 62,
+                ),
+              ],
+            ),
+          ),
+
           Container(
             padding: const EdgeInsets.all(24),
             decoration: const BoxDecoration(
