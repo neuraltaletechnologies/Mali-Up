@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/finance_providers.dart';
 
 class CashFlowScreen extends ConsumerWidget {
@@ -11,17 +12,44 @@ class CashFlowScreen extends ConsumerWidget {
     final accounts = ref.watch(cashAccountListProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cash Flow'),
-        actions: [
-          IconButton(icon: const Icon(Icons.account_balance_outlined), onPressed: () {}),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Understand your money flow',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: AppColors.secondary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Compare inflow and outflow to make better daily cash decisions.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const EmotionalLottieSpot(
+                    scene: EmotionalLottieScene.onboarding,
+                    size: 62,
+                  ),
+                ],
+              ),
+            ),
+
             // Accounts Horizontal Scroll
             Padding(
               padding: EdgeInsets.fromLTRB(24, 24, 24, 16),

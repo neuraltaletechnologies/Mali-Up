@@ -161,7 +161,7 @@ export function Hero() {
               className="font-heading font-bold text-[#0C1B2E] leading-[1.08] text-balance"
               style={{ fontSize: "clamp(2.4rem, 5vw, 3.8rem)" }}
             >
-              Your Entire Business{" "}
+              Grow Your Wealth{" "}
               <span
                 className="shimmer-btn bg-clip-text inline-block"
                 style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/page_intro_header.dart';
 
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key});
@@ -7,22 +8,14 @@ class InventoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inventory'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner_rounded),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list_rounded),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Column(
         children: [
+          const PageIntroHeader(
+            title: 'Keep stock healthy',
+            subtitle: 'Catch low stock early and keep your products ready for every sale.',
+            scene: EmotionalLottieScene.onboarding,
+          ),
+
           // Inventory Stats Header
           Padding(
             padding: const EdgeInsets.all(24),

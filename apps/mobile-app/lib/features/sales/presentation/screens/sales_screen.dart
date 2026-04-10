@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/page_intro_header.dart';
 
 class SalesScreen extends StatelessWidget {
   const SalesScreen({super.key});
@@ -7,18 +8,14 @@ class SalesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sales & Invoices'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.tune_outlined),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Column(
         children: [
+          const PageIntroHeader(
+            title: 'Track sales momentum',
+            subtitle: 'Monitor invoices, pending collections, and paid revenue in one place.',
+            scene: EmotionalLottieScene.dashboard,
+          ),
+
           // Sales Overview Header
           Container(
             padding: const EdgeInsets.all(24),

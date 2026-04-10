@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -79,27 +80,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            color: AppColors.secondary,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.secondary),
-          onPressed: () => context.pop(),
-        ),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tune your workspace',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.secondary,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Customize language and motion preferences for a smoother experience.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const EmotionalLottieSpot(
+                  scene: EmotionalLottieScene.authWelcome,
+                  size: 62,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
             Text(
               'Language',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(

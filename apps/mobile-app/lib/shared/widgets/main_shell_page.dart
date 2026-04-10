@@ -16,14 +16,36 @@ class MainShellPage extends StatelessWidget {
     return 0; // Dashboard
   }
 
+  static String _pageTitle(String location) {
+    if (location.startsWith(AppRouter.salesPath)) return 'Sales & Invoices';
+    if (location.startsWith(AppRouter.inventoryPath)) return 'Inventory';
+    if (location.startsWith(AppRouter.crmPath)) return 'Customers';
+    if (location.startsWith(AppRouter.debtPath)) return 'Debt & Payables';
+    if (location.startsWith(AppRouter.expensesPath)) return 'Expenses';
+    if (location.startsWith(AppRouter.cashFlowPath)) return 'Cash Flow';
+    if (location.startsWith(AppRouter.settingsPath)) return 'Settings';
+    return 'Dashboard';
+  }
+
+  static bool _isSelected(String location, String route) {
+    return location == route || location.startsWith('$route/');
+  }
+
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     final currentIndex = _calculateIndex(location);
+    final title = _pageTitle(location);
 
     return Scaffold(
-      appBar: currentIndex != 0 ? null : AppBar(
-        title: const MaliUpLogo(size: 32), // Uses Mali Up Wordmark
+      appBar: AppBar(
+        title: Row(
+          children: [
+            const MaliUpLogo(size: 28),
+            const SizedBox(width: 12),
+            Text(title),
+          ],
+        ),
         centerTitle: false,
         actions: [
           IconButton(
@@ -33,6 +55,10 @@ class MainShellPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.notifications_none_rounded),
             onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.go(AppRouter.settingsPath),
           ),
           const SizedBox(width: 8),
         ],
@@ -48,39 +74,78 @@ class MainShellPage extends StatelessWidget {
               child: Center(child: MaliUpLogo(size: 40)),
             ),
             _DrawerItem(
-              icon: Icons.account_balance_rounded,
-              label: 'Debt Tracking',
+              icon: Icons.grid_view_rounded,
+              label: 'Dashboard',
+              selected: _isSelected(location, AppRouter.dashboardPath),
               onTap: () {
                 context.pop();
-                context.push(AppRouter.debtPath);
+                context.go(AppRouter.dashboardPath);
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.receipt_rounded,
+              label: 'Sales & Invoices',
+              selected: _isSelected(location, AppRouter.salesPath),
+              onTap: () {
+                context.pop();
+                context.go(AppRouter.salesPath);
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.inventory_2_rounded,
+              label: 'Inventory',
+              selected: _isSelected(location, AppRouter.inventoryPath),
+              onTap: () {
+                context.pop();
+                context.go(AppRouter.inventoryPath);
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.people_rounded,
+              label: 'Customers',
+              selected: _isSelected(location, AppRouter.crmPath),
+              onTap: () {
+                context.pop();
+                context.go(AppRouter.crmPath);
+              },
+            ),
+            const Divider(height: 24, indent: 16, endIndent: 16),
+            _DrawerItem(
+              icon: Icons.account_balance_rounded,
+              label: 'Debt Tracking',
+              selected: _isSelected(location, AppRouter.debtPath),
+              onTap: () {
+                context.pop();
+                context.go(AppRouter.debtPath);
               },
             ),
             _DrawerItem(
               icon: Icons.payments_outlined,
               label: 'Expense Management',
+              selected: _isSelected(location, AppRouter.expensesPath),
               onTap: () {
                 context.pop();
-                context.push(AppRouter.expensesPath);
+                context.go(AppRouter.expensesPath);
               },
             ),
             _DrawerItem(
               icon: Icons.account_balance_wallet_outlined,
               label: 'Cash Flow & Accounts',
+              selected: _isSelected(location, AppRouter.cashFlowPath),
               onTap: () {
                 context.pop();
-                context.push(AppRouter.cashFlowPath);
+                context.go(AppRouter.cashFlowPath);
               },
-            ),
-            _DrawerItem(
-              icon: Icons.bar_chart_rounded,
-              label: 'Financial Reports',
-              onTap: () {},
             ),
             const Divider(height: 32, indent: 16, endIndent: 16),
             _DrawerItem(
               icon: Icons.settings_outlined,
               label: 'Business Settings',
-              onTap: () {},
+              selected: _isSelected(location, AppRouter.settingsPath),
+              onTap: () {
+                context.pop();
+                context.go(AppRouter.settingsPath);
+              },
             ),
 
             const Spacer(),
@@ -99,7 +164,7 @@ class MainShellPage extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.background,
           border: Border(
-            top: BorderSide(color: AppColors.secondary.withOpacity(0.08), width: 1.5),
+            top: BorderSide(color: AppColors.secondary.withValues(alpha: 0.08), width: 1.5),
           ),
         ),
         child: BottomNavigationBar(
@@ -146,14 +211,33 @@ class _DrawerItem extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final Color? color;
+  final bool selected;
 
-  const _DrawerItem({required this.icon, required this.label, required this.onTap, this.color});
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+    this.selected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final baseColor = color ?? AppColors.textPrimary;
+    final highlightColor = color ?? AppColors.primary;
+
     return ListTile(
-      leading: Icon(icon, color: color ?? AppColors.textPrimary),
-      title: Text(label, style: TextStyle(color: color ?? AppColors.textPrimary)),
+      selected: selected,
+      selectedTileColor: AppColors.primary.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      leading: Icon(icon, color: selected ? highlightColor : baseColor),
+      title: Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: selected ? highlightColor : baseColor,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+      ),
       onTap: onTap,
     );
   }
