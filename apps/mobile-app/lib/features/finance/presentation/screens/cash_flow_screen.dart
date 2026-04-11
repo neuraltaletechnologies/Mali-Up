@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/finance_providers.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class CashFlowScreen extends ConsumerWidget {
   const CashFlowScreen({super.key});
@@ -25,7 +28,7 @@ class CashFlowScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Understand your money flow',
+                          _tr('Understand your money flow', 'Elewa mtiririko wa pesa yako'),
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 color: AppColors.secondary,
                                 fontWeight: FontWeight.w700,
@@ -33,7 +36,10 @@ class CashFlowScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Compare inflow and outflow to make better daily cash decisions.',
+                          _tr(
+                            'Compare inflow and outflow to make better daily cash decisions.',
+                            'Linganisha mapato na matumizi ili ufanye maamuzi bora ya pesa kila siku.',
+                          ),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -54,7 +60,7 @@ class CashFlowScreen extends ConsumerWidget {
             Padding(
               padding: EdgeInsets.fromLTRB(24, 24, 24, 16),
               child: Text(
-                'My Accounts',
+                _tr('My Accounts', 'Akaunti Zangu'),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: AppColors.secondary,
                   fontSize: 18,
@@ -78,7 +84,7 @@ class CashFlowScreen extends ConsumerWidget {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (_, _) => Center(
                   child: Text(
-                    'Unable to load accounts right now.',
+                    _tr('Unable to load accounts right now.', 'Imeshindikana kupakia akaunti kwa sasa.'),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textMuted,
                         ),
@@ -102,7 +108,7 @@ class CashFlowScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     Text(
-                      'Monthly Flow Summary',
+                      _tr('Monthly Flow Summary', 'Muhtasari wa Mtiririko wa Mwezi'),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                         fontSize: 13,
@@ -111,9 +117,9 @@ class CashFlowScreen extends ConsumerWidget {
                     const SizedBox(height: 20),
                     Row(
                       children: [
-                        _FlowStat(label: 'Inflow', value: '4.8M', color: AppColors.success, icon: Icons.south_west_rounded),
+                        _FlowStat(label: _tr('Inflow', 'Mapato'), value: '4.8M', color: AppColors.success, icon: Icons.south_west_rounded),
                         Container(width: 1, height: 40, color: AppColors.glassBorder),
-                        _FlowStat(label: 'Outflow', value: '1.2M', color: AppColors.error, icon: Icons.north_east_rounded),
+                        _FlowStat(label: _tr('Outflow', 'Matumizi'), value: '1.2M', color: AppColors.error, icon: Icons.north_east_rounded),
                       ],
                     ),
                   ],
@@ -127,7 +133,7 @@ class CashFlowScreen extends ConsumerWidget {
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Money Movements',
+                _tr('Money Movements', 'Mienendo ya Pesa'),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: AppColors.secondary,
                   fontSize: 18,
@@ -288,7 +294,7 @@ class _MovementListItem extends StatelessWidget {
           color: isInflow ? AppColors.success : AppColors.error,
         ),
         title: Text(
-          isInflow ? 'Deposit: Cash Sale' : 'Withdraw: Petty Cash',
+          isInflow ? _tr('Deposit: Cash Sale', 'Amana: Mauzo ya Fedha Taslimu') : _tr('Withdraw: Petty Cash', 'Toa: Pesa Taslimu Ndogo'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppColors.secondary,
             fontWeight: FontWeight.w600,
@@ -296,7 +302,7 @@ class _MovementListItem extends StatelessWidget {
           ),
         ),
         subtitle: Text(
-          'To Business M-Pesa • Today, 2:30 PM',
+          _tr('To Business M-Pesa • Today, 2:30 PM', 'Kwa M-Pesa ya Biashara • Leo, 2:30 PM'),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: AppColors.textMuted,
             fontSize: 12,

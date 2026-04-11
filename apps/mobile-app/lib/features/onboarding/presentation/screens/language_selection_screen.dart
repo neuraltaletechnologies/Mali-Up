@@ -20,12 +20,24 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late final VoidCallback _languageListener;
+  AppLanguage _language = LocalizationService.languageNotifier.value;
   bool _isSelecting = false;
 
   @override
   void initState() {
     super.initState();
+    _languageListener = () {
+      if (mounted) {
+        setState(() => _language = LocalizationService.languageNotifier.value);
+      }
+    };
+    LocalizationService.languageNotifier.addListener(_languageListener);
     _setupAnimations();
+  }
+
+  String _tr(String en, String sw) {
+    return _language == AppLanguage.swahili ? sw : en;
   }
 
   void _setupAnimations() {
@@ -54,6 +66,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 
   @override
   void dispose() {
+    LocalizationService.languageNotifier.removeListener(_languageListener);
     _animationController.dispose();
     super.dispose();
   }
@@ -92,7 +105,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 
                   // Title
                   Text(
-                    'Welcome to Mali Up',
+                    _tr('Welcome to Mali Up', 'Karibu Mali Up'),
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.secondary,
@@ -104,7 +117,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Text(
-                      'Pick the language you\'re most comfortable with.',
+                      _tr(
+                        'Pick the language you\'re most comfortable with.',
+                        'Chagua lugha unayoielewa kwa urahisi zaidi.',
+                      ),
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.textSecondary,

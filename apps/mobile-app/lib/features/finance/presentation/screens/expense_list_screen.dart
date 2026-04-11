@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/finance_providers.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class ExpenseListScreen extends ConsumerWidget {
   const ExpenseListScreen({super.key});
@@ -23,7 +26,7 @@ class ExpenseListScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Stay in control of spending',
+                        _tr('Stay in control of spending', 'Dhibiti matumizi yako'),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               color: AppColors.secondary,
                               fontWeight: FontWeight.w700,
@@ -31,7 +34,10 @@ class ExpenseListScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Track category-wise expenses and keep monthly costs predictable.',
+                        _tr(
+                          'Track category-wise expenses and keep monthly costs predictable.',
+                          'Fuatilia matumizi kwa makundi na dhibitisha gharama za kila mwezi.',
+                        ),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -60,7 +66,7 @@ class ExpenseListScreen extends ConsumerWidget {
             child: Column(
               children: [
                 Text(
-                  'October 2026',
+                  _tr('October 2026', 'Oktoba 2026'),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
                     fontSize: 13,
@@ -79,13 +85,13 @@ class ExpenseListScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _FilterTab(label: 'All', isSelected: true),
+                    _FilterTab(label: _tr('All', 'Zote'), isSelected: true),
                     const SizedBox(width: 12),
-                    _FilterTab(label: 'Rent', isSelected: false),
+                    _FilterTab(label: _tr('Rent', 'Kodi'), isSelected: false),
                     const SizedBox(width: 12),
-                    _FilterTab(label: 'Tax', isSelected: false),
+                    _FilterTab(label: _tr('Tax', 'Kodi ya Serikali'), isSelected: false),
                     const SizedBox(width: 12),
-                    _FilterTab(label: 'Salaries', isSelected: false),
+                    _FilterTab(label: _tr('Salaries', 'Mishahara'), isSelected: false),
                   ],
                 ),
               ],
@@ -108,7 +114,7 @@ class ExpenseListScreen extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, _) => Center(
                 child: Text(
-                  'Unable to load expenses right now.',
+                  _tr('Unable to load expenses right now.', 'Imeshindikana kupakia matumizi kwa sasa.'),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textMuted,
                       ),
@@ -123,7 +129,7 @@ class ExpenseListScreen extends ConsumerWidget {
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.receipt_long_rounded, color: AppColors.secondary),
         label: Text(
-          'Add Expense',
+          _tr('Add Expense', 'Ongeza Matumizi'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppColors.secondary,
             fontWeight: FontWeight.w700,

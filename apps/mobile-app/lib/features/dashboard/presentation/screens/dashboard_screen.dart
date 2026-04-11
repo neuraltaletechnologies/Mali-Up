@@ -9,10 +9,13 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../config/routing.dart';
+import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../debt/data/debt_providers.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -52,11 +55,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   String _timeBasedGreeting() {
     final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) return 'Good morning';
-    if (hour >= 12 && hour < 17) return 'Good afternoon';
-    if (hour >= 17 && hour < 21) return 'Good evening';
-    if (hour >= 21) return 'Good night';
-    return 'Good midnight';
+    if (hour >= 5 && hour < 12) return _tr('Good morning', 'Habari za asubuhi');
+    if (hour >= 12 && hour < 17) return _tr('Good afternoon', 'Habari za mchana');
+    if (hour >= 17 && hour < 21) return _tr('Good evening', 'Habari za jioni');
+    if (hour >= 21) return _tr('Good night', 'Usiku mwema');
+    return _tr('Good midnight', 'Usiku wa manane mwema');
   }
 
   Future<void> _loadChartVisibilityPrefs() async {
@@ -160,8 +163,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               ),
                               Text(
                                 isBusinessContext
-                                    ? "Here's what's happening in your business today"
-                                    : "Here's your personal money pulse for today",
+                                  ? _tr("Here's what's happening in your business today", 'Haya ndiyo yanayoendelea kwenye biashara yako leo')
+                                  : _tr("Here's your personal money pulse for today", 'Huu ndio mwendo wa fedha zako binafsi leo'),
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
@@ -187,8 +190,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         Expanded(
                           child: _KPICard(
                             title: isBusinessContext
-                                ? 'Today Revenue'
-                                : 'Monthly Budget Health',
+                                ? _tr('Today Revenue', 'Mapato ya Leo')
+                                : _tr('Monthly Budget Health', 'Afya ya Bajeti ya Mwezi'),
                             value: isBusinessContext ? 'TSh 1.2M' : '78%',
                             icon: isBusinessContext
                                 ? Icons.trending_up
@@ -202,8 +205,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         Expanded(
                           child: _KPICard(
                             title: isBusinessContext
-                                ? 'Active Clients'
-                                : 'Tracked Expenses',
+                              ? _tr('Active Clients', 'Wateja Hai')
+                              : _tr('Tracked Expenses', 'Matumizi Yanayofuatiliwa'),
                             value: isBusinessContext
                                 ? '$customerCount'
                                 : '${debtItems.length + 12}',
@@ -225,8 +228,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     const SizedBox(height: 32),
                     Text(
                       isBusinessContext
-                          ? 'Sales Performance'
-                          : 'Personal Cash Trend',
+                          ? _tr('Sales Performance', 'Utendaji wa Mauzo')
+                          : _tr('Mwenendo wa Pesa Binafsi', 'Mwenendo wa Pesa Binafsi'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -239,8 +242,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         Expanded(
                           child: Text(
                             isBusinessContext
-                                ? 'Last 7 days revenue trend with peak and average markers.'
-                                : 'Weekly flow of income and spending, including upcoming pressure points.',
+                              ? _tr('Last 7 days revenue trend with peak and average markers.', 'Mwenendo wa mapato ya siku 7 zilizopita na alama za kilele na wastani.')
+                              : _tr('Weekly flow of income and spending, including upcoming pressure points.', 'Mtiririko wa wiki wa mapato na matumizi, ukiwemo msukumo wa gharama unaokuja.'),
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: AppColors.textSecondary,
@@ -302,8 +305,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     const SizedBox(height: 32),
                     _RecentTransactionsList(
                       title: isBusinessContext
-                          ? 'Recent Transactions'
-                          : 'Recent Personal Activity',
+                          ? _tr('Recent Transactions', 'Miamala ya Karibuni')
+                          : _tr('Recent Personal Activity', 'Shughuli za Kibinafsi za Karibuni'),
                     ),
                   ],
                 ),
@@ -352,7 +355,7 @@ class _DebtQuickView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Debt Exposure',
+                  _tr('Debt Exposure', 'Mzigo wa Madeni'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                         fontSize: 12,
@@ -381,7 +384,7 @@ class _DebtQuickView extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        'PAYABLE',
+                        _tr('PAYABLE', 'DENI LA KULIPA'),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: AppColors.error,
                               fontSize: 8,
@@ -422,7 +425,7 @@ class _PersonalFinanceQuickView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Personal Focus',
+            _tr('Personal Focus', 'Kipaumbele Binafsi'),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: AppColors.secondary,
@@ -430,37 +433,37 @@ class _PersonalFinanceQuickView extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Quickly jump into your personal priorities.',
+            _tr('Quickly jump into your personal priorities.', 'Nenda haraka kwenye vipaumbele vyako binafsi.'),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),
           ),
           const SizedBox(height: 14),
           Row(
-            children: const [
+            children: [
               Expanded(
                 child: _QuickRouteCard(
                   icon: Icons.payments_outlined,
-                  title: 'Expenses',
-                  subtitle: 'Track spending',
+                  title: _tr('Expenses', 'Matumizi'),
+                  subtitle: _tr('Track spending', 'Fuatilia matumizi'),
                   route: AppRouter.expensesPath,
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: _QuickRouteCard(
                   icon: Icons.account_balance_rounded,
-                  title: 'Debt',
-                  subtitle: 'Manage obligations',
+                  title: _tr('Debt', 'Madeni'),
+                  subtitle: _tr('Manage obligations', 'Simamia majukumu'),
                   route: AppRouter.debtPath,
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: _QuickRouteCard(
                   icon: Icons.account_balance_wallet_outlined,
-                  title: 'Cash Flow',
-                  subtitle: 'Plan this week',
+                  title: _tr('Cash Flow', 'Mtiririko wa Fedha'),
+                  subtitle: _tr('Plan this week', 'Panga wiki hii'),
                   route: AppRouter.cashFlowPath,
                 ),
               ),
@@ -629,7 +632,7 @@ class _SalesLineChart extends StatelessWidget {
     final seriesNames = <String>[];
 
     if (isBusinessContext) {
-      seriesNames.add('Sales');
+      seriesNames.add(_tr('Sales', 'Mauzo'));
       lineBarsData.add(
         LineChartBarData(
           spots: businessSalesPoints,
@@ -664,7 +667,7 @@ class _SalesLineChart extends StatelessWidget {
       );
     } else {
       if (showPersonalIncome) {
-        seriesNames.add('Income');
+        seriesNames.add(_tr('Income', 'Mapato'));
         lineBarsData.add(
           LineChartBarData(
             spots: personalIncomePoints,
@@ -697,7 +700,7 @@ class _SalesLineChart extends StatelessWidget {
       }
 
       if (showPersonalExpense) {
-        seriesNames.add('Expense');
+        seriesNames.add(_tr('Expense', 'Matumizi'));
         lineBarsData.add(
           LineChartBarData(
             spots: personalExpensePoints,
@@ -740,7 +743,7 @@ class _SalesLineChart extends StatelessWidget {
             border: Border.all(color: AppColors.border),
           ),
           child: Text(
-            'Select a series to view the chart',
+            _tr('Select a series to view the chart', 'Chagua mfululizo kuona chati'),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textMuted,
                   fontWeight: FontWeight.w600,
@@ -790,7 +793,15 @@ class _SalesLineChart extends StatelessWidget {
               showTitles: true,
               interval: 1,
               getTitlesWidget: (value, meta) {
-                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                final days = [
+                  _tr('Mon', 'Jt3'),
+                  _tr('Tue', 'Jn4'),
+                  _tr('Wed', 'Jt5'),
+                  _tr('Thu', 'Alh'),
+                  _tr('Fri', 'Ijm'),
+                  _tr('Sat', 'Jm1'),
+                  _tr('Sun', 'Jp2'),
+                ];
                 final index = value.toInt();
                 if (index < 0 || index >= days.length) return const SizedBox.shrink();
                 return Padding(
@@ -817,7 +828,7 @@ class _SalesLineChart extends StatelessWidget {
               return spots.map((spot) {
                 final seriesName = spot.barIndex < seriesNames.length
                     ? seriesNames[spot.barIndex]
-                    : 'Series';
+                    : _tr('Series', 'Mfululizo');
                 return LineTooltipItem(
                   '$seriesName: TSh ${spot.y.toStringAsFixed(1)}$unit',
                   Theme.of(context).textTheme.labelSmall!.copyWith(
@@ -853,22 +864,22 @@ class _ChartLegendRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chips = isBusinessContext
-        ? const [
+        ? [
             _LegendChip(
-              label: 'Sales',
+              label: _tr('Sales', 'Mauzo'),
               color: AppColors.primary,
               selected: true,
             ),
           ]
         : <Widget>[
             _LegendChip(
-              label: 'Income',
+              label: _tr('Income', 'Mapato'),
               color: AppColors.success,
               selected: showPersonalIncome,
               onTap: onToggleIncome,
             ),
             _LegendChip(
-              label: 'Expense',
+              label: _tr('Expense', 'Matumizi'),
               color: AppColors.error,
               selected: showPersonalExpense,
               onTap: onToggleExpense,
@@ -973,7 +984,7 @@ class _RecentTransactionsList extends StatelessWidget {
             TextButton(
               onPressed: () {},
               child: Text(
-                'View All',
+                _tr('View All', 'Ona Zote'),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.secondary,
                       fontWeight: FontWeight.w700,
@@ -1014,7 +1025,7 @@ class _RecentTransactionsList extends StatelessWidget {
                   ),
                 ),
                 title: Text(
-                  isExpense ? 'Shop Rent Payment' : 'Product Sale #2409',
+                  isExpense ? _tr('Shop Rent Payment', 'Malipo ya Kodi ya Duka') : _tr('Product Sale #2409', 'Mauzo ya Bidhaa #2409'),
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: AppColors.secondary,
                         fontWeight: FontWeight.w700,
@@ -1023,8 +1034,8 @@ class _RecentTransactionsList extends StatelessWidget {
                 ),
                 subtitle: Text(
                   isExpense
-                      ? 'Expense  Oct 01, 2026'
-                      : 'Revenue  Today, 10:45 AM',
+                      ? _tr('Expense  Oct 01, 2026', 'Matumizi  Okt 01, 2026')
+                      : _tr('Revenue  Today, 10:45 AM', 'Mapato  Leo, 10:45 AM'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textMuted,
                         fontSize: 12,
