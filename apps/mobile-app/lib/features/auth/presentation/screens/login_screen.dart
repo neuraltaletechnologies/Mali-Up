@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
@@ -8,7 +9,6 @@ import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -35,65 +35,6 @@ class _PhoneAuthPrecheckResult {
     this.fixes = const [],
   });
 }
-
-class _GlowTextField extends StatefulWidget {
-  final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final TextInputAction? textInputAction;
-  final String? hintText;
-  final Widget? prefixIcon;
-
-  const _GlowTextField({
-    required this.controller,
-    this.keyboardType,
-    this.textInputAction,
-    this.hintText,
-    this.prefixIcon,
-  });
-
-  @override
-  State<_GlowTextField> createState() => _GlowTextFieldState();
-}
-
-class _GlowTextFieldState extends State<_GlowTextField> {
-  bool _hasFocus = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Focus(
-      onFocusChange: (focused) {
-        if (_hasFocus != focused) {
-          setState(() => _hasFocus = focused);
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: _hasFocus
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.18),
-                    blurRadius: 16,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : const [],
-        ),
-        child: TextField(
-          controller: widget.controller,
-          keyboardType: widget.keyboardType,
-          textInputAction: widget.textInputAction,
-          decoration: InputDecoration(
-            hintText: widget.hintText,
-            prefixIcon: widget.prefixIcon,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 
 // Notification helper for success/error messages
 class _NotificationHelper {
@@ -159,7 +100,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
   bool _otpSent = false;
@@ -226,19 +166,33 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _sendOTP() async {
-    final phone = _phoneController.text.trim();
+    final rawPhone = _phoneController.text.trim();
+    final digitsOnly = rawPhone.replaceAll(RegExp(r'\D'), '');
+    String localPhone;
 
     // Validate phone number
-    if (phone.isEmpty) {
+    if (digitsOnly.isEmpty) {
       if (mounted) {
         await _NotificationHelper.showError(context, _tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'));
       }
       return;
     }
 
-    if (phone.length != 9) {
+    if (digitsOnly.length == 10 && digitsOnly.startsWith('0')) {
+      localPhone = digitsOnly.substring(1);
+    } else if (digitsOnly.length == 9) {
+      localPhone = digitsOnly;
+    } else if (digitsOnly.length == 12 && digitsOnly.startsWith('255')) {
+      localPhone = digitsOnly.substring(3);
+    } else {
       if (mounted) {
-        await _NotificationHelper.showError(context, _tr('That number looks off. Please check and try again.', 'Namba hiyo inaonekana si sahihi. Tafadhali hakiki kisha ujaribu tena.'));
+        await _NotificationHelper.showError(
+          context,
+          _tr(
+            'Use a valid Tanzania number: 0XXXXXXXXX or 9 digits after +255.',
+            'Tumia namba sahihi ya Tanzania: 0XXXXXXXXX au tarakimu 9 baada ya +255.',
+          ),
+        );
       }
       return;
     }
@@ -271,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // ────────────────────────────────────────────────────────────────────────
 
     setState(() => _isLoading = true);
-    final fullPhone = '+255$phone';
+    final fullPhone = '+255$localPhone';
     
     try {
       await _auth.verifyPhoneNumber(
@@ -908,6 +862,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextField(
                         controller: _phoneController,
                         focusNode: _phoneFocusNode,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(12),
+                        ],
                         decoration: fieldDecoration(
                           hint: _tr('Phone number', 'Namba ya simu'),
                           suffix: Icons.phone_iphone_rounded,
