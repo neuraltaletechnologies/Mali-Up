@@ -32,10 +32,11 @@ class AppRouter {
     required bool showLanguageSelection,
     required bool showOnboarding,
     required bool hasActiveSession,
+    String? authenticatedInitialPath,
   }) {
     return GoRouter(
       initialLocation: hasActiveSession
-          ? dashboardPath
+          ? (authenticatedInitialPath ?? dashboardPath)
           : showLanguageSelection
           ? languageSelectionPath
           : showOnboarding

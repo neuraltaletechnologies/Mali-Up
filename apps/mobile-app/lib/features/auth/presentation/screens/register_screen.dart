@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
+import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
 
@@ -121,6 +122,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case AccountManagementType.both:
         return ['personal', 'business'];
     }
+  }
+
+  String get _usagePreference {
+    switch (_selectedAccountType) {
+      case AccountManagementType.personal:
+        return 'personal';
+      case AccountManagementType.business:
+        return 'business';
+      case AccountManagementType.both:
+        return 'both';
+    }
+  }
+
+  String _defaultContextFor(String userId) {
+    if (_selectedAccountType == AccountManagementType.business) {
+      return 'business:$userId';
+    }
+    return 'personal';
+  }
+
+  Future<void> _goToPostLoginLanding() async {
+    final route = await DefaultContextRoutingService.resolveUserLandingPath(
+      auth: _auth,
+      firestore: _firestore,
+    );
+    if (!mounted) return;
+    context.go(route);
   }
 
   String _normalizeLocalPhone(String input) {
@@ -593,7 +621,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
         _triggerSuccessBurst();
         await Future.delayed(const Duration(milliseconds: 320));
-        if (mounted) context.go(AppRouter.dashboardPath);
+        if (mounted) {
+          await _goToPostLoginLanding();
+        }
       }
       return;
     }
@@ -614,6 +644,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         final selectedAccountTypes = _selectedAccountValues;
         final defaultAccountType = selectedAccountTypes.first;
+        final usagePreference = _usagePreference;
+        final defaultContext = _defaultContextFor(user.uid);
 
         await _firestore.collection('users').doc(user.uid).set({
           'phone': user.phoneNumber,
@@ -623,6 +655,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           if (_includesBusiness) 'businessName': _businessNameController.text.trim(),
           'defaultAccountType': defaultAccountType,
           'accountTypes': selectedAccountTypes,
+          'usagePreference': usagePreference,
+          'defaultContext': defaultContext,
           if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -662,7 +696,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           await Future.delayed(const Duration(milliseconds: 420));
         }
         if (mounted) {
-          context.go(AppRouter.dashboardPath);
+          await _goToPostLoginLanding();
         }
       }
     } catch (e) {

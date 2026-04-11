@@ -9,10 +9,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
+import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -102,6 +104,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
   bool _otpSent = false;
@@ -166,6 +169,15 @@ class _LoginScreenState extends State<LoginScreen> {
   void _triggerSuccessBurst() {
     if (!mounted) return;
     setState(() => _successBurstTrigger++);
+  }
+
+  Future<void> _goToPostLoginLanding() async {
+    final route = await DefaultContextRoutingService.resolveUserLandingPath(
+      auth: _auth,
+      firestore: _firestore,
+    );
+    if (!mounted) return;
+    context.go(route);
   }
 
   bool _isValidEmail(String value) {
@@ -280,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               );
                               _triggerSuccessBurst();
                               if (!mounted) return;
-                              this.context.go(AppRouter.dashboardPath);
+                              await _goToPostLoginLanding();
                             } on FirebaseAuthException catch (e) {
                               if (!mounted) return;
                               final message = switch (e.code) {
@@ -388,7 +400,9 @@ class _LoginScreenState extends State<LoginScreen> {
               await _NotificationHelper.showSuccess(context, _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'));
               _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
               Future.delayed(const Duration(milliseconds: 500), () {
-                if (mounted) context.go(AppRouter.dashboardPath);
+                if (mounted) {
+                  unawaited(_goToPostLoginLanding());
+                }
               });
             }
           } catch (e) {
@@ -757,7 +771,9 @@ class _LoginScreenState extends State<LoginScreen> {
         _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
         _triggerSuccessBurst();
         Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) context.go(AppRouter.dashboardPath);
+          if (mounted) {
+            unawaited(_goToPostLoginLanding());
+          }
         });
       }
       return;
@@ -775,7 +791,9 @@ class _LoginScreenState extends State<LoginScreen> {
         _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
         _triggerSuccessBurst();
         Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) context.go(AppRouter.dashboardPath);
+          if (mounted) {
+            unawaited(_goToPostLoginLanding());
+          }
         });
       }
     } on FirebaseAuthException catch (e) {
