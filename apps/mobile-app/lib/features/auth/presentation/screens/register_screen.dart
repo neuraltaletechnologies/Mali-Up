@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:async';
 import 'package:go_router/go_router.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:lottie/lottie.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
-import '../../../onboarding/core/onboarding_colors.dart';
+import '../widgets/account_type_switcher.dart';
 import '../models/account_type.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -80,7 +80,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
-  final AccountManagementType _selectedManagementType = AccountManagementType.personal;
+  AccountType _selectedAccountType = AccountType.personal;
   
   bool _otpSent = false;
   bool _isLoading = false;
@@ -278,10 +278,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             finish(_PhoneAuthPrecheckResult(
               isReady: true,
               title: _tr('Phone Auth Ready', 'Phone Auth Iko Tayari'),
-              message: _tr(
-                'Configuration check passed. You can continue to send OTP to real numbers.',
-                'Ukaguzi wa mpangilio umefaulu. Unaweza kuendelea kutuma OTP kwa namba halisi.',
-              ),
+              message: _tr('Configuration check passed. You can continue to send OTP to real numbers.', 'Ukaguzi wa mpangilio umefaulu. Unaweza kuendelea kutuma OTP kwa namba halisi.'),
             ));
             return;
           }
@@ -453,8 +450,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     // Validate business details if business is selected
-    if (_selectedManagementType == AccountManagementType.business ||
-        _selectedManagementType == AccountManagementType.both) {
+    if (_selectedAccountType == AccountType.business) {
       if (_businessNameController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
@@ -579,33 +575,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final recoveryEmail = _emailController.text.trim().toLowerCase();
         final displayName = _ownerNameController.text.trim();
 
-        // Write user document with both account types if "both" is selected
-        List<String> accountTypes = [];
-        if (_selectedManagementType == AccountManagementType.personal ||
-            _selectedManagementType == AccountManagementType.both) {
-          accountTypes.add(AccountType.personal.value);
-        }
-        if (_selectedManagementType == AccountManagementType.business ||
-            _selectedManagementType == AccountManagementType.both) {
-          accountTypes.add(AccountType.business.value);
-        }
+        final accountTypeValue = _selectedAccountType.value;
 
         await _firestore.collection('users').doc(user.uid).set({
           'phone': user.phoneNumber,
           'name': displayName,
           'displayName': displayName,
           if (recoveryEmail.isNotEmpty) 'email': recoveryEmail,
-          'businessName': _businessNameController.text.trim(),
-          'defaultAccountType': accountTypes.first,
-          'accountTypes': accountTypes,
+          if (_selectedAccountType == AccountType.business) 'businessName': _businessNameController.text.trim(),
+          'defaultAccountType': accountTypeValue,
+          'accountTypes': [accountTypeValue],
           if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
         // Create business tenant if business is selected
-        if (_selectedManagementType == AccountManagementType.business ||
-            _selectedManagementType == AccountManagementType.both) {
+        if (_selectedAccountType == AccountType.business) {
           await _firestore.collection('tenants').doc(user.uid).set({
             'businessName': _businessNameController.text.trim(),
             'businessCategory': _businessCategoryKey,
@@ -621,8 +607,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
 
         // Create personal account if personal is selected
-        if (_selectedManagementType == AccountManagementType.personal ||
-            _selectedManagementType == AccountManagementType.both) {
+          if (_selectedAccountType == AccountType.personal) {
           await _firestore.collection('personal_accounts').doc(user.uid).set({
             'fullName': displayName,
             'phone': user.phoneNumber,
@@ -737,10 +722,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.network(
-                  'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1600&q=80',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFF263238)),
+                Container(
+                  color: AppColors.secondary,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
+                      child: Lottie.asset(
+                        'assets/lottie/Sign up.json',
+                        fit: BoxFit.contain,
+                        repeat: true,
+                        animate: true,
+                      ),
+                    ),
+                  ),
                 ),
                 Container(
                   decoration: BoxDecoration(
@@ -777,11 +771,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: Colors.black.withValues(alpha: 0.42),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.lock_rounded, size: 14, color: Colors.white),
-                        SizedBox(width: 6),
-                        Text('Salama', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        const Icon(Icons.lock_rounded, size: 14, color: Colors.white),
+                        const SizedBox(width: 6),
+                        Text(
+                          _tr('Secure', 'Salama'),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
                       ],
                     ),
                   ),
@@ -807,14 +804,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     children: [
                     const Center(child: MaliUpLogo(size: 54)),
                     const SizedBox(height: 16),
-                    Center(child: Text('Jisajili Mali App', textAlign: TextAlign.center, style: headingStyle)),
+                      const Center(child: MaliUpLogo(size: 54)),
                     const SizedBox(height: 8),
-                    Center(
+                      Center(child: Text(_tr('Register to Mali App', 'Jisajili Mali App'), textAlign: TextAlign.center, style: headingStyle)),
                       child: Text(
                         _otpSent
                             ? 'Weka OTP ili kukamilisha usajili wako.'
-                            : 'Fungua akaunti yako kwa dakika chache tu.',
-                        textAlign: TextAlign.center,
+                              ? _tr('Enter the OTP to complete your registration.', 'Weka OTP ili kukamilisha usajili wako.')
+                              : _tr('Create your account in just a few minutes.', 'Fungua akaunti yako kwa dakika chache tu.'),
                         style: subtitleStyle,
                       ),
                     ),
@@ -826,7 +823,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Expanded(
                           child: Text(
                             'Taarifa zako zinabaki salama na faragha.',
-                            style: GoogleFonts.poppins(color: textSecondary, fontSize: 12.5),
+                              _tr('Your information stays secure and private.', 'Taarifa zako zinabaki salama na faragha.'),
                           ),
                         ),
                       ],
@@ -846,26 +843,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         children: [
                           const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
                           const SizedBox(width: 8),
-                          Text('Taarifa za Akaunti', style: sectionTitleStyle),
+                          Text(_tr('Account Information', 'Taarifa za Akaunti'), style: sectionTitleStyle),
                         ],
                       ),
                       const SizedBox(height: 10),
+                      AccountTypeSwitcher(
+                        selectedType: _selectedAccountType,
+                        isSwahili: _language == AppLanguage.swahili,
+                        onChanged: (type) {
+                          setState(() {
+                            _selectedAccountType = type;
+                            _otpSent = false;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
                       TextField(
                         controller: _ownerNameController,
-                        decoration: fieldDecoration(hint: 'Jina kamili', suffix: Icons.person_outline_rounded),
+                        decoration: fieldDecoration(
+                          hint: _tr('Full name', 'Jina kamili'),
+                          suffix: Icons.person_outline_rounded,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: fieldDecoration(hint: 'Barua pepe', suffix: Icons.alternate_email_rounded),
+                        decoration: fieldDecoration(
+                          hint: _tr('Email address', 'Barua pepe'),
+                          suffix: Icons.alternate_email_rounded,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
                         decoration: fieldDecoration(
-                          hint: '7xx xxx xxx',
+                          hint: _tr('Phone number', 'Namba ya simu'),
                           suffix: Icons.phone_iphone_rounded,
                           prefix: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -883,13 +897,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      if (_selectedAccountType == AccountType.business) ...[
+                        TextField(
+                          controller: _businessNameController,
+                          decoration: fieldDecoration(
+                            hint: _tr('Business name', 'Jina la biashara'),
+                            suffix: Icons.storefront_rounded,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _placeOfBusinessController,
+                          decoration: fieldDecoration(
+                            hint: _tr('Place of business', 'Mahali pa biashara'),
+                            suffix: Icons.location_on_outlined,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       TextField(
                         controller: _referralController,
-                        decoration: fieldDecoration(hint: 'Referral code (hiari)', suffix: Icons.card_giftcard_rounded),
+                        decoration: fieldDecoration(
+                          hint: _tr('Referral code (optional)', 'Referral code (hiari)'),
+                          suffix: Icons.card_giftcard_rounded,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Weka referral code kama umepewa. Unaweza kuacha wazi.',
+                        _tr('Enter a referral code if you received one.', 'Weka referral code kama umepewa.'),
                         style: GoogleFonts.poppins(color: textSecondary, fontSize: 12),
                       ),
                       const SizedBox(height: 16),
@@ -904,7 +939,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           onPressed: _isLoading ? null : _precheckAndSendOtp,
                           child: Text(
-                            _isLoading ? 'Inatuma...' : 'Jisajili',
+                            _isLoading ? _tr('Sending...', 'Inatuma...') : _tr('Send OTP', 'Tuma OTP'),
                             style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -914,7 +949,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         children: [
                           const Icon(Icons.verified_user_outlined, size: 18, color: textPrimary),
                           const SizedBox(width: 8),
-                          Text('Thibitisha OTP', style: sectionTitleStyle),
+                          Text(_tr('Verify OTP', 'Thibitisha OTP'), style: sectionTitleStyle),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -934,7 +969,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           onPressed: _isLoading ? null : _verifyAndRegister,
                           child: Text(
-                            _isLoading ? 'Inathibitisha...' : 'Jisajili',
+                            _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Register', 'Jisajili'),
                             style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -943,7 +978,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Center(
                         child: TextButton(
                           onPressed: () => setState(() => _otpSent = false),
-                          child: Text('Rudi kurekebisha taarifa', style: GoogleFonts.poppins(color: textSecondary)),
+                          child: Text(_tr('Edit details', 'Rudi kurekebisha taarifa'), style: GoogleFonts.poppins(color: textSecondary)),
                         ),
                       ),
                     ],
@@ -951,10 +986,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Una akaunti? ', style: GoogleFonts.poppins(color: textSecondary)),
+                        Text(_tr('Already have an account? ', 'Una akaunti? '), style: GoogleFonts.poppins(color: textSecondary)),
                         TextButton(
                           onPressed: () => context.push(AppRouter.loginPath),
-                          child: Text('Ingia', style: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700)),
+                          child: Text(_tr('Login', 'Ingia'), style: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700)),
                         ),
                       ],
                     ),
@@ -980,62 +1015,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
             ),
-          if (widget.fromOnboarding)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _buildOnboardingBottomCard(),
-            ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildOnboardingBottomCard() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-          decoration: BoxDecoration(
-            color: OnboardingColors.white.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: OnboardingColors.divider),
-            boxShadow: [
-              BoxShadow(
-                color: OnboardingColors.primaryDeep.withValues(alpha: 0.08),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              const AnimatedSmoothIndicator(
-                activeIndex: 3,
-                count: 4,
-                effect: CustomizableEffect(
-                  activeDotDecoration: DotDecoration(
-                    width: 28,
-                    height: 8,
-                    color: OnboardingColors.accentGreen,
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                  ),
-                  dotDecoration: DotDecoration(
-                    width: 8,
-                    height: 8,
-                    color: OnboardingColors.divider,
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                  ),
-                  spacing: 6,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

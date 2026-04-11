@@ -8,7 +8,6 @@ import '../widgets/animated_widgets.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
-import '../../../../core/theme/app_colors.dart';
 
 /// Main onboarding experience with 4 screens
 /// Includes smooth page transitions and page indicators
@@ -123,7 +122,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             palette: [
               OnboardingColors.primaryDeep,
               OnboardingColors.accentGreen,
-              Color(0xFFFFD27A),
+              AppColors.primaryLight,
             ],
             intensity: 1.1,
           ),
@@ -235,19 +234,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Container(
           key: ValueKey<bool>(isLastPage),
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
           decoration: BoxDecoration(
-            color: AppColors.card.withValues(alpha: 0.96),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
+            color: AppColors.background.withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.10)),
             boxShadow: [
               BoxShadow(
-                color: AppColors.secondary.withValues(alpha: 0.10),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
+                color: AppColors.secondary.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -285,12 +284,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 if (isLastPage)
                   const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.06),
+                    color: AppColors.primary.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: AppColors.border,
+                      color: AppColors.primary.withValues(alpha: 0.08),
                     ),
                   ),
                   child: SmoothPageIndicator(
@@ -303,7 +302,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       dotHeight: 6,
                       dotWidth: 6,
                       activeDotColor: AppColors.primary,
-                      dotColor: AppColors.border,
+                      dotColor: AppColors.secondary.withValues(alpha: 0.18),
                     ),
                   ),
                 ),
@@ -325,11 +324,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         width: double.infinity,
         height: 56,
         decoration: BoxDecoration(
-          color: OnboardingColors.primaryGradient,
+          color: AppColors.primary,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: OnboardingColors.primaryGradient.withValues(alpha: 0.28),
+              color: AppColors.primary.withValues(alpha: 0.30),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -339,13 +338,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           child: Text(
             label,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: OnboardingColors.white,
+                  color: AppColors.secondary,
                   fontWeight: FontWeight.bold,
-                color: AppColors.primary,
                 ),
           ),
         ),
-                    color: AppColors.primary.withValues(alpha: 0.30),
+      ),
     );
   }
 
@@ -355,7 +353,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return EmotionalLottieScene.dashboard;
       case 1:
         return EmotionalLottieScene.onboarding;
-                        color: AppColors.secondary,
+      case 2:
         return EmotionalLottieScene.authVerify;
       case 3:
         return EmotionalLottieScene.celebrate;

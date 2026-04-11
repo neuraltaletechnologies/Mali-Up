@@ -7,10 +7,21 @@ class AccountTypeSwitcher extends StatelessWidget {
     super.key,
     required this.selectedType,
     required this.onChanged,
+    this.isSwahili = false,
   });
 
   final AccountType selectedType;
   final ValueChanged<AccountType> onChanged;
+  final bool isSwahili;
+
+  String _labelFor(AccountType type) {
+    switch (type) {
+      case AccountType.personal:
+        return isSwahili ? 'Kibinafsi' : 'Personal';
+      case AccountType.business:
+        return isSwahili ? 'Biashara' : 'Business';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +49,7 @@ class AccountTypeSwitcher extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      '${type.icon} ${type.label}',
+                      '${type.icon} ${_labelFor(type)}',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
