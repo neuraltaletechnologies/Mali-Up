@@ -8,8 +8,6 @@ import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
-import '../widgets/account_type_switcher.dart';
-import '../models/account_type.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -80,7 +78,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
-  AccountType _selectedAccountType = AccountType.personal;
+  AccountManagementType _selectedAccountType = AccountManagementType.personal;
   
   bool _otpSent = false;
   bool _isLoading = false;
@@ -103,6 +101,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
   
   final String _businessCategoryKey = 'retail';
   bool _phoneAuthReady = false;
+
+  bool get _includesBusiness =>
+      _selectedAccountType == AccountManagementType.business ||
+      _selectedAccountType == AccountManagementType.both;
+
+  bool get _includesPersonal =>
+      _selectedAccountType == AccountManagementType.personal ||
+      _selectedAccountType == AccountManagementType.both;
+
+  List<String> get _selectedAccountValues {
+    switch (_selectedAccountType) {
+      case AccountManagementType.personal:
+        return ['personal'];
+      case AccountManagementType.business:
+        return ['business'];
+      case AccountManagementType.both:
+        return ['personal', 'business'];
+    }
+  }
 
   String _normalizeLocalPhone(String input) {
     final digits = input.replaceAll(RegExp(r'\D'), '');
@@ -450,7 +467,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     // Validate business details if business is selected
-    if (_selectedAccountType == AccountType.business) {
+    if (_includesBusiness) {
       if (_businessNameController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
@@ -575,23 +592,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final recoveryEmail = _emailController.text.trim().toLowerCase();
         final displayName = _ownerNameController.text.trim();
 
-        final accountTypeValue = _selectedAccountType.value;
+        final selectedAccountTypes = _selectedAccountValues;
+        final defaultAccountType = selectedAccountTypes.first;
 
         await _firestore.collection('users').doc(user.uid).set({
           'phone': user.phoneNumber,
           'name': displayName,
           'displayName': displayName,
           if (recoveryEmail.isNotEmpty) 'email': recoveryEmail,
-          if (_selectedAccountType == AccountType.business) 'businessName': _businessNameController.text.trim(),
-          'defaultAccountType': accountTypeValue,
-          'accountTypes': [accountTypeValue],
+          if (_includesBusiness) 'businessName': _businessNameController.text.trim(),
+          'defaultAccountType': defaultAccountType,
+          'accountTypes': selectedAccountTypes,
           if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
         // Create business tenant if business is selected
-        if (_selectedAccountType == AccountType.business) {
+        if (_includesBusiness) {
           await _firestore.collection('tenants').doc(user.uid).set({
             'businessName': _businessNameController.text.trim(),
             'businessCategory': _businessCategoryKey,
@@ -599,7 +617,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'ownerName': displayName,
             'ownerPhone': user.phoneNumber,
             'ownerUid': user.uid,
-            'accountType': AccountType.business.value,
+            'accountType': 'business',
             if (recoveryEmail.isNotEmpty) 'ownerEmail': recoveryEmail,
             'createdAt': FieldValue.serverTimestamp(),
             'plan': 'Trial',
@@ -607,12 +625,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
 
         // Create personal account if personal is selected
-          if (_selectedAccountType == AccountType.personal) {
+        if (_includesPersonal) {
           await _firestore.collection('personal_accounts').doc(user.uid).set({
             'fullName': displayName,
             'phone': user.phoneNumber,
             'ownerUid': user.uid,
-            'accountType': AccountType.personal.value,
+            'accountType': 'personal',
             if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
             'createdAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
@@ -802,197 +820,231 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                    const Center(child: MaliUpLogo(size: 54)),
-                    const SizedBox(height: 16),
                       const Center(child: MaliUpLogo(size: 54)),
-                    const SizedBox(height: 8),
-                      Center(child: Text(_tr('Register to Mali App', 'Jisajili Mali App'), textAlign: TextAlign.center, style: headingStyle)),
-                      child: Text(
-                        _otpSent
-                            ? 'Weka OTP ili kukamilisha usajili wako.'
-                              ? _tr('Enter the OTP to complete your registration.', 'Weka OTP ili kukamilisha usajili wako.')
-                              : _tr('Create your account in just a few minutes.', 'Fungua akaunti yako kwa dakika chache tu.'),
-                        style: subtitleStyle,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Icon(Icons.shield_outlined, size: 16, color: textSecondary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Taarifa zako zinabaki salama na faragha.',
-                              _tr('Your information stays secure and private.', 'Taarifa zako zinabaki salama na faragha.'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    if (_feedbackText != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: EmotionalStatusChip(
-                          visible: true,
-                          text: _feedbackText!,
-                          tone: _feedbackTone,
-                        ),
-                      ),
-                    if (!_otpSent) ...[
-                      Row(
-                        children: [
-                          const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
-                          const SizedBox(width: 8),
-                          Text(_tr('Account Information', 'Taarifa za Akaunti'), style: sectionTitleStyle),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      AccountTypeSwitcher(
-                        selectedType: _selectedAccountType,
-                        isSwahili: _language == AppLanguage.swahili,
-                        onChanged: (type) {
-                          setState(() {
-                            _selectedAccountType = type;
-                            _otpSent = false;
-                          });
-                        },
-                      ),
                       const SizedBox(height: 16),
-                      TextField(
-                        controller: _ownerNameController,
-                        decoration: fieldDecoration(
-                          hint: _tr('Full name', 'Jina kamili'),
-                          suffix: Icons.person_outline_rounded,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: fieldDecoration(
-                          hint: _tr('Email address', 'Barua pepe'),
-                          suffix: Icons.alternate_email_rounded,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        decoration: fieldDecoration(
-                          hint: _tr('Phone number', 'Namba ya simu'),
-                          suffix: Icons.phone_iphone_rounded,
-                          prefix: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text('🇹🇿', style: TextStyle(fontSize: 18)),
-                                const SizedBox(width: 6),
-                                Text('+255', style: GoogleFonts.poppins(color: textPrimary, fontWeight: FontWeight.w600)),
-                                const SizedBox(width: 4),
-                                const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: textSecondary),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (_selectedAccountType == AccountType.business) ...[
-                        TextField(
-                          controller: _businessNameController,
-                          decoration: fieldDecoration(
-                            hint: _tr('Business name', 'Jina la biashara'),
-                            suffix: Icons.storefront_rounded,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _placeOfBusinessController,
-                          decoration: fieldDecoration(
-                            hint: _tr('Place of business', 'Mahali pa biashara'),
-                            suffix: Icons.location_on_outlined,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      TextField(
-                        controller: _referralController,
-                        decoration: fieldDecoration(
-                          hint: _tr('Referral code (optional)', 'Referral code (hiari)'),
-                          suffix: Icons.card_giftcard_rounded,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _tr('Enter a referral code if you received one.', 'Weka referral code kama umepewa.'),
-                        style: GoogleFonts.poppins(color: textSecondary, fontSize: 12),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(52),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: _isLoading ? null : _precheckAndSendOtp,
-                          child: Text(
-                            _isLoading ? _tr('Sending...', 'Inatuma...') : _tr('Send OTP', 'Tuma OTP'),
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
-                    ] else ...[
-                      Row(
-                        children: [
-                          const Icon(Icons.verified_user_outlined, size: 18, color: textPrimary),
-                          const SizedBox(width: 8),
-                          Text(_tr('Verify OTP', 'Thibitisha OTP'), style: sectionTitleStyle),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(4, (i) => _OTPBox(controller: _otpControllers[i])),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(52),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: _isLoading ? null : _verifyAndRegister,
-                          child: Text(
-                            _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Register', 'Jisajili'),
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-                          ),
+                      Center(
+                        child: Text(
+                          _tr('Register to Mali App', 'Jisajili Mali App'),
+                          textAlign: TextAlign.center,
+                          style: headingStyle,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Center(
-                        child: TextButton(
-                          onPressed: () => setState(() => _otpSent = false),
-                          child: Text(_tr('Edit details', 'Rudi kurekebisha taarifa'), style: GoogleFonts.poppins(color: textSecondary)),
+                        child: Text(
+                          _otpSent
+                              ? _tr('Enter the OTP to complete your registration.', 'Weka OTP ili kukamilisha usajili wako.')
+                              : _tr('Create your account in just a few minutes.', 'Fungua akaunti yako kwa dakika chache tu.'),
+                          textAlign: TextAlign.center,
+                          style: subtitleStyle,
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(_tr('Already have an account? ', 'Una akaunti? '), style: GoogleFonts.poppins(color: textSecondary)),
-                        TextButton(
-                          onPressed: () => context.push(AppRouter.loginPath),
-                          child: Text(_tr('Login', 'Ingia'), style: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.shield_outlined, size: 16, color: textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _tr('Your information stays secure and private.', 'Taarifa zako zinabaki salama na faragha.'),
+                              style: GoogleFonts.poppins(color: textSecondary, fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      if (_feedbackText != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: EmotionalStatusChip(
+                            visible: true,
+                            text: _feedbackText!,
+                            tone: _feedbackTone,
+                          ),
+                        ),
+                      if (!_otpSent) ...[
+                        Row(
+                          children: [
+                            const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
+                            const SizedBox(width: 8),
+                            Text(_tr('Personal Details', 'Taarifa Binafsi'), style: sectionTitleStyle),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _ownerNameController,
+                          decoration: fieldDecoration(
+                            hint: _tr('Full name', 'Jina kamili'),
+                            suffix: Icons.person_outline_rounded,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: fieldDecoration(
+                            hint: _tr('Email address', 'Barua pepe'),
+                            suffix: Icons.alternate_email_rounded,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: fieldDecoration(
+                            hint: _tr('Phone number', 'Namba ya simu'),
+                            suffix: Icons.phone_iphone_rounded,
+                            prefix: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                                  const SizedBox(width: 6),
+                                  Text('+255', style: GoogleFonts.poppins(color: textPrimary, fontWeight: FontWeight.w600)),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: textSecondary),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<AccountManagementType>(
+                          initialValue: _selectedAccountType,
+                          decoration: fieldDecoration(
+                            hint: _tr('Account usage', 'Matumizi ya akaunti'),
+                            suffix: Icons.expand_more_rounded,
+                          ),
+                          items: AccountManagementType.values
+                              .map(
+                                (type) => DropdownMenuItem<AccountManagementType>(
+                                  value: type,
+                                  child: Text(type.label(_language == AppLanguage.swahili)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() {
+                              _selectedAccountType = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        if (_includesBusiness) ...[
+                          Row(
+                            children: [
+                              const Icon(Icons.storefront_rounded, size: 18, color: textPrimary),
+                              const SizedBox(width: 8),
+                              Text(_tr('Business Details', 'Taarifa za Biashara'), style: sectionTitleStyle),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _businessNameController,
+                            decoration: fieldDecoration(
+                              hint: _tr('Business name', 'Jina la biashara'),
+                              suffix: Icons.storefront_rounded,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _placeOfBusinessController,
+                            decoration: fieldDecoration(
+                              hint: _tr('Place of business', 'Mahali pa biashara'),
+                              suffix: Icons.location_on_outlined,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        TextField(
+                          controller: _referralController,
+                          decoration: fieldDecoration(
+                            hint: _tr('Referral code (optional)', 'Referral code (hiari)'),
+                            suffix: Icons.card_giftcard_rounded,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _tr('Enter a referral code if you received one.', 'Weka referral code kama umepewa.'),
+                          style: GoogleFonts.poppins(color: textSecondary, fontSize: 12),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primary,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(52),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: _isLoading ? null : _precheckAndSendOtp,
+                            child: Text(
+                              _isLoading ? _tr('Sending...', 'Inatuma...') : _tr('Send OTP', 'Tuma OTP'),
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        Row(
+                          children: [
+                            const Icon(Icons.verified_user_outlined, size: 18, color: textPrimary),
+                            const SizedBox(width: 8),
+                            Text(_tr('Verify OTP', 'Thibitisha OTP'), style: sectionTitleStyle),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(4, (i) => _OTPBox(controller: _otpControllers[i])),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primary,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(52),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: _isLoading ? null : _verifyAndRegister,
+                            child: Text(
+                              _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Register', 'Jisajili'),
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: TextButton(
+                            onPressed: () => setState(() => _otpSent = false),
+                            child: Text(
+                              _tr('Edit details', 'Rudi kurekebisha taarifa'),
+                              style: GoogleFonts.poppins(color: textSecondary),
+                            ),
+                          ),
                         ),
                       ],
-                    ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _tr('Already have an account? ', 'Una akaunti? '),
+                            style: GoogleFonts.poppins(color: textSecondary),
+                          ),
+                          TextButton(
+                            onPressed: () => context.push(AppRouter.loginPath),
+                            child: Text(
+                              _tr('Login', 'Ingia'),
+                              style: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -1019,8 +1071,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-
-
 }
 
 class _OTPBox extends StatelessWidget {
