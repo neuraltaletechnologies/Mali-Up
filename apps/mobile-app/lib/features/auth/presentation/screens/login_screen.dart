@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:async';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
@@ -170,12 +171,8 @@ class _LoginScreenState extends State<LoginScreen> {
   int _successBurstTrigger = 0;
   
   final TextEditingController _phoneController = TextEditingController(text: '0653520829');
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _recoveryEmailController = TextEditingController();
-  final TextEditingController _emailOtpController = TextEditingController();
   final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
   final FocusNode _phoneFocusNode = FocusNode();
-  bool _obscurePassword = true;
 
   String _normalizeLocalPhone(String input) {
     final digits = input.replaceAll(RegExp(r'\D'), '');
@@ -226,220 +223,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void _triggerSuccessBurst() {
     if (!mounted) return;
     setState(() => _successBurstTrigger++);
-  }
-
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
-  }
-
-  Future<void> _sendEmailOtpCode() async {
-    final email = _recoveryEmailController.text.trim().toLowerCase();
-
-    if (email.isEmpty) {
-      await _NotificationHelper.showError(context, _tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'));
-      return;
-    }
-
-    if (!_isValidEmail(email)) {
-      await _NotificationHelper.showError(context, _tr('That email looks incorrect. Please check it.', 'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.'));
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    try {
-      final otp = (100000 + DateTime.now().millisecondsSinceEpoch % 900000).toString();
-      final expiresAt = DateTime.now().add(const Duration(minutes: 10));
-
-      await _firestore.collection('email_otp_auth').doc(email).set({
-        'email': email,
-        'code': otp,
-        'expiresAt': Timestamp.fromDate(expiresAt),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // If Firebase Trigger Email extension is installed, this sends OTP email.
-      await _firestore.collection('mail').add({
-        'to': email,
-        'message': {
-          'subject': _tr('Your Mali Up OTP Code', 'Namba ya OTP ya Mali Up'),
-          'text': _tr('Your OTP code is $otp. It expires in 10 minutes.', 'Namba yako ya OTP ni $otp. Itaisha ndani ya dakika 10.'),
-        },
-      });
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('email_for_sign_in', email);
-
-      if (mounted) {
-        await _NotificationHelper.showSuccess(
-          context,
-          _tr('OTP sent to $email. Check your inbox.', 'OTP imetumwa kwa $email. Angalia ujumbe wako.'),
-        );
-        _setFeedback(
-          _tr('Email OTP sent. Check your inbox.', 'OTP ya barua pepe imetumwa. Angalia kikasha.'),
-          EmotionalStatusTone.success,
-        );
-        _triggerSuccessBurst();
-      }
-    } on FirebaseAuthException catch (e) {
-      final message = _tr('We could not send the email code right now: ${e.message ?? e.code}', 'Hatukuweza kutuma OTP wa barua pepe sasa: ${e.message ?? e.code}');
-      if (mounted) {
-        await _NotificationHelper.showError(context, message);
-        _setFeedback(_tr('Email code not sent yet. Please try again shortly.', 'OTP wa barua pepe haujatumwa bado. Tafadhali jaribu tena baada ya muda mfupi.'), EmotionalStatusTone.error);
-      }
-    } catch (e) {
-      if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Something unexpected happened: ${e.toString()}', 'Kuna jambo lisilotarajiwa limetokea: ${e.toString()}'));
-        _setFeedback(_tr('Something went wrong. Please try again.', 'Kuna tatizo limetokea. Tafadhali jaribu tena.'), EmotionalStatusTone.warning);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _verifyEmailOtpAndContinue() async {
-    final email = _recoveryEmailController.text.trim().toLowerCase();
-    final code = _emailOtpController.text.trim();
-
-    if (code.length != 6) {
-      await _NotificationHelper.showError(context, _tr('Please enter the 6-digit code.', 'Tafadhali weka OTP wa namba 6.'));
-      return;
-    }
-
-    try {
-      final doc = await _firestore.collection('email_otp_auth').doc(email).get();
-      if (!mounted) return;
-      if (!doc.exists) {
-        await _NotificationHelper.showError(context, _tr('No account yet, but you can create one in a minute.', 'Bado hakuna akaunti, lakini unaweza kuunda moja kwa dakika moja.'));
-        return;
-      }
-
-      final data = doc.data()!;
-      final savedCode = data['code'] as String?;
-      final expiresAt = (data['expiresAt'] as Timestamp?)?.toDate();
-      final isExpired = expiresAt == null || DateTime.now().isAfter(expiresAt);
-
-      if (isExpired) {
-        if (!mounted) return;
-        await _NotificationHelper.showError(context, _tr('That code has expired. Request a new one.', 'OTP huo umeisha muda. Omba OTP mpya.'));
-        return;
-      }
-
-      if (savedCode != code) {
-        if (!mounted) return;
-        await _NotificationHelper.showError(context, _tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena OTP kisha endelea.'));
-        return;
-      }
-
-      await _firestore.collection('email_otp_auth').doc(email).delete();
-      if (!mounted) return;
-      await _NotificationHelper.showSuccess(context, _tr('Email OTP verified.', 'OTP ya barua pepe imethibitishwa.'));
-      _setFeedback(_tr('Email verified successfully.', 'Barua pepe imethibitishwa kikamilifu.'), EmotionalStatusTone.success);
-      _triggerSuccessBurst();
-      if (!mounted) return;
-      context.go(AppRouter.dashboardPath);
-    } catch (e) {
-      if (!mounted) return;
-      await _NotificationHelper.showError(context, _tr('We could not verify your email code right now.', 'Hatukuweza kuthibitisha OTP wako wa barua pepe sasa.'));
-      _setFeedback(_tr('Email code verification was not completed.', 'Uthibitishaji wa OTP wa barua pepe haujakamilika.'), EmotionalStatusTone.error);
-    }
-  }
-
-  Future<void> _showEmailRecoveryDialog() async {
-    bool isSending = false;
-    bool otpSent = false;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(_tr('Recover With Email OTP', 'Tumia Barua Pepe')),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _tr(
-                      'Enter your email to receive a 6-digit OTP code.',
-                      'Weka barua pepe yako upokee OTP ya namba 6.',
-                    ),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _GlowTextField(
-                    controller: _recoveryEmailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.done,
-                    hintText: _tr('Enter your email', 'Weka barua pepe yako'),
-                    prefixIcon: const Icon(Icons.alternate_email_rounded),
-                  ),
-                  if (otpSent) ...[
-                    const SizedBox(height: 12),
-                    _GlowTextField(
-                      controller: _emailOtpController,
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.done,
-                      hintText: _tr('Enter 6-digit OTP', 'Weka OTP ya namba 6'),
-                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSending ? null : () => Navigator.of(dialogContext).pop(),
-                  child: Text(_tr('Cancel', 'Ghairi')),
-                ),
-                ElevatedButton(
-                  onPressed: isSending
-                      ? null
-                      : () async {
-                          setDialogState(() => isSending = true);
-                          if (!otpSent) {
-                            await _sendEmailOtpCode();
-                            if (!dialogContext.mounted) return;
-                            setDialogState(() {
-                              otpSent = true;
-                              isSending = false;
-                            });
-                            return;
-                          }
-                          await _verifyEmailOtpAndContinue();
-                          if (!dialogContext.mounted) return;
-                          Navigator.of(dialogContext).pop();
-                        },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (isSending) ...[
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Text(
-                        isSending
-                            ? _tr('Please wait...', 'Tafadhali subiri...')
-                            : otpSent
-                                ? _tr('Verify OTP', 'Thibitisha OTP')
-                                : _tr('Send OTP to Email', 'Tuma OTP kwa Barua Pepe'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   Future<void> _sendOTP() async {
@@ -913,9 +696,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
     _phoneController.dispose();
-    _passwordController.dispose();
-    _recoveryEmailController.dispose();
-    _emailOtpController.dispose();
     _phoneFocusNode.dispose();
     for (final controller in _otpControllers) {
       controller.dispose();
@@ -993,10 +773,19 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.network(
-                  'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=1600&q=80',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFF263238)),
+                Container(
+                  color: AppColors.secondary,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
+                      child: Lottie.asset(
+                        'assets/lottie/Login.json',
+                        fit: BoxFit.contain,
+                        repeat: true,
+                        animate: true,
+                      ),
+                    ),
+                  ),
                 ),
                 Container(
                   decoration: BoxDecoration(
@@ -1034,11 +823,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Colors.black.withValues(alpha: 0.42),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.lock_rounded, size: 14, color: Colors.white),
-                        SizedBox(width: 6),
-                        Text('Salama', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        const Icon(Icons.lock_rounded, size: 14, color: Colors.white),
+                        const SizedBox(width: 6),
+                        Text(
+                          _tr('Secure', 'Salama'),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
                       ],
                     ),
                   ),
@@ -1066,7 +858,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                     Center(
                       child: Text(
-                        _otpSent ? 'Thibitisha OTP' : 'Ingia Mali App',
+                        _otpSent ? _tr('Verify OTP', 'Thibitisha OTP') : _tr('Login to Mali App', 'Ingia Mali App'),
                         textAlign: TextAlign.center,
                         style: headingStyle,
                       ),
@@ -1075,8 +867,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     Center(
                       child: Text(
                         _otpSent
-                            ? 'Tumepeleka msimbo kwa namba yako. Weka tarakimu 4 kuendelea.'
-                            : 'Karibu tena. Ingiza taarifa zako ili kuendelea salama.',
+                            ? _tr('We sent a code to your number. Enter the 4 digits to continue.', 'Tumetuma msimbo kwa namba yako. Weka tarakimu 4 kuendelea.')
+                            : _tr('Welcome back. Enter your phone number to continue securely.', 'Karibu tena. Weka namba yako ya simu ili kuendelea salama.'),
                         textAlign: TextAlign.center,
                         style: subtitleStyle,
                       ),
@@ -1088,7 +880,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Miamala yako inalindwa kwa usimbaji salama.',
+                            _tr('Your transactions are protected with secure encryption.', 'Miamala yako inalindwa kwa usimbaji salama.'),
                             style: GoogleFonts.poppins(color: textSecondary, fontSize: 12.5),
                           ),
                         ),
@@ -1109,7 +901,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
                           const SizedBox(width: 8),
-                          Text('Taarifa za Akaunti', style: sectionTitleStyle),
+                          Text(_tr('Account Details', 'Taarifa za Akaunti'), style: sectionTitleStyle),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -1117,27 +909,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _phoneController,
                         focusNode: _phoneFocusNode,
                         decoration: fieldDecoration(
-                          hint: 'Barua pepe au namba ya simu',
-                          suffix: Icons.person_outline_rounded,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: fieldDecoration(
-                          hint: 'Nenosiri',
-                          suffix: Icons.visibility_off_rounded,
-                          suffixWidget: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                              color: textSecondary,
+                          hint: _tr('Phone number', 'Namba ya simu'),
+                          suffix: Icons.phone_iphone_rounded,
+                          prefix: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                                const SizedBox(width: 6),
+                                Text('+255', style: GoogleFonts.poppins(color: textPrimary, fontWeight: FontWeight.w600)),
+                              ],
                             ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -1149,27 +936,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           onPressed: _isLoading ? null : _precheckAndSendOtp,
                           child: Text(
-                            _isLoading ? 'Inatuma...' : 'Ingia',
+                            _isLoading ? _tr('Sending...', 'Inatuma...') : _tr('Send OTP', 'Tuma OTP'),
                             style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Center(
-                        child: TextButton(
-                          onPressed: _isLoading ? null : _showEmailRecoveryDialog,
-                          child: Text(
-                            'Umesahau au huwezi kufikia namba?',
-                            style: GoogleFonts.poppins(color: textSecondary),
-                          ),
-                        ),
-                      ),
                     ] else ...[
                       Row(
                         children: [
                           const Icon(Icons.shield_outlined, size: 18, color: textPrimary),
                           const SizedBox(width: 8),
-                          Text('Weka OTP ya tarakimu 4', style: sectionTitleStyle),
+                          Text(_tr('Enter the 4-digit OTP', 'Weka OTP ya tarakimu 4'), style: sectionTitleStyle),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -1189,7 +967,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           onPressed: _isLoading ? null : _verifyOTP,
                           child: Text(
-                            _isLoading ? 'Inathibitisha...' : 'Ingia',
+                            _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Login', 'Ingia'),
                             style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
                           ),
                         ),
@@ -1198,7 +976,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Center(
                         child: TextButton(
                           onPressed: () => setState(() => _otpSent = false),
-                          child: Text('Tumia namba nyingine', style: GoogleFonts.poppins(color: textSecondary)),
+                          child: Text(_tr('Use another phone number', 'Tumia namba nyingine'), style: GoogleFonts.poppins(color: textSecondary)),
                         ),
                       ),
                     ],
@@ -1206,11 +984,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Huna akaunti? ', style: GoogleFonts.poppins(color: textSecondary)),
+                        Text(_tr('No account? ', 'Huna akaunti? '), style: GoogleFonts.poppins(color: textSecondary)),
                         TextButton(
                           onPressed: () => context.push(AppRouter.registerPath),
                           child: Text(
-                            'Jisajili',
+                            _tr('Register', 'Jisajili'),
                             style: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700),
                           ),
                         ),
