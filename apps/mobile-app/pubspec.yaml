@@ -74,9 +74,9 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/branding/mali_up_icon.png
+  image_path: assets/branding/mali_up_wordmark.png
   adaptive_icon_background: "#FACC15"
-  adaptive_icon_foreground: assets/branding/mali_up_icon.png
+  adaptive_icon_foreground: assets/branding/mali_up_wordmark.png
   remove_alpha_ios: true
 
   # To add assets to your application, add an assets section, like this:

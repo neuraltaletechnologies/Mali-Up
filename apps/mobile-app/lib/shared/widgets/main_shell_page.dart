@@ -126,7 +126,7 @@ class MainShellPage extends StatelessWidget {
       ),
       drawer: Drawer(
         width: MediaQuery.of(context).size.width * 0.80,
-        backgroundColor: const Color(0xFF0B1326),
+        backgroundColor: AppColors.secondary,
         elevation: 18,
         clipBehavior: Clip.antiAlias,
         shape: const RoundedRectangleBorder(
@@ -137,7 +137,7 @@ class MainShellPage extends StatelessWidget {
         ),
         child: Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF0B1326),
+            color: AppColors.secondary,
           ),
           child: Column(
             children: [
@@ -146,11 +146,14 @@ class MainShellPage extends StatelessWidget {
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 26),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xFF102347), Color(0xFF0E1C3A)],
+                      colors: [
+                        AppColors.secondaryLight.withValues(alpha: 0.95),
+                        AppColors.secondary,
+                      ],
                     ),
                   ),
                   child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -172,7 +175,7 @@ class MainShellPage extends StatelessWidget {
                             label: 'Picha ya wasifu wa mtumiaji',
                             child: CircleAvatar(
                               radius: 26,
-                              backgroundColor: const Color(0xFFE07B2A),
+                              backgroundColor: AppColors.primary,
                               backgroundImage: (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty)
                                   ? NetworkImage(profile.avatarUrl!)
                                   : null,
@@ -180,7 +183,7 @@ class MainShellPage extends StatelessWidget {
                                   ? Text(
                                       initials,
                                       style: const TextStyle(
-                                        color: Colors.white,
+                                        color: AppColors.secondary,
                                         fontSize: 22,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -200,8 +203,8 @@ class MainShellPage extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             profile.contactLine,
-                            style: const TextStyle(
-                              color: Color(0xFF9CA3AF),
+                            style: TextStyle(
+                              color: AppColors.background.withValues(alpha: 0.75),
                               fontSize: 13,
                               fontWeight: FontWeight.w400,
                             ),
@@ -210,13 +213,13 @@ class MainShellPage extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE07B2A),
+                              color: AppColors.primary,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
                               profile.accountTypeLabel,
                               style: const TextStyle(
-                                color: Color(0xFF382100),
+                                color: AppColors.secondary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -230,8 +233,8 @@ class MainShellPage extends StatelessWidget {
               ),
               Container(
                 height: 18,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0F1A33),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.vertical(top: Radius.elliptical(260, 30)),
                 ),
               ),
@@ -272,7 +275,7 @@ class MainShellPage extends StatelessWidget {
                       onTap: () => _closeDrawerThenNavigate(context, AppRouter.crmPath),
                     ),
                     const SizedBox(height: 10),
-                    const Divider(color: Color(0xFF26324A), height: 1),
+                    Divider(color: AppColors.background.withValues(alpha: 0.14), height: 1),
                     const SizedBox(height: 10),
                     _DrawerItem(
                       icon: Icons.account_balance_rounded,
@@ -298,7 +301,7 @@ class MainShellPage extends StatelessWidget {
                       onTap: () => _closeDrawerThenNavigate(context, AppRouter.cashFlowPath),
                     ),
                     const SizedBox(height: 10),
-                    const Divider(color: Color(0xFF26324A), height: 1),
+                    Divider(color: AppColors.background.withValues(alpha: 0.14), height: 1),
                     const SizedBox(height: 10),
                     _DrawerItem(
                       icon: Icons.settings_rounded,
@@ -322,8 +325,8 @@ class MainShellPage extends StatelessWidget {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Color(0xFF34415A))),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.background.withValues(alpha: 0.16))),
                 ),
                 child: Column(
                   children: [
@@ -335,16 +338,16 @@ class MainShellPage extends StatelessWidget {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(14),
                           onTap: () => _closeDrawerThenNavigate(context, AppRouter.loginPath),
-                          child: const Padding(
+                          child: Padding(
                             padding: EdgeInsets.symmetric(horizontal: 12),
                             child: Row(
                               children: [
-                                Icon(Icons.logout_rounded, color: Color(0xFFF87171), size: 20),
+                                Icon(Icons.logout_rounded, color: AppColors.primary, size: 20),
                                 SizedBox(width: 12),
                                 Text(
                                   'Toka',
                                   style: TextStyle(
-                                    color: Color(0xFFF87171),
+                                    color: AppColors.primary,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -360,7 +363,7 @@ class MainShellPage extends StatelessWidget {
                       'Mali App v1.0.0',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Color(0xFF9CA3AF),
+                        color: Colors.white70,
                         fontSize: 11,
                         fontWeight: FontWeight.w400,
                       ),
@@ -438,65 +441,66 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const active = Color(0xFFE07B2A);
-    const labelColor = Color(0xFFF8FAFC);
-    const chevronColor = Color(0xFF94A3B8);
+    final active = AppColors.primary;
+    final labelColor = AppColors.background.withValues(alpha: 0.95);
+    final chevronColor = AppColors.background.withValues(alpha: 0.62);
 
     return Semantics(
       button: true,
       label: semanticsLabel,
       child: SizedBox(
-        height: 56,
+        height: 52,
         child: Material(
-          color: selected ? active.withValues(alpha: 0.10) : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
+          color: selected ? active.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
           child: InkWell(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Row(
                 children: [
                   Container(
-                    width: 34,
-                    height: 34,
+                    width: 30,
+                    height: 30,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+                      color: AppColors.background.withValues(alpha: selected ? 0.18 : 0.10),
+                      borderRadius: BorderRadius.circular(9),
                     ),
-                    child: Icon(icon, size: 18, color: Colors.white),
+                    child: Icon(icon, size: 16, color: selected ? active : Colors.white),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       label,
                       style: TextStyle(
                         color: selected ? active : labelColor,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                        letterSpacing: 0.1,
                       ),
                     ),
                   ),
                   if (trailingBadge != null)
                     Container(
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEF4444),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
                       child: Text(
                         trailingBadge!,
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
+                          color: AppColors.secondary,
+                          fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     )
                   else
-                    const Icon(Icons.chevron_right_rounded, color: chevronColor, size: 18),
+                    Icon(Icons.chevron_right_rounded, color: chevronColor, size: 16),
                 ],
               ),
             ),

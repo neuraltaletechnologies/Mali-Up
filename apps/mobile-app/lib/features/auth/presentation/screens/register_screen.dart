@@ -691,7 +691,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFFE07B2A);
     const textPrimary = Color(0xFF1A1A1A);
     const textSecondary = Color(0xFF6B7280);
     const fieldBg = Color(0xFFEFF5F2);
@@ -720,7 +719,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primary, width: 1.2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
         ),
         prefixIcon: prefix,
         suffixIcon: suffixWidget ?? Icon(suffix, color: textSecondary),
@@ -1008,7 +1007,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           width: double.infinity,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: primary,
+                              backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               minimumSize: const Size.fromHeight(52),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1038,7 +1037,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           width: double.infinity,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: primary,
+                              backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               minimumSize: const Size.fromHeight(52),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1073,7 +1072,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             onPressed: () => context.push(AppRouter.loginPath),
                             child: Text(
                               _tr('Login', 'Ingia'),
-                              style: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700),
+                              style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w700),
                             ),
                           ),
                         ],
