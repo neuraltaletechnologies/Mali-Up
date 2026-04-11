@@ -11,6 +11,15 @@ class MainShellPage extends StatelessWidget {
   final Widget child;
   const MainShellPage({super.key, required this.child});
 
+  static Future<Map<String, dynamic>?> _fetchUserProfile(User? user) async {
+    if (user == null) return null;
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get(const GetOptions(source: Source.serverAndCache));
+    return snapshot.data();
+  }
+
   static Future<void> _closeDrawerThenNavigate(BuildContext context, String route) async {
     Navigator.of(context).pop();
     await Future<void>.delayed(const Duration(milliseconds: 220));
@@ -156,15 +165,10 @@ class MainShellPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    stream: currentUser == null
-                        ? null
-                        : FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(currentUser.uid)
-                            .snapshots(),
+                  child: FutureBuilder<Map<String, dynamic>?>(
+                    future: _fetchUserProfile(currentUser),
                     builder: (context, snapshot) {
-                      final profileData = snapshot.data?.data();
+                      final profileData = snapshot.data;
                       final profile = _buildProfileData(currentUser, profileData);
                       final initials = profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M';
 
