@@ -9,6 +9,7 @@ import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/motion_service.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -761,14 +762,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Container(
                   color: AppColors.primary,
                   child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
-                      child: Lottie.asset(
-                        'assets/lottie/Sign up.json',
-                        fit: BoxFit.contain,
-                        repeat: true,
-                        animate: true,
-                      ),
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: MotionService.reducedMotionNotifier,
+                      builder: (context, reducedMotion, _) {
+                        return RepaintBoundary(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
+                            child: Lottie.asset(
+                              'assets/lottie/Sign up.json',
+                              fit: BoxFit.contain,
+                              repeat: false,
+                              animate: !reducedMotion,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
