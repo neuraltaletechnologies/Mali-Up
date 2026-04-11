@@ -11,6 +11,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEV BYPASS — set to true to skip real SMS OTP during development.
@@ -951,7 +952,9 @@ class _LoginScreenState extends State<LoginScreen> {
     const textPrimary = Color(0xFF1A1A1A);
     const textSecondary = Color(0xFF6B7280);
     const fieldBg = Color(0xFFEFF5F2);
-    final topHeight = MediaQuery.of(context).size.height * 0.32;
+    final mediaQuery = MediaQuery.of(context);
+    final topHeight = mediaQuery.size.height * 0.30;
+    final bottomInset = mediaQuery.viewInsets.bottom;
 
     InputDecoration fieldDecoration({
       required String hint,
@@ -982,6 +985,24 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
 
+    final headingStyle = GoogleFonts.poppins(
+      fontSize: 30,
+      color: textPrimary,
+      fontWeight: FontWeight.w700,
+      height: 1.15,
+    );
+    final subtitleStyle = GoogleFonts.poppins(
+      color: textSecondary,
+      fontSize: 14,
+      height: 1.45,
+      fontWeight: FontWeight.w400,
+    );
+    final sectionTitleStyle = GoogleFonts.poppins(
+      fontWeight: FontWeight.w600,
+      color: textPrimary,
+      fontSize: 15,
+    );
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: Colors.white,
@@ -996,8 +1017,9 @@ class _LoginScreenState extends State<LoginScreen> {
               fit: StackFit.expand,
               children: [
                 Image.network(
-                  'https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=1400&q=80',
+                  'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=1600&q=80',
                   fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(color: const Color(0xFF263238)),
                 ),
                 Container(
                   decoration: BoxDecoration(
@@ -1047,185 +1069,194 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
-          DraggableScrollableSheet(
-            initialChildSize: 0.72,
-            minChildSize: 0.72,
-            maxChildSize: 0.95,
-            builder: (context, scrollController) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Center(child: MaliUpLogo(size: 54)),
-                      const SizedBox(height: 16),
-                      Text(
+          Positioned(
+            left: 0,
+            right: 0,
+            top: topHeight - 22,
+            bottom: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              ),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 80),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Center(child: MaliUpLogo(size: 54)),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Text(
                         _otpSent ? 'Thibitisha OTP' : 'Ingia Mali App',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 30,
-                          color: primary,
-                          fontWeight: FontWeight.w800,
-                          fontFamily: 'Inter',
-                        ),
+                        style: headingStyle,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
                         _otpSent
                             ? 'Tumepeleka msimbo kwa namba yako. Weka tarakimu 4 kuendelea.'
                             : 'Karibu tena. Ingiza taarifa zako ili kuendelea salama.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: textSecondary, fontSize: 14, height: 1.45),
+                        style: subtitleStyle,
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: const [
-                          Icon(Icons.shield_outlined, size: 16, color: textSecondary),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Miamala yako inalindwa kwa usimbaji salama.',
-                              style: TextStyle(color: textSecondary, fontSize: 12.5),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      if (_feedbackText != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: EmotionalStatusChip(
-                            visible: true,
-                            text: _feedbackText!,
-                            tone: _feedbackTone,
-                          ),
-                        ),
-                      if (!_otpSent) ...[
-                        const Row(
-                          children: [
-                            Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
-                            SizedBox(width: 8),
-                            Text(
-                              'Taarifa za Akaunti',
-                              style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 15),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: _phoneController,
-                          focusNode: _phoneFocusNode,
-                          decoration: fieldDecoration(
-                            hint: 'Barua pepe au namba ya simu',
-                            suffix: Icons.person_outline_rounded,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          decoration: fieldDecoration(
-                            hint: 'Nenosiri',
-                            suffix: Icons.visibility_off_rounded,
-                            suffixWidget: IconButton(
-                              icon: Icon(
-                                _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                                color: textSecondary,
-                              ),
-                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primary,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: _isLoading ? null : _precheckAndSendOtp,
-                            child: Text(_isLoading ? 'Inatuma...' : 'Ingia', style: const TextStyle(fontWeight: FontWeight.w700)),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Center(
-                          child: TextButton(
-                            onPressed: _isLoading ? null : _showEmailRecoveryDialog,
-                            child: const Text('Umesahau au huwezi kufikia namba?', style: TextStyle(color: textSecondary)),
-                          ),
-                        ),
-                      ] else ...[
-                        const Row(
-                          children: [
-                            Icon(Icons.shield_outlined, size: 18, color: textPrimary),
-                            SizedBox(width: 8),
-                            Text('Weka OTP ya tarakimu 4', style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary)),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primary,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: _isLoading ? null : _verifyOTP,
-                            child: Text(_isLoading ? 'Inathibitisha...' : 'Ingia', style: const TextStyle(fontWeight: FontWeight.w700)),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Center(
-                          child: TextButton(
-                            onPressed: () => setState(() => _otpSent = false),
-                            child: const Text('Tumia namba nyingine', style: TextStyle(color: textSecondary)),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(Icons.shield_outlined, size: 16, color: textSecondary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Miamala yako inalindwa kwa usimbaji salama.',
+                            style: GoogleFonts.poppins(color: textSecondary, fontSize: 12.5),
                           ),
                         ),
                       ],
-                      const SizedBox(height: 8),
+                    ),
+                    const SizedBox(height: 18),
+                    if (_feedbackText != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: EmotionalStatusChip(
+                          visible: true,
+                          text: _feedbackText!,
+                          tone: _feedbackTone,
+                        ),
+                      ),
+                    if (!_otpSent) ...[
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Huna akaunti? ', style: TextStyle(color: textSecondary)),
-                          TextButton(
-                            onPressed: () => context.push(AppRouter.registerPath),
-                            child: const Text('Jisajili', style: TextStyle(color: primary, fontWeight: FontWeight.w700)),
-                          ),
+                          const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
+                          const SizedBox(width: 8),
+                          Text('Taarifa za Akaunti', style: sectionTitleStyle),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Center(
-                        child: Container(
-                          width: 110,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1F2937),
-                            borderRadius: BorderRadius.circular(999),
+                      TextField(
+                        controller: _phoneController,
+                        focusNode: _phoneFocusNode,
+                        decoration: fieldDecoration(
+                          hint: 'Barua pepe au namba ya simu',
+                          suffix: Icons.person_outline_rounded,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        decoration: fieldDecoration(
+                          hint: 'Nenosiri',
+                          suffix: Icons.visibility_off_rounded,
+                          suffixWidget: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                              color: textSecondary,
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(52),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: _isLoading ? null : _precheckAndSendOtp,
+                          child: Text(
+                            _isLoading ? 'Inatuma...' : 'Ingia',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: TextButton(
+                          onPressed: _isLoading ? null : _showEmailRecoveryDialog,
+                          child: Text(
+                            'Umesahau au huwezi kufikia namba?',
+                            style: GoogleFonts.poppins(color: textSecondary),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.shield_outlined, size: 18, color: textPrimary),
+                          const SizedBox(width: 8),
+                          Text('Weka OTP ya tarakimu 4', style: sectionTitleStyle),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(52),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: _isLoading ? null : _verifyOTP,
+                          child: Text(
+                            _isLoading ? 'Inathibitisha...' : 'Ingia',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: TextButton(
+                          onPressed: () => setState(() => _otpSent = false),
+                          child: Text('Tumia namba nyingine', style: GoogleFonts.poppins(color: textSecondary)),
+                        ),
+                      ),
                     ],
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Huna akaunti? ', style: GoogleFonts.poppins(color: textSecondary)),
+                        TextButton(
+                          onPressed: () => context.push(AppRouter.registerPath),
+                          child: Text(
+                            'Jisajili',
+                            style: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            },
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 14,
+            child: Center(
+              child: Container(
+                width: 112,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F2937),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
           ),
         ],
       ),
