@@ -6,7 +6,9 @@ import '../../core/onboarding_colors.dart';
 import '../../models/onboarding_model.dart';
 import '../widgets/animated_widgets.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Main onboarding experience with 4 screens
 /// Includes smooth page transitions and page indicators
@@ -238,12 +240,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           key: ValueKey<bool>(isLastPage),
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
           decoration: BoxDecoration(
-            color: OnboardingColors.white.withValues(alpha: 0.92),
+            color: AppColors.card.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: OnboardingColors.divider),
+            border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
-                color: OnboardingColors.primaryDeep.withValues(alpha: 0.08),
+                color: AppColors.secondary.withValues(alpha: 0.10),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -267,7 +269,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         child: Text(
                           _tr('Skip', 'Ruka'),
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: OnboardingColors.textDark,
+                              color: AppColors.textSecondary,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
@@ -275,31 +277,36 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ],
                 ),
                 const SizedBox(height: 14),
-                SmoothPageIndicator(
-                  controller: _pageController,
-                  count: onboardingPages.length,
-                  effect: const CustomizableEffect(
-                    activeDotDecoration: DotDecoration(
-                      width: 28,
-                      height: 8,
-                      color: OnboardingColors.accentGreen,
-                      borderRadius: BorderRadius.all(Radius.circular(4)),
-                    ),
-                    dotDecoration: DotDecoration(
-                      width: 8,
-                      height: 8,
-                      color: OnboardingColors.divider,
-                      borderRadius: BorderRadius.all(Radius.circular(4)),
-                    ),
-                    spacing: 6,
-                  ),
-                ),
-                const SizedBox(height: 20),
                 if (isLastPage)
                   _buildPrimaryButton(
                     label: _tr('Let\'s get started', 'Tuanze'),
                     onTap: _onPrimaryTap,
                   ),
+                if (isLastPage)
+                  const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: AppColors.border,
+                    ),
+                  ),
+                  child: SmoothPageIndicator(
+                    controller: _pageController,
+                    count: onboardingPages.length,
+                    effect: const ExpandingDotsEffect(
+                      expansionFactor: 2.2,
+                      spacing: 6,
+                      radius: 99,
+                      dotHeight: 6,
+                      dotWidth: 6,
+                      activeDotColor: AppColors.primary,
+                      dotColor: AppColors.border,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -334,11 +341,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: OnboardingColors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                color: AppColors.primary,
                 ),
           ),
         ),
-      ),
+                    color: AppColors.primary.withValues(alpha: 0.30),
     );
   }
 
@@ -348,7 +355,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return EmotionalLottieScene.dashboard;
       case 1:
         return EmotionalLottieScene.onboarding;
-      case 2:
+                        color: AppColors.secondary,
         return EmotionalLottieScene.authVerify;
       case 3:
         return EmotionalLottieScene.celebrate;
@@ -357,3 +364,4 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 }
+

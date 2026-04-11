@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';

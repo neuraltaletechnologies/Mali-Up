@@ -37,23 +37,17 @@ class _PhoneAuthPrecheckResult {
 
 class _GlowTextField extends StatefulWidget {
   final TextEditingController controller;
-  final FocusNode? focusNode;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final String? hintText;
   final Widget? prefixIcon;
-  final TextStyle? style;
-  final InputDecoration? decoration;
 
   const _GlowTextField({
     required this.controller,
-    this.focusNode,
     this.keyboardType,
     this.textInputAction,
     this.hintText,
     this.prefixIcon,
-    this.style,
-    this.decoration,
   });
 
   @override
@@ -87,15 +81,12 @@ class _GlowTextFieldState extends State<_GlowTextField> {
         ),
         child: TextField(
           controller: widget.controller,
-          focusNode: widget.focusNode,
           keyboardType: widget.keyboardType,
           textInputAction: widget.textInputAction,
-          style: widget.style,
-          decoration: widget.decoration ??
-              InputDecoration(
-                hintText: widget.hintText,
-                prefixIcon: widget.prefixIcon,
-              ),
+          decoration: InputDecoration(
+            hintText: widget.hintText,
+            prefixIcon: widget.prefixIcon,
+          ),
         ),
       ),
     );
@@ -168,7 +159,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const String _customerPhoneWithCountryCode = '255653520829';
   late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
   bool _otpSent = false;
@@ -919,19 +909,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _useCustomerPhone() {
-    // Keep local 9-digit format because +255 is already shown in UI.
-    const localPhone = '653520829';
-    setState(() {
-      _phoneController.text = localPhone;
-      _otpSent = false;
-    });
-    _NotificationHelper.showInfo(
-      context,
-      'Customer number loaded: +$_customerPhoneWithCountryCode',
-    );
-  }
-
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
@@ -1019,7 +996,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Image.network(
                   'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=1600&q=80',
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(color: const Color(0xFF263238)),
+                  errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFF263238)),
                 ),
                 Container(
                   decoration: BoxDecoration(
@@ -1069,21 +1046,22 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: topHeight - 22,
-            bottom: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-              ),
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 80),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+          DraggableScrollableSheet(
+            initialChildSize: 0.72,
+            minChildSize: 0.72,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 80),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     const Center(child: MaliUpLogo(size: 54)),
                     const SizedBox(height: 16),
                     Center(
@@ -1238,10 +1216,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
           Positioned(
             left: 0,
