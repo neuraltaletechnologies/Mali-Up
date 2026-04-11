@@ -1,25 +1,22 @@
 import '../domain/models/customer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../core/data/repositories/context_firestore_repository.dart';
 
-final customerListProvider = StreamProvider<List<Customer>>((ref) {
+final contextFirestoreRepositoryProvider = Provider<ContextFirestoreRepository>((ref) {
+  return ContextFirestoreRepository();
+});
+
+final customerListProvider = StreamProvider<List<Customer>>((ref) async* {
   final user = FirebaseAuth.instance.currentUser;
-  
-  // If not logged in, return an empty list or redirect logic (usually handled at app level)
-  if (user == null) return const Stream.empty();
+  if (user == null) {
+    yield const <Customer>[];
+    return;
+  }
 
-  final query = FirebaseFirestore.instance
-      .collection('tenants')
-      .doc(user.uid)
-      .collection('customers')
-      .orderBy('name');
+  final repository = ref.watch(contextFirestoreRepositoryProvider);
+  final context = await repository.resolveContextForUser(user.uid);
 
-  return query.snapshots().map((snapshot) {
-    return snapshot.docs.map((doc) {
-      return Customer.fromFirestore(doc.data(), doc.id);
-    }).toList();
-  });
+  yield* repository.watchCustomers(uid: user.uid, context: context);
 });
 

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/page_intro_header.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class SalesScreen extends StatelessWidget {
   const SalesScreen({super.key});
@@ -10,9 +13,12 @@ class SalesScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          const PageIntroHeader(
-            title: 'Track sales momentum',
-            subtitle: 'Monitor invoices, pending collections, and paid revenue in one place.',
+          PageIntroHeader(
+            title: _tr('Track sales momentum', 'Fuatilia kasi ya mauzo'),
+            subtitle: _tr(
+              'Monitor invoices, pending collections, and paid revenue in one place.',
+              'Fuatilia ankara, makusanyo yanayosubiri, na mapato yaliyolipwa sehemu moja.',
+            ),
             scene: EmotionalLottieScene.dashboard,
           ),
 
@@ -31,16 +37,16 @@ class SalesScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _OverviewStat(label: 'Total Sales', value: 'TSh 4.2M', color: AppColors.primaryLight),
-                    _OverviewStat(label: 'Pending', value: 'TSh 850K', color: AppColors.secondary),
-                    _OverviewStat(label: 'Paid', value: 'TSh 3.35M', color: AppColors.success),
+                    _OverviewStat(label: _tr('Total Sales', 'Jumla ya Mauzo'), value: 'TSh 4.2M', color: AppColors.primaryLight),
+                    _OverviewStat(label: _tr('Pending', 'Inasubiri'), value: 'TSh 850K', color: AppColors.secondary),
+                    _OverviewStat(label: _tr('Paid', 'Imelipwa'), value: 'TSh 3.35M', color: AppColors.success),
                   ],
                 ),
                 const SizedBox(height: 24),
                 // Search Bar
                 TextField(
                   decoration: InputDecoration(
-                    hintText: 'Search invoices, customers...',
+                    hintText: _tr('Search invoices, customers...', 'Tafuta ankara, wateja...'),
                     prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
                     fillColor: AppColors.background.withValues(alpha: 0.5),
                   ),
@@ -57,15 +63,15 @@ class SalesScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
               children: [
-                _FilterChip(label: 'All Invoices', isSelected: true),
+                _FilterChip(label: _tr('All Invoices', 'Ankara Zote'), isSelected: true),
                 const SizedBox(width: 8),
-                _FilterChip(label: 'Paid', isSelected: false),
+                _FilterChip(label: _tr('Paid', 'Imelipwa'), isSelected: false),
                 const SizedBox(width: 8),
-                _FilterChip(label: 'Pending', isSelected: false),
+                _FilterChip(label: _tr('Pending', 'Inasubiri'), isSelected: false),
                 const SizedBox(width: 8),
-                _FilterChip(label: 'Overdue', isSelected: false),
+                _FilterChip(label: _tr('Overdue', 'Imechelewa'), isSelected: false),
                 const SizedBox(width: 8),
-                _FilterChip(label: 'Draft', isSelected: false),
+                _FilterChip(label: _tr('Draft', 'Rasimu'), isSelected: false),
               ],
             ),
           ),
@@ -81,9 +87,9 @@ class SalesScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 return _InvoiceListItem(
                   id: '#INV-${1200 - index}',
-                  customer: 'Customer ${index + 1}',
+                  customer: '${_tr('Customer', 'Mteja')} ${index + 1}',
                   amount: 'TSh ${45000 * (index + 1)}',
-                  status: index % 3 == 0 ? 'Paid' : (index % 3 == 1 ? 'Pending' : 'Overdue'),
+                  status: index % 3 == 0 ? _tr('Paid', 'Imelipwa') : (index % 3 == 1 ? _tr('Pending', 'Inasubiri') : _tr('Overdue', 'Imechelewa')),
                   date: 'Oct ${25 - index}, 2026',
                 );
               },
@@ -96,7 +102,7 @@ class SalesScreen extends StatelessWidget {
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: AppColors.secondary),
         label: Text(
-          'New Sale',
+          _tr('New Sale', 'Ongeza Mauzo'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppColors.secondary,
             fontWeight: FontWeight.w700,
@@ -189,8 +195,14 @@ class _InvoiceListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     Color statusColor;
     switch (status) {
-      case 'Paid': statusColor = AppColors.success; break;
-      case 'Pending': statusColor = AppColors.secondary; break;
+      case 'Paid':
+      case 'Imelipwa':
+        statusColor = AppColors.success;
+        break;
+      case 'Pending':
+      case 'Inasubiri':
+        statusColor = AppColors.secondary;
+        break;
       default: statusColor = AppColors.error;
     }
 

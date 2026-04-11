@@ -45,6 +45,12 @@ class LocalizationService {
     languageNotifier.value = await getLanguage();
   }
 
+  static bool get isSwahili => languageNotifier.value == AppLanguage.swahili;
+
+  static String tr({required String en, required String sw}) {
+    return isSwahili ? sw : en;
+  }
+
   static Future<void> setLanguage(AppLanguage language) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_languageKey, language.code);

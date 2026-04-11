@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/customer_providers.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class CustomerListScreen extends ConsumerWidget {
   const CustomerListScreen({super.key});
@@ -24,7 +27,7 @@ class CustomerListScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Build stronger customer trust',
+                        _tr('Build stronger customer trust', 'Jenga uaminifu mkubwa wa wateja'),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               color: AppColors.secondary,
                               fontWeight: FontWeight.w700,
@@ -32,7 +35,10 @@ class CustomerListScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Follow balances, tags, and recent activity for every customer.',
+                        _tr(
+                          'Follow balances, tags, and recent activity for every customer.',
+                          'Fuatilia salio, lebo, na shughuli za hivi karibuni kwa kila mteja.',
+                        ),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -62,8 +68,8 @@ class CustomerListScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _SummaryStat(label: 'Active Clients', value: '${customerItems.length}', icon: Icons.people_alt_outlined),
-                _SummaryStat(label: 'Total Balances', value: 'TSh 3.4M', icon: Icons.account_balance_wallet_outlined),
+                _SummaryStat(label: _tr('Active Clients', 'Wateja Hai'), value: '${customerItems.length}', icon: Icons.people_alt_outlined),
+                _SummaryStat(label: _tr('Total Balances', 'Jumla ya Salio'), value: 'TSh 3.4M', icon: Icons.account_balance_wallet_outlined),
               ],
             ),
           ),
@@ -186,7 +192,7 @@ class _CustomerCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'Outstanding Balance',
+                    _tr('Outstanding Balance', 'Salio Linalodaiwa'),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: AppColors.textMuted,
                       fontSize: 10,
@@ -229,7 +235,7 @@ class _CustomerCard extends StatelessWidget {
                 )).toList(),
               ),
               Text(
-                'Last Tx: ${customer.lastTransactionDate}',
+                '${_tr('Last Tx', 'Muamala wa Mwisho')}: ${customer.lastTransactionDate}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textMuted,
                   fontSize: 11,

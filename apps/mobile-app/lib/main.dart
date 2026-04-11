@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -71,19 +72,34 @@ class MaliUpApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: MotionService.reducedMotionNotifier,
-      builder: (context, reducedMotion, child) {
-        return MaterialApp.router(
-          title: 'Mali Up',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          routerConfig: AppRouter.createRouter(
-            showLanguageSelection: !hasSelectedLanguage,
-            showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
-            hasActiveSession: hasActiveSession,
-            authenticatedInitialPath: initialAuthenticatedPath,
-          ),
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: LocalizationService.languageNotifier,
+      builder: (context, language, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: MotionService.reducedMotionNotifier,
+          builder: (context, reducedMotion, child) {
+            return MaterialApp.router(
+              title: 'Mali Up',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              locale: Locale(language.code),
+              supportedLocales: const [
+                Locale('en'),
+                Locale('sw'),
+              ],
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              routerConfig: AppRouter.createRouter(
+                showLanguageSelection: !hasSelectedLanguage,
+                showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
+                hasActiveSession: hasActiveSession,
+                authenticatedInitialPath: initialAuthenticatedPath,
+              ),
+            );
+          },
         );
       },
     );

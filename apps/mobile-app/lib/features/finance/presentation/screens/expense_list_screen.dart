@@ -9,7 +9,7 @@ class ExpenseListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final expenses = ref.watch(expenseListProvider);
+    final expensesAsync = ref.watch(expenseListProvider);
 
     return Scaffold(
       body: Column(
@@ -95,14 +95,25 @@ class ExpenseListScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              itemCount: expenses.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final expense = expenses[index];
-                return _ExpenseCard(expense: expense);
-              },
+            child: expensesAsync.when(
+              data: (expenses) => ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: expenses.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final expense = expenses[index];
+                  return _ExpenseCard(expense: expense);
+                },
+              ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, _) => Center(
+                child: Text(
+                  'Unable to load expenses right now.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                ),
+              ),
             ),
           ),
         ],
