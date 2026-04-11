@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mali_up/config/routing.dart';
+import 'package:mali_up/core/services/default_context_routing_service.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
 import 'package:mali_up/core/services/localization_service.dart';
 import 'package:mali_up/core/services/motion_service.dart';
@@ -36,6 +37,11 @@ Future<void> main() async {
       await LocalizationService.hasLanguageBeenSelected();
   final hasDevBypassSession = kDebugMode && (prefs.getBool('dev_bypass_session') ?? false);
   final hasActiveSession = FirebaseAuth.instance.currentUser != null || hasDevBypassSession;
+  final initialAuthenticatedPath = hasActiveSession
+      ? await DefaultContextRoutingService.resolveInitialAuthenticatedPath(
+        hasDevBypassSession: hasDevBypassSession,
+      )
+      : null;
 
   runApp(
     ProviderScope(
@@ -43,6 +49,7 @@ Future<void> main() async {
         hasCompletedOnboarding: hasCompletedOnboarding,
         hasSelectedLanguage: hasSelectedLanguage,
         hasActiveSession: hasActiveSession,
+        initialAuthenticatedPath: initialAuthenticatedPath,
       ),
     ),
   );
@@ -52,12 +59,14 @@ class MaliUpApp extends StatelessWidget {
   final bool hasCompletedOnboarding;
   final bool hasSelectedLanguage;
   final bool hasActiveSession;
+  final String? initialAuthenticatedPath;
 
   const MaliUpApp({
     super.key,
     required this.hasCompletedOnboarding,
     required this.hasSelectedLanguage,
     required this.hasActiveSession,
+    required this.initialAuthenticatedPath,
   });
 
   @override
@@ -73,6 +82,7 @@ class MaliUpApp extends StatelessWidget {
             showLanguageSelection: !hasSelectedLanguage,
             showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
             hasActiveSession: hasActiveSession,
+            authenticatedInitialPath: initialAuthenticatedPath,
           ),
         );
       },
