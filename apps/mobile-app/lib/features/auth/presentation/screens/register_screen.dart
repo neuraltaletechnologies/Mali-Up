@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/gestures.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -11,8 +10,6 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../onboarding/core/onboarding_colors.dart';
 import '../models/account_type.dart';
-import '../widgets/terms_and_conditions.dart';
-import '../widgets/privacy_policy.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -81,14 +78,12 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const String _customerPhoneWithCountryCode = '255653520829';
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
-  AccountManagementType _selectedManagementType = AccountManagementType.personal;
+  final AccountManagementType _selectedManagementType = AccountManagementType.personal;
   
   bool _otpSent = false;
   bool _isLoading = false;
-  bool _agreedToTerms = false;
   String? _verificationId;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
@@ -106,21 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   
   final List<TextEditingController> _otpControllers = List.generate(4, (_) => TextEditingController());
   
-  final List<String> _businessCategoryKeys = [
-    'retail',
-    'wholesale',
-    'manufacturing',
-    'services',
-    'agriculture',
-    'technology',
-    'healthcare',
-    'education',
-    'food_and_beverage',
-    'transportation',
-    'other',
-  ];
-
-  String _businessCategoryKey = 'retail';
+  final String _businessCategoryKey = 'retail';
   bool _phoneAuthReady = false;
 
   String _normalizeLocalPhone(String input) {
@@ -169,10 +150,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void _triggerSuccessBurst() {
     if (!mounted) return;
     setState(() => _successBurstTrigger++);
-  }
-
-  List<String> _getBusinessCategories() {
-    return _businessCategoryKeys;
   }
 
   String _getPhoneAuthErrorMessage(String code, String? fallbackMessage) {
@@ -459,34 +436,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     await _sendRegistrationOTP();
   }
 
-  String _businessCategoryLabel(String key) {
-    switch (key) {
-      case 'retail':
-        return _tr('Retail', 'Kuuza Rejareja');
-      case 'wholesale':
-        return _tr('Wholesale', 'Kuuza Kwa Jumla');
-      case 'manufacturing':
-        return _tr('Manufacturing', 'Utengenezaji');
-      case 'services':
-        return _tr('Services', 'Huduma');
-      case 'agriculture':
-        return _tr('Agriculture', 'Kilimo');
-      case 'technology':
-        return _tr('Technology', 'Teknolojia');
-      case 'healthcare':
-        return _tr('Healthcare', 'Afya');
-      case 'education':
-        return _tr('Education', 'Elimu');
-      case 'food_and_beverage':
-        return _tr('Food & Beverage', 'Chakula na Vinywaji');
-      case 'transportation':
-        return _tr('Transportation', 'Usafiri');
-      case 'other':
-      default:
-        return _tr('Other', 'Nyingineyo');
-    }
-  }
-
   Future<void> _sendRegistrationOTP() async {
     // Validate owner details
     if (_ownerNameController.text.isEmpty) {
@@ -703,26 +652,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  void _onManagementTypeChanged(AccountManagementType managementType) {
-    setState(() {
-      _selectedManagementType = managementType;
-      _otpSent = false;
-    });
-  }
-
-  void _useCustomerPhone() {
-    // Keep local 9-digit format because +255 is already shown in UI.
-    const localPhone = '653520829';
-    setState(() {
-      _phoneController.text = localPhone;
-      _otpSent = false;
-    });
-    _setFeedback(_tr('Demo number loaded.', 'Namba ya mfano imewekwa.'), EmotionalStatusTone.neutral);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_tr('Customer number loaded: +255653520829', 'Namba ya mteja iliyokamatia: +255653520829'))),
-    );
-  }
-
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
@@ -811,7 +740,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Image.network(
                   'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1600&q=80',
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(color: const Color(0xFF263238)),
+                  errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFF263238)),
                 ),
                 Container(
                   decoration: BoxDecoration(
@@ -860,21 +789,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: topHeight - 22,
-            bottom: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-              ),
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 80),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+          DraggableScrollableSheet(
+            initialChildSize: 0.72,
+            minChildSize: 0.72,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 80),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     const Center(child: MaliUpLogo(size: 54)),
                     const SizedBox(height: 16),
                     Center(child: Text('Jisajili Mali App', textAlign: TextAlign.center, style: headingStyle)),
@@ -1028,10 +958,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ],
                     ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
           if (!widget.fromOnboarding)
             Positioned(
@@ -1110,59 +1041,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
 
-}
-
-class _GlowTextField extends StatefulWidget {
-  final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final TextInputAction? textInputAction;
-  final InputDecoration decoration;
-
-  const _GlowTextField({
-    required this.controller,
-    required this.decoration,
-    this.keyboardType,
-    this.textInputAction,
-  });
-
-  @override
-  State<_GlowTextField> createState() => _GlowTextFieldState();
-}
-
-class _GlowTextFieldState extends State<_GlowTextField> {
-  bool _hasFocus = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Focus(
-      onFocusChange: (focused) {
-        if (_hasFocus != focused) {
-          setState(() => _hasFocus = focused);
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: _hasFocus
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.18),
-                    blurRadius: 16,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : const [],
-        ),
-        child: TextField(
-          controller: widget.controller,
-          keyboardType: widget.keyboardType,
-          textInputAction: widget.textInputAction,
-          decoration: widget.decoration,
-        ),
-      ),
-    );
-  }
 }
 
 class _OTPBox extends StatelessWidget {
