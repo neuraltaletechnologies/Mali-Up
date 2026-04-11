@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
@@ -109,6 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
+  bool _isEmailLoading = false;
   
   final TextEditingController _phoneController = TextEditingController(text: '0653520829');
   final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
@@ -163,6 +165,153 @@ class _LoginScreenState extends State<LoginScreen> {
   void _triggerSuccessBurst() {
     if (!mounted) return;
     setState(() => _successBurstTrigger++);
+  }
+
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim());
+  }
+
+  Future<void> _openWhatsAppHelpDesk() async {
+    final message = Uri.encodeComponent(
+      _tr(
+        'Hello Mali App Help Desk, I need emergency support with login.',
+        'Habari Mali App Help Desk, nahitaji msaada wa dharura wa kuingia.',
+      ),
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      await _NotificationHelper.showError(
+        context,
+        _tr('We could not open WhatsApp right now.', 'Hatukuweza kufungua WhatsApp sasa.'),
+      );
+    }
+  }
+
+  Future<void> _showEmailLoginDialog() async {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    var obscurePassword = true;
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: Text(_tr('Login with Email', 'Ingia kwa Barua Pepe')),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        hintText: _tr('Email address', 'Barua pepe'),
+                        prefixIcon: const Icon(Icons.alternate_email_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: obscurePassword,
+                      decoration: InputDecoration(
+                        hintText: _tr('Password', 'Nenosiri'),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setDialogState(() {
+                              obscurePassword = !obscurePassword;
+                            });
+                          },
+                          icon: Icon(
+                            obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: _isEmailLoading ? null : () => Navigator.of(dialogContext).pop(),
+                    child: Text(_tr('Cancel', 'Ghairi')),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isEmailLoading
+                        ? null
+                        : () async {
+                            final email = emailController.text.trim().toLowerCase();
+                            final password = passwordController.text;
+
+                            if (!_isValidEmail(email)) {
+                              await _NotificationHelper.showError(
+                                dialogContext,
+                                _tr('That email looks incorrect. Please check it.', 'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.'),
+                              );
+                              return;
+                            }
+                            if (password.isEmpty) {
+                              await _NotificationHelper.showError(
+                                dialogContext,
+                                _tr('Please enter your password.', 'Tafadhali weka nenosiri lako.'),
+                              );
+                              return;
+                            }
+
+                            setState(() => _isEmailLoading = true);
+                            try {
+                              await _auth.signInWithEmailAndPassword(
+                                email: email,
+                                password: password,
+                              );
+                              if (!mounted) return;
+                              if (!dialogContext.mounted) return;
+                              Navigator.of(dialogContext).pop();
+                              await _NotificationHelper.showSuccess(
+                                this.context,
+                                _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'),
+                              );
+                              _setFeedback(
+                                _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'),
+                                EmotionalStatusTone.success,
+                              );
+                              _triggerSuccessBurst();
+                              if (!mounted) return;
+                              this.context.go(AppRouter.dashboardPath);
+                            } on FirebaseAuthException catch (e) {
+                              if (!mounted) return;
+                              final message = switch (e.code) {
+                                'user-not-found' => _tr('No account was found with that email.', 'Hakuna akaunti iliyopatikana kwa barua pepe hiyo.'),
+                                'wrong-password' => _tr('Incorrect password. Please try again.', 'Nenosiri si sahihi. Tafadhali jaribu tena.'),
+                                'invalid-credential' => _tr('Invalid credentials. Check your email and password.', 'Taarifa si sahihi. Hakiki barua pepe na nenosiri.'),
+                                _ => _tr('Email login was not completed. Please try again.', 'Kuingia kwa barua pepe hakujakamilika. Tafadhali jaribu tena.'),
+                              };
+                              if (!dialogContext.mounted) return;
+                              await _NotificationHelper.showError(dialogContext, message);
+                            } finally {
+                              if (mounted) {
+                                setState(() => _isEmailLoading = false);
+                              }
+                            }
+                          },
+                    child: Text(
+                      _isEmailLoading
+                          ? _tr('Signing in...', 'Inaingia...')
+                          : _tr('Login', 'Ingia'),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      emailController.dispose();
+      passwordController.dispose();
+    }
   }
 
   Future<void> _sendOTP() async {
@@ -728,7 +877,7 @@ class _LoginScreenState extends State<LoginScreen> {
               fit: StackFit.expand,
               children: [
                 Container(
-                  color: AppColors.secondary,
+                  color: AppColors.primary,
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
@@ -771,22 +920,36 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.42),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.lock_rounded, size: 14, color: Colors.white),
-                        const SizedBox(width: 6),
-                        Text(
-                          _tr('Secure', 'Salama'),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  Row(
+                    children: [
+                      Material(
+                        color: const Color(0xFF25D366).withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(999),
+                        child: IconButton(
+                          tooltip: _tr('Emergency WhatsApp support', 'Msaada wa dharura WhatsApp'),
+                          icon: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 20),
+                          onPressed: _openWhatsAppHelpDesk,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.42),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.lock_rounded, size: 14, color: Colors.white),
+                            const SizedBox(width: 6),
+                            Text(
+                              _tr('Secure', 'Salama'),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -897,6 +1060,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             _isLoading ? _tr('Sending...', 'Inatuma...') : _tr('Send OTP', 'Tuma OTP'),
                             style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: _isLoading || _isEmailLoading ? null : _showEmailLoginDialog,
+                          icon: const Icon(Icons.alternate_email_rounded, size: 18),
+                          label: Text(_tr('Use email instead', 'Tumia barua pepe badala yake')),
+                          style: TextButton.styleFrom(
+                            foregroundColor: textSecondary,
                           ),
                         ),
                       ),

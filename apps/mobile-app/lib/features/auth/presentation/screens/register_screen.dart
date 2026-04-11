@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
@@ -167,6 +168,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void _triggerSuccessBurst() {
     if (!mounted) return;
     setState(() => _successBurstTrigger++);
+  }
+
+  Future<void> _openWhatsAppHelpDesk() async {
+    final message = Uri.encodeComponent(
+      _tr(
+        'Hello Mali App Help Desk, I need emergency support with registration.',
+        'Habari Mali App Help Desk, nahitaji msaada wa dharura wa usajili.',
+      ),
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_tr('We could not open WhatsApp right now.', 'Hatukuweza kufungua WhatsApp sasa.')),
+        ),
+      );
+    }
   }
 
   String _getPhoneAuthErrorMessage(String code, String? fallbackMessage) {
@@ -741,7 +760,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               fit: StackFit.expand,
               children: [
                 Container(
-                  color: AppColors.secondary,
+                  color: AppColors.primary,
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
@@ -783,22 +802,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.42),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.lock_rounded, size: 14, color: Colors.white),
-                        const SizedBox(width: 6),
-                        Text(
-                          _tr('Secure', 'Salama'),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  Row(
+                    children: [
+                      Material(
+                        color: const Color(0xFF25D366).withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(999),
+                        child: IconButton(
+                          tooltip: _tr('Emergency WhatsApp support', 'Msaada wa dharura WhatsApp'),
+                          icon: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 20),
+                          onPressed: _openWhatsAppHelpDesk,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.42),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.lock_rounded, size: 14, color: Colors.white),
+                            const SizedBox(width: 6),
+                            Text(
+                              _tr('Secure', 'Salama'),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
