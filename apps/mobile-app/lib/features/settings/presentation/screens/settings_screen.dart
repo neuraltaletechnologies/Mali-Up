@@ -19,6 +19,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _reducedMotionEnabled = MotionService.reducedMotionNotifier.value;
   bool _isLoadingLanguage = false;
 
+  String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
   @override
   void initState() {
     super.initState();
@@ -58,7 +60,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Language changed to ${language.label}'),
+        content: Text(
+          _tr('Language changed to ${language.label}', 'Lugha imebadilishwa kuwa ${language.label}'),
+        ),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -69,7 +73,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(enabled ? 'Reduced motion enabled' : 'Reduced motion disabled'),
+        content: Text(
+          enabled
+              ? _tr('Reduced motion enabled', 'Mwendo uliopunguzwa umewashwa')
+              : _tr('Reduced motion disabled', 'Mwendo uliopunguzwa umezimwa'),
+        ),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -91,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tune your workspace',
+                        _tr('Tune your workspace', 'Boresha mazingira yako ya kazi'),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppColors.secondary,
@@ -99,7 +107,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Customize language and motion preferences for a smoother experience.',
+                        _tr(
+                          'Customize language and motion preferences for a smoother experience.',
+                          'Binafsisha lugha na mwendo kwa matumizi yaliyo laini zaidi.',
+                        ),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -117,7 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 20),
 
             Text(
-              'Language',
+              _tr('Language', 'Lugha'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.secondary,
@@ -148,7 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 32),
             Text(
-              'Accessibility',
+              _tr('Accessibility', 'Ufikiaji'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.secondary,
@@ -165,21 +176,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Reduced Motion',
-                          style: TextStyle(
+                          _tr('Reduced Motion', 'Punguza Mwendo'),
+                          style: const TextStyle(
                             color: AppColors.secondary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          'Simplify animations, reduce motion, and keep the interface calm.',
-                          style: TextStyle(
+                          _tr(
+                            'Simplify animations, reduce motion, and keep the interface calm.',
+                            'Rahisisha uhuishaji, punguza mwendo, na weka kiolesura tulivu.',
+                          ),
+                          style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 13,
                             height: 1.4,
@@ -198,7 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 32),
             Text(
-              'About',
+              _tr('About', 'Kuhusu'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.secondary,
@@ -213,20 +227,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'App Version',
-                        style: TextStyle(
+                        _tr('App Version', 'Toleo la Programu'),
+                        style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      Text(
+                      const Text(
                         '1.0.0',
                         style: TextStyle(
                           color: AppColors.secondary,
@@ -235,23 +249,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 12),
-                  Divider(color: AppColors.border),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                  const Divider(color: AppColors.border),
+                  const SizedBox(height: 12),
                   Text(
-                    'Terms & Conditions',
-                    style: TextStyle(
+                    _tr('Terms & Conditions', 'Sheria na Masharti'),
+                    style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                       decoration: TextDecoration.underline,
                     ),
                   ),
-                  SizedBox(height: 12),
-                  Divider(color: AppColors.border),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                  const Divider(color: AppColors.border),
+                  const SizedBox(height: 12),
                   Text(
-                    'Privacy Policy',
-                    style: TextStyle(
+                    _tr('Privacy Policy', 'Sera ya Faragha'),
+                    style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                       decoration: TextDecoration.underline,
