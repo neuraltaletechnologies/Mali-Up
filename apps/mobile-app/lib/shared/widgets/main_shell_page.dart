@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/services/default_context_routing_service.dart';
+import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../config/routing.dart';
 import 'logo.dart';
@@ -19,12 +20,31 @@ class MainShellPage extends StatefulWidget {
 class _MainShellPageState extends State<MainShellPage> {
   User? _currentUser;
   late Future<Map<String, dynamic>?> _profileFuture;
+  late final VoidCallback _languageListener;
 
   @override
   void initState() {
     super.initState();
     _currentUser = FirebaseAuth.instance.currentUser;
     _profileFuture = _fetchUserProfile(_currentUser);
+    _languageListener = () {
+      if (mounted) {
+        setState(() {});
+      }
+    };
+    LocalizationService.languageNotifier.addListener(_languageListener);
+  }
+
+  @override
+  void dispose() {
+    LocalizationService.languageNotifier.removeListener(_languageListener);
+    super.dispose();
+  }
+
+  bool get _isSwahili => LocalizationService.isSwahili;
+
+  String _tr(String en, String sw) {
+    return _isSwahili ? sw : en;
   }
 
   void _refreshProfile() {
@@ -176,7 +196,7 @@ class _MainShellPageState extends State<MainShellPage> {
     return location == route || location.startsWith('$route/');
   }
 
-  static _DrawerProfileData _buildProfileData(User? user, Map<String, dynamic>? profile) {
+  _DrawerProfileData _buildProfileData(User? user, Map<String, dynamic>? profile) {
     final accountTypesRaw = profile?['accountTypes'];
     final accountTypes = accountTypesRaw is List
         ? accountTypesRaw.whereType<String>().toList()
@@ -189,8 +209,8 @@ class _MainShellPageState extends State<MainShellPage> {
             (accountTypes.isNotEmpty ? accountTypes.first : 'personal');
 
     final accountTypeLabel = accountType.toLowerCase() == 'business'
-        ? 'Akaunti ya Biashara'
-        : 'Akaunti Binafsi';
+      ? _tr('Business Account', 'Akaunti ya Biashara')
+      : _tr('Personal Account', 'Akaunti Binafsi');
 
     final fullName = ((profile?['displayName'] as String?)?.trim().isNotEmpty ?? false)
         ? (profile?['displayName'] as String).trim()
@@ -198,7 +218,7 @@ class _MainShellPageState extends State<MainShellPage> {
             ? (profile?['name'] as String).trim()
             : ((user?.displayName?.trim().isNotEmpty ?? false)
                 ? user!.displayName!.trim()
-                : 'Mtumiaji wa Mali App');
+                : _tr('Mali App User', 'Mtumiaji wa Mali App'));
 
     final authPhone = user?.phoneNumber?.trim();
     final profilePhone = (profile?['phone'] as String?)?.trim();
@@ -213,7 +233,7 @@ class _MainShellPageState extends State<MainShellPage> {
           ? profileEmail
           : ((authEmail != null && authEmail.isNotEmpty)
             ? authEmail
-            : 'Hakuna maelezo ya mawasiliano');
+            : _tr('No contact details available', 'Hakuna maelezo ya mawasiliano'));
 
     final avatarUrl = ((profile?['avatarUrl'] as String?)?.trim().isNotEmpty ?? false)
         ? (profile?['avatarUrl'] as String).trim()
@@ -322,7 +342,7 @@ class _MainShellPageState extends State<MainShellPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Semantics(
-                            label: 'Picha ya wasifu wa mtumiaji',
+                            label: _tr('User profile picture', 'Picha ya wasifu wa mtumiaji'),
                             child: CircleAvatar(
                               radius: 26,
                               backgroundColor: AppColors.primary,
@@ -395,7 +415,10 @@ class _MainShellPageState extends State<MainShellPage> {
                         _DrawerItem(
                           icon: Icons.grid_view_rounded,
                           label: 'Dashboard',
-                          semanticsLabel: 'Dashboard, sehemu kuu ya biashara',
+                          semanticsLabel: _tr(
+                            'Dashboard, main app section',
+                            'Dashboard, sehemu kuu ya biashara',
+                          ),
                           selected: _isSelected(location, AppRouter.dashboardPath),
                           onTap: () => _closeDrawerThenNavigate(context, AppRouter.dashboardPath),
                         ),
@@ -403,8 +426,11 @@ class _MainShellPageState extends State<MainShellPage> {
                         if (isBusinessContext) ...[
                           _DrawerItem(
                             icon: Icons.receipt_long_rounded,
-                            label: 'Mauzo na Ankara',
-                            semanticsLabel: 'Mauzo na Ankara, sales and invoices',
+                            label: _tr('Sales & Invoices', 'Mauzo na Ankara'),
+                            semanticsLabel: _tr(
+                              'Sales and invoices',
+                              'Mauzo na Ankara, sales and invoices',
+                            ),
                             selected: _isSelected(location, AppRouter.salesPath),
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.salesPath),
                             trailingBadge: '3',
@@ -412,16 +438,22 @@ class _MainShellPageState extends State<MainShellPage> {
                           const SizedBox(height: 8),
                           _DrawerItem(
                             icon: Icons.inventory_2_rounded,
-                            label: 'Bidhaa / Inventory',
-                            semanticsLabel: 'Bidhaa, inventory management',
+                            label: _tr('Inventory', 'Bidhaa / Inventory'),
+                            semanticsLabel: _tr(
+                              'Inventory management',
+                              'Bidhaa, inventory management',
+                            ),
                             selected: _isSelected(location, AppRouter.inventoryPath),
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.inventoryPath),
                           ),
                           const SizedBox(height: 8),
                           _DrawerItem(
                             icon: Icons.people_alt_rounded,
-                            label: 'Wateja / Customers',
-                            semanticsLabel: 'Wateja, customer relationship management',
+                            label: _tr('Customers', 'Wateja / Customers'),
+                            semanticsLabel: _tr(
+                              'Customer relationship management',
+                              'Wateja, customer relationship management',
+                            ),
                             selected: _isSelected(location, AppRouter.crmPath),
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.crmPath),
                           ),
@@ -430,48 +462,54 @@ class _MainShellPageState extends State<MainShellPage> {
                           const SizedBox(height: 10),
                           _DrawerItem(
                             icon: Icons.account_balance_rounded,
-                            label: 'Madeni / Debt Tracking',
-                            semanticsLabel: 'Madeni, debt tracking',
+                            label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
+                            semanticsLabel: _tr('Debt tracking', 'Madeni, debt tracking'),
                             selected: _isSelected(location, AppRouter.debtPath),
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.debtPath),
                           ),
                           const SizedBox(height: 8),
                           _DrawerItem(
                             icon: Icons.payments_outlined,
-                            label: 'Matumizi / Expenses',
-                            semanticsLabel: 'Matumizi, expense management',
+                            label: _tr('Expenses', 'Matumizi / Expenses'),
+                            semanticsLabel: _tr('Expense management', 'Matumizi, expense management'),
                             selected: _isSelected(location, AppRouter.expensesPath),
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.expensesPath),
                           ),
                           const SizedBox(height: 8),
                           _DrawerItem(
                             icon: Icons.account_balance_wallet_outlined,
-                            label: 'Mtiririko wa Fedha',
-                            semanticsLabel: 'Mtiririko wa fedha, cash flow and accounts',
+                            label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
+                            semanticsLabel: _tr(
+                              'Cash flow and accounts',
+                              'Mtiririko wa fedha, cash flow and accounts',
+                            ),
                             selected: _isSelected(location, AppRouter.cashFlowPath),
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.cashFlowPath),
                           ),
                         ] else ...[
                           _DrawerItem(
                             icon: Icons.payments_outlined,
-                            label: 'Matumizi / Expenses',
-                            semanticsLabel: 'Matumizi, expense management',
+                            label: _tr('Expenses', 'Matumizi / Expenses'),
+                            semanticsLabel: _tr('Expense management', 'Matumizi, expense management'),
                             selected: _isSelected(location, AppRouter.expensesPath),
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.expensesPath),
                           ),
                           const SizedBox(height: 8),
                           _DrawerItem(
                             icon: Icons.account_balance_rounded,
-                            label: 'Madeni / Debt Tracking',
-                            semanticsLabel: 'Madeni, debt tracking',
+                            label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
+                            semanticsLabel: _tr('Debt tracking', 'Madeni, debt tracking'),
                             selected: _isSelected(location, AppRouter.debtPath),
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.debtPath),
                           ),
                           const SizedBox(height: 8),
                           _DrawerItem(
                             icon: Icons.account_balance_wallet_outlined,
-                            label: 'Mtiririko wa Fedha',
-                            semanticsLabel: 'Mtiririko wa fedha, cash flow and accounts',
+                            label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
+                            semanticsLabel: _tr(
+                              'Cash flow and accounts',
+                              'Mtiririko wa fedha, cash flow and accounts',
+                            ),
                             selected: _isSelected(location, AppRouter.cashFlowPath),
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.cashFlowPath),
                           ),
@@ -481,16 +519,16 @@ class _MainShellPageState extends State<MainShellPage> {
                         const SizedBox(height: 10),
                         _DrawerItem(
                           icon: Icons.settings_rounded,
-                          label: 'Mipangilio / Settings',
-                          semanticsLabel: 'Mipangilio, app settings',
+                          label: _tr('Settings', 'Mipangilio / Settings'),
+                          semanticsLabel: _tr('App settings', 'Mipangilio, app settings'),
                           selected: _isSelected(location, AppRouter.settingsPath),
                           onTap: () => _closeDrawerThenNavigate(context, AppRouter.settingsPath),
                         ),
                         const SizedBox(height: 8),
                         _DrawerItem(
                           icon: Icons.headset_mic_rounded,
-                          label: 'Msaada / Help & Support',
-                          semanticsLabel: 'Msaada na support',
+                          label: _tr('Help & Support', 'Msaada / Help & Support'),
+                          semanticsLabel: _tr('Help and support', 'Msaada na support'),
                           selected: false,
                           onTap: () => Navigator.of(context).pop(),
                         ),
@@ -510,21 +548,21 @@ class _MainShellPageState extends State<MainShellPage> {
                       children: [
                         Semantics(
                           button: true,
-                          label: 'Toka, logout from Mali App',
+                          label: _tr('Sign out from Mali App', 'Toka, logout from Mali App'),
                           child: SizedBox(
                             height: 56,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(14),
                               onTap: () => _closeDrawerThenNavigate(context, AppRouter.loginPath),
-                              child: const Padding(
+                              child: Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 12),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.logout_rounded, color: AppColors.primary, size: 20),
-                                    SizedBox(width: 12),
+                                    const Icon(Icons.logout_rounded, color: AppColors.primary, size: 20),
+                                    const SizedBox(width: 12),
                                     Text(
-                                      'Toka',
-                                      style: TextStyle(
+                                      _tr('Sign Out', 'Toka'),
+                                      style: const TextStyle(
                                         color: AppColors.primary,
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
@@ -716,6 +754,8 @@ class _FinanceContextSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSwahili = LocalizationService.isSwahili;
+    String tr(String en, String sw) => isSwahili ? sw : en;
     final label = _isBusiness ? 'Business' : 'Personal';
     final icon = _isBusiness ? Icons.business_center_rounded : Icons.person_rounded;
 
@@ -723,7 +763,9 @@ class _FinanceContextSwitcher extends StatelessWidget {
       padding: const EdgeInsets.only(right: 4),
       child: PopupMenuButton<String>(
         enabled: canSwitch,
-        tooltip: canSwitch ? 'Switch finance context' : 'Single account context',
+        tooltip: canSwitch
+          ? tr('Switch finance context', 'Badili muktadha wa fedha')
+          : tr('Single account context', 'Muktadha mmoja wa akaunti'),
         onSelected: onChanged,
         itemBuilder: (context) {
           final uid = FirebaseAuth.instance.currentUser?.uid;

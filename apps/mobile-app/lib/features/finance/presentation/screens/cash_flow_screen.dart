@@ -9,7 +9,7 @@ class CashFlowScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accounts = ref.watch(cashAccountListProvider);
+    final accountsAsync = ref.watch(cashAccountListProvider);
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -64,15 +64,26 @@ class CashFlowScreen extends ConsumerWidget {
             ),
             SizedBox(
               height: 160,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: accounts.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 16),
-                itemBuilder: (context, index) {
-                  final account = accounts[index];
-                  return _AccountCard(account: account);
-                },
+              child: accountsAsync.when(
+                data: (accounts) => ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: accounts.length,
+                  separatorBuilder: (context, index) => const SizedBox(width: 16),
+                  itemBuilder: (context, index) {
+                    final account = accounts[index];
+                    return _AccountCard(account: account);
+                  },
+                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, _) => Center(
+                  child: Text(
+                    'Unable to load accounts right now.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                  ),
+                ),
               ),
             ),
             

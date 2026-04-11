@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/debt_providers.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class DebtTrackingScreen extends ConsumerWidget {
   const DebtTrackingScreen({super.key});
@@ -25,7 +28,7 @@ class DebtTrackingScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Control debt exposure',
+                          _tr('Control debt exposure', 'Dhibiti mzigo wa madeni'),
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 color: AppColors.secondary,
                                 fontWeight: FontWeight.w700,
@@ -33,7 +36,10 @@ class DebtTrackingScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'See what you owe and what is owed to you, with clear status tracking.',
+                          _tr(
+                            'See what you owe and what is owed to you, with clear status tracking.',
+                            'Ona unachodaiwa na unachodai, kwa ufuatiliaji wa hali ulio wazi.',
+                          ),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -62,7 +68,7 @@ class DebtTrackingScreen extends ConsumerWidget {
             padding: EdgeInsets.symmetric(horizontal: 24),
             sliver: SliverToBoxAdapter(
               child: Text(
-                'Recent Debt Movements',
+                _tr('Recent Debt Movements', 'Mienendo ya Madeni ya Karibuni'),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -94,7 +100,7 @@ class DebtTrackingScreen extends ConsumerWidget {
         backgroundColor: AppColors.error,
         icon: const Icon(Icons.add_circle_outline, color: AppColors.secondary),
         label: Text(
-          'New Debt',
+          _tr('New Debt', 'Ongeza Deni'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppColors.secondary,
             fontWeight: FontWeight.w700,
@@ -134,7 +140,7 @@ class _DebtOverviewBoard extends StatelessWidget {
               const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Debt Exposure Summary',
+                _tr('Debt Exposure Summary', 'Muhtasari wa Mzigo wa Madeni'),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
@@ -146,11 +152,11 @@ class _DebtOverviewBoard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _BigStat(label: 'You Owe', value: '4.2M', color: AppColors.error),
+                child: _BigStat(label: _tr('You Owe', 'Unadaiwa'), value: '4.2M', color: AppColors.error),
               ),
               Container(width: 1, height: 40, color: AppColors.glassBorder),
               Expanded(
-                child: _BigStat(label: 'Owed to You', value: '1.8M', color: AppColors.success),
+                child: _BigStat(label: _tr('Owed to You', 'Unachodai'), value: '1.8M', color: AppColors.success),
               ),
             ],
           ),
@@ -234,7 +240,7 @@ class _DebtCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  isPayable ? 'To Supplier' : 'From Customer',
+                  isPayable ? _tr('To Supplier', 'Kwa Muuzaji') : _tr('From Customer', 'Kutoka kwa Mteja'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textMuted,
                     fontSize: 12,

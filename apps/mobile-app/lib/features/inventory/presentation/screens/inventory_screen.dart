@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/page_intro_header.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key});
@@ -10,9 +13,12 @@ class InventoryScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          const PageIntroHeader(
-            title: 'Keep stock healthy',
-            subtitle: 'Catch low stock early and keep your products ready for every sale.',
+          PageIntroHeader(
+            title: _tr('Keep stock healthy', 'Dhibiti stoo iwe salama'),
+            subtitle: _tr(
+              'Catch low stock early and keep your products ready for every sale.',
+              'Baini upungufu wa stoo mapema na weka bidhaa tayari kwa kila mauzo.',
+            ),
             scene: EmotionalLottieScene.onboarding,
           ),
 
@@ -23,7 +29,7 @@ class InventoryScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: _SummaryBox(
-                    label: 'Total Items',
+                    label: _tr('Total Items', 'Jumla ya Bidhaa'),
                     value: '142',
                     borderColor: AppColors.primary,
                   ),
@@ -31,7 +37,7 @@ class InventoryScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _SummaryBox(
-                    label: 'Stock Value',
+                    label: _tr('Stock Value', 'Thamani ya Stoo'),
                     value: 'TSh 12.8M',
                     borderColor: AppColors.secondary,
                   ),
@@ -48,14 +54,14 @@ class InventoryScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               children: [
                 _AlertCard(
-                  title: 'Low Stock: Coca-Cola 500ml',
-                  subtitle: 'Only 5 units left',
+                  title: _tr('Low Stock: Coca-Cola 500ml', 'Stoo Chini: Coca-Cola 500ml'),
+                  subtitle: _tr('Only 5 units left', 'Zimebaki vipande 5 tu'),
                   color: AppColors.error,
                 ),
                 const SizedBox(width: 12),
                 _AlertCard(
-                  title: 'Expiring Soon: Milk 1L',
-                  subtitle: '24 units • 3 days left',
+                  title: _tr('Expiring Soon: Milk 1L', 'Inaisha Muda Karibu: Maziwa 1L'),
+                  subtitle: _tr('24 units • 3 days left', 'Vipande 24 • Siku 3 zimebaki'),
                   color: AppColors.warning,
                 ),
               ],
@@ -72,7 +78,7 @@ class InventoryScreen extends StatelessWidget {
                 Expanded(
                   child: TextField(
                     decoration: InputDecoration(
-                      hintText: 'Search products...',
+                      hintText: _tr('Search products...', 'Tafuta bidhaa...'),
                       prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
                     ),
                   ),
@@ -100,7 +106,7 @@ class InventoryScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Products Portfolio',
+                  _tr('Products Portfolio', 'Orodha ya Bidhaa'),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -108,7 +114,7 @@ class InventoryScreen extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Stock Level',
+                  _tr('Kiwango cha Stoo', 'Kiwango cha Stoo'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontSize: 12,
                     color: AppColors.textMuted,
@@ -132,7 +138,7 @@ class InventoryScreen extends StatelessWidget {
                   sku: 'ELEC-GAD-${200 + index}',
                   price: 'TSh ${1200000 + (index * 50000)}',
                   stock: 10 + index,
-                  unit: 'units',
+                  unit: _tr('units', 'vipande'),
                   isLow: index < 2,
                 );
               },

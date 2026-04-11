@@ -1,14 +1,16 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../core/theme/app_colors.dart';
+
 import '../../../../config/routing.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../debt/data/debt_providers.dart';
 
@@ -20,17 +22,22 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  static const _firstRewardSeenKey = 'dashboard_first_reward_seen';
+  static const _showIncomeSeriesKey = 'dashboard_show_income_series';
+  static const _showExpenseSeriesKey = 'dashboard_show_expense_series';
+
   int _entryRewardTrigger = 0;
   bool _showEntryReward = false;
-  Timer? _clockTimer;
-  late Future<Map<String, dynamic>?> _profileFuture;
   bool _showPersonalIncome = true;
   bool _showPersonalExpense = true;
+  Timer? _clockTimer;
+  late Future<Map<String, dynamic>?> _profileFuture;
 
   @override
   void initState() {
     super.initState();
     _profileFuture = _fetchUserProfile();
+    _loadChartVisibilityPrefs();
     _showFirstEntryRewardIfNeeded();
     _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
@@ -45,17 +52,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   String _timeBasedGreeting() {
     final hour = DateTime.now().hour;
-
     if (hour >= 5 && hour < 12) return 'Good morning';
     if (hour >= 12 && hour < 17) return 'Good afternoon';
     if (hour >= 17 && hour < 21) return 'Good evening';
-    if (hour >= 21 && hour <= 23) return 'Good night';
+    if (hour >= 21) return 'Good night';
     return 'Good midnight';
+  }
+
+  Future<void> _loadChartVisibilityPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final showIncome = prefs.getBool(_showIncomeSeriesKey) ?? true;
+    final showExpense = prefs.getBool(_showExpenseSeriesKey) ?? true;
+    if (!mounted) return;
+    setState(() {
+      _showPersonalIncome = showIncome;
+      _showPersonalExpense = showExpense;
+    });
+  }
+
+  Future<void> _persistChartVisibilityPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showIncomeSeriesKey, _showPersonalIncome);
+    await prefs.setBool(_showExpenseSeriesKey, _showPersonalExpense);
   }
 
   Future<void> _showFirstEntryRewardIfNeeded() async {
     final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool('dashboard_first_reward_seen') ?? false;
+    final seen = prefs.getBool(_firstRewardSeenKey) ?? false;
     if (seen || !mounted) return;
 
     setState(() {
@@ -63,7 +86,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _entryRewardTrigger++;
     });
 
-    await prefs.setBool('dashboard_first_reward_seen', true);
+    await prefs.setBool(_firstRewardSeenKey, true);
     await Future.delayed(const Duration(milliseconds: 1300));
     if (!mounted) return;
     setState(() => _showEntryReward = false);
@@ -84,8 +107,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (defaultContext != null && defaultContext.isNotEmpty) {
       return defaultContext.startsWith('business');
     }
-
-    final defaultAccountType = (profile?['defaultAccountType'] as String?)?.toLowerCase();
+    final defaultAccountType =
+        (profile?['defaultAccountType'] as String?)?.toLowerCase();
     return defaultAccountType == 'business';
   }
 
@@ -93,8 +116,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final customers = ref.watch(customerListProvider);
     final debts = ref.watch(debtListProvider);
-    final customerCount = customers.maybeWhen(data: (items) => items.length, orElse: () => 0);
-    final debtItems = debts.maybeWhen(data: (items) => items, orElse: () => const []);
+    final customerCount =
+        customers.maybeWhen(data: (items) => items.length, orElse: () => 0);
+    final debtItems =
+        debts.maybeWhen(data: (items) => items, orElse: () => const []);
 
     return Scaffold(
       body: Stack(
@@ -111,7 +136,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             future: _profileFuture,
             builder: (context, snapshot) {
               final isBusinessContext = _isBusinessContext(snapshot.data);
-
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -125,20 +149,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             children: [
                               Text(
                                 '${_timeBasedGreeting()}, Neuraltale',
-                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.secondary,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.secondary,
+                                    ),
                               ),
                               Text(
                                 isBusinessContext
                                     ? "Here's what's happening in your business today"
                                     : "Here's your personal money pulse for today",
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 14,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 14,
+                                    ),
                               ),
                             ],
                           ),
@@ -152,109 +182,56 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 32),
-
                     Row(
                       children: [
                         Expanded(
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              if (_showEntryReward)
-                                Positioned.fill(
-                                  child: Align(
-                                    alignment: Alignment.center,
-                                    child: Container(
-                                      margin: const EdgeInsets.only(top: 10),
-                                      height: 120,
-                                      decoration: BoxDecoration(
-                                        gradient: RadialGradient(
-                                          colors: [
-                                            AppColors.primary.withValues(alpha: 0.16),
-                                            AppColors.primary.withValues(alpha: 0.0),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(28),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              _KPICard(
-                                title: isBusinessContext
-                                    ? 'Today Revenue'
-                                    : 'Monthly Budget Health',
-                                value: isBusinessContext ? 'TSh 1.2M' : '78%',
-                                icon: isBusinessContext
-                                    ? Icons.trending_up
-                                    : Icons.favorite_outline,
-                                color: isBusinessContext
-                                    ? AppColors.success
-                                    : AppColors.primary,
-                              ),
-                            ],
+                          child: _KPICard(
+                            title: isBusinessContext
+                                ? 'Today Revenue'
+                                : 'Monthly Budget Health',
+                            value: isBusinessContext ? 'TSh 1.2M' : '78%',
+                            icon: isBusinessContext
+                                ? Icons.trending_up
+                                : Icons.favorite_outline,
+                            color: isBusinessContext
+                                ? AppColors.success
+                                : AppColors.primary,
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              if (_showEntryReward)
-                                Positioned.fill(
-                                  child: Align(
-                                    alignment: Alignment.center,
-                                    child: Container(
-                                      margin: const EdgeInsets.only(top: 10),
-                                      height: 120,
-                                      decoration: BoxDecoration(
-                                        gradient: RadialGradient(
-                                          colors: [
-                                            AppColors.secondaryLight.withValues(alpha: 0.12),
-                                            AppColors.secondaryLight.withValues(alpha: 0.0),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(28),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              _KPICard(
-                                title: isBusinessContext
-                                    ? 'Active Clients'
-                                    : 'Tracked Expenses',
-                                value: isBusinessContext
-                                    ? '$customerCount'
-                                    : '${debtItems.length + 12}',
-                                icon: isBusinessContext
-                                    ? Icons.people_outline
-                                    : Icons.receipt_long_outlined,
-                                color: isBusinessContext
-                                    ? AppColors.primary
-                                    : AppColors.warning,
-                              ),
-                            ],
+                          child: _KPICard(
+                            title: isBusinessContext
+                                ? 'Active Clients'
+                                : 'Tracked Expenses',
+                            value: isBusinessContext
+                                ? '$customerCount'
+                                : '${debtItems.length + 12}',
+                            icon: isBusinessContext
+                                ? Icons.people_outline
+                                : Icons.receipt_long_outlined,
+                            color: isBusinessContext
+                                ? AppColors.primary
+                                : AppColors.warning,
                           ),
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 24),
-
                     if (isBusinessContext)
                       _DebtQuickView(debts: debtItems)
                     else
                       const _PersonalFinanceQuickView(),
-
                     const SizedBox(height: 32),
-
                     Text(
                       isBusinessContext
                           ? 'Sales Performance'
                           : 'Personal Cash Trend',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.secondary,
-                      ),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.secondary,
+                          ),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -264,24 +241,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             isBusinessContext
                                 ? 'Last 7 days revenue trend with peak and average markers.'
                                 : 'Weekly flow of income and spending, including upcoming pressure points.',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 12,
+                                    ),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.success.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             isBusinessContext ? '+12.4%' : '+4.8%',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: AppColors.success,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                           ),
                         ),
                       ],
@@ -297,6 +279,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               setState(() {
                                 _showPersonalIncome = !_showPersonalIncome;
                               });
+                              unawaited(_persistChartVisibilityPrefs());
                             },
                       onToggleExpense: isBusinessContext
                           ? null
@@ -304,6 +287,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               setState(() {
                                 _showPersonalExpense = !_showPersonalExpense;
                               });
+                              unawaited(_persistChartVisibilityPrefs());
                             },
                     ),
                     const SizedBox(height: 16),
@@ -315,9 +299,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         showPersonalExpense: _showPersonalExpense,
                       ),
                     ),
-
                     const SizedBox(height: 32),
-
                     _RecentTransactionsList(
                       title: isBusinessContext
                           ? 'Recent Transactions'
@@ -372,10 +354,10 @@ class _DebtQuickView extends StatelessWidget {
                 Text(
                   'Debt Exposure',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -383,22 +365,28 @@ class _DebtQuickView extends StatelessWidget {
                     Text(
                       'TSh 4.2M',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: AppColors.error,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
+                            color: AppColors.error,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                       child: Text(
                         'PAYABLE',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.error,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                        ),
+                              color: AppColors.error,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                            ),
                       ),
                     ),
                   ],
@@ -406,7 +394,11 @@ class _DebtQuickView extends StatelessWidget {
               ],
             ),
             const Spacer(),
-            const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 16),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: AppColors.textMuted,
+              size: 16,
+            ),
           ],
         ),
       ),
@@ -533,7 +525,6 @@ class _QuickRouteCard extends StatelessWidget {
   }
 }
 
-
 class _KPICard extends StatelessWidget {
   final String title;
   final String value;
@@ -571,18 +562,18 @@ class _KPICard extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-            ),
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: AppColors.secondary,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
+                  color: AppColors.secondary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),
@@ -615,8 +606,25 @@ class _SalesLineChart extends StatelessWidget {
 
     const personalIncomePoints = <FlSpot>[
       FlSpot(0, 2.8),
-    final unit = isBusinessContext ? 'M' : 'k';
+      FlSpot(1, 2.2),
+      FlSpot(2, 3.4),
+      FlSpot(3, 2.6),
+      FlSpot(4, 3.2),
+      FlSpot(5, 2.5),
+      FlSpot(6, 3.0),
+    ];
 
+    const personalExpensePoints = <FlSpot>[
+      FlSpot(0, 1.6),
+      FlSpot(1, 1.9),
+      FlSpot(2, 1.7),
+      FlSpot(3, 2.1),
+      FlSpot(4, 1.8),
+      FlSpot(5, 2.0),
+      FlSpot(6, 1.7),
+    ];
+
+    final unit = isBusinessContext ? 'M' : 'k';
     final lineBarsData = <LineChartBarData>[];
     final seriesNames = <String>[];
 
@@ -742,14 +750,12 @@ class _SalesLineChart extends StatelessWidget {
       );
     }
 
-    final maxY = isBusinessContext ? 6.0 : 4.0;
-
     return LineChart(
       LineChartData(
         minX: 0,
         maxX: 6,
         minY: 0,
-        maxY: maxY,
+        maxY: isBusinessContext ? 6.0 : 4.0,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
@@ -809,9 +815,8 @@ class _SalesLineChart extends StatelessWidget {
             tooltipBorderRadius: BorderRadius.circular(10),
             getTooltipItems: (spots) {
               return spots.map((spot) {
-                final seriesIndex = spot.barIndex;
-                final seriesName = seriesIndex < seriesNames.length
-                    ? seriesNames[seriesIndex]
+                final seriesName = spot.barIndex < seriesNames.length
+                    ? seriesNames[spot.barIndex]
                     : 'Series';
                 return LineTooltipItem(
                   '$seriesName: TSh ${spot.y.toStringAsFixed(1)}$unit',
@@ -827,244 +832,127 @@ class _SalesLineChart extends StatelessWidget {
         lineBarsData: lineBarsData,
       ),
     );
-                            dotData: FlDotData(
-                              show: true,
-                              getDotPainter: (spot, percent, bar, index) {
-                                return FlDotCirclePainter(
-                                  radius: 3.4,
-                                  color: AppColors.error,
-                                  strokeWidth: 1.2,
-                                  strokeColor: AppColors.background,
-                                );
-                              },
-                            ),
-                            belowBarData: BarAreaData(
-                              show: true,
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppColors.error.withValues(alpha: 0.18),
-                                  AppColors.error.withValues(alpha: 0),
-                                ],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ),
-                            ),
-                          ),
-                      ],
-              ),
-              child: hasPersonalSeries || isBusinessContext
-                  ? null
-                  : const SizedBox.shrink(),
-            );
-          }
-        }
+  }
+}
 
-        class _ChartLegendRow extends StatelessWidget {
-          final bool isBusinessContext;
-          final bool showPersonalIncome;
-          final bool showPersonalExpense;
-          final VoidCallback? onToggleIncome;
-          final VoidCallback? onToggleExpense;
+class _ChartLegendRow extends StatelessWidget {
+  final bool isBusinessContext;
+  final bool showPersonalIncome;
+  final bool showPersonalExpense;
+  final VoidCallback? onToggleIncome;
+  final VoidCallback? onToggleExpense;
 
-          const _ChartLegendRow({
-            required this.isBusinessContext,
-            required this.showPersonalIncome,
-            required this.showPersonalExpense,
-            required this.onToggleIncome,
-            required this.onToggleExpense,
-          });
+  const _ChartLegendRow({
+    required this.isBusinessContext,
+    required this.showPersonalIncome,
+    required this.showPersonalExpense,
+    required this.onToggleIncome,
+    required this.onToggleExpense,
+  });
 
-          @override
-          Widget build(BuildContext context) {
-            final chips = isBusinessContext
-                ? const [
-                    _LegendChip(
-                      label: 'Sales',
-                      color: AppColors.primary,
-                      selected: true,
-                    ),
-                  ]
-                : <Widget>[
-                    _LegendChip(
-                      label: 'Income',
-                      color: AppColors.success,
-                      selected: showPersonalIncome,
-                      onTap: onToggleIncome,
-                    ),
-                    _LegendChip(
-                      label: 'Expense',
-                      color: AppColors.error,
-                      selected: showPersonalExpense,
-                      onTap: onToggleExpense,
-                    ),
-                  ];
+  @override
+  Widget build(BuildContext context) {
+    final chips = isBusinessContext
+        ? const [
+            _LegendChip(
+              label: 'Sales',
+              color: AppColors.primary,
+              selected: true,
+            ),
+          ]
+        : <Widget>[
+            _LegendChip(
+              label: 'Income',
+              color: AppColors.success,
+              selected: showPersonalIncome,
+              onTap: onToggleIncome,
+            ),
+            _LegendChip(
+              label: 'Expense',
+              color: AppColors.error,
+              selected: showPersonalExpense,
+              onTap: onToggleExpense,
+            ),
+          ];
 
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: chips,
-            );
-          }
-        }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: chips,
+    );
+  }
+}
 
-        class _LegendChip extends StatelessWidget {
-          final String label;
-          final Color color;
-          final bool selected;
-          final VoidCallback? onTap;
+class _LegendChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final bool selected;
+  final VoidCallback? onTap;
 
-          const _LegendChip({
-            required this.label,
-            required this.color,
-            required this.selected,
-            this.onTap,
-          });
+  const _LegendChip({
+    required this.label,
+    required this.color,
+    required this.selected,
+    this.onTap,
+  });
 
-          @override
-          Widget build(BuildContext context) {
-            final backgroundColor = selected
-                ? color.withValues(alpha: 0.12)
-                : AppColors.surface.withValues(alpha: 0.45);
-            final borderColor = selected
-                ? color.withValues(alpha: 0.22)
-                : AppColors.border.withValues(alpha: 0.8);
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = selected
+        ? color.withValues(alpha: 0.12)
+        : AppColors.surface.withValues(alpha: 0.45);
+    final borderColor = selected
+        ? color.withValues(alpha: 0.22)
+        : AppColors.border.withValues(alpha: 0.8);
 
-            return Semantics(
-              button: onTap != null,
-              selected: selected,
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(999),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: backgroundColor,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: selected ? color : color.withValues(alpha: 0.45),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        label,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: selected ? AppColors.secondary : AppColors.textMuted,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11,
-                            ),
-                      ),
-                    ],
-                  ),
+    return Semantics(
+      button: onTap != null,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: selected ? color : color.withValues(alpha: 0.45),
+                  shape: BoxShape.circle,
                 ),
               ),
-            );
-          }
-        }
-
-        class _RecentTransactionsList extends StatelessWidget {
-          final String title;
-
-          const _RecentTransactionsList({
-            this.title = 'Recent Transactions',
-          });
-
-          @override
-          Widget build(BuildContext context) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.secondary,
-                      ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: selected ? AppColors.secondary : AppColors.textMuted,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
                     ),
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'View All',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: 4,
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final isExpense = index % 2 != 0;
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: (isExpense ? AppColors.error : AppColors.success).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            isExpense ? Icons.north_east_rounded : Icons.south_west_rounded,
-                            color: isExpense ? AppColors.error : AppColors.success,
-                            size: 20,
-                          ),
-                        ),
-                        title: Text(
-                          isExpense ? 'Shop Rent Payment' : 'Product Sale #2409',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppColors.secondary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                        ),
-                        subtitle: Text(
-                          isExpense ? 'Expense • Oct 01, 2026' : 'Revenue • Today, 10:45 AM',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                        trailing: Text(
-                          isExpense ? '-850,000' : '+45,000',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: isExpense ? AppColors.error : AppColors.success,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            );
-          }
-        }
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentTransactionsList extends StatelessWidget {
+  final String title;
+
+  const _RecentTransactionsList({
+    this.title = 'Recent Transactions',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1077,19 +965,19 @@ class _SalesLineChart extends StatelessWidget {
             Text(
               title,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.secondary,
-              ),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.secondary,
+                  ),
             ),
             TextButton(
               onPressed: () {},
               child: Text(
                 'View All',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.secondary,
-                  fontWeight: FontWeight.w700,
-                ),
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ),
           ],
@@ -1113,11 +1001,14 @@ class _SalesLineChart extends StatelessWidget {
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: (isExpense ? AppColors.error : AppColors.success).withValues(alpha: 0.1),
+                    color: (isExpense ? AppColors.error : AppColors.success)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    isExpense ? Icons.north_east_rounded : Icons.south_west_rounded,
+                    isExpense
+                        ? Icons.north_east_rounded
+                        : Icons.south_west_rounded,
                     color: isExpense ? AppColors.error : AppColors.success,
                     size: 20,
                   ),
@@ -1125,25 +1016,27 @@ class _SalesLineChart extends StatelessWidget {
                 title: Text(
                   isExpense ? 'Shop Rent Payment' : 'Product Sale #2409',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                 ),
                 subtitle: Text(
-                  isExpense ? 'Expense • Oct 01, 2026' : 'Revenue • Today, 10:45 AM',
+                  isExpense
+                      ? 'Expense  Oct 01, 2026'
+                      : 'Revenue  Today, 10:45 AM',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                  ),
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
                 ),
                 trailing: Text(
                   isExpense ? '-850,000' : '+45,000',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: isExpense ? AppColors.error : AppColors.success,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                  ),
+                        color: isExpense ? AppColors.error : AppColors.success,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                      ),
                 ),
               ),
             );
@@ -1153,4 +1046,3 @@ class _SalesLineChart extends StatelessWidget {
     );
   }
 }
-
