@@ -135,13 +135,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  String _defaultContextFor(String userId) {
-    if (_selectedAccountType == AccountManagementType.business) {
-      return 'business:$userId';
-    }
-    return 'personal';
-  }
-
   Future<void> _goToPostLoginLanding() async {
     final route = await DefaultContextRoutingService.resolveUserLandingPath(
       auth: _auth,
@@ -641,11 +634,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (user != null) {
         final recoveryEmail = _emailController.text.trim().toLowerCase();
         final displayName = _ownerNameController.text.trim();
+        final businessId = _firestore.collection('tenants').doc(user.uid).collection('businesses').doc().id;
 
         final selectedAccountTypes = _selectedAccountValues;
         final defaultAccountType = selectedAccountTypes.first;
         final usagePreference = _usagePreference;
-        final defaultContext = _defaultContextFor(user.uid);
+        final defaultContext = _includesBusiness ? 'business:$businessId' : 'personal';
+
+        final businesses = _includesBusiness
+            ? [
+                {
+                  'id': businessId,
+                  'name': _businessNameController.text.trim(),
+                  'category': _businessCategoryKey,
+                  'placeOfBusiness': _placeOfBusinessController.text.trim(),
+                  'createdAt': FieldValue.serverTimestamp(),
+                },
+              ]
+            : <Map<String, dynamic>>[];
 
         await _firestore.collection('users').doc(user.uid).set({
           'phone': user.phoneNumber,
@@ -657,6 +663,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'accountTypes': selectedAccountTypes,
           'usagePreference': usagePreference,
           'defaultContext': defaultContext,
+          'selectedBusinessId': _includesBusiness ? businessId : null,
+          'businesses': businesses,
           if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -664,7 +672,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         // Create business tenant if business is selected
         if (_includesBusiness) {
-          await _firestore.collection('tenants').doc(user.uid).set({
+          await _firestore.collection('tenants').doc(user.uid).collection('businesses').doc(businessId).set({
+            'id': businessId,
             'businessName': _businessNameController.text.trim(),
             'businessCategory': _businessCategoryKey,
             'placeOfBusiness': _placeOfBusinessController.text.trim(),

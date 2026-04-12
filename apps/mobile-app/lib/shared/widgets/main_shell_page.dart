@@ -6,7 +6,6 @@ import '../../core/services/default_context_routing_service.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../config/routing.dart';
-import 'logo.dart';
 
 
 class MainShellPage extends StatefulWidget {
@@ -54,51 +53,122 @@ class _MainShellPageState extends State<MainShellPage> {
     });
   }
 
+  List<Map<String, dynamic>> _businessesFromProfile(Map<String, dynamic>? profile) {
+    final businessesRaw = profile?['businesses'];
+    if (businessesRaw is! List) return const [];
+
+    return businessesRaw
+        .whereType<Map>()
+        .map(
+          (entry) => <String, dynamic>{
+            'id': (entry['id'] as String?)?.trim() ?? '',
+            'name': (entry['name'] as String?)?.trim() ?? '',
+            'category': (entry['category'] as String?)?.trim() ?? '',
+            'placeOfBusiness': (entry['placeOfBusiness'] as String?)?.trim() ?? '',
+          },
+        )
+        .where((entry) => (entry['id'] as String).isNotEmpty)
+        .toList();
+  }
+
+  String? _selectedBusinessId(Map<String, dynamic>? profile) {
+    final value = profile?['selectedBusinessId'] as String?;
+    return value == null || value.trim().isEmpty ? null : value.trim();
+  }
+
   String _defaultContextFromProfile(Map<String, dynamic>? profile) {
     final defaultContext = profile?['defaultContext'];
     if (defaultContext is String && defaultContext.isNotEmpty) {
       return defaultContext;
     }
 
+    final businesses = _businessesFromProfile(profile);
+    final selectedBusinessId = _selectedBusinessId(profile);
     final defaultAccountType = (profile?['defaultAccountType'] as String?)?.toLowerCase();
     if (defaultAccountType == 'business') {
-      final uid = _currentUser?.uid;
-      return uid == null ? 'business' : 'business:$uid';
+      final businessId = selectedBusinessId ?? (businesses.isNotEmpty ? businesses.first['id'] as String : null);
+      if (businessId != null && businessId.isNotEmpty) {
+        return 'business:$businessId';
+      }
+      return 'business';
     }
 
     return 'personal';
   }
 
   bool _canSwitchFinanceContext(Map<String, dynamic>? profile) {
+    final businesses = _businessesFromProfile(profile);
+    if (businesses.isNotEmpty) {
+      return true;
+    }
+
     final accountTypesRaw = profile?['accountTypes'];
-    if (accountTypesRaw is! List) return false;
+    if (accountTypesRaw is List) {
+      final normalized = accountTypesRaw
+          .whereType<String>()
+          .map((e) => e.toLowerCase())
+          .toSet();
+      if (normalized.contains('personal') && normalized.contains('business')) {
+        return true;
+      }
+    }
 
-    final normalized = accountTypesRaw
-        .whereType<String>()
-        .map((e) => e.toLowerCase())
-        .toSet();
+    // Backward-compatible fallback for older user documents.
+    final usagePreference = (profile?['usagePreference'] as String?)?.toLowerCase();
+    if (usagePreference == 'both' || usagePreference == 'personal_and_business') {
+      return true;
+    }
 
-    return normalized.contains('personal') && normalized.contains('business');
+    return false;
   }
 
   Future<void> _switchFinanceContext(String nextContext) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final nextType = nextContext.toLowerCase().startsWith('business')
+    final profile = await _profileFuture;
+    final businesses = _businessesFromProfile(profile);
+    final normalized = nextContext.toLowerCase();
+    final resolvedNextContext = normalized.startsWith('business')
+        ? () {
+            final requestedBusinessId = normalized.contains(':')
+                ? normalized.split(':').sublist(1).join(':').trim()
+                : null;
+            if (requestedBusinessId != null && requestedBusinessId.isNotEmpty) {
+              return 'business:$requestedBusinessId';
+            }
+            final fallbackBusinessId = _selectedBusinessId(profile) ?? (businesses.isNotEmpty ? businesses.first['id'] as String : null);
+            return fallbackBusinessId == null ? 'business' : 'business:$fallbackBusinessId';
+          }()
+        : 'personal';
+
+    final nextType = normalized.startsWith('business')
         ? 'business'
         : 'personal';
 
+    final currentContext = _defaultContextFromProfile(profile);
+    if (currentContext == resolvedNextContext) {
+      if (!mounted) return;
+      final route = DefaultContextRoutingService.routeFromContextValue(resolvedNextContext);
+      context.go(route);
+      return;
+    }
+
+    final selectedBusinessId = resolvedNextContext.startsWith('business:')
+        ? resolvedNextContext.split(':').sublist(1).join(':')
+        : null;
+
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-      'defaultContext': nextContext,
+      'defaultContext': resolvedNextContext,
       'defaultAccountType': nextType,
+      'selectedBusinessId': selectedBusinessId,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
     _refreshProfile();
 
     if (!mounted) return;
-    final route = DefaultContextRoutingService.routeFromContextValue(nextContext);
+    final route = DefaultContextRoutingService.routeFromContextValue(resolvedNextContext);
     context.go(route);
   }
 
@@ -189,6 +259,7 @@ class _MainShellPageState extends State<MainShellPage> {
     if (location.startsWith(AppRouter.expensesPath)) return 'Expenses';
     if (location.startsWith(AppRouter.cashFlowPath)) return 'Cash Flow';
     if (location.startsWith(AppRouter.settingsPath)) return 'Settings';
+    if (location.startsWith(AppRouter.businessesPath)) return 'Manage Businesses';
     return 'Dashboard';
   }
 
@@ -254,74 +325,74 @@ class _MainShellPageState extends State<MainShellPage> {
     final location = GoRouterState.of(context).uri.toString();
     final title = _pageTitle(location);
     final currentUser = _currentUser;
+    final isDashboard = _isSelected(location, AppRouter.dashboardPath);
 
-    return Scaffold(
-      drawerScrimColor: Colors.black.withValues(alpha: 0.45),
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const MaliUpLogo(size: 28),
-            const SizedBox(width: 12),
-            Text(title),
-          ],
-        ),
-        centerTitle: false,
-        actions: [
-          FutureBuilder<Map<String, dynamic>?>(
-            future: _profileFuture,
-            builder: (context, snapshot) {
-              final profile = snapshot.data;
-              final selectedContext = _defaultContextFromProfile(profile);
-              final canSwitch = _canSwitchFinanceContext(profile);
-              return _FinanceContextSwitcher(
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _profileFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done && snapshot.data == null) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final profileData = snapshot.data;
+        final profile = _buildProfileData(currentUser, profileData);
+        final initials = profile.fullName.isNotEmpty
+            ? profile.fullName.trim()[0].toUpperCase()
+            : 'M';
+        final businesses = _businessesFromProfile(profileData);
+        final isBusinessContext =
+            _defaultContextFromProfile(profileData).toLowerCase().startsWith('business');
+        final selectedContext = _defaultContextFromProfile(profileData);
+        final canSwitch = _canSwitchFinanceContext(profileData);
+        final destinations = isBusinessContext
+            ? _businessNavDestinations()
+            : _personalNavDestinations();
+        final currentIndex = _calculateIndex(location, destinations);
+
+        return Scaffold(
+          drawerScrimColor: Colors.black.withValues(alpha: 0.45),
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            titleSpacing: 0,
+            leading: Builder(
+              builder: (context) {
+                return IconButton(
+                  icon: const Icon(Icons.menu_rounded),
+                  tooltip: _tr('Open navigation menu', 'Fungua menyu ya urambazaji'),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                );
+              },
+            ),
+            actions: [
+              _FinanceContextSwitcher(
                 selectedContext: selectedContext,
                 canSwitch: canSwitch,
+                businesses: businesses,
                 onChanged: _switchFinanceContext,
-              );
-            },
+                onManageBusinesses: () => context.go(AppRouter.businessesPath),
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.search_rounded),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.go(AppRouter.settingsPath),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      drawer: Drawer(
-        width: MediaQuery.of(context).size.width * 0.80,
-        backgroundColor: AppColors.secondary,
-        elevation: 18,
-        clipBehavior: Clip.antiAlias,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(
-            topRight: Radius.circular(24),
-            bottomRight: Radius.circular(24),
-          ),
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.secondary,
-          ),
-          child: FutureBuilder<Map<String, dynamic>?>(
-            future: _profileFuture,
-            builder: (context, snapshot) {
-              final profileData = snapshot.data;
-              final profile = _buildProfileData(currentUser, profileData);
-              final initials = profile.fullName.isNotEmpty
-                  ? profile.fullName.trim()[0].toUpperCase()
-                  : 'M';
-              final isBusinessContext =
-                  _defaultContextFromProfile(profileData).toLowerCase().startsWith('business');
-
-              return Column(
+          drawer: Drawer(
+            width: MediaQuery.of(context).size.width * 0.80,
+            backgroundColor: AppColors.secondary,
+            elevation: 18,
+            clipBehavior: Clip.antiAlias,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topRight: Radius.circular(24),
+                bottomRight: Radius.circular(24),
+              ),
+            ),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: AppColors.secondary,
+              ),
+              child: Column(
                 children: [
                   SafeArea(
                     bottom: false,
@@ -514,6 +585,14 @@ class _MainShellPageState extends State<MainShellPage> {
                             onTap: () => _closeDrawerThenNavigate(context, AppRouter.cashFlowPath),
                           ),
                         ],
+                        const SizedBox(height: 8),
+                        _DrawerItem(
+                          icon: Icons.storefront_rounded,
+                          label: _tr('Manage Businesses', 'Simamia Biashara'),
+                          semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
+                          selected: _isSelected(location, AppRouter.businessesPath),
+                          onTap: () => _closeDrawerThenNavigate(context, AppRouter.businessesPath),
+                        ),
                         const SizedBox(height: 10),
                         Divider(color: AppColors.background.withValues(alpha: 0.14), height: 1),
                         const SizedBox(height: 10),
@@ -588,24 +667,43 @@ class _MainShellPageState extends State<MainShellPage> {
                     ),
                   ),
                 ],
-              );
-            },
+              ),
+            ),
           ),
-        ),
-      ),
-      body: widget.child,
-      bottomNavigationBar: FutureBuilder<Map<String, dynamic>?>(
-        future: _profileFuture,
-        builder: (context, snapshot) {
-          final profile = snapshot.data;
-          final contextValue = _defaultContextFromProfile(profile).toLowerCase();
-          final isBusinessContext = contextValue.startsWith('business');
-          final destinations = isBusinessContext
-              ? _businessNavDestinations()
-              : _personalNavDestinations();
-          final currentIndex = _calculateIndex(location, destinations);
-
-          return Container(
+          body: Column(
+            children: [
+              if (!isDashboard)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.secondary.withValues(alpha: 0.06),
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.secondary,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(child: widget.child),
+            ],
+          ),
+          bottomNavigationBar: Container(
             decoration: BoxDecoration(
               color: AppColors.background,
               border: Border(
@@ -627,9 +725,9 @@ class _MainShellPageState extends State<MainShellPage> {
                   )
                   .toList(),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -742,21 +840,46 @@ class _DrawerItem extends StatelessWidget {
 class _FinanceContextSwitcher extends StatelessWidget {
   final String selectedContext;
   final bool canSwitch;
+  final List<Map<String, dynamic>> businesses;
   final ValueChanged<String> onChanged;
+  final VoidCallback onManageBusinesses;
 
   const _FinanceContextSwitcher({
     required this.selectedContext,
     required this.canSwitch,
+    required this.businesses,
     required this.onChanged,
+    required this.onManageBusinesses,
   });
 
   bool get _isBusiness => selectedContext.toLowerCase().startsWith('business');
+
+  String? _selectedBusinessId() {
+    if (!_isBusiness || !selectedContext.contains(':')) {
+      return null;
+    }
+    return selectedContext.split(':').sublist(1).join(':');
+  }
 
   @override
   Widget build(BuildContext context) {
     final isSwahili = LocalizationService.isSwahili;
     String tr(String en, String sw) => isSwahili ? sw : en;
-    final label = _isBusiness ? 'Business' : 'Personal';
+    final selectedBusinessId = _selectedBusinessId();
+    Map<String, dynamic>? selectedBusiness;
+    if (selectedBusinessId != null) {
+      for (final business in businesses) {
+        if (business['id'] == selectedBusinessId) {
+          selectedBusiness = business;
+          break;
+        }
+      }
+    }
+    final label = _isBusiness
+        ? (selectedBusiness?['name'] as String?)?.trim().isNotEmpty == true
+            ? (selectedBusiness!['name'] as String).trim()
+            : tr('Business', 'Biashara')
+        : tr('Personal', 'Binafsi');
     final icon = _isBusiness ? Icons.business_center_rounded : Icons.person_rounded;
 
     return Padding(
@@ -766,29 +889,51 @@ class _FinanceContextSwitcher extends StatelessWidget {
         tooltip: canSwitch
           ? tr('Switch finance context', 'Badili muktadha wa fedha')
           : tr('Single account context', 'Muktadha mmoja wa akaunti'),
-        onSelected: onChanged,
+        onSelected: (value) {
+          if (value == 'manage_businesses') {
+            onManageBusinesses();
+            return;
+          }
+          onChanged(value);
+        },
         itemBuilder: (context) {
-          final uid = FirebaseAuth.instance.currentUser?.uid;
-          final businessContext = uid == null ? 'business' : 'business:$uid';
-          return [
-            const PopupMenuItem<String>(
+          return <PopupMenuEntry<String>>[
+            PopupMenuItem<String>(
               value: 'personal',
               child: Row(
                 children: [
-                  Icon(Icons.person_rounded, size: 18),
-                  SizedBox(width: 8),
-                  Text('Personal Context'),
+                  const Icon(Icons.person_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  Text(tr('Personal Context', 'Muktadha wa Kibinafsi')),
                 ],
               ),
             ),
+            if (businesses.isNotEmpty) const PopupMenuDivider(),
+            ...businesses.map(
+              (business) => PopupMenuItem<String>(
+                value: 'business:${business['id']}',
+                child: Row(
+                  children: [
+                    const Icon(Icons.business_center_rounded, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        (business['name'] as String?)?.trim().isNotEmpty == true
+                            ? (business['name'] as String).trim()
+                            : tr('Business Context', 'Muktadha wa Biashara'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const PopupMenuDivider(),
             PopupMenuItem<String>(
-              value: businessContext,
-              child: const Row(
-                children: [
-                  Icon(Icons.business_center_rounded, size: 18),
-                  SizedBox(width: 8),
-                  Text('Business Context'),
-                ],
+              value: 'manage_businesses',
+              child: Text(
+                tr('Manage businesses', 'Simamia biashara'),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ];

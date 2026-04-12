@@ -6,6 +6,7 @@ import '../features/onboarding/presentation/screens/onboarding_flow.dart' deferr
 import '../features/onboarding/presentation/screens/language_selection_screen.dart' deferred as language_selection;
 import '../features/dashboard/presentation/screens/dashboard_screen.dart' deferred as dashboard_screen;
 import '../features/settings/presentation/screens/settings_screen.dart' deferred as settings_screen;
+import '../features/business/presentation/screens/manage_businesses_screen.dart' deferred as manage_businesses_screen;
 import '../shared/widgets/main_shell_page.dart';
 import '../features/sales/presentation/screens/sales_screen.dart' deferred as sales_screen;
 import '../features/inventory/presentation/screens/inventory_screen.dart' deferred as inventory_screen;
@@ -27,6 +28,7 @@ class AppRouter {
   static const String expensesPath = '/expenses';
   static const String cashFlowPath = '/cashflow';
   static const String settingsPath = '/settings';
+  static const String businessesPath = '/businesses';
 
   static GoRouter createRouter({
     required bool showLanguageSelection,
@@ -153,6 +155,13 @@ class AppRouter {
               builder: (context, state) => _buildDeferredRoute(
                 loadLibrary: settings_screen.loadLibrary,
                 builder: () => settings_screen.SettingsScreen(),
+              ),
+            ),
+            GoRoute(
+              path: businessesPath,
+              builder: (context, state) => _buildDeferredRoute(
+                loadLibrary: manage_businesses_screen.loadLibrary,
+                builder: () => manage_businesses_screen.ManageBusinessesScreen(),
               ),
             ),
           ],
