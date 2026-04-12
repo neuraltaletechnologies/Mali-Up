@@ -50,8 +50,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       vsync: this,
     );
 
-    // Start auto-advance timer (5 seconds per page)
-    _startAutoAdvance();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Start auto-advance timer after the first frame so onboarding paint happens first.
+      _startAutoAdvance();
+    });
   }
 
   String _tr(String en, String sw) {
@@ -176,10 +179,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           children: [
             const SizedBox(height: 20),
             EntranceAnimation(
-              delay: const Duration(milliseconds: 120),
+              delay: const Duration(milliseconds: 60),
               child: EmotionalLottieSpot(
                 scene: _lottieSceneForPage(page.index),
-                size: 220,
+                size: 160,
                 fallbackMood: CompanionMood.calm,
               ),
             ),
@@ -187,7 +190,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
             // Text content
             EntranceAnimation(
-              delay: const Duration(milliseconds: 400),
+              delay: const Duration(milliseconds: 200),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 switchInCurve: Curves.easeOut,

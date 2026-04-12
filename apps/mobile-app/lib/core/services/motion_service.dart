@@ -9,6 +9,10 @@ class MotionService {
     reducedMotionNotifier.value = await getReducedMotionEnabled();
   }
 
+  static Future<void> initializeWithPrefs(SharedPreferences prefs) async {
+    reducedMotionNotifier.value = prefs.getBool(_reducedMotionKey) ?? false;
+  }
+
   static Future<void> setReducedMotionEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_reducedMotionKey, enabled);

@@ -36,8 +36,11 @@ class _SplashScreenState extends State<SplashScreen>
       }
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
-    _setupAnimations();
-    _scheduleNavigation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _setupAnimations();
+      _scheduleNavigation();
+    });
   }
 
   String _tr(String en, String sw) {
@@ -46,7 +49,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _setupAnimations() {
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 1600),
       vsync: this,
     );
 
@@ -68,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _scheduleNavigation() {
-    Future.delayed(const Duration(milliseconds: 3500), () {
+    Future.delayed(const Duration(milliseconds: 2400), () {
       if (mounted) {
         widget.onSplashComplete();
       }
@@ -99,9 +102,6 @@ class _SplashScreenState extends State<SplashScreen>
         child: SafeArea(
           child: Stack(
             children: [
-              // Animated background circles (decorative)
-              _buildBackgroundDecorations(),
-
               // Main content
               Center(
                 child: Column(
@@ -143,41 +143,15 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildBackgroundDecorations() {
     return Stack(
       children: [
-        // Top right circle
         Positioned(
-          top: -72,
-          right: -64,
-          child: Container(
-            width: 210,
-            height: 210,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: OnboardingColors.accentGreen.withValues(alpha: 0.09),
-            ),
-          ),
-        ),
-        // Bottom left circle
-        Positioned(
-          bottom: -86,
-          left: -96,
-          child: Container(
-            width: 250,
-            height: 250,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: OnboardingColors.primaryDeep.withValues(alpha: 0.05),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 140,
+          top: 150,
           left: 18,
           child: Container(
-            width: 70,
-            height: 70,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: OnboardingColors.accentGreen.withValues(alpha: 0.12),
+              color: OnboardingColors.accentGreen.withValues(alpha: 0.08),
             ),
           ),
         ),
@@ -190,34 +164,30 @@ class _SplashScreenState extends State<SplashScreen>
       animation: _logoAnimation,
       builder: (context, child) {
         return Transform.scale(
-          scale: 0.7 + (0.3 * _logoAnimation.value),
+          scale: 0.88 + (0.12 * _logoAnimation.value),
           child: Opacity(
             opacity: _logoAnimation.value,
-            child: PulsingGlowWidget(
-              glowColor: OnboardingColors.accentGreen,
-              duration: const Duration(milliseconds: 2000),
-              child: Container(
-                width: 148,
-                height: 148,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(32),
-                  color: OnboardingColors.white,
-                  border: Border.all(
-                    color: OnboardingColors.accentGreen.withValues(alpha: 0.22),
+            child: Container(
+              width: 108,
+              height: 108,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(26),
+                color: OnboardingColors.white,
+                border: Border.all(
+                  color: OnboardingColors.accentGreen.withValues(alpha: 0.14),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: OnboardingColors.accentGreen.withValues(alpha: 0.10),
+                    blurRadius: 16,
+                    spreadRadius: -10,
+                    offset: const Offset(0, 6),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: OnboardingColors.accentGreen.withValues(alpha: 0.22),
-                      blurRadius: 28,
-                      spreadRadius: -8,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: MaliUpLogo(size: 86),
-                ),
+                ],
+              ),
+              child: const Center(
+                child: MaliUpLogo(size: 64),
               ),
             ),
           ),
@@ -236,27 +206,14 @@ class _SplashScreenState extends State<SplashScreen>
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Column(
               children: [
-                // App name
-                ShaderMask(
-                  shaderCallback: (bounds) {
-                    return const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        OnboardingColors.primaryDeep,
-                        OnboardingColors.accentGreen,
-                      ],
-                    ).createShader(bounds);
-                  },
-                  child: Text(
-                    _tr('MaliUp', 'MaliUp'),
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: OnboardingColors.primaryDeep,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 48,
-                          letterSpacing: 1,
-                        ),
-                  ),
+                Text(
+                  _tr('MaliUp', 'MaliUp'),
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                        color: OnboardingColors.primaryDeep,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 42,
+                        letterSpacing: 0.5,
+                      ),
                 ),
                 const SizedBox(height: 12),
                 // Tagline

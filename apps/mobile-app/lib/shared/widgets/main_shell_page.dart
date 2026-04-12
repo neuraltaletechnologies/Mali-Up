@@ -306,17 +306,10 @@ class _MainShellPageState extends State<MainShellPage> {
             ? authEmail
             : _tr('No contact details available', 'Hakuna maelezo ya mawasiliano'));
 
-    final avatarUrl = ((profile?['avatarUrl'] as String?)?.trim().isNotEmpty ?? false)
-        ? (profile?['avatarUrl'] as String).trim()
-        : ((profile?['photoURL'] as String?)?.trim().isNotEmpty ?? false)
-            ? (profile?['photoURL'] as String).trim()
-            : user?.photoURL;
-
     return _DrawerProfileData(
       fullName: fullName,
       contactLine: contactLine,
       accountTypeLabel: accountTypeLabel,
-      avatarUrl: avatarUrl,
     );
   }
 
@@ -417,19 +410,14 @@ class _MainShellPageState extends State<MainShellPage> {
                             child: CircleAvatar(
                               radius: 26,
                               backgroundColor: AppColors.primary,
-                              backgroundImage: (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty)
-                                  ? NetworkImage(profile.avatarUrl!)
-                                  : null,
-                              child: (profile.avatarUrl == null || profile.avatarUrl!.isEmpty)
-                                  ? Text(
-                                      initials,
-                                      style: const TextStyle(
-                                        color: AppColors.secondary,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    )
-                                  : null,
+                              child: Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: AppColors.secondary,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -984,13 +972,11 @@ class _DrawerProfileData {
   final String fullName;
   final String contactLine;
   final String accountTypeLabel;
-  final String? avatarUrl;
 
   const _DrawerProfileData({
     required this.fullName,
     required this.contactLine,
     required this.accountTypeLabel,
-    required this.avatarUrl,
   });
 }
 

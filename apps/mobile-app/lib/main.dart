@@ -28,10 +28,12 @@ Future<void> main() async {
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
-  await LocalizationService.initialize();
-  await MotionService.initialize();
-
   final prefs = await SharedPreferences.getInstance();
+  await Future.wait([
+    LocalizationService.initializeWithPrefs(prefs),
+    MotionService.initializeWithPrefs(prefs),
+  ]);
+
   final hasCompletedOnboarding =
       prefs.getBool(_onboardingCompletedKey) ?? false;
   final hasSelectedLanguage = 
