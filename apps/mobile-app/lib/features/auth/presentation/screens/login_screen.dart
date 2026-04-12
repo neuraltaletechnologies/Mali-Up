@@ -115,6 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
   bool _isEmailLoading = false;
+  bool _showHeroAnimation = false;
   
   final TextEditingController _phoneController = TextEditingController(text: '0653520829');
   final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
@@ -145,6 +146,11 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _showHeroAnimation = true);
+    });
 
     if (widget.autoSendOtp) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -832,7 +838,7 @@ class _LoginScreenState extends State<LoginScreen> {
     const textSecondary = Color(0xFF6B7280);
     const fieldBg = Color(0xFFEFF5F2);
     final mediaQuery = MediaQuery.of(context);
-    final topHeight = mediaQuery.size.height * 0.30;
+    final topHeight = mediaQuery.size.height * 0.25;
     final bottomInset = mediaQuery.viewInsets.bottom;
 
     InputDecoration fieldDecoration({
@@ -904,11 +910,33 @@ class _LoginScreenState extends State<LoginScreen> {
                         return RepaintBoundary(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
-                            child: Lottie.asset(
-                              'assets/lottie/Login.json',
-                              fit: BoxFit.contain,
-                              repeat: false,
-                              animate: !reducedMotion,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 220),
+                              child: _showHeroAnimation && !reducedMotion
+                                  ? Lottie.asset(
+                                      'assets/lottie/Login.json',
+                                      key: const ValueKey('login-hero-lottie'),
+                                      fit: BoxFit.contain,
+                                      repeat: false,
+                                      animate: true,
+                                    )
+                                  : Center(
+                                      key: const ValueKey('login-hero-placeholder'),
+                                      child: Container(
+                                        width: 120,
+                                        height: 120,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.10),
+                                          borderRadius: BorderRadius.circular(28),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(alpha: 0.15),
+                                          ),
+                                        ),
+                                        child: const Center(
+                                          child: MaliUpLogo(size: 56),
+                                        ),
+                                      ),
+                                    ),
                             ),
                           ),
                         );

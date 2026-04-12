@@ -34,16 +34,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _showPersonalIncome = true;
   bool _showPersonalExpense = true;
   Timer? _clockTimer;
-  late Future<Map<String, dynamic>?> _profileFuture;
+  Future<Map<String, dynamic>?> _profileFuture = Future.value(null);
 
   @override
   void initState() {
     super.initState();
-    _profileFuture = _fetchUserProfile();
-    _loadChartVisibilityPrefs();
-    _showFirstEntryRewardIfNeeded();
-    _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _profileFuture = _fetchUserProfile();
+      });
+      _loadChartVisibilityPrefs();
+      _showFirstEntryRewardIfNeeded();
+      _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+        if (mounted) setState(() {});
+      });
     });
   }
 
