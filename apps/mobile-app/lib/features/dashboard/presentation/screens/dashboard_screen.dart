@@ -12,7 +12,9 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
+import '../../../customer/domain/models/customer.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../debt/domain/models/debt.dart';
 import '../../../debt/data/debt_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -33,6 +35,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _showEntryReward = false;
   bool _showPersonalIncome = true;
   bool _showPersonalExpense = true;
+  bool _showHeavyContent = false;
   Timer? _clockTimer;
   Future<Map<String, dynamic>?> _profileFuture = Future.value(null);
 
@@ -48,6 +51,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _showFirstEntryRewardIfNeeded();
       _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
         if (mounted) setState(() {});
+      });
+      Future<void>.delayed(const Duration(milliseconds: 120), () {
+        if (mounted) {
+          setState(() {
+            _showHeavyContent = true;
+          });
+        }
       });
     });
   }
@@ -122,12 +132,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customers = ref.watch(customerListProvider);
-    final debts = ref.watch(debtListProvider);
-    final customerCount =
-        customers.maybeWhen(data: (items) => items.length, orElse: () => 0);
-    final debtItems =
-        debts.maybeWhen(data: (items) => items, orElse: () => const []);
+    final customers = _showHeavyContent
+      ? ref.watch(customerListProvider)
+      : const AsyncLoading<List<Customer>>();
+    final debts = _showHeavyContent
+      ? ref.watch(debtListProvider)
+      : const AsyncLoading<List<Debt>>();
+    final customerCount = _showHeavyContent
+      ? customers.maybeWhen(data: (items) => items.length, orElse: () => 0)
+      : 0;
+    final debtItems = _showHeavyContent
+      ? debts.maybeWhen(data: (items) => items, orElse: () => const [])
+      : const [];
 
     return Scaffold(
       body: Stack(
@@ -190,46 +206,52 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 32),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _KPICard(
-                            title: isBusinessContext
-                                ? _tr('Today Revenue', 'Mapato ya Leo')
-                                : _tr('Monthly Budget Health', 'Afya ya Bajeti ya Mwezi'),
-                            value: isBusinessContext ? 'TSh 1.2M' : '78%',
-                            icon: isBusinessContext
-                                ? Icons.trending_up
-                                : Icons.favorite_outline,
-                            color: isBusinessContext
-                                ? AppColors.success
-                                : AppColors.primary,
+                    if (_showHeavyContent)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _KPICard(
+                              title: isBusinessContext
+                                  ? _tr('Today Revenue', 'Mapato ya Leo')
+                                  : _tr('Monthly Budget Health', 'Afya ya Bajeti ya Mwezi'),
+                              value: isBusinessContext ? 'TSh 1.2M' : '78%',
+                              icon: isBusinessContext
+                                  ? Icons.trending_up
+                                  : Icons.favorite_outline,
+                              color: isBusinessContext
+                                  ? AppColors.success
+                                  : AppColors.primary,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _KPICard(
-                            title: isBusinessContext
-                              ? _tr('Active Clients', 'Wateja Hai')
-                              : _tr('Tracked Expenses', 'Matumizi Yanayofuatiliwa'),
-                            value: isBusinessContext
-                                ? '$customerCount'
-                                : '${debtItems.length + 12}',
-                            icon: isBusinessContext
-                                ? Icons.people_outline
-                                : Icons.receipt_long_outlined,
-                            color: isBusinessContext
-                                ? AppColors.primary
-                                : AppColors.warning,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _KPICard(
+                              title: isBusinessContext
+                                ? _tr('Active Clients', 'Wateja Hai')
+                                : _tr('Tracked Expenses', 'Matumizi Yanayofuatiliwa'),
+                              value: isBusinessContext
+                                  ? '$customerCount'
+                                  : '${debtItems.length + 12}',
+                              icon: isBusinessContext
+                                  ? Icons.people_outline
+                                  : Icons.receipt_long_outlined,
+                              color: isBusinessContext
+                                  ? AppColors.primary
+                                  : AppColors.warning,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    if (isBusinessContext)
-                      _DebtQuickView(debts: debtItems)
+                        ],
+                      )
                     else
-                      const _PersonalFinanceQuickView(),
+                      const _DashboardLoadingStrip(),
+                    const SizedBox(height: 24),
+                    if (_showHeavyContent)
+                      if (isBusinessContext)
+                        _DebtQuickView(debts: debtItems)
+                      else
+                        const _PersonalFinanceQuickView()
+                    else
+                      const _DashboardLoadingCard(),
                     const SizedBox(height: 32),
                     Text(
                       isBusinessContext
@@ -277,42 +299,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _ChartLegendRow(
-                      isBusinessContext: isBusinessContext,
-                      showPersonalIncome: _showPersonalIncome,
-                      showPersonalExpense: _showPersonalExpense,
-                      onToggleIncome: isBusinessContext
-                          ? null
-                          : () {
-                              setState(() {
-                                _showPersonalIncome = !_showPersonalIncome;
-                              });
-                              unawaited(_persistChartVisibilityPrefs());
-                            },
-                      onToggleExpense: isBusinessContext
-                          ? null
-                          : () {
-                              setState(() {
-                                _showPersonalExpense = !_showPersonalExpense;
-                              });
-                              unawaited(_persistChartVisibilityPrefs());
-                            },
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 240,
-                      child: _SalesLineChart(
+                    if (_showHeavyContent)
+                      _ChartLegendRow(
                         isBusinessContext: isBusinessContext,
                         showPersonalIncome: _showPersonalIncome,
                         showPersonalExpense: _showPersonalExpense,
-                      ),
+                        onToggleIncome: isBusinessContext
+                            ? null
+                            : () {
+                                setState(() {
+                                  _showPersonalIncome = !_showPersonalIncome;
+                                });
+                                unawaited(_persistChartVisibilityPrefs());
+                              },
+                        onToggleExpense: isBusinessContext
+                            ? null
+                            : () {
+                                setState(() {
+                                  _showPersonalExpense = !_showPersonalExpense;
+                                });
+                                unawaited(_persistChartVisibilityPrefs());
+                              },
+                      )
+                    else
+                      const _DashboardLoadingPillRow(),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 240,
+                      child: _showHeavyContent
+                          ? _SalesLineChart(
+                              isBusinessContext: isBusinessContext,
+                              showPersonalIncome: _showPersonalIncome,
+                              showPersonalExpense: _showPersonalExpense,
+                            )
+                          : const _DashboardChartPlaceholder(),
                     ),
                     const SizedBox(height: 32),
-                    _RecentTransactionsList(
-                      title: isBusinessContext
-                          ? _tr('Recent Transactions', 'Miamala ya Karibuni')
-                          : _tr('Recent Personal Activity', 'Shughuli za Kibinafsi za Karibuni'),
-                    ),
+                    _showHeavyContent
+                        ? _RecentTransactionsList(
+                            title: isBusinessContext
+                                ? _tr('Recent Transactions', 'Miamala ya Karibuni')
+                                : _tr('Recent Personal Activity', 'Shughuli za Kibinafsi za Karibuni'),
+                          )
+                        : const _DashboardLoadingList(),
                   ],
                 ),
               );
@@ -328,6 +357,140 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _DashboardLoadingStrip extends StatelessWidget {
+  const _DashboardLoadingStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        Expanded(
+          child: _DashboardLoadingCard(),
+        ),
+        SizedBox(width: 16),
+        Expanded(
+          child: _DashboardLoadingCard(),
+        ),
+      ],
+    );
+  }
+}
+
+class _DashboardLoadingCard extends StatelessWidget {
+  const _DashboardLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 122,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          width: 80,
+          height: 12,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Color(0x22000000),
+              borderRadius: BorderRadius.all(Radius.circular(999)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardLoadingPillRow extends StatelessWidget {
+  const _DashboardLoadingPillRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _DashboardLoadingPill(),
+        _DashboardLoadingPill(),
+      ],
+    );
+  }
+}
+
+class _DashboardLoadingPill extends StatelessWidget {
+  const _DashboardLoadingPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 74,
+      height: 28,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.border),
+      ),
+    );
+  }
+}
+
+class _DashboardChartPlaceholder extends StatelessWidget {
+  const _DashboardChartPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 84,
+          height: 12,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Color(0x22000000),
+              borderRadius: BorderRadius.all(Radius.circular(999)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardLoadingList extends StatelessWidget {
+  const _DashboardLoadingList();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(
+        3,
+        (index) => Padding(
+          padding: EdgeInsets.only(bottom: index == 2 ? 0 : 8),
+          child: Container(
+            height: 72,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -459,7 +622,7 @@ class _PersonalFinanceQuickView extends StatelessWidget {
                 child: _QuickRouteCard(
                   icon: Icons.account_balance_rounded,
                   title: _tr('Debt', 'Madeni'),
-                  subtitle: _tr('Manage obligations', 'Simamia majukumu'),
+                  subtitle: _tr('Obligations', 'Simamia majukumu'),
                   route: AppRouter.debtPath,
                 ),
               ),

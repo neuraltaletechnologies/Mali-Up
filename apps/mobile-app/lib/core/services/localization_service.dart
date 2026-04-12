@@ -69,7 +69,10 @@ class LocalizationService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_languageKey, language.code);
     await prefs.setBool(_languageSelectedKey, true);
-    languageNotifier.value = language;
+
+    if (languageNotifier.value != language) {
+      languageNotifier.value = language;
+    }
   }
 
   static Future<AppLanguage> getLanguage() async {
@@ -94,6 +97,9 @@ class LocalizationService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_languageKey);
     await prefs.remove(_languageSelectedKey);
-    languageNotifier.value = AppLanguage.english;
+
+    if (languageNotifier.value != AppLanguage.english) {
+      languageNotifier.value = AppLanguage.english;
+    }
   }
 }
