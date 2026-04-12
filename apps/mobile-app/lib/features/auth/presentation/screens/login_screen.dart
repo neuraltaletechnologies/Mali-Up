@@ -717,6 +717,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _precheckAndSendOtp() async {
+    await Future<void>.delayed(Duration.zero);
+
     // ── DEV BYPASS ──────────────────────────────────────────────────────────
     // When dev bypass is enabled, do not run Firebase readiness checks.
     // This avoids billing/SMS region errors during development.
@@ -776,10 +778,13 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
         _triggerSuccessBurst();
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            unawaited(_goToPostLoginLanding());
-          }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Future.delayed(const Duration(milliseconds: 250), () {
+            if (mounted) {
+              unawaited(_goToPostLoginLanding());
+            }
+          });
         });
       }
       return;
@@ -796,10 +801,13 @@ class _LoginScreenState extends State<LoginScreen> {
         await _NotificationHelper.showSuccess(context, _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'));
         _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
         _triggerSuccessBurst();
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            unawaited(_goToPostLoginLanding());
-          }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Future.delayed(const Duration(milliseconds: 250), () {
+            if (mounted) {
+              unawaited(_goToPostLoginLanding());
+            }
+          });
         });
       }
     } on FirebaseAuthException catch (e) {
@@ -1110,7 +1118,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             minimumSize: const Size.fromHeight(52),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          onPressed: _isLoading ? null : _precheckAndSendOtp,
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (mounted) {
+                                      unawaited(_precheckAndSendOtp());
+                                    }
+                                  });
+                                },
                           child: Text(
                             _isLoading ? _tr('Sending...', 'Inatuma...') : _tr('Send OTP', 'Tuma OTP'),
                             style: GoogleFonts.poppins(fontWeight: FontWeight.w700),

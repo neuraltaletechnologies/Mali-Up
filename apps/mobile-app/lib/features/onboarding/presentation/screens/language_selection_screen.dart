@@ -72,10 +72,15 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
   }
 
   Future<void> _selectLanguage(AppLanguage language) async {
+    if (_isSelecting) return;
     setState(() => _isSelecting = true);
-    await LocalizationService.setLanguage(language);
-    if (mounted) {
+    try {
+      await LocalizationService.setLanguage(language);
+      if (!mounted) return;
       widget.onLanguageSelected();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSelecting = false);
     }
   }
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/onboarding_colors.dart';
-import '../widgets/animated_widgets.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../core/services/localization_service.dart';
 
