@@ -11,23 +11,23 @@ const steps = [
     color: "#F5A623",
     img: "/app-dashboard.jpg",
     title: "Download & Sign Up",
-    desc: "Install Mali Up on Android or iOS. Create your tenant account in under 2 minutes — no paperwork, no delays.",
+    desc: "Install Mali Up on Android or iOS. Create your account in under 2 minutes — no paperwork, no delays.",
   },
   {
     number: "02",
     icon: Store,
     color: "#22C55E",
     img: "/app-inventory.jpg",
-    title: "Set Up Your Business",
-    desc: "Add your products, pricing, staff, and customers. Import existing data or start fresh — Mali Up adapts to you.",
+    title: "Add Your Financial Life",
+    desc: "Log your income sources, register your assets — land, vehicle, stocks — and add your business if you have one. Whatever your situation.",
   },
   {
     number: "03",
     icon: TrendingUp,
     color: "#3B82F6",
     img: "/app-analytics.jpg",
-    title: "Grow with Data",
-    desc: "Sell, invoice, and track in real time. Let the analytics surface insights that help you make smarter decisions every day.",
+    title: "See Your Full Picture",
+    desc: "Watch your money flow, see your net worth update in real time, and make smarter decisions about your financial future.",
   },
 ]
 
@@ -151,10 +151,10 @@ export function HowItWorks() {
             className="reveal font-heading font-bold text-[#0C1B2E] text-balance"
             style={{ fontSize: "clamp(1.9rem,4vw,3rem)" }}
           >
-            Up &amp; Running in Minutes
+            Set up in minutes. Use for life.
           </h2>
           <p className="reveal text-[#0C1B2E]/65 max-w-lg mx-auto leading-relaxed">
-            No IT team required. No steep learning curve. Just three steps from download to your first sale.
+            No complicated setup, no accountant needed. Three steps and your complete financial life is in your pocket.
           </p>
         </div>
 
@@ -178,7 +178,7 @@ export function HowItWorks() {
             href="#waitlist"
             className="relative overflow-hidden shimmer-btn text-[#0C1B2E] font-bold px-8 py-4 rounded-2xl text-base shadow-2xl hover:scale-105 hover:shadow-[0_8px_32px_rgba(245,166,35,0.45)] active:scale-[0.97] transition-all duration-200 inline-flex items-center gap-2 group"
           >
-            Start Your Free Account
+            Claim Your Spot
             <span className="group-hover:translate-x-1 transition-transform duration-200" aria-hidden="true">→</span>
           </a>
         </div>

@@ -22,16 +22,16 @@ export function Nav() {
       (entries) => {
         entries.forEach((e) => { if (e.isIntersecting) setActiveLink(`#${e.target.id}`) })
       },
-      { rootMargin: "-40% 0px -55% 0px" }
+      { rootMargin: "-10% 0px -60% 0px", threshold: 0 }
     )
     sections.forEach((s) => obs.observe(s))
     return () => obs.disconnect()
   }, [])
 
   const links = [
-    { label: "Features",     href: "#features" },
+    { label: "Features",    href: "#features" },
+    { label: "Who It's For", href: "#who-its-for" },
     { label: "How It Works", href: "#how-it-works" },
-    { label: "Modules",      href: "#modules" },
     { label: "Stats",        href: "#stats" },
   ]
 

@@ -51,8 +51,8 @@ export function Footer() {
               </span>
             </div>
             <p className="text-[#0C1B2E]/60 text-sm leading-relaxed max-w-xs">
-              The pocket ERP for African SMBs. Built by{" "}
-              <span style={{ color: "rgba(245,166,35,0.7)" }}>Neuraltale Technology</span> — engineered for the continent, designed for growth.
+              Your hybrid financial companion for Africa — personal finance and business management in one powerful app. Built by{" "}
+              <span style={{ color: "rgba(245,166,35,0.7)" }}>Neuraltale Technology</span>.
             </p>
 
             {/* Social links */}
