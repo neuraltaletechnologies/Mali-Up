@@ -15,9 +15,28 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://maliup.neuraltale.com/'),
   title: 'Mali Up — Pocket ERP for African SMBs',
   description: 'Mali Up is a multi-tenant SaaS platform that lets African businesses manage sales, invoicing, inventory, finance, CRM, and analytics from one mobile app.',
   generator: 'v0.app',
+  alternates: {
+    canonical: '/',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+  openGraph: {
+    url: '/',
+    siteName: 'Mali Up',
+    title: 'Mali Up — Pocket ERP for African SMBs',
+    description: 'Mali Up is a multi-tenant SaaS platform that lets African businesses manage sales, invoicing, inventory, finance, CRM, and analytics from one mobile app.',
+    type: 'website',
+  },
   icons: {
     icon: [
       {
