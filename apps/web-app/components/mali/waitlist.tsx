@@ -6,9 +6,9 @@ import NextImage from "next/image"
 
 const perks = [
   "Early access before public launch",
-  "Free onboarding & data import",
+  "All 3 pillars unlocked — money, assets, business",
   "Priority support for 6 months",
-  "Locked-in founder pricing forever",
+  "Founder pricing — locked in forever",
 ]
 
 /* Confetti particle */
@@ -83,7 +83,7 @@ export function Waitlist() {
         {/* Badge */}
         <div className="reveal inline-flex justify-center mb-6">
           <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">
-            Limited Spots Available
+            Limited Early Access Spots
           </span>
         </div>
 
@@ -107,17 +107,17 @@ export function Waitlist() {
           className="reveal font-heading font-bold text-[#0C1B2E] mb-4 text-balance"
           style={{ fontSize: "clamp(2rem,5vw,3.2rem)" }}
         >
-          Be First in Line When{" "}
+          Your Financial Life,{" "}
           <span
             className="shimmer-btn bg-clip-text"
             style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
           >
-            Mali Up Launches.
+            Finally in One Place.
           </span>
         </h2>
 
         <p className="reveal text-[#0C1B2E]/65 leading-relaxed mb-10 max-w-xl mx-auto">
-          Join thousands of African entrepreneurs ready to take their business to the next level. Spots are limited — secure yours today.
+          Join thousands of Africans who want to know their money flow, understand what their assets are worth, and manage it all from one app — no matter their income or profession.
         </p>
 
         {/* Perks */}

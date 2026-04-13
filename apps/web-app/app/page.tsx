@@ -1,8 +1,8 @@
 import { Nav } from "@/components/mali/nav"
 import { Hero } from "@/components/mali/hero"
 import { Features } from "@/components/mali/features"
+import { Audience } from "@/components/mali/audience"
 import { HowItWorks } from "@/components/mali/how-it-works"
-import { PhoneShowcase } from "@/components/mali/phone-showcase"
 import { AppGallery } from "@/components/mali/app-gallery"
 import { Stats } from "@/components/mali/stats"
 import { Waitlist } from "@/components/mali/waitlist"
@@ -14,8 +14,8 @@ export default function MaliUpPage() {
       <Nav />
       <Hero />
       <Features />
+      <Audience />
       <HowItWorks />
-      <PhoneShowcase />
       <AppGallery />
       <Stats />
       <Waitlist />
