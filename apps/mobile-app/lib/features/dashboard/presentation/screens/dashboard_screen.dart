@@ -16,6 +16,9 @@ import '../../../customer/domain/models/customer.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../debt/domain/models/debt.dart';
 import '../../../debt/data/debt_providers.dart';
+import '../../../finance/data/finance_providers.dart';
+import '../../../finance/domain/models/cash_account.dart';
+import '../../../finance/domain/models/expense.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -144,6 +147,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final debtItems = _showHeavyContent
       ? debts.maybeWhen(data: (items) => items, orElse: () => const [])
       : const [];
+    final AsyncValue<List<Expense>> expenses = _showHeavyContent
+      ? ref.watch(expenseListProvider)
+      : const AsyncLoading<List<Expense>>();
+    final AsyncValue<List<CashAccount>> cashAccounts = _showHeavyContent
+      ? ref.watch(cashAccountListProvider)
+      : const AsyncLoading<List<CashAccount>>();
+    final expenseItems = _showHeavyContent
+      ? expenses.maybeWhen(data: (items) => items, orElse: () => const [])
+      : const [];
+    final cashAccountItems = _showHeavyContent
+      ? cashAccounts.maybeWhen(data: (items) => items, orElse: () => const [])
+      : const [];
+    final totalExpenses = expenseItems.fold<double>(
+      0,
+      (total, item) => total + _numericValue(item.amount),
+    );
+    final totalCash = cashAccountItems.fold<double>(
+      0,
+      (total, item) => total + _numericValue(item.balance),
+    );
+    final budgetHealth = totalCash <= 0 ? 0 : ((totalCash - totalExpenses) / totalCash * 100).clamp(0, 100);
 
     return Scaffold(
       body: Stack(
@@ -172,7 +196,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${_timeBasedGreeting()}, Neuraltale',
+                                '${_timeBasedGreeting()}, ${_displayName(snapshot.data)}',
                                 style: Theme.of(context)
                                     .textTheme
                                     .headlineMedium
@@ -214,7 +238,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               title: isBusinessContext
                                   ? _tr('Today Revenue', 'Mapato ya Leo')
                                   : _tr('Monthly Budget Health', 'Afya ya Bajeti ya Mwezi'),
-                              value: isBusinessContext ? 'TSh 1.2M' : '78%',
+                              value: isBusinessContext ? _fmtCompactAmount(totalCash) : '${budgetHealth.round()}%',
                               icon: isBusinessContext
                                   ? Icons.trending_up
                                   : Icons.favorite_outline,
@@ -231,7 +255,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 : _tr('Tracked Expenses', 'Matumizi Yanayofuatiliwa'),
                               value: isBusinessContext
                                   ? '$customerCount'
-                                  : '${debtItems.length + 12}',
+                                  : '${expenseItems.length}',
                               icon: isBusinessContext
                                   ? Icons.people_outline
                                   : Icons.receipt_long_outlined,
@@ -288,7 +312,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            isBusinessContext ? '+12.4%' : '+4.8%',
+                            isBusinessContext
+                                ? '${customerCount >= 1 ? '+' : ''}${(customerCount * 1.2).toStringAsFixed(1)}%'
+                                : '${budgetHealth >= 0 ? '+' : ''}${budgetHealth.toStringAsFixed(1)}%',
                             style:
                                 Theme.of(context).textTheme.labelSmall?.copyWith(
                                       color: AppColors.success,
@@ -331,6 +357,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               isBusinessContext: isBusinessContext,
                               showPersonalIncome: _showPersonalIncome,
                               showPersonalExpense: _showPersonalExpense,
+                              expenses: expenseItems,
+                              debts: debtItems,
                             )
                           : const _DashboardChartPlaceholder(),
                     ),
@@ -340,6 +368,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             title: isBusinessContext
                                 ? _tr('Recent Transactions', 'Miamala ya Karibuni')
                                 : _tr('Recent Personal Activity', 'Shughuli za Kibinafsi za Karibuni'),
+                            expenses: expenseItems,
+                            debts: debtItems,
                           )
                         : const _DashboardLoadingList(),
                   ],
@@ -534,7 +564,7 @@ class _DebtQuickView extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'TSh 4.2M',
+                      _fmtCompactAmount(debts.fold<double>(0, (sum, debt) => sum + _numericValue(debt.amount))),
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             color: AppColors.error,
                             fontSize: 24,
@@ -756,44 +786,34 @@ class _SalesLineChart extends StatelessWidget {
   final bool isBusinessContext;
   final bool showPersonalIncome;
   final bool showPersonalExpense;
+  final List<dynamic> expenses;
+  final List<dynamic> debts;
 
   const _SalesLineChart({
     required this.isBusinessContext,
     required this.showPersonalIncome,
     required this.showPersonalExpense,
+    required this.expenses,
+    required this.debts,
   });
 
   @override
   Widget build(BuildContext context) {
-    const businessSalesPoints = <FlSpot>[
-      FlSpot(0, 3),
-      FlSpot(1, 1.5),
-      FlSpot(2, 4.2),
-      FlSpot(3, 2.8),
-      FlSpot(4, 5.1),
-      FlSpot(5, 3.6),
-      FlSpot(6, 4.4),
-    ];
-
-    const personalIncomePoints = <FlSpot>[
-      FlSpot(0, 2.8),
-      FlSpot(1, 2.2),
-      FlSpot(2, 3.4),
-      FlSpot(3, 2.6),
-      FlSpot(4, 3.2),
-      FlSpot(5, 2.5),
-      FlSpot(6, 3.0),
-    ];
-
-    const personalExpensePoints = <FlSpot>[
-      FlSpot(0, 1.6),
-      FlSpot(1, 1.9),
-      FlSpot(2, 1.7),
-      FlSpot(3, 2.1),
-      FlSpot(4, 1.8),
-      FlSpot(5, 2.0),
-      FlSpot(6, 1.7),
-    ];
+    final businessSalesPoints = _buildSpotsFromAmountStrings(
+      debts
+          .where((debt) => (debt.type as String?)?.toLowerCase() == 'receivable')
+          .map((debt) => debt.amount as String?)
+          .toList(),
+    );
+    final personalIncomePoints = _buildSpotsFromAmountStrings(
+      debts
+          .where((debt) => (debt.type as String?)?.toLowerCase() == 'receivable')
+          .map((debt) => debt.amount as String?)
+          .toList(),
+    );
+    final personalExpensePoints = _buildSpotsFromAmountStrings(
+      expenses.map((expense) => expense.amount as String?).toList(),
+    );
 
     final unit = isBusinessContext ? 'M' : 'k';
     final lineBarsData = <LineChartBarData>[];
@@ -1128,9 +1148,13 @@ class _LegendChip extends StatelessWidget {
 
 class _RecentTransactionsList extends StatelessWidget {
   final String title;
+  final List<dynamic> expenses;
+  final List<dynamic> debts;
 
   const _RecentTransactionsList({
     this.title = 'Recent Transactions',
+    this.expenses = const [],
+    this.debts = const [],
   });
 
   @override
@@ -1165,10 +1189,11 @@ class _RecentTransactionsList extends StatelessWidget {
         ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: 4,
+          itemCount: _items.length,
           separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
-            final isExpense = index % 2 != 0;
+            final item = _items[index];
+            final isExpense = item['kind'] == 'expense';
             return Container(
               decoration: BoxDecoration(
                 color: AppColors.card,
@@ -1193,7 +1218,7 @@ class _RecentTransactionsList extends StatelessWidget {
                   ),
                 ),
                 title: Text(
-                  isExpense ? _tr('Shop Rent Payment', 'Malipo ya Kodi ya Duka') : _tr('Product Sale #2409', 'Mauzo ya Bidhaa #2409'),
+                  item['title'] as String,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: AppColors.secondary,
                         fontWeight: FontWeight.w700,
@@ -1201,16 +1226,14 @@ class _RecentTransactionsList extends StatelessWidget {
                       ),
                 ),
                 subtitle: Text(
-                  isExpense
-                      ? _tr('Expense  Oct 01, 2026', 'Matumizi  Okt 01, 2026')
-                      : _tr('Revenue  Today, 10:45 AM', 'Mapato  Leo, 10:45 AM'),
+                  item['subtitle'] as String,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textMuted,
                         fontSize: 12,
                       ),
                 ),
                 trailing: Text(
-                  isExpense ? '-850,000' : '+45,000',
+                  item['amount'] as String,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: isExpense ? AppColors.error : AppColors.success,
                         fontWeight: FontWeight.w900,
@@ -1224,4 +1247,99 @@ class _RecentTransactionsList extends StatelessWidget {
       ],
     );
   }
+
+  List<Map<String, String>> get _items {
+    final expenseItems = expenses.take(3).map((expense) {
+      final amount = _fmtCompactAmount(_numericValue(expense.amount));
+      final category = (expense.category as String?)?.trim().isNotEmpty == true
+          ? expense.category as String
+          : _tr('Expense', 'Matumizi');
+      final date = (expense.date as String?)?.trim().isNotEmpty == true
+          ? expense.date as String
+          : '-';
+      return <String, String>{
+        'kind': 'expense',
+        'title': category,
+        'subtitle': '${_tr('Expense', 'Matumizi')}  $date',
+        'amount': '-$amount',
+      };
+    });
+
+    final debtItems = debts.take(3).map((debt) {
+      final amount = _fmtCompactAmount(_numericValue(debt.amount));
+      final party = (debt.partyName as String?)?.trim().isNotEmpty == true
+          ? debt.partyName as String
+          : _tr('Debt item', 'Kipengee cha deni');
+      final type = (debt.type as String?)?.toLowerCase() == 'receivable'
+          ? _tr('Receivable', 'Inayodaiwa')
+          : _tr('Payable', 'Inayolipwa');
+      final sign = (debt.type as String?)?.toLowerCase() == 'receivable' ? '+' : '-';
+      return <String, String>{
+        'kind': 'debt',
+        'title': party,
+        'subtitle': '$type  ${debt.dueDate}',
+        'amount': '$sign$amount',
+      };
+    });
+
+    final merged = <Map<String, String>>[
+      ...expenseItems,
+      ...debtItems,
+    ];
+    return merged.isEmpty
+        ? <Map<String, String>>[
+            {
+              'kind': 'debt',
+              'title': _tr('No activity yet', 'Bado hakuna shughuli'),
+              'subtitle': _tr('Add transactions to see activity here.', 'Ongeza miamala ili kuona shughuli hapa.'),
+              'amount': _fmtCompactAmount(0),
+            },
+          ]
+        : merged.take(4).toList();
+  }
+}
+
+double _numericValue(Object? raw) {
+  if (raw == null) return 0;
+  if (raw is num) return raw.toDouble();
+  final cleaned = raw.toString().replaceAll(RegExp(r'[^0-9.\-]'), '');
+  return double.tryParse(cleaned) ?? 0;
+}
+
+String _fmtCompactAmount(double amount) {
+  if (amount >= 1000000) return 'TSh ${(amount / 1000000).toStringAsFixed(1)}M';
+  if (amount >= 1000) return 'TSh ${(amount / 1000).toStringAsFixed(0)}K';
+  return 'TSh ${amount.toStringAsFixed(0)}';
+}
+
+String _displayName(Map<String, dynamic>? profile) {
+  final explicit = (profile?['displayName'] as String?)?.trim();
+  if (explicit != null && explicit.isNotEmpty) return explicit;
+  final fallback = (profile?['name'] as String?)?.trim();
+  if (fallback != null && fallback.isNotEmpty) return fallback;
+  return 'there';
+}
+
+List<FlSpot> _buildSpotsFromAmountStrings(List<String?> values) {
+  final source = values
+      .map(_numericValue)
+      .where((value) => value > 0)
+      .take(7)
+      .toList();
+
+  if (source.isEmpty) {
+    return List<FlSpot>.generate(7, (index) => FlSpot(index.toDouble(), 0));
+  }
+
+  final max = source.reduce((a, b) => a > b ? a : b);
+  final normalized = source
+      .map((value) => max == 0 ? 0.0 : (value / max) * 5)
+      .toList();
+  while (normalized.length < 7) {
+    normalized.insert(0, 0);
+  }
+  return List<FlSpot>.generate(
+    7,
+    (index) => FlSpot(index.toDouble(), normalized[index]),
+  );
 }

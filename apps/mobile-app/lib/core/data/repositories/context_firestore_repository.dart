@@ -82,15 +82,9 @@ class ContextFirestoreRepository {
     ).orderBy('name');
 
     return query.snapshots().map((snapshot) {
-      final items = snapshot.docs
+      return snapshot.docs
           .map((doc) => Customer.fromFirestore(doc.data(), doc.id))
           .toList();
-
-      if (items.isEmpty && !context.isBusiness) {
-        return _personalCustomerSeed();
-      }
-
-      return items;
     });
   }
 
@@ -105,15 +99,9 @@ class ContextFirestoreRepository {
     ).orderBy('dueDate');
 
     return query.snapshots().map((snapshot) {
-      final items = snapshot.docs
+      return snapshot.docs
           .map((doc) => Debt.fromFirestore(doc.data(), doc.id))
           .toList();
-
-      if (items.isEmpty && !context.isBusiness) {
-        return _personalDebtSeed();
-      }
-
-      return items;
     });
   }
 
@@ -128,15 +116,9 @@ class ContextFirestoreRepository {
     ).orderBy('date', descending: true);
 
     return query.snapshots().map((snapshot) {
-      final items = snapshot.docs
+      return snapshot.docs
           .map((doc) => Expense.fromFirestore(doc.data(), doc.id))
           .toList();
-
-      if (items.isEmpty && !context.isBusiness) {
-        return _personalExpenseSeed();
-      }
-
-      return items;
     });
   }
 
@@ -151,91 +133,10 @@ class ContextFirestoreRepository {
     ).orderBy('name');
 
     return query.snapshots().map((snapshot) {
-      final items = snapshot.docs
+      return snapshot.docs
           .map((doc) => CashAccount.fromFirestore(doc.data(), doc.id))
           .toList();
-
-      if (items.isEmpty && !context.isBusiness) {
-        return _personalCashAccountSeed();
-      }
-
-      return items;
     });
-  }
-
-  List<Customer> _personalCustomerSeed() {
-    return [
-      Customer(
-        id: 'seed-personal-customer-1',
-        name: 'Family Emergency',
-        phone: '+255700000001',
-        email: 'family@example.com',
-        balance: '125,000',
-        lastTransactionDate: 'Today',
-        tags: const ['Personal'],
-      ),
-    ];
-  }
-
-  List<Debt> _personalDebtSeed() {
-    return [
-      Debt(
-        id: 'seed-personal-debt-1',
-        partyName: 'School Fees',
-        type: 'Payable',
-        amount: '450,000',
-        dueDate: 'Fri, Apr 18',
-        status: 'Pending',
-      ),
-      Debt(
-        id: 'seed-personal-debt-2',
-        partyName: 'Savings Club',
-        type: 'Receivable',
-        amount: '80,000',
-        dueDate: 'Sun, Apr 20',
-        status: 'Pending',
-      ),
-    ];
-  }
-
-  List<Expense> _personalExpenseSeed() {
-    return [
-      Expense(
-        id: 'seed-personal-expense-1',
-        category: 'Household',
-        amount: 'TSh 65,000',
-        date: 'Today',
-        note: 'Groceries and home essentials',
-        recipient: 'Local Market',
-      ),
-      Expense(
-        id: 'seed-personal-expense-2',
-        category: 'Transport',
-        amount: 'TSh 12,000',
-        date: 'Yesterday',
-        note: 'Commute and errands',
-        recipient: 'Bodaboda',
-      ),
-    ];
-  }
-
-  List<CashAccount> _personalCashAccountSeed() {
-    return [
-      CashAccount(
-        id: 'seed-personal-cash-1',
-        name: 'Personal Cash',
-        type: 'Cash',
-        balance: 'TSh 142,500',
-        lastReconciled: 'Today, 8:00 AM',
-      ),
-      CashAccount(
-        id: 'seed-personal-cash-2',
-        name: 'M-Pesa Pocket',
-        type: 'Mobile Money',
-        balance: 'TSh 850,000',
-        lastReconciled: '1 hour ago',
-      ),
-    ];
   }
 
   CollectionReference<Map<String, dynamic>> _scopeCollection({
@@ -264,6 +165,18 @@ class ContextFirestoreRepository {
         .collection('personal_accounts')
         .doc(uid)
         .collection(childCollection);
+  }
+
+  CollectionReference<Map<String, dynamic>> scopeCollection({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String childCollection,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: childCollection,
+    );
   }
 
   String? _businessIdFromContext(String contextValue) {

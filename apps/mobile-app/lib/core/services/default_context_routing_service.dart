@@ -70,13 +70,12 @@ class DefaultContextRoutingService {
   }
 
   static Future<String?> resolveInitialAuthenticatedPath({
-    required bool hasDevBypassSession,
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
   }) async {
     final resolvedAuth = auth ?? FirebaseAuth.instance;
     if (resolvedAuth.currentUser == null) {
-      return hasDevBypassSession ? AppRouter.dashboardPath : null;
+      return null;
     }
 
     return resolveUserLandingPath(auth: resolvedAuth, firestore: firestore);

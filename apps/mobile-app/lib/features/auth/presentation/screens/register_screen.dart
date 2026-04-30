@@ -17,13 +17,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DEV BYPASS — set to true to skip real SMS OTP during development.
-// Automatically has no effect in release builds (kDebugMode == false).
-// Dev OTP code: 9015  |  Any phone number is accepted.
-// ─────────────────────────────────────────────────────────────────────────────
-const bool _kDevBypassOtp = true;  // flip to false to test real Firebase flow
-const String _kDevOtpCode = '9015';
+// Removed dev bypasses for real flow.
 
 class _PhoneAuthPrecheckResult {
   final bool isReady;
@@ -100,7 +94,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _businessNameController = TextEditingController();
   final TextEditingController _placeOfBusinessController = TextEditingController();
   
-  final List<TextEditingController> _otpControllers = List.generate(4, (_) => TextEditingController());
+  final List<TextEditingController> _pinControllers = List.generate(4, (_) => TextEditingController());
   
   final String _businessCategoryKey = 'retail';
   bool _phoneAuthReady = false;
@@ -491,34 +485,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     await _sendRegistrationOTP();
   }
 
-  Future<void> _sendRegistrationOTP() async {
+  Future<void> _handleRegistration() async {
     // Validate owner details
     if (_ownerNameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
-      );
+      _setFeedback(_tr('Please enter your full name.', 'Tafadhali weka jina lako kamili.'), EmotionalStatusTone.warning);
       return;
     }
     
     if (_phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
-      );
+      _setFeedback(_tr('Please enter your phone number.', 'Tafadhali weka namba yako ya simu.'), EmotionalStatusTone.warning);
+      return;
+    }
+
+    final pin = _pinControllers.map((c) => c.text).join();
+    if (pin.length < 4) {
+      _setFeedback(_tr('Please enter a 4-digit PIN.', 'Tafadhali weka PIN ya tarakimu 4.'), EmotionalStatusTone.warning);
       return;
     }
 
     // Validate business details if business is selected
     if (_includesBusiness) {
       if (_businessNameController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
-        );
+        _setFeedback(_tr('Please enter your business name.', 'Tafadhali weka jina la biashara yako.'), EmotionalStatusTone.warning);
         return;
       }
       if (_placeOfBusinessController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'))),
-        );
+        _setFeedback(_tr('Please enter your place of business.', 'Tafadhali weka mahali pa biashara yako.'), EmotionalStatusTone.warning);
         return;
       }
     }
@@ -526,64 +518,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final recoveryEmail = _emailController.text.trim();
     if (recoveryEmail.isNotEmpty &&
         !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(recoveryEmail)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_tr('That email looks incorrect. Please check it.', 'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.'))),
-      );
+      _setFeedback(_tr('That email looks incorrect. Please check it.', 'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.'), EmotionalStatusTone.warning);
       return;
     }
-
-    // ── DEV BYPASS ──────────────────────────────────────────────────────────
-    // In debug builds with _kDevBypassOtp enabled, skip the real Firebase
-    // SMS call and immediately show the OTP entry screen.
-    if (kDebugMode && _kDevBypassOtp) {
-      setState(() {
-        _otpSent = true;
-        _isLoading = false;
-        _verificationId = '__dev_bypass__';
-
-        // Prefill the OTP inputs for faster dev iteration.
-        for (var i = 0; i < _otpControllers.length; i++) {
-          _otpControllers[i].text = i < _kDevOtpCode.length ? _kDevOtpCode[i] : '';
-        }
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_tr('🛠 Dev mode: Enter $_kDevOtpCode to bypass OTP.', '🛠 Hali ya Maendeleo: Weka $_kDevOtpCode kupita OTP.'))),
-        );
-        _setFeedback(
-          _tr('Dev mode active — use code $_kDevOtpCode', 'Hali ya Maendeleo — tumia OTP $_kDevOtpCode'),
-          EmotionalStatusTone.neutral,
-        );
-      }
-      return;
-    }
-    // ────────────────────────────────────────────────────────────────────────
 
     setState(() => _isLoading = true);
-    final phone = '+255${_phoneController.text.trim()}';
-    
-    await _auth.verifyPhoneNumber(
-      phoneNumber: phone,
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        await _completeRegistration(credential);
-      },
-      verificationFailed: (FirebaseAuthException e) {
-        setState(() => _isLoading = false);
-        final message = _getPhoneAuthErrorMessage(e.code, e.message);
-        _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.error);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-      },
-      codeSent: (String vid, int? resendToken) {
-        setState(() {
-          _verificationId = vid;
-          _otpSent = true;
-          _isLoading = false;
-        });
-        _setFeedback(_tr('Code sent. Check your messages.', 'OTP umetumwa. Angalia ujumbe wako.'), EmotionalStatusTone.success);
-        _triggerSuccessBurst();
-      },
-      codeAutoRetrievalTimeout: (vid) => _verificationId = vid,
-    );
+    final phone = _phoneController.text.trim();
+    final normalizedPhone = _normalizeLocalPhone(phone);
+    final email = '$normalizedPhone@mali.up';
+
+    try {
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: pin,
+      );
+      await _completeRegistration(userCredential.user, pin);
+    } on FirebaseAuthException catch (e) {
+      setState(() => _isLoading = false);
+      String message = switch (e.code) {
+        'email-already-in-use' => _tr('This phone number is already registered.', 'Namba hii ya simu tayari imesajiliwa.'),
+        'weak-password' => _tr('PIN is too simple. Try another.', 'PIN ni rahisi sana. Jaribu nyingine.'),
+        _ => _tr('Registration failed. Please try again.', 'Usajili umeshindikana. Tafadhali jaribu tena.'),
+      };
+      _setFeedback(message, EmotionalStatusTone.error);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _setFeedback(_tr('An unexpected error occurred.', 'Hitilafu isiyotarajiwa imetokea.'), EmotionalStatusTone.error);
+    }
   }
 
   Future<void> _verifyAndRegister() async {
@@ -626,11 +587,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     await _completeRegistration(credential);
   }
 
-  Future<void> _completeRegistration(AuthCredential credential) async {
+  Future<void> _completeRegistration(User? user, String pin) async {
     try {
-      final userCredential = await _auth.signInWithCredential(credential);
-      final user = userCredential.user;
-      
       if (user != null) {
         final recoveryEmail = _emailController.text.trim().toLowerCase();
         final displayName = _ownerNameController.text.trim();
@@ -654,7 +612,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             : <Map<String, dynamic>>[];
 
         await _firestore.collection('users').doc(user.uid).set({
-          'phone': user.phoneNumber,
+          'phone': _phoneController.text.trim(),
+          'pin': pin, // Stored for lookup if needed, though Auth handles login
           'name': displayName,
           'displayName': displayName,
           if (recoveryEmail.isNotEmpty) 'email': recoveryEmail,
@@ -678,7 +637,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'businessCategory': _businessCategoryKey,
             'placeOfBusiness': _placeOfBusinessController.text.trim(),
             'ownerName': displayName,
-            'ownerPhone': user.phoneNumber,
+            'ownerPhone': _phoneController.text.trim(),
             'ownerUid': user.uid,
             'accountType': 'business',
             if (recoveryEmail.isNotEmpty) 'ownerEmail': recoveryEmail,
@@ -691,7 +650,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (_includesPersonal) {
           await _firestore.collection('personal_accounts').doc(user.uid).set({
             'fullName': displayName,
-            'phone': user.phoneNumber,
+            'phone': _phoneController.text.trim(),
             'ownerUid': user.uid,
             'accountType': 'personal',
             if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
@@ -727,7 +686,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _referralController.dispose();
-    for (final controller in _otpControllers) {
+    for (final controller in _pinControllers) {
       controller.dispose();
     }
     super.dispose();
@@ -915,9 +874,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 8),
                       Center(
                         child: Text(
-                          _otpSent
-                              ? _tr('Enter the OTP to complete your registration.', 'Weka OTP ili kukamilisha usajili wako.')
-                              : _tr('Create your account in just a few minutes.', 'Fungua akaunti yako kwa dakika chache tu.'),
+                          _tr('Create your account and set a 4-digit PIN for secure access.', 'Fungua akaunti yako na uweke PIN ya tarakimu 4 kwa ufikiaji salama.'),
                           textAlign: TextAlign.center,
                           style: subtitleStyle,
                         ),
@@ -1053,37 +1010,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           _tr('Enter a referral code if you received one.', 'Weka referral code kama umepewa.'),
                           style: GoogleFonts.poppins(color: textSecondary, fontSize: 12),
                         ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: _isLoading ? null : _precheckAndSendOtp,
-                            child: Text(
-                              _isLoading ? _tr('Sending...', 'Inatuma...') : _tr('Send OTP', 'Tuma OTP'),
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                      ] else ...[
+                        const SizedBox(height: 24),
                         Row(
                           children: [
-                            const Icon(Icons.verified_user_outlined, size: 18, color: textPrimary),
+                            const Icon(Icons.lock_outline_rounded, size: 18, color: textPrimary),
                             const SizedBox(width: 8),
-                            Text(_tr('Verify OTP', 'Thibitisha OTP'), style: sectionTitleStyle),
+                            Text(_tr('Set your 4-digit PIN', 'Weka PIN yako ya tarakimu 4'), style: sectionTitleStyle),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(4, (i) => _OTPBox(controller: _otpControllers[i])),
+                          children: List.generate(4, (i) => _OTPBox(controller: _pinControllers[i])),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -1093,20 +1033,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               minimumSize: const Size.fromHeight(52),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            onPressed: _isLoading ? null : _verifyAndRegister,
+                            onPressed: _isLoading ? null : _handleRegistration,
                             child: Text(
-                              _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Register', 'Jisajili'),
+                              _isLoading ? _tr('Registering...', 'Inasajili...') : _tr('Register Account', 'Sajili Akaunti'),
                               style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Center(
-                          child: TextButton(
-                            onPressed: () => setState(() => _otpSent = false),
-                            child: Text(
-                              _tr('Edit details', 'Rudi kurekebisha taarifa'),
-                              style: GoogleFonts.poppins(color: textSecondary),
                             ),
                           ),
                         ),
