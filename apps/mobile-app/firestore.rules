@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper to check if the user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper to check if the document belongs to the authenticated user
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Rules for User Profiles
+    match /users/{userId} {
+      // Users can only read and write their own profile
+      allow read, write: if isSignedIn() && isOwner(userId);
+      // Allow searching for phone numbers during login (optional, depending on your flow)
+      // If the app needs to check if a phone exists before login, 
+      // you might need a more open read rule or a dedicated check.
+      allow list: if isSignedIn(); 
+    }
+
+    // Rules for Businesses
+    match /businesses/{businessId} {
+      // Only the owner can manage the business details
+      allow read, update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      // Any signed-in user can create a business
+      allow create: if isSignedIn();
+    }
+
+    // Rules for Debt Collections (Debt Exposure)
+    match /debt_collections/{collectionId} {
+      // Only the owner of the business the collection belongs to can access it
+      allow read, write: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn();
+    }
+
+    // Default: Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

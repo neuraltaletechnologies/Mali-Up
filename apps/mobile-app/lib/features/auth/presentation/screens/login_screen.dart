@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/pin_digit_box.dart';
+import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
@@ -698,6 +699,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? _tr('Checking...', 'Inahakiki...')
                                   : _tr('Continue', 'Endelea'),
                               style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Center(
+                          child: TextButton(
+                            onPressed: () {
+                              final phone = _phoneController.text.trim();
+                              context.push(
+                                AppRouter.registerPath,
+                                extra: {'phone': phone},
+                              );
+                            },
+                            child: Text(
+                              _tr(
+                                "Don't have an account? Create one",
+                                'Huna akaunti? Sajili',
+                              ),
+                              style: GoogleFonts.poppins(
+                                color: AppColors.secondary,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

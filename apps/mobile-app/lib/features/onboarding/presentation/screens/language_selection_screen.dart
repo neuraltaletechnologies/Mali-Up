@@ -78,18 +78,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.20),
-                          ),
-                        ),
-                        child: const Center(child: MaliUpLogo(size: 28)),
-                      ),
+                     
                       const Spacer(),
                       Text(
                         _tr('Choose your language', 'Chagua lugha'),
