@@ -24,6 +24,7 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _taglineAnimation;
   late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
+  bool _initializedAnimations = false;
 
   @override
   void initState() {
@@ -35,18 +36,18 @@ class _SplashScreenState extends State<SplashScreen>
       }
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _setupAnimations();
-      _scheduleNavigation();
-    });
+    _setupAnimationsIfNeeded();
+    _scheduleNavigation();
   }
 
   String _tr(String en, String sw) {
     return _language == AppLanguage.swahili ? sw : en;
   }
 
-  void _setupAnimations() {
+  void _setupAnimationsIfNeeded() {
+    if (_initializedAnimations) return;
+    _initializedAnimations = true;
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1600),
       vsync: this,
@@ -71,16 +72,17 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _scheduleNavigation() {
     Future.delayed(const Duration(milliseconds: 2400), () {
-      if (mounted) {
-        widget.onSplashComplete();
-      }
+      if (!mounted) return;
+      widget.onSplashComplete();
     });
   }
 
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
-    _animationController.dispose();
+    if (_initializedAnimations) {
+      _animationController.dispose();
+    }
     super.dispose();
   }
 

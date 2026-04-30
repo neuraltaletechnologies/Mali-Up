@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
+import '../../../../shared/widgets/pin_digit_box.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
@@ -67,12 +68,10 @@ class _NotificationHelper {
 
 class LoginScreen extends StatefulWidget {
   final String? initialPhone;
-  final bool autoSendOtp;
 
   const LoginScreen({
     super.key,
     this.initialPhone,
-    this.autoSendOtp = false,
   });
 
   @override
@@ -85,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
   late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
   
-  bool _otpSent = false; // Using this as "show PIN entry" flag
+  bool _showPinEntry = false; // Flag to switch between phone and PIN entry views
   bool _isLoading = false;
   String? _normalizedPhone;
   String? _feedbackText;
@@ -210,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       setState(() {
-        _otpSent = true;
+        _showPinEntry = true;
         _isLoading = false;
       });
       _setFeedback(_tr('Welcome back! Please enter your PIN.', 'Karibu tena! Tafadhali weka PIN yako.'), EmotionalStatusTone.neutral);
@@ -486,7 +485,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                       Center(
                         child: Text(
-                          _otpSent ? _tr('Verify PIN', 'Thibitisha PIN') : _tr('Login to Mali App', 'Ingia Mali App'),
+                          _showPinEntry ? _tr('Verify PIN', 'Thibitisha PIN') : _tr('Login to Mali App', 'Ingia Mali App'),
                           textAlign: TextAlign.center,
                           style: headingStyle,
                         ),
@@ -494,7 +493,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 8),
                       Center(
                         child: Text(
-                          _otpSent
+                          _showPinEntry
                               ? _tr('Enter your 4-digit PIN to secure your access.', 'Weka PIN yako ya tarakimu 4 ili kulinda ufikiaji wako.')
                               : _tr('Enter your phone number to continue securely.', 'Weka namba yako ya simu ili kuendelea salama.'),
                           textAlign: TextAlign.center,
@@ -524,7 +523,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             tone: _feedbackTone,
                           ),
                         ),
-                      if (!_otpSent) ...[
+                      if (!_showPinEntry) ...[
                         Row(
                           children: [
                             const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
@@ -585,7 +584,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(4, (i) => _PINBox(controller: _pinControllers[i])),
+                          children: List.generate(
+                            4,
+                            (i) => PinDigitBox(controller: _pinControllers[i]),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         Align(
@@ -619,7 +621,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Center(
                           child: TextButton(
                             onPressed: () => setState(() {
-                              _otpSent = false;
+                              _showPinEntry = false;
                               for (var c in _pinControllers) {
                                 c.clear();
                               }
@@ -655,52 +657,3 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class _PINBox extends StatelessWidget {
-  final TextEditingController controller;
-
-  const _PINBox({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    const fieldBg = Color(0xFFEFF5F2);
-    const textPrimary = Color(0xFF1A1A1A);
-
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        color: fieldBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.transparent),
-      ),
-      child: Center(
-        child: TextField(
-          controller: controller,
-          textAlign: TextAlign.center,
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(1),
-          ],
-          onChanged: (value) {
-            if (value.isNotEmpty) {
-              FocusScope.of(context).nextFocus();
-            } else {
-              FocusScope.of(context).previousFocus();
-            }
-          },
-          style: GoogleFonts.poppins(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: textPrimary,
-          ),
-          decoration: const InputDecoration(
-            border: InputBorder.none,
-            counterText: '',
-          ),
-        ),
-      ),
-    );
-  }
-}

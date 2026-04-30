@@ -15,11 +15,7 @@ class LanguageSelectionScreen extends StatefulWidget {
   State<LanguageSelectionScreen> createState() => _LanguageSelectionScreenState();
 }
 
-class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> 
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
   bool _isSelecting = false;
@@ -33,42 +29,16 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
       }
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
-    _setupAnimations();
-  }
-
-  String _tr(String en, String sw) {
-    return _language == AppLanguage.swahili ? sw : en;
-  }
-
-  void _setupAnimations() {
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
-
-    _animationController.forward();
   }
 
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
-    _animationController.dispose();
     super.dispose();
+  }
+
+  String _tr(String en, String sw) {
+    return _language == AppLanguage.swahili ? sw : en;
   }
 
   Future<void> _selectLanguage(AppLanguage language) async {
@@ -86,187 +56,203 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
+    const textPrimary = Color(0xFF1A1A1A);
+    const textSecondary = Color(0xFF6B7280);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                    ),
-                    child: const MaliUpLogo(size: 80),
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Title
-                  Text(
-                    _tr('Welcome to Mali Up', 'Karibu Mali Up'),
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.secondary,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Subtitle
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      _tr(
-                        'Pick the language you\'re most comfortable with.',
-                        'Chagua lugha unayoielewa kwa urahisi zaidi.',
-                      ),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
+      resizeToAvoidBottomInset: false,
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: MediaQuery.of(context).size.height * 0.34,
+            child: Container(
+              color: AppColors.primary,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.20),
                           ),
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-
-                  // Language Options
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Column(
-                      children: [
-                        // English Option
-                        _LanguageOption(
-                          language: AppLanguage.english,
-                          isSelecting: _isSelecting,
-                          onTap: _selectLanguage,
                         ),
-                        const SizedBox(height: 16),
-
-                        // Swahili Option
-                        _LanguageOption(
-                          language: AppLanguage.swahili,
-                          isSelecting: _isSelecting,
-                          onTap: _selectLanguage,
+                        child: const Center(child: MaliUpLogo(size: 28)),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _tr('Choose your language', 'Chagua lugha'),
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              height: 1.1,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _tr(
+                          'You can change this later in Settings.',
+                          'Unaweza kubadilisha baadaye kwenye Mipangilio.',
                         ),
-                      ],
-                    ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              height: 1.4,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+          DraggableScrollableSheet(
+            initialChildSize: 0.70,
+            minChildSize: 0.70,
+            maxChildSize: 0.92,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 46,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: AppColors.border.withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        _tr('Language', 'Lugha'),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: textPrimary,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _tr(
+                          'Select the language you prefer.',
+                          'Chagua lugha unayoipendelea.',
+                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: textSecondary,
+                              height: 1.45,
+                            ),
+                      ),
+                      const SizedBox(height: 18),
+                      _PremiumLanguageTile(
+                        title: 'English',
+                        subtitle: 'Continue in English',
+                        selected: LocalizationService.languageNotifier.value == AppLanguage.english,
+                        loading: _isSelecting,
+                        onTap: () => _selectLanguage(AppLanguage.english),
+                      ),
+                      const SizedBox(height: 12),
+                      _PremiumLanguageTile(
+                        title: 'Kiswahili',
+                        subtitle: 'Endelea kwa Kiswahili',
+                        selected: LocalizationService.languageNotifier.value == AppLanguage.swahili,
+                        loading: _isSelecting,
+                        onTap: () => _selectLanguage(AppLanguage.swahili),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 }
 
-class _LanguageOption extends StatefulWidget {
-  final AppLanguage language;
-  final bool isSelecting;
-  final Function(AppLanguage) onTap;
+class _PremiumLanguageTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final bool loading;
+  final VoidCallback onTap;
 
-  const _LanguageOption({
-    required this.language,
-    required this.isSelecting,
+  const _PremiumLanguageTile({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.loading,
     required this.onTap,
   });
 
   @override
-  State<_LanguageOption> createState() => _LanguageOptionState();
-}
-
-class _LanguageOptionState extends State<_LanguageOption> {
-  bool _isHovered = false;
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) {
-        if (!widget.isSelecting) {
-          setState(() => _isHovered = true);
-        }
-      },
-      onExit: (_) {
-        setState(() => _isHovered = false);
-      },
-      child: GestureDetector(
-        onTapDown: (_) {
-          if (!widget.isSelecting) {
-            setState(() => _isPressed = true);
-          }
-        },
-        onTapUp: (_) {
-          setState(() => _isPressed = false);
-          if (!widget.isSelecting) {
-            widget.onTap(widget.language);
-          }
-        },
-        onTapCancel: () {
-          setState(() => _isPressed = false);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(20),
+    final borderColor = selected ? AppColors.primary : AppColors.border;
+    final bg = selected
+        ? AppColors.primary.withValues(alpha: 0.10)
+        : Colors.white;
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: loading ? null : onTap,
+        child: Container(
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: _isPressed
-                ? AppColors.primary.withValues(alpha: 0.2)
-                : _isHovered
-                    ? AppColors.primary.withValues(alpha: 0.1)
-                    : AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _isPressed
-                  ? AppColors.primary
-                  : _isHovered
-                      ? AppColors.primary.withValues(alpha: 0.3)
-                      : AppColors.border,
-              width: _isPressed ? 2 : 1,
-            ),
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [],
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor, width: selected ? 1.6 : 1.0),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.language.label,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.secondary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF111111),
+                          ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.language.nativeLabel,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: const Color(0xFF6B7280),
+                            height: 1.35,
+                          ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              if (widget.isSelecting)
+              const SizedBox(width: 12),
+              if (loading)
                 const SizedBox(
-                  width: 24,
-                  height: 24,
+                  width: 22,
+                  height: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
@@ -274,23 +260,25 @@ class _LanguageOptionState extends State<_LanguageOption> {
                 )
               else
                 Container(
-                  width: 24,
-                  height: 24,
+                  width: 22,
+                  height: 22,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: _isPressed ? AppColors.primary : AppColors.border,
+                      color: selected ? AppColors.primary : AppColors.border,
                       width: 2,
                     ),
                   ),
-                  child: _isPressed
-                      ? Center(
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primary,
+                  child: selected
+                      ? const Center(
+                          child: SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.primary,
+                              ),
                             ),
                           ),
                         )
