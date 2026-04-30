@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
@@ -282,6 +283,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (user != null) {
         final recoveryEmail = _emailController.text.trim().toLowerCase();
         final displayName = _ownerNameController.text.trim();
+        final normalizedPhone =
+            _normalizeLocalPhone(_phoneController.text.trim());
         final businessId = _firestore
             .collection('tenants')
             .doc(user.uid)
@@ -309,7 +312,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             : <Map<String, dynamic>>[];
 
         await _firestore.collection('users').doc(user.uid).set({
-          'phone': _phoneController.text.trim(),
+          'phone': normalizedPhone,
           'pin': pin, // Stored for lookup if needed, though Auth handles login
           'name': displayName,
           'displayName': displayName,
@@ -340,7 +343,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 'businessCategory': _businessCategoryKey,
                 'placeOfBusiness': _placeOfBusinessController.text.trim(),
                 'ownerName': displayName,
-                'ownerPhone': _phoneController.text.trim(),
+                'ownerPhone': normalizedPhone,
                 'ownerUid': user.uid,
                 'accountType': 'business',
                 if (recoveryEmail.isNotEmpty) 'ownerEmail': recoveryEmail,
@@ -353,7 +356,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (_includesPersonal) {
           await _firestore.collection('personal_accounts').doc(user.uid).set({
             'fullName': displayName,
-            'phone': _phoneController.text.trim(),
+            'phone': normalizedPhone,
             'ownerUid': user.uid,
             'accountType': 'personal',
             if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
@@ -642,6 +645,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       TextField(
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(12),
+                        ],
                         decoration: fieldDecoration(
                           hint: _tr('Phone number', 'Namba ya simu'),
                           suffix: Icons.phone_iphone_rounded,

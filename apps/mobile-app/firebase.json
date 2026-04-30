@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"neuraltale-mali-up","appId":"1:596683133951:android:04cfb6886a833d03a6cdca","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"neuraltale-mali-up","configurations":{"android":"1:596683133951:android:04cfb6886a833d03a6cdca","ios":"1:596683133951:ios:db8e960349534a6fa6cdca","macos":"1:596683133951:ios:db8e960349534a6fa6cdca","web":"1:596683133951:web:1430c6e5bcb28bb5a6cdca","windows":"1:596683133951:web:3b39a8867730f304a6cdca"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "neuraltale-mali-up",
+          "appId": "1:596683133951:android:04cfb6886a833d03a6cdca",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "neuraltale-mali-up",
+          "configurations": {
+            "android": "1:596683133951:android:04cfb6886a833d03a6cdca",
+            "ios": "1:596683133951:ios:db8e960349534a6fa6cdca",
+            "macos": "1:596683133951:ios:db8e960349534a6fa6cdca",
+            "web": "1:596683133951:web:1430c6e5bcb28bb5a6cdca",
+            "windows": "1:596683133951:web:3b39a8867730f304a6cdca"
+          }
+        }
+      }
+    }
+  }
+}
