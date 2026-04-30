@@ -75,7 +75,6 @@ class AppRouter {
                 state,
                 LoginScreen(
                   initialPhone: extra['phone'] as String?,
-                  autoSendOtp: extra['autoSendOtp'] as bool? ?? false,
                 ),
               );
             }

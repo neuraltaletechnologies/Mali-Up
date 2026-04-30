@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../core/onboarding_colors.dart';
 import '../../models/onboarding_model.dart';
@@ -31,8 +30,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AppLanguage _language;
   
   int _currentIndex = 0;
-  late Timer _autoAdvanceTimer;
-  bool _timerActive = false;
 
   @override
   void initState() {
@@ -49,51 +46,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      // Start auto-advance timer after the first frame so onboarding paint happens first.
-      _startAutoAdvance();
-    });
   }
 
   String _tr(String en, String sw) {
     return _language == AppLanguage.swahili ? sw : en;
   }
 
-  void _startAutoAdvance() {
-    _stopAutoAdvance();
-    _timerActive = true;
-    _autoAdvanceTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (_currentIndex < onboardingPages.length - 1) {
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      } else {
-        _stopAutoAdvance();
-      }
-    });
-  }
-
-  void _stopAutoAdvance() {
-    if (_timerActive) {
-      _autoAdvanceTimer.cancel();
-      _timerActive = false;
-    }
-  }
-
-  void _restartAutoAdvanceIfNeeded() {
-    if (_currentIndex < onboardingPages.length - 1) {
-      _startAutoAdvance();
-    } else {
-      _stopAutoAdvance();
-    }
-  }
-
   void _onSkipTap() {
     HapticFeedback.selectionClick();
-    _stopAutoAdvance();
     _pageController.animateToPage(
       onboardingPages.length - 1,
       duration: const Duration(milliseconds: 380),
@@ -111,60 +71,65 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     LocalizationService.languageNotifier.removeListener(_languageListener);
     _pageController.dispose();
     _exitAnimationController.dispose();
-    _stopAutoAdvance();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: OnboardingColors.background,
-      body: Stack(
-        children: [
-          const AmbientEmotionBackground(
-            palette: [
-              OnboardingColors.primaryDeep,
-              OnboardingColors.accentGreen,
-              AppColors.primaryLight,
-            ],
-            intensity: 1.1,
-          ),
-          // Page view for onboarding screens
-          PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() => _currentIndex = index);
-              _restartAutoAdvanceIfNeeded();
-            },
-            itemCount: onboardingPages.length,
-            itemBuilder: (context, index) {
-              return AnimatedBuilder(
-                animation: _pageController,
-                builder: (context, child) {
-                  final page = _pageController.hasClients
-                      ? (_pageController.page ?? _currentIndex.toDouble())
-                      : _currentIndex.toDouble();
-                  final delta = (index - page);
-                  final parallaxX = (delta * 28).clamp(-28.0, 28.0);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        extendBody: true,
+        backgroundColor: OnboardingColors.background,
+        body: Stack(
+          children: [
+            const AmbientEmotionBackground(
+              palette: [
+                OnboardingColors.primaryDeep,
+                OnboardingColors.accentGreen,
+                AppColors.primaryLight,
+              ],
+              intensity: 1.1,
+            ),
+            // Page view for onboarding screens
+            PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() => _currentIndex = index);
+              },
+              itemCount: onboardingPages.length,
+              itemBuilder: (context, index) {
+                return AnimatedBuilder(
+                  animation: _pageController,
+                  builder: (context, child) {
+                    final page = _pageController.hasClients
+                        ? (_pageController.page ?? _currentIndex.toDouble())
+                        : _currentIndex.toDouble();
+                    final delta = (index - page);
+                    final parallaxX = (delta * 28).clamp(-28.0, 28.0);
 
-                  return Transform.translate(
-                    offset: Offset(parallaxX, 0),
-                    child: child,
-                  );
-                },
-                child: _buildOnboardingPage(onboardingPages[index]),
-              );
-            },
-          ),
+                    return Transform.translate(
+                      offset: Offset(parallaxX, 0),
+                      child: child,
+                    );
+                  },
+                  child: _buildOnboardingPage(onboardingPages[index]),
+                );
+              },
+            ),
 
-          // Bottom controls
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _buildBottomControls(),
-          ),
-        ],
+            // Bottom controls
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildBottomControls(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -236,6 +201,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     bool isLastPage = _currentIndex == onboardingPages.length - 1;
 
     return SafeArea(
+      bottom: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Container(
