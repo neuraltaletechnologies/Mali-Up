@@ -73,6 +73,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _businessNameController = TextEditingController();
   final TextEditingController _placeOfBusinessController =
       TextEditingController();
+  String _selectedBusinessType = 'Retail';
+  final List<String> _businessTypes = [
+    'Retail',
+    'Wholesale',
+    'Service',
+    'Manufacturing',
+    'Food & Beverage',
+    'Other'
+  ];
 
   final List<TextEditingController> _pinControllers = List.generate(
     4,
@@ -304,6 +313,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 {
                   'id': businessId,
                   'name': _businessNameController.text.trim(),
+                  'type': _selectedBusinessType,
                   'category': _businessCategoryKey,
                   'placeOfBusiness': _placeOfBusinessController.text.trim(),
                   'createdAt': FieldValue.serverTimestamp(),
@@ -340,6 +350,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               .set({
                 'id': businessId,
                 'businessName': _businessNameController.text.trim(),
+                'businessType': _selectedBusinessType,
                 'businessCategory': _businessCategoryKey,
                 'placeOfBusiness': _placeOfBusinessController.text.trim(),
                 'ownerName': displayName,
@@ -722,7 +733,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             suffix: Icons.store_outlined,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          value: _selectedBusinessType,
+                          decoration: fieldDecoration(
+                            hint: _tr('Business Type', 'Aina ya Biashara'),
+                            suffix: Icons.category_rounded,
+                          ),
+                          items: _businessTypes.map((type) {
+                            return DropdownMenuItem(
+                              value: type,
+                              child: Text(type),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _selectedBusinessType = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 10),
                         TextField(
                           controller: _placeOfBusinessController,
                           decoration: fieldDecoration(

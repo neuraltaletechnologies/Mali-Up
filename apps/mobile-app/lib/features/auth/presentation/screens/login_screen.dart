@@ -279,6 +279,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await Future.delayed(const Duration(milliseconds: 500));
       await _goToPostLoginLanding();
     } on FirebaseAuthException catch (e) {
+      debugPrint('FIREBASE AUTH ERROR: ${e.code} - ${e.message}');
       setState(() => _isLoading = false);
       String message = switch (e.code) {
         'wrong-password' => _tr(
