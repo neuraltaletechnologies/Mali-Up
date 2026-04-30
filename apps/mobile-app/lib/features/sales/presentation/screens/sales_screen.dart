@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/page_intro_header.dart';
+import '../../data/sales_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-class SalesScreen extends StatelessWidget {
+class SalesScreen extends ConsumerWidget {
   const SalesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final salesAsync = ref.watch(salesInvoiceListProvider);
+
     return Scaffold(
       body: Column(
         children: [
@@ -21,95 +26,92 @@ class SalesScreen extends StatelessWidget {
             ),
             scene: EmotionalLottieScene.dashboard,
           ),
-
-          // Sales Overview Header
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _OverviewStat(label: _tr('Total Sales', 'Jumla ya Mauzo'), value: 'TSh 4.2M', color: AppColors.primaryLight),
-                    _OverviewStat(label: _tr('Pending', 'Inasubiri'), value: 'TSh 850K', color: AppColors.secondary),
-                    _OverviewStat(label: _tr('Paid', 'Imelipwa'), value: 'TSh 3.35M', color: AppColors.success),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Search Bar
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: _tr('Search invoices, customers...', 'Tafuta ankara, wateja...'),
-                    prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-                    fillColor: AppColors.background.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                _FilterChip(label: _tr('All Invoices', 'Ankara Zote'), isSelected: true),
-                const SizedBox(width: 8),
-                _FilterChip(label: _tr('Paid', 'Imelipwa'), isSelected: false),
-                const SizedBox(width: 8),
-                _FilterChip(label: _tr('Pending', 'Inasubiri'), isSelected: false),
-                const SizedBox(width: 8),
-                _FilterChip(label: _tr('Overdue', 'Imechelewa'), isSelected: false),
-                const SizedBox(width: 8),
-                _FilterChip(label: _tr('Draft', 'Rasimu'), isSelected: false),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Invoices List
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              itemCount: 10,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _InvoiceListItem(
-                  id: '#INV-${1200 - index}',
-                  customer: '${_tr('Customer', 'Mteja')} ${index + 1}',
-                  amount: 'TSh ${45000 * (index + 1)}',
-                  status: index % 3 == 0 ? _tr('Paid', 'Imelipwa') : (index % 3 == 1 ? _tr('Pending', 'Inasubiri') : _tr('Overdue', 'Imechelewa')),
-                  date: 'Oct ${25 - index}, 2026',
+            child: salesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(
+                child: Text(
+                  _tr('Unable to load sales right now.', 'Imeshindikana kupakia mauzo kwa sasa.'),
+                ),
+              ),
+              data: (items) {
+                final paid = items.where((item) => readInvoiceStatus(item).toLowerCase() == 'paid').toList();
+                final pending = items.where((item) => readInvoiceStatus(item).toLowerCase() != 'paid').toList();
+                final totalSales = items.fold<double>(0, (sum, item) => sum + parseNumericAmount(item['amount']));
+                final paidSales = paid.fold<double>(0, (sum, item) => sum + parseNumericAmount(item['amount']));
+                final pendingSales = pending.fold<double>(0, (sum, item) => sum + parseNumericAmount(item['amount']));
+
+                return Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(24),
+                          bottomRight: Radius.circular(24),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _OverviewStat(label: _tr('Total Sales', 'Jumla ya Mauzo'), value: _fmtAmount(totalSales), color: AppColors.primaryLight),
+                          _OverviewStat(label: _tr('Pending', 'Inasubiri'), value: _fmtAmount(pendingSales), color: AppColors.secondary),
+                          _OverviewStat(label: _tr('Paid', 'Imelipwa'), value: _fmtAmount(paidSales), color: AppColors.success),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: items.isEmpty
+                          ? Center(
+                              child: Text(_tr('No sales invoices yet.', 'Bado hakuna ankara za mauzo.')),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                              itemCount: items.length,
+                              separatorBuilder: (context, index) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final item = items[index];
+                                final status = readInvoiceStatus(item);
+                                final amount = parseNumericAmount(item['amount']);
+                                final id = (item['invoiceNumber'] ?? item['id'] ?? '').toString();
+                                final customer = (item['customerName'] ?? item['customer'] ?? item['partyName'] ?? _tr('Unknown customer', 'Mteja hajulikani')).toString();
+                                final date = readTimestamp(item['createdAt'] ?? item['date']);
+
+                                return _InvoiceListItem(
+                                  id: id.isEmpty ? '#${index + 1}' : '#$id',
+                                  customer: customer,
+                                  amount: _fmtAmount(amount),
+                                  status: status,
+                                  date: _fmtDate(date),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 );
               },
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: AppColors.secondary),
-        label: Text(
-          _tr('New Sale', 'Ongeza Mauzo'),
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.secondary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
     );
+  }
+
+  static String _fmtAmount(double amount) {
+    if (amount >= 1000000) {
+      return 'TSh ${(amount / 1000000).toStringAsFixed(1)}M';
+    }
+    if (amount >= 1000) {
+      return 'TSh ${(amount / 1000).toStringAsFixed(0)}K';
+    }
+    return 'TSh ${amount.toStringAsFixed(0)}';
+  }
+
+  static String _fmtDate(DateTime? date) {
+    if (date == null) return '-';
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }
 
@@ -125,53 +127,10 @@ class _OverviewStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textMuted,
-            fontSize: 12,
-          ),
-        ),
+        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted, fontSize: 12)),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: color,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: color, fontSize: 18, fontWeight: FontWeight.w700)),
       ],
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-
-  const _FilterChip({required this.label, required this.isSelected});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isSelected ? AppColors.primary : AppColors.glassBorder,
-          width: 1,
-        ),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: isSelected ? AppColors.primaryLight : AppColors.textSecondary,
-          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-          fontSize: 13,
-        ),
-      ),
     );
   }
 }
@@ -183,27 +142,18 @@ class _InvoiceListItem extends StatelessWidget {
   final String status;
   final String date;
 
-  const _InvoiceListItem({
-    required this.id,
-    required this.customer,
-    required this.amount,
-    required this.status,
-    required this.date,
-  });
+  const _InvoiceListItem({required this.id, required this.customer, required this.amount, required this.status, required this.date});
 
   @override
   Widget build(BuildContext context) {
+    final statusLower = status.toLowerCase();
     Color statusColor;
-    switch (status) {
-      case 'Paid':
-      case 'Imelipwa':
-        statusColor = AppColors.success;
-        break;
-      case 'Pending':
-      case 'Inasubiri':
-        statusColor = AppColors.secondary;
-        break;
-      default: statusColor = AppColors.error;
+    if (statusLower == 'paid') {
+      statusColor = AppColors.success;
+    } else if (statusLower == 'pending') {
+      statusColor = AppColors.secondary;
+    } else {
+      statusColor = AppColors.error;
     }
 
     return Container(
@@ -231,39 +181,14 @@ class _InvoiceListItem extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      id,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Text(
-                      date,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
-                    ),
+                    Text(id, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted, fontSize: 12)),
+                    Text(date, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted, fontSize: 12)),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  customer,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
-                ),
+                Text(customer, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w700, fontSize: 16)),
                 const SizedBox(height: 4),
-                Text(
-                  amount,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text(amount, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -276,11 +201,7 @@ class _InvoiceListItem extends StatelessWidget {
             ),
             child: Text(
               status.toUpperCase(),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: statusColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: statusColor, fontSize: 10, fontWeight: FontWeight.w700),
             ),
           ),
         ],

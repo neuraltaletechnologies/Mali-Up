@@ -38,12 +38,9 @@ Future<void> main() async {
       prefs.getBool(_onboardingCompletedKey) ?? false;
   final hasSelectedLanguage = 
       await LocalizationService.hasLanguageBeenSelected();
-  final hasDevBypassSession = kDebugMode && (prefs.getBool('dev_bypass_session') ?? false);
-  final hasActiveSession = FirebaseAuth.instance.currentUser != null || hasDevBypassSession;
+  final hasActiveSession = FirebaseAuth.instance.currentUser != null;
   final initialAuthenticatedPath = hasActiveSession
-      ? await DefaultContextRoutingService.resolveInitialAuthenticatedPath(
-        hasDevBypassSession: hasDevBypassSession,
-      )
+      ? await DefaultContextRoutingService.resolveInitialAuthenticatedPath()
       : null;
 
   runApp(

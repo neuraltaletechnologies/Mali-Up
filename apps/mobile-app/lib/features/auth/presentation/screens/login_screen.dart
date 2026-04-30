@@ -12,33 +12,10 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DEV BYPASS — set to true to skip real SMS OTP during development.
-// Automatically has no effect in release builds (kDebugMode == false).
-// Dev OTP code: 9015  |  Any phone number is accepted.
-// ─────────────────────────────────────────────────────────────────────────────
-const bool _kDevBypassOtp = true;  // flip to false to test real Firebase flow
-const String _kDevOtpCode = '9015'; // must match controller pre-fill below
-
-class _PhoneAuthPrecheckResult {
-  final bool isReady;
-  final String title;
-  final String message;
-  final List<String> fixes;
-
-  const _PhoneAuthPrecheckResult({
-    required this.isReady,
-    required this.title,
-    required this.message,
-    this.fixes = const [],
-  });
-}
 
 // Notification helper for success/error messages
 class _NotificationHelper {
@@ -107,18 +84,17 @@ class _LoginScreenState extends State<LoginScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
-  bool _otpSent = false;
+  
+  bool _otpSent = false; // Using this as "show PIN entry" flag
   bool _isLoading = false;
-  bool _phoneAuthReady = false;
-  String? _verificationId;
+  String? _normalizedPhone;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
-  bool _isEmailLoading = false;
   bool _showHeroAnimation = false;
   
-  final TextEditingController _phoneController = TextEditingController(text: '0653520829');
-  final List<TextEditingController> _otpControllers = List.generate(4, (i) => TextEditingController(text: '9015'[i]));
+  final TextEditingController _phoneController = TextEditingController();
+  final List<TextEditingController> _pinControllers = List.generate(4, (i) => TextEditingController());
   final FocusNode _phoneFocusNode = FocusNode();
 
   String _normalizeLocalPhone(String input) {
@@ -151,13 +127,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() => _showHeroAnimation = true);
     });
-
-    if (widget.autoSendOtp) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        await _precheckAndSendOtp();
-      });
-    }
   }
 
   String _tr(String en, String sw) {
@@ -186,10 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
     context.go(route);
   }
 
-  bool _isValidEmail(String value) {
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim());
-  }
-
   Future<void> _openWhatsAppHelpDesk() async {
     final message = Uri.encodeComponent(
       _tr(
@@ -207,625 +172,110 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _showEmailLoginDialog() async {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
-    var obscurePassword = true;
-
-    try {
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                title: Text(_tr('Login with Email', 'Ingia kwa Barua Pepe')),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        hintText: _tr('Email address', 'Barua pepe'),
-                        prefixIcon: const Icon(Icons.alternate_email_rounded),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: passwordController,
-                      obscureText: obscurePassword,
-                      decoration: InputDecoration(
-                        hintText: _tr('Password', 'Nenosiri'),
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        suffixIcon: IconButton(
-                          onPressed: () {
-                            setDialogState(() {
-                              obscurePassword = !obscurePassword;
-                            });
-                          },
-                          icon: Icon(
-                            obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: _isEmailLoading ? null : () => Navigator.of(dialogContext).pop(),
-                    child: Text(_tr('Cancel', 'Ghairi')),
-                  ),
-                  ElevatedButton(
-                    onPressed: _isEmailLoading
-                        ? null
-                        : () async {
-                            final email = emailController.text.trim().toLowerCase();
-                            final password = passwordController.text;
-
-                            if (!_isValidEmail(email)) {
-                              await _NotificationHelper.showError(
-                                dialogContext,
-                                _tr('That email looks incorrect. Please check it.', 'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.'),
-                              );
-                              return;
-                            }
-                            if (password.isEmpty) {
-                              await _NotificationHelper.showError(
-                                dialogContext,
-                                _tr('Please enter your password.', 'Tafadhali weka nenosiri lako.'),
-                              );
-                              return;
-                            }
-
-                            setState(() => _isEmailLoading = true);
-                            try {
-                              await _auth.signInWithEmailAndPassword(
-                                email: email,
-                                password: password,
-                              );
-                              if (!mounted) return;
-                              if (!dialogContext.mounted) return;
-                              Navigator.of(dialogContext).pop();
-                              await _NotificationHelper.showSuccess(
-                                this.context,
-                                _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'),
-                              );
-                              _setFeedback(
-                                _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'),
-                                EmotionalStatusTone.success,
-                              );
-                              _triggerSuccessBurst();
-                              if (!mounted) return;
-                              await _goToPostLoginLanding();
-                            } on FirebaseAuthException catch (e) {
-                              if (!mounted) return;
-                              final message = switch (e.code) {
-                                'user-not-found' => _tr('No account was found with that email.', 'Hakuna akaunti iliyopatikana kwa barua pepe hiyo.'),
-                                'wrong-password' => _tr('Incorrect password. Please try again.', 'Nenosiri si sahihi. Tafadhali jaribu tena.'),
-                                'invalid-credential' => _tr('Invalid credentials. Check your email and password.', 'Taarifa si sahihi. Hakiki barua pepe na nenosiri.'),
-                                _ => _tr('Email login was not completed. Please try again.', 'Kuingia kwa barua pepe hakujakamilika. Tafadhali jaribu tena.'),
-                              };
-                              if (!dialogContext.mounted) return;
-                              await _NotificationHelper.showError(dialogContext, message);
-                            } finally {
-                              if (mounted) {
-                                setState(() => _isEmailLoading = false);
-                              }
-                            }
-                          },
-                    child: Text(
-                      _isEmailLoading
-                          ? _tr('Signing in...', 'Inaingia...')
-                          : _tr('Login', 'Ingia'),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-    } finally {
-      emailController.dispose();
-      passwordController.dispose();
-    }
-  }
-
-  Future<void> _sendOTP() async {
+  Future<void> _handleLoginRequest() async {
     final rawPhone = _phoneController.text.trim();
     final digitsOnly = rawPhone.replaceAll(RegExp(r'\D'), '');
-    String localPhone;
-
-    // Validate phone number
+    
     if (digitsOnly.isEmpty) {
-      if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Quick check, this field is still empty.', 'Ukaguzi wa haraka, sehemu hii bado iko wazi.'));
-      }
+      await _NotificationHelper.showError(context, _tr('Please enter your phone number.', 'Tafadhali weka namba yako ya simu.'));
       return;
     }
 
-    if (digitsOnly.length == 10 && digitsOnly.startsWith('0')) {
-      localPhone = digitsOnly.substring(1);
-    } else if (digitsOnly.length == 9) {
-      localPhone = digitsOnly;
-    } else if (digitsOnly.length == 12 && digitsOnly.startsWith('255')) {
-      localPhone = digitsOnly.substring(3);
-    } else {
-      if (mounted) {
+    final localPhone = _normalizeLocalPhone(digitsOnly);
+    if (localPhone.length < 9) {
+      await _NotificationHelper.showError(context, _tr('Invalid phone number.', 'Namba ya simu si sahihi.'));
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _normalizedPhone = localPhone;
+    });
+
+    try {
+      // Check if user exists in Firestore
+      final userSnapshot = await _firestore
+          .collection('users')
+          .where('phone', isEqualTo: localPhone)
+          .limit(1)
+          .get();
+
+      if (userSnapshot.docs.isEmpty) {
+        setState(() => _isLoading = false);
         await _NotificationHelper.showError(
-          context,
-          _tr(
-            'Use a valid Tanzania number: 0XXXXXXXXX or 9 digits after +255.',
-            'Tumia namba sahihi ya Tanzania: 0XXXXXXXXX au tarakimu 9 baada ya +255.',
-          ),
+          context, 
+          _tr('No account found with this number. Please register.', 'Hakuna akaunti iliyopatikana kwa namba hii. Tafadhali jisajili.')
         );
+        return;
       }
-      return;
-    }
 
-    // ── DEV BYPASS ──────────────────────────────────────────────────────────
-    // In debug builds with _kDevBypassOtp enabled, skip the real Firebase
-    // SMS call and immediately show the OTP entry screen pre-filled with
-    // the dev code. No network call is made.
-    if (kDebugMode && _kDevBypassOtp) {
       setState(() {
         _otpSent = true;
         _isLoading = false;
-        _verificationId = '__dev_bypass__';
       });
-      if (mounted) {
-        _NotificationHelper.showInfo(
-          context,
-          _tr(
-            '🛠 Dev mode: Enter $_kDevOtpCode to bypass OTP.',
-            '🛠 Hali ya Maendeleo: Weka $_kDevOtpCode kupita OTP.',
-          ),
-        );
-        _setFeedback(
-          _tr('Dev mode active — use code $_kDevOtpCode', 'Hali ya Maendeleo — tumia OTP $_kDevOtpCode'),
-          EmotionalStatusTone.neutral,
-        );
-      }
-      return;
-    }
-    // ────────────────────────────────────────────────────────────────────────
-
-    setState(() => _isLoading = true);
-    final fullPhone = '+255$localPhone';
-    
-    try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: fullPhone,
-        timeout: const Duration(seconds: 120),
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          try {
-            await _auth.signInWithCredential(credential);
-            if (mounted) {
-              await _NotificationHelper.showSuccess(context, _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'));
-              _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
-              Future.delayed(const Duration(milliseconds: 500), () {
-                if (mounted) {
-                  unawaited(_goToPostLoginLanding());
-                }
-              });
-            }
-          } catch (e) {
-            if (mounted) {
-              await _NotificationHelper.showError(context, _tr('We could not sign you in automatically: ${e.toString()}', 'Hatukuweza kukuingiza kiotomatiki: ${e.toString()}'));
-              _setFeedback(_tr('Automatic sign-in was not completed yet.', 'Uingizaji wa kiotomatiki haujakamilika bado.'), EmotionalStatusTone.error);
-              setState(() => _isLoading = false);
-            }
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          if (mounted) setState(() => _isLoading = false);
-          String errorMessage = _getFirebaseErrorMessage(e.code);
-          if (mounted) {
-            _NotificationHelper.showError(context, errorMessage);
-            _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.error);
-          }
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          if (mounted) {
-            setState(() {
-              _verificationId = verificationId;
-              _otpSent = true;
-              _isLoading = false;
-            });
-            _NotificationHelper.showSuccess(context, _tr('A verification code was sent to $fullPhone', 'OTP wa uthibitisho umetumwa kwa $fullPhone'));
-            _setFeedback(_tr('Code sent. Check your messages.', 'OTP umetumwa. Angalia ujumbe wako.'), EmotionalStatusTone.success);
-            _triggerSuccessBurst();
-          }
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          setState(() {
-            _verificationId = verificationId;
-          });
-        },
-      );
+      _setFeedback(_tr('Welcome back! Please enter your PIN.', 'Karibu tena! Tafadhali weka PIN yako.'), EmotionalStatusTone.neutral);
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        await _NotificationHelper.showError(context, _tr('We\'re having trouble connecting. Check internet and try again.', 'Tunapata shida ya muunganisho. Angalia intaneti kisha ujaribu tena.'));
-        _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.warning);
-      }
-    }
-  }
-
-  String _getFirebaseErrorMessage(String errorCode) {
-    switch (errorCode) {
-      case 'invalid-phone-number':
-        return _tr('That number looks off. Please check and try again.', 'Namba hiyo inaonekana si sahihi. Tafadhali hakiki kisha ujaribu tena.');
-      case 'missing-client-identifier':
-        return _tr('API configuration error. Please contact support.', 'Hitilafu ya mpangilio wa API. Wasiliana na msaada.');
-      case 'invalid-api-key':
-        return _tr('API key not configured. Please contact support.', 'API key haijapangwa. Wasiliana na msaada.');
-      case 'too-many-requests':
-        return _tr('Let\'s pause for a bit, then try again.', 'Tusimame kidogo, kisha ujaribu tena.');
-      case 'app-not-authorized':
-        return _tr('App not authorized for phone authentication', 'App haijaidhinishwa kwa uthibitisho wa simu');
-      case 'operation-not-allowed':
-        return _tr('Phone verification setup still needs attention.', 'Mipangilio ya uthibitisho wa simu bado inahitaji marekebisho.');
-      case 'network-request-failed':
-        return _tr('We\'re having trouble connecting. Check internet and try again.', 'Tunapata shida ya muunganisho. Angalia intaneti kisha ujaribu tena.');
-      default:
-        return _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.');
-    }
-  }
-
-  String _getPhoneAuthErrorMessage(String code, String? fallbackMessage) {
-    final raw = (fallbackMessage ?? '').toUpperCase();
-    switch (code) {
-      case 'operation-not-allowed':
-        return _tr(
-          'Phone sign-in is disabled. Enable Phone provider in Firebase Auth > Sign-in method.',
-          'Kuingia kwa simu kumezimwa. Washa Phone provider kwenye Firebase Auth > Sign-in method.',
-        );
-      case 'invalid-phone-number':
-        return _tr('That number looks off. Please check and try again.', 'Namba hiyo inaonekana si sahihi. Tafadhali hakiki kisha ujaribu tena.');
-      case 'too-many-requests':
-        return _tr('Let\'s pause for a bit, then try again.', 'Tusimame kidogo, kisha ujaribu tena.');
-      case 'quota-exceeded':
-        return _tr('SMS quota exceeded. Check Firebase usage and billing.', 'Kikomo cha SMS kimefikiwa. Angalia matumizi na malipo ya Firebase.');
-      case 'network-request-failed':
-        return _tr('We\'re having trouble connecting. Check internet and try again.', 'Tunapata shida ya muunganisho. Angalia intaneti kisha ujaribu tena.');
-      case 'internal-error':
-        if (raw.contains('BILLING_NOT_ENABLED')) {
-          return _tr(
-            'Firebase billing is not enabled. Enable billing in Google Cloud/Firebase to send SMS OTP.',
-            'Billing ya Firebase haijawashwa. Washa billing kwenye Google Cloud/Firebase ili kutuma SMS OTP.',
-          );
-        }
-        if (raw.contains('REGION') || raw.contains('SMS UNABLE TO BE SENT')) {
-          return _tr(
-            'SMS region policy blocks this phone region. Enable Tanzania (+255) in Firebase Auth > Settings > SMS region policy.',
-            'Sera ya eneo la SMS imezuia eneo hili. Washa Tanzania (+255) kwenye Firebase Auth > Settings > SMS region policy.',
-          );
-        }
-        return _tr('Internal auth error. Check Firebase Auth and billing settings.', 'Hitilafu ya ndani ya uthibitishaji. Angalia mipangilio ya Firebase Auth na billing.');
-      default:
-        return fallbackMessage ?? _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.');
-    }
-  }
-
-  _PhoneAuthPrecheckResult _buildPrecheckFailure(String code, String? fallbackMessage) {
-    final raw = (fallbackMessage ?? '').toUpperCase();
-
-    if (code == 'operation-not-allowed') {
-      return _PhoneAuthPrecheckResult(
-        isReady: false,
-        title: _tr('Phone Auth Not Enabled', 'Phone Auth Haijawashwa'),
-        message: _getPhoneAuthErrorMessage(code, fallbackMessage),
-        fixes: [
-          _tr('Open Firebase Console > Authentication > Sign-in method.', 'Fungua Firebase Console > Authentication > Sign-in method.'),
-          _tr('Enable Phone provider and Save.', 'Washa Phone provider kisha Save.'),
-        ],
-      );
-    }
-
-    if (code == 'internal-error' && raw.contains('BILLING_NOT_ENABLED')) {
-      return _PhoneAuthPrecheckResult(
-        isReady: false,
-        title: _tr('Billing Required For SMS', 'Billing Inahitajika kwa SMS'),
-        message: _getPhoneAuthErrorMessage(code, fallbackMessage),
-        fixes: [
-          _tr('Open Google Cloud Console for this Firebase project.', 'Fungua Google Cloud Console kwa mradi huu wa Firebase.'),
-          _tr('Enable billing account for project neuraltale-mali-up.', 'Washa billing account kwa mradi neuraltale-mali-up.'),
-          _tr('In Firebase Auth settings, verify SMS region policy allows +255.', 'Kwenye Firebase Auth settings, hakikisha SMS region policy inaruhusu +255.'),
-        ],
-      );
-    }
-
-    if (code == 'internal-error' && (raw.contains('REGION') || raw.contains('SMS UNABLE TO BE SENT'))) {
-      return _PhoneAuthPrecheckResult(
-        isReady: false,
-        title: _tr('SMS Region Blocked', 'Eneo la SMS Limezuiwa'),
-        message: _getPhoneAuthErrorMessage(code, fallbackMessage),
-        fixes: [
-          _tr('Open Firebase Console > Authentication > Settings.', 'Fungua Firebase Console > Authentication > Settings.'),
-          _tr('Set SMS region policy to include Tanzania (+255).', 'Weka SMS region policy ijumuisha Tanzania (+255).'),
-        ],
-      );
-    }
-
-    return _PhoneAuthPrecheckResult(
-      isReady: false,
-      title: _tr('Phone Auth Readiness Failed', 'Utayari wa Phone Auth Umeshindikana'),
-      message: _getPhoneAuthErrorMessage(code, fallbackMessage),
-    );
-  }
-
-  Future<_PhoneAuthPrecheckResult> _runPhoneAuthReadinessCheck() async {
-    final completer = Completer<_PhoneAuthPrecheckResult>();
-    var done = false;
-
-    void finish(_PhoneAuthPrecheckResult result) {
-      if (!done && !completer.isCompleted) {
-        done = true;
-        completer.complete(result);
-      }
-    }
-
-    try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: '+255000000000',
-        timeout: const Duration(seconds: 8),
-        verificationCompleted: (_) {
-          finish(_PhoneAuthPrecheckResult(
-            isReady: true,
-            title: _tr('Phone Auth Ready', 'Phone Auth Iko Tayari'),
-            message: _tr('Firebase Phone Auth is configured correctly.', 'Firebase Phone Auth imepangwa sawa.'),
-          ));
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          if (e.code == 'invalid-phone-number') {
-            finish(_PhoneAuthPrecheckResult(
-              isReady: true,
-              title: _tr('Phone Auth Ready', 'Phone Auth Iko Tayari'),
-              message: _tr('Configuration check passed. Continue to send OTP.', 'Ukaguzi wa mpangilio umefaulu. Endelea kutuma OTP.'),
-            ));
-            return;
-          }
-          finish(_buildPrecheckFailure(e.code, e.message));
-        },
-        codeSent: (_, resendToken) {
-          finish(_PhoneAuthPrecheckResult(
-            isReady: true,
-            title: _tr('Phone Auth Ready', 'Phone Auth Iko Tayari'),
-            message: _tr('Phone verification service is reachable.', 'Huduma ya uthibitishaji wa simu inapatikana.'),
-          ));
-        },
-        codeAutoRetrievalTimeout: (_) {
-          finish(_PhoneAuthPrecheckResult(
-            isReady: true,
-            title: _tr('Phone Auth Ready', 'Phone Auth Iko Tayari'),
-            message: _tr('Readiness check completed.', 'Ukaguzi wa utayari umekamilika.'),
-          ));
-        },
-      );
-    } catch (e) {
-      finish(_PhoneAuthPrecheckResult(
-        isReady: false,
-        title: _tr('Readiness Check Failed', 'Ukaguzi wa Utayari Umeshindikana'),
-        message: _tr('Unexpected error: ${e.toString()}', 'Hitilafu isiyotarajiwa: ${e.toString()}'),
-      ));
-    }
-
-    return completer.future.timeout(
-      const Duration(seconds: 12),
-      onTimeout: () => _PhoneAuthPrecheckResult(
-        isReady: false,
-        title: _tr('Check Timed Out', 'Ukaguzi Umeishiwa Muda'),
-        message: _tr('Could not verify Firebase phone auth readiness in time.', 'Haikuwezekana kuthibitisha utayari wa Firebase phone auth kwa muda.'),
-      ),
-    );
-  }
-
-  Future<bool> _showPhoneAuthPrecheckScreen() async {
-    final result = await _runPhoneAuthReadinessCheck();
-    if (!mounted) return false;
-
-    return await showModalBottomSheet<bool>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) {
-            return Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        result.isReady ? Icons.check_circle : Icons.warning_amber_rounded,
-                        color: result.isReady ? Colors.green : Colors.orange,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          result.title,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.secondary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    result.message,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-                  if (result.fixes.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    Text(
-                      _tr('Recommended Fix Steps:', 'Hatua za Marekebisho Zinazopendekezwa:'),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...result.fixes.map((step) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Text(
-                            '• $step',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        )),
-                  ],
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: Text(_tr('Close', 'Funga')),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: result.isReady ? () => Navigator.of(context).pop(true) : null,
-                          child: Text(_tr('Continue', 'Endelea')),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        ) ??
-        false;
-  }
-
-  Future<void> _precheckAndSendOtp() async {
-    await Future<void>.delayed(Duration.zero);
-
-    // ── DEV BYPASS ──────────────────────────────────────────────────────────
-    // When dev bypass is enabled, do not run Firebase readiness checks.
-    // This avoids billing/SMS region errors during development.
-    if (kDebugMode && _kDevBypassOtp) {
-      await _sendOTP();
-      return;
-    }
-    // ────────────────────────────────────────────────────────────────────────
-
-    if (_phoneAuthReady) {
-      await _sendOTP();
-      return;
-    }
-
-    final ready = await _showPhoneAuthPrecheckScreen();
-    if (!ready) return;
-
-    setState(() => _phoneAuthReady = true);
-    await _sendOTP();
-  }
-
-  Future<void> _verifyOTP() async {
-    setState(() => _isLoading = true);
-    final smsCode = _otpControllers.map((c) => c.text).join();
-
-    if (smsCode.length != 4 || smsCode.contains(' ')) {
       setState(() => _isLoading = false);
-      if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Please enter all 4 digits.', 'Tafadhali weka tarakimu zote 4.'));
-      }
+      await _NotificationHelper.showError(context, _tr('Connection error. Please try again.', 'Hitilafu ya muunganisho. Tafadhali jaribu tena.'));
+    }
+  }
+
+  Future<void> _handlePINLogin() async {
+    final pin = _pinControllers.map((c) => c.text).join();
+    if (pin.length < 4) {
+      await _NotificationHelper.showError(context, _tr('Please enter your 4-digit PIN.', 'Tafadhali weka PIN yako ya tarakimu 4.'));
       return;
     }
 
-    // ── DEV BYPASS ──────────────────────────────────────────────────────────
-    // Skip Firebase credential check in debug builds. Accept the dev code
-    // and navigate directly to the dashboard.
-    if (kDebugMode && _kDevBypassOtp && _verificationId == '__dev_bypass__') {
-      if (smsCode != _kDevOtpCode) {
-        setState(() => _isLoading = false);
-        if (mounted) {
-          await _NotificationHelper.showError(
-            context,
-            _tr(
-              '🛠 Dev mode: Wrong code. Use $_kDevOtpCode.',
-              '🛠 Hali ya Maendeleo: OTP si sahihi. Tumia $_kDevOtpCode.',
-            ),
-          );
-        }
-        return;
-      }
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('dev_bypass_session', true);
-      if (mounted) {
-        await _NotificationHelper.showSuccess(
-          context,
-          _tr('🛠 Dev bypass — entering app.', '🛠 Dev bypass — unaingia kwenye app.'),
-        );
-        _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
-        _triggerSuccessBurst();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          Future.delayed(const Duration(milliseconds: 250), () {
-            if (mounted) {
-              unawaited(_goToPostLoginLanding());
-            }
-          });
-        });
-      }
-      return;
-    }
-    // ────────────────────────────────────────────────────────────────────────
+    setState(() => _isLoading = true);
+    final email = '$_normalizedPhone@mali.up';
 
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode: smsCode,
-      );
-      await _auth.signInWithCredential(credential);
-      if (mounted) {
-        await _NotificationHelper.showSuccess(context, _tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'));
-        _setFeedback(_tr('All set. Let\'s get to work.', 'Kila kitu kiko sawa. Twende kazini.'), EmotionalStatusTone.success);
-        _triggerSuccessBurst();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          Future.delayed(const Duration(milliseconds: 250), () {
-            if (mounted) {
-              unawaited(_goToPostLoginLanding());
-            }
-          });
-        });
-      }
+      await _auth.signInWithEmailAndPassword(email: email, password: pin);
+      if (!mounted) return;
+      
+      _setFeedback(_tr('Login successful!', 'Umeingia kikamilifu!'), EmotionalStatusTone.success);
+      _triggerSuccessBurst();
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _goToPostLoginLanding();
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
-      String errorMessage = e.code == 'invalid-verification-code'
-          ? _tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena OTP kisha endelea.')
-          : _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.');
-      if (mounted) {
-        await _NotificationHelper.showError(context, errorMessage);
-        _setFeedback(_tr('Not quite. Re-enter the code and continue.', 'Bado. Weka tena OTP kisha endelea.'), EmotionalStatusTone.error);
-      }
+      String message = switch (e.code) {
+        'wrong-password' => _tr('Incorrect PIN. Please try again.', 'PIN si sahihi. Jaribu tena.'),
+        'user-not-found' => _tr('Account not found.', 'Akaunti haijapatikana.'),
+        _ => _tr('Login failed. Please check your PIN.', 'Uingiaji umeshindikana. Hakiki PIN yako.'),
+      };
+      await _NotificationHelper.showError(context, message);
     } catch (e) {
       setState(() => _isLoading = false);
-      if (mounted) {
-        await _NotificationHelper.showError(context, _tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'));
-        _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.warning);
-      }
+      await _NotificationHelper.showError(context, _tr('An unexpected error occurred.', 'Hitilafu isiyotarajiwa imetokea.'));
     }
+  }
+
+  Future<void> _handleForgotPIN() async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_tr('Forgot PIN?', 'Umesahau PIN?')),
+        content: Text(_tr(
+          'Please contact support at +255 653 520 829 to reset your PIN.',
+          'Tafadhali wasiliana na huduma kwa wateja +255 653 520 829 ili kuweka PIN mpya.'
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(_tr('Close', 'Funga')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _openWhatsAppHelpDesk();
+            },
+            child: Text(_tr('WhatsApp Support', 'Msaada wa WhatsApp')),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -833,7 +283,7 @@ class _LoginScreenState extends State<LoginScreen> {
     LocalizationService.languageNotifier.removeListener(_languageListener);
     _phoneController.dispose();
     _phoneFocusNode.dispose();
-    for (final controller in _otpControllers) {
+    for (final controller in _pinControllers) {
       controller.dispose();
     }
     super.dispose();
@@ -841,7 +291,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFFE07B2A);
     const textPrimary = Color(0xFF1A1A1A);
     const textSecondary = Color(0xFF6B7280);
     const fieldBg = Color(0xFFEFF5F2);
@@ -1033,229 +482,225 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                    const Center(child: MaliUpLogo(size: 54)),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: Text(
-                        _otpSent ? _tr('Verify OTP', 'Thibitisha OTP') : _tr('Login to Mali App', 'Ingia Mali App'),
-                        textAlign: TextAlign.center,
-                        style: headingStyle,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: Text(
-                        _otpSent
-                            ? _tr('We sent a code to your number. Enter the 4 digits to continue.', 'Tumetuma msimbo kwa namba yako. Weka tarakimu 4 kuendelea.')
-                            : _tr('Welcome back. Enter your phone number to continue securely.', 'Karibu tena. Weka namba yako ya simu ili kuendelea salama.'),
-                        textAlign: TextAlign.center,
-                        style: subtitleStyle,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Icon(Icons.shield_outlined, size: 16, color: textSecondary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _tr('Your transactions are protected with secure encryption.', 'Miamala yako inalindwa kwa usimbaji salama.'),
-                            style: GoogleFonts.poppins(color: textSecondary, fontSize: 12.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    if (_feedbackText != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: EmotionalStatusChip(
-                          visible: true,
-                          text: _feedbackText!,
-                          tone: _feedbackTone,
-                        ),
-                      ),
-                    if (!_otpSent) ...[
-                      Row(
-                        children: [
-                          const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
-                          const SizedBox(width: 8),
-                          Text(_tr('Account Details', 'Taarifa za Akaunti'), style: sectionTitleStyle),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _phoneController,
-                        focusNode: _phoneFocusNode,
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(12),
-                        ],
-                        decoration: fieldDecoration(
-                          hint: _tr('Phone number', 'Namba ya simu'),
-                          suffix: Icons.phone_iphone_rounded,
-                          prefix: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text('🇹🇿', style: TextStyle(fontSize: 18)),
-                                const SizedBox(width: 6),
-                                Text('+255', style: GoogleFonts.poppins(color: textPrimary, fontWeight: FontWeight.w600)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(52),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (mounted) {
-                                      unawaited(_precheckAndSendOtp());
-                                    }
-                                  });
-                                },
-                          child: Text(
-                            _isLoading ? _tr('Sending...', 'Inatuma...') : _tr('Send OTP', 'Tuma OTP'),
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: _isLoading || _isEmailLoading ? null : _showEmailLoginDialog,
-                          icon: const Icon(Icons.alternate_email_rounded, size: 18),
-                          label: Text(_tr('Use email instead', 'Tumia barua pepe badala yake')),
-                          style: TextButton.styleFrom(
-                            foregroundColor: textSecondary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ] else ...[
-                      Row(
-                        children: [
-                          const Icon(Icons.shield_outlined, size: 18, color: textPrimary),
-                          const SizedBox(width: 8),
-                          Text(_tr('Enter the 4-digit OTP', 'Weka OTP ya tarakimu 4'), style: sectionTitleStyle),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(4, (index) => _OTPBox(controller: _otpControllers[index])),
-                      ),
+                      const Center(child: MaliUpLogo(size: 54)),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(52),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: _isLoading ? null : _verifyOTP,
-                          child: Text(
-                            _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Login', 'Ingia'),
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
-                          ),
+                      Center(
+                        child: Text(
+                          _otpSent ? _tr('Verify PIN', 'Thibitisha PIN') : _tr('Login to Mali App', 'Ingia Mali App'),
+                          textAlign: TextAlign.center,
+                          style: headingStyle,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Center(
-                        child: TextButton(
-                          onPressed: () => setState(() => _otpSent = false),
-                          child: Text(_tr('Use another phone number', 'Tumia namba nyingine'), style: GoogleFonts.poppins(color: textSecondary)),
+                        child: Text(
+                          _otpSent
+                              ? _tr('Enter your 4-digit PIN to secure your access.', 'Weka PIN yako ya tarakimu 4 ili kulinda ufikiaji wako.')
+                              : _tr('Enter your phone number to continue securely.', 'Weka namba yako ya simu ili kuendelea salama.'),
+                          textAlign: TextAlign.center,
+                          style: subtitleStyle,
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(_tr('No account? ', 'Huna akaunti? '), style: GoogleFonts.poppins(color: textSecondary)),
-                        TextButton(
-                          onPressed: () => context.push(AppRouter.registerPath),
-                          child: Text(
-                            _tr('Register', 'Jisajili'),
-                            style: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w700),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.shield_outlined, size: 16, color: textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _tr('Your transactions are protected with secure encryption.', 'Miamala yako inalindwa kwa usimbaji salama.'),
+                              style: GoogleFonts.poppins(color: textSecondary, fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      if (_feedbackText != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: EmotionalStatusChip(
+                            visible: true,
+                            text: _feedbackText!,
+                            tone: _feedbackTone,
+                          ),
+                        ),
+                      if (!_otpSent) ...[
+                        Row(
+                          children: [
+                            const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
+                            const SizedBox(width: 8),
+                            Text(_tr('Account Details', 'Taarifa za Akaunti'), style: sectionTitleStyle),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _phoneController,
+                          focusNode: _phoneFocusNode,
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(12),
+                          ],
+                          decoration: fieldDecoration(
+                            hint: _tr('Phone number', 'Namba ya simu'),
+                            suffix: Icons.phone_iphone_rounded,
+                            prefix: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                                  const SizedBox(width: 6),
+                                  Text('+255', style: GoogleFonts.poppins(color: textPrimary, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(52),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: _isLoading ? null : _handleLoginRequest,
+                            child: Text(
+                              _isLoading ? _tr('Checking...', 'Inahakiki...') : _tr('Continue', 'Endelea'),
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        Row(
+                          children: [
+                            const Icon(Icons.lock_outline_rounded, size: 18, color: textPrimary),
+                            const SizedBox(width: 8),
+                            Text(_tr('Enter PIN', 'Weka PIN'), style: sectionTitleStyle),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(4, (i) => _PINBox(controller: _pinControllers[i])),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _handleForgotPIN,
+                            child: Text(
+                              _tr('Forgot PIN?', 'Umesahau PIN?'),
+                              style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(52),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: _isLoading ? null : _handlePINLogin,
+                            child: Text(
+                              _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Login', 'Ingia'),
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: TextButton(
+                            onPressed: () => setState(() {
+                              _otpSent = false;
+                              for (var c in _pinControllers) {
+                                c.clear();
+                              }
+                            }),
+                            child: Text(
+                              _tr('Use different number', 'Tumia namba nyingine'),
+                              style: GoogleFonts.poppins(color: textSecondary),
+                            ),
                           ),
                         ),
                       ],
-                    ),
                     ],
                   ),
                 ),
               );
             },
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 14,
-            child: Center(
-              child: Container(
-                width: 112,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F2937),
-                  borderRadius: BorderRadius.circular(999),
+          if (_successBurstTrigger > 0)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Center(
+                  child: Lottie.asset(
+                    'assets/lottie/success_burst.json',
+                    repeat: false,
+                    onLoaded: (composition) {},
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 }
 
-
-class _OTPBox extends StatelessWidget {
+class _PINBox extends StatelessWidget {
   final TextEditingController controller;
-  const _OTPBox({required this.controller});
+
+  const _PINBox({required this.controller});
 
   @override
   Widget build(BuildContext context) {
+    const fieldBg = Color(0xFFEFF5F2);
+    const textPrimary = Color(0xFF1A1A1A);
+
     return Container(
-      width: 65,
-      height: 70,
+      width: 64,
+      height: 64,
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 2),
+        color: fieldBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.transparent),
       ),
       child: Center(
         child: TextField(
           controller: controller,
           textAlign: TextAlign.center,
           keyboardType: TextInputType.number,
-          maxLength: 1,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.secondary),
+          obscureText: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(1),
+          ],
+          onChanged: (value) {
+            if (value.isNotEmpty) {
+              FocusScope.of(context).nextFocus();
+            } else {
+              FocusScope.of(context).previousFocus();
+            }
+          },
+          style: GoogleFonts.poppins(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: textPrimary,
+          ),
           decoration: const InputDecoration(
-            counterText: "",
             border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
+            counterText: '',
           ),
         ),
       ),
     );
   }
 }
-
