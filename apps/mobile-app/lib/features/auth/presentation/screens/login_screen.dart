@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
@@ -9,10 +8,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/pin_digit_box.dart';
-import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
+import '../utils/pin_auth_password.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -20,16 +19,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 // Notification helper for success/error messages
 class _NotificationHelper {
-  static Future<void> showSuccess(BuildContext context, String message) async {
-    _showNotification(context, message, Colors.green, Icons.check_circle);
-  }
-
   static Future<void> showError(BuildContext context, String message) async {
     _showNotification(context, message, Colors.red, Icons.error_outline);
-  }
-
-  static Future<void> showInfo(BuildContext context, String message) async {
-    _showNotification(context, message, Colors.blue, Icons.info_outline);
   }
 
   static void _showNotification(
@@ -69,10 +60,7 @@ class _NotificationHelper {
 class LoginScreen extends StatefulWidget {
   final String? initialPhone;
 
-  const LoginScreen({
-    super.key,
-    this.initialPhone,
-  });
+  const LoginScreen({super.key, this.initialPhone});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -83,17 +71,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
-  
-  bool _showPinEntry = false; // Flag to switch between phone and PIN entry views
+
+  bool _showPinEntry =
+      false; // Flag to switch between phone and PIN entry views
   bool _isLoading = false;
   String? _normalizedPhone;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
   bool _showHeroAnimation = false;
-  
+
   final TextEditingController _phoneController = TextEditingController();
-  final List<TextEditingController> _pinControllers = List.generate(4, (i) => TextEditingController());
+  final List<TextEditingController> _pinControllers = List.generate(
+    4,
+    (i) => TextEditingController(),
+  );
   final FocusNode _phoneFocusNode = FocusNode();
 
   String _normalizeLocalPhone(String input) {
@@ -166,7 +158,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!launched && mounted) {
       await _NotificationHelper.showError(
         context,
-        _tr('We could not open WhatsApp right now.', 'Hatukuweza kufungua WhatsApp sasa.'),
+        _tr(
+          'We could not open WhatsApp right now.',
+          'Hatukuweza kufungua WhatsApp sasa.',
+        ),
       );
     }
   }
@@ -174,15 +169,24 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLoginRequest() async {
     final rawPhone = _phoneController.text.trim();
     final digitsOnly = rawPhone.replaceAll(RegExp(r'\D'), '');
-    
+
     if (digitsOnly.isEmpty) {
-      await _NotificationHelper.showError(context, _tr('Please enter your phone number.', 'Tafadhali weka namba yako ya simu.'));
+      await _NotificationHelper.showError(
+        context,
+        _tr(
+          'Please enter your phone number.',
+          'Tafadhali weka namba yako ya simu.',
+        ),
+      );
       return;
     }
 
     final localPhone = _normalizeLocalPhone(digitsOnly);
     if (localPhone.length < 9) {
-      await _NotificationHelper.showError(context, _tr('Invalid phone number.', 'Namba ya simu si sahihi.'));
+      await _NotificationHelper.showError(
+        context,
+        _tr('Invalid phone number.', 'Namba ya simu si sahihi.'),
+      );
       return;
     }
 
@@ -201,9 +205,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (userSnapshot.docs.isEmpty) {
         setState(() => _isLoading = false);
+        if (!mounted) return;
         await _NotificationHelper.showError(
-          context, 
-          _tr('No account found with this number. Please register.', 'Hakuna akaunti iliyopatikana kwa namba hii. Tafadhali jisajili.')
+          context,
+          _tr(
+            'No account found with this number. Please register.',
+            'Hakuna akaunti iliyopatikana kwa namba hii. Tafadhali jisajili.',
+          ),
         );
         return;
       }
@@ -212,42 +220,88 @@ class _LoginScreenState extends State<LoginScreen> {
         _showPinEntry = true;
         _isLoading = false;
       });
-      _setFeedback(_tr('Welcome back! Please enter your PIN.', 'Karibu tena! Tafadhali weka PIN yako.'), EmotionalStatusTone.neutral);
+      _setFeedback(
+        _tr(
+          'Welcome back! Please enter your PIN.',
+          'Karibu tena! Tafadhali weka PIN yako.',
+        ),
+        EmotionalStatusTone.neutral,
+      );
     } catch (e) {
       setState(() => _isLoading = false);
-      await _NotificationHelper.showError(context, _tr('Connection error. Please try again.', 'Hitilafu ya muunganisho. Tafadhali jaribu tena.'));
+      if (!mounted) return;
+      await _NotificationHelper.showError(
+        context,
+        _tr(
+          'Connection error. Please try again.',
+          'Hitilafu ya muunganisho. Tafadhali jaribu tena.',
+        ),
+      );
     }
   }
 
   Future<void> _handlePINLogin() async {
     final pin = _pinControllers.map((c) => c.text).join();
     if (pin.length < 4) {
-      await _NotificationHelper.showError(context, _tr('Please enter your 4-digit PIN.', 'Tafadhali weka PIN yako ya tarakimu 4.'));
+      await _NotificationHelper.showError(
+        context,
+        _tr(
+          'Please enter your 4-digit PIN.',
+          'Tafadhali weka PIN yako ya tarakimu 4.',
+        ),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
     final email = '$_normalizedPhone@mali.up';
+    final authPassword = buildAuthPasswordFromPin(pin);
 
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: pin);
+      try {
+        await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: authPassword,
+        );
+      } on FirebaseAuthException catch (e) {
+        // Backward compatibility for any accounts created before auth-password derivation.
+        if (e.code != 'wrong-password') rethrow;
+        await _auth.signInWithEmailAndPassword(email: email, password: pin);
+      }
       if (!mounted) return;
-      
-      _setFeedback(_tr('Login successful!', 'Umeingia kikamilifu!'), EmotionalStatusTone.success);
+
+      _setFeedback(
+        _tr('Login successful!', 'Umeingia kikamilifu!'),
+        EmotionalStatusTone.success,
+      );
       _triggerSuccessBurst();
       await Future.delayed(const Duration(milliseconds: 500));
       await _goToPostLoginLanding();
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
       String message = switch (e.code) {
-        'wrong-password' => _tr('Incorrect PIN. Please try again.', 'PIN si sahihi. Jaribu tena.'),
+        'wrong-password' => _tr(
+          'Incorrect PIN. Please try again.',
+          'PIN si sahihi. Jaribu tena.',
+        ),
         'user-not-found' => _tr('Account not found.', 'Akaunti haijapatikana.'),
-        _ => _tr('Login failed. Please check your PIN.', 'Uingiaji umeshindikana. Hakiki PIN yako.'),
+        _ => _tr(
+          'Login failed. Please check your PIN.',
+          'Uingiaji umeshindikana. Hakiki PIN yako.',
+        ),
       };
+      if (!mounted) return;
       await _NotificationHelper.showError(context, message);
     } catch (e) {
       setState(() => _isLoading = false);
-      await _NotificationHelper.showError(context, _tr('An unexpected error occurred.', 'Hitilafu isiyotarajiwa imetokea.'));
+      if (!mounted) return;
+      await _NotificationHelper.showError(
+        context,
+        _tr(
+          'An unexpected error occurred.',
+          'Hitilafu isiyotarajiwa imetokea.',
+        ),
+      );
     }
   }
 
@@ -256,10 +310,12 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(_tr('Forgot PIN?', 'Umesahau PIN?')),
-        content: Text(_tr(
-          'Please contact support at +255 653 520 829 to reset your PIN.',
-          'Tafadhali wasiliana na huduma kwa wateja +255 653 520 829 ili kuweka PIN mpya.'
-        )),
+        content: Text(
+          _tr(
+            'Please contact support at +255 653 520 829 to reset your PIN.',
+            'Tafadhali wasiliana na huduma kwa wateja +255 653 520 829 ili kuweka PIN mpya.',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -322,7 +378,10 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         prefixIcon: prefix,
         suffixIcon: suffixWidget ?? Icon(suffix, color: textSecondary),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
       );
     }
 
@@ -377,15 +436,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                       animate: true,
                                     )
                                   : Center(
-                                      key: const ValueKey('login-hero-placeholder'),
+                                      key: const ValueKey(
+                                        'login-hero-placeholder',
+                                      ),
                                       child: Container(
                                         width: 120,
                                         height: 120,
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.10),
-                                          borderRadius: BorderRadius.circular(28),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.10,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            28,
+                                          ),
                                           border: Border.all(
-                                            color: Colors.white.withValues(alpha: 0.15),
+                                            color: Colors.white.withValues(
+                                              alpha: 0.15,
+                                            ),
                                           ),
                                         ),
                                         child: const Center(
@@ -426,7 +493,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: Colors.black.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(999),
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                   ),
@@ -436,25 +507,42 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: const Color(0xFF25D366).withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(999),
                         child: IconButton(
-                          tooltip: _tr('Emergency WhatsApp support', 'Msaada wa dharura WhatsApp'),
-                          icon: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 20),
+                          tooltip: _tr(
+                            'Emergency WhatsApp support',
+                            'Msaada wa dharura WhatsApp',
+                          ),
+                          icon: const Icon(
+                            Icons.support_agent_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                           onPressed: _openWhatsAppHelpDesk,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.42),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.lock_rounded, size: 14, color: Colors.white),
+                            const Icon(
+                              Icons.lock_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               _tr('Secure', 'Salama'),
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
@@ -485,7 +573,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                       Center(
                         child: Text(
-                          _showPinEntry ? _tr('Verify PIN', 'Thibitisha PIN') : _tr('Login to Mali App', 'Ingia Mali App'),
+                          _showPinEntry
+                              ? _tr('Verify PIN', 'Thibitisha PIN')
+                              : _tr('Login to Mali App', 'Ingia Mali App'),
                           textAlign: TextAlign.center,
                           style: headingStyle,
                         ),
@@ -494,8 +584,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       Center(
                         child: Text(
                           _showPinEntry
-                              ? _tr('Enter your 4-digit PIN to secure your access.', 'Weka PIN yako ya tarakimu 4 ili kulinda ufikiaji wako.')
-                              : _tr('Enter your phone number to continue securely.', 'Weka namba yako ya simu ili kuendelea salama.'),
+                              ? _tr(
+                                  'Enter your 4-digit PIN to secure your access.',
+                                  'Weka PIN yako ya tarakimu 4 ili kulinda ufikiaji wako.',
+                                )
+                              : _tr(
+                                  'Enter your phone number to continue securely.',
+                                  'Weka namba yako ya simu ili kuendelea salama.',
+                                ),
                           textAlign: TextAlign.center,
                           style: subtitleStyle,
                         ),
@@ -503,12 +599,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(Icons.shield_outlined, size: 16, color: textSecondary),
+                          const Icon(
+                            Icons.shield_outlined,
+                            size: 16,
+                            color: textSecondary,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              _tr('Your transactions are protected with secure encryption.', 'Miamala yako inalindwa kwa usimbaji salama.'),
-                              style: GoogleFonts.poppins(color: textSecondary, fontSize: 12.5),
+                              _tr(
+                                'Your transactions are protected with secure encryption.',
+                                'Miamala yako inalindwa kwa usimbaji salama.',
+                              ),
+                              style: GoogleFonts.poppins(
+                                color: textSecondary,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ),
                         ],
@@ -526,9 +632,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (!_showPinEntry) ...[
                         Row(
                           children: [
-                            const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
+                            const Icon(
+                              Icons.person_outline_rounded,
+                              size: 18,
+                              color: textPrimary,
+                            ),
                             const SizedBox(width: 8),
-                            Text(_tr('Account Details', 'Taarifa za Akaunti'), style: sectionTitleStyle),
+                            Text(
+                              _tr('Account Details', 'Taarifa za Akaunti'),
+                              style: sectionTitleStyle,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -544,13 +657,24 @@ class _LoginScreenState extends State<LoginScreen> {
                             hint: _tr('Phone number', 'Namba ya simu'),
                             suffix: Icons.phone_iphone_rounded,
                             prefix: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                                  const Text(
+                                    '🇹🇿',
+                                    style: TextStyle(fontSize: 18),
+                                  ),
                                   const SizedBox(width: 6),
-                                  Text('+255', style: GoogleFonts.poppins(color: textPrimary, fontWeight: FontWeight.w600)),
+                                  Text(
+                                    '+255',
+                                    style: GoogleFonts.poppins(
+                                      color: textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -564,21 +688,34 @@ class _LoginScreenState extends State<LoginScreen> {
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                             onPressed: _isLoading ? null : _handleLoginRequest,
                             child: Text(
-                              _isLoading ? _tr('Checking...', 'Inahakiki...') : _tr('Continue', 'Endelea'),
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                              _isLoading
+                                  ? _tr('Checking...', 'Inahakiki...')
+                                  : _tr('Continue', 'Endelea'),
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
                       ] else ...[
                         Row(
                           children: [
-                            const Icon(Icons.lock_outline_rounded, size: 18, color: textPrimary),
+                            const Icon(
+                              Icons.lock_outline_rounded,
+                              size: 18,
+                              color: textPrimary,
+                            ),
                             const SizedBox(width: 8),
-                            Text(_tr('Enter PIN', 'Weka PIN'), style: sectionTitleStyle),
+                            Text(
+                              _tr('Enter PIN', 'Weka PIN'),
+                              style: sectionTitleStyle,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -596,7 +733,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: _handleForgotPIN,
                             child: Text(
                               _tr('Forgot PIN?', 'Umesahau PIN?'),
-                              style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13),
+                              style: GoogleFonts.poppins(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ),
@@ -608,12 +749,18 @@ class _LoginScreenState extends State<LoginScreen> {
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                             onPressed: _isLoading ? null : _handlePINLogin,
                             child: Text(
-                              _isLoading ? _tr('Verifying...', 'Inathibitisha...') : _tr('Login', 'Ingia'),
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+                              _isLoading
+                                  ? _tr('Verifying...', 'Inathibitisha...')
+                                  : _tr('Login', 'Ingia'),
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
@@ -627,7 +774,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               }
                             }),
                             child: Text(
-                              _tr('Use different number', 'Tumia namba nyingine'),
+                              _tr(
+                                'Use different number',
+                                'Tumia namba nyingine',
+                              ),
                               style: GoogleFonts.poppins(color: textSecondary),
                             ),
                           ),
@@ -656,4 +806,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

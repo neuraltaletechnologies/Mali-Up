@@ -12,6 +12,7 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
+import '../../../../shared/widgets/shimmer.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../debt/domain/models/debt.dart';
@@ -189,46 +190,55 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${_timeBasedGreeting()}, ${_displayName(snapshot.data)}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.secondary,
-                                    ),
-                              ),
-                              Text(
-                                isBusinessContext
-                                  ? _tr("Here's what's happening in your business today", 'Haya ndiyo yanayoendelea kwenye biashara yako leo')
-                                  : _tr("Here's your personal money pulse for today", 'Huu ndio mwendo wa fedha zako binafsi leo'),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 14,
-                                    ),
-                              ),
-                            ],
+                    if (snapshot.connectionState != ConnectionState.done)
+                      const _DashboardHeaderSkeleton()
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_timeBasedGreeting()}, ${_displayName(snapshot.data)}',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.secondary,
+                                      ),
+                                ),
+                                Text(
+                                  isBusinessContext
+                                      ? _tr(
+                                          "Here's what's happening in your business today",
+                                          'Haya ndiyo yanayoendelea kwenye biashara yako leo',
+                                        )
+                                      : _tr(
+                                          "Here's your personal money pulse for today",
+                                          'Huu ndio mwendo wa fedha zako binafsi leo',
+                                        ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 14,
+                                      ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        const EmotionalLottieSpot(
-                          scene: EmotionalLottieScene.dashboard,
-                          size: 72,
-                          fallbackMood: CompanionMood.calm,
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 10),
+                          const EmotionalLottieSpot(
+                            scene: EmotionalLottieScene.dashboard,
+                            size: 72,
+                            fallbackMood: CompanionMood.calm,
+                          ),
+                        ],
+                      ),
                     const SizedBox(height: 32),
                     if (_showHeavyContent)
                       Row(
@@ -426,15 +436,10 @@ class _DashboardLoadingCard extends StatelessWidget {
       ),
       child: const Align(
         alignment: Alignment.centerLeft,
-        child: SizedBox(
-          width: 80,
+        child: ShimmerBox(
+          width: 120,
           height: 12,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Color(0x22000000),
-              borderRadius: BorderRadius.all(Radius.circular(999)),
-            ),
-          ),
+          borderRadius: BorderRadius.all(Radius.circular(999)),
         ),
       ),
     );
@@ -462,14 +467,10 @@ class _DashboardLoadingPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 74,
+    return const ShimmerBox(
+      width: 84,
       height: 28,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
-      ),
+      borderRadius: BorderRadius.all(Radius.circular(999)),
     );
   }
 }
@@ -486,15 +487,10 @@ class _DashboardChartPlaceholder extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: const Center(
-        child: SizedBox(
-          width: 84,
+        child: ShimmerBox(
+          width: 140,
           height: 12,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Color(0x22000000),
-              borderRadius: BorderRadius.all(Radius.circular(999)),
-            ),
-          ),
+          borderRadius: BorderRadius.all(Radius.circular(999)),
         ),
       ),
     );
@@ -519,9 +515,63 @@ class _DashboardLoadingList extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.border),
             ),
+            child: const Padding(
+              padding: EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  ShimmerBox(width: 44, height: 44, borderRadius: BorderRadius.all(Radius.circular(14))),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ShimmerBox(width: 180, height: 12, borderRadius: BorderRadius.all(Radius.circular(999))),
+                        SizedBox(height: 8),
+                        ShimmerBox(width: 120, height: 10, borderRadius: BorderRadius.all(Radius.circular(999))),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  ShimmerBox(width: 64, height: 12, borderRadius: BorderRadius.all(Radius.circular(999))),
+                ],
+              ),
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DashboardHeaderSkeleton extends StatelessWidget {
+  const _DashboardHeaderSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ShimmerBox(
+                width: 220,
+                height: 18,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
+              SizedBox(height: 10),
+              ShimmerBox(
+                width: 260,
+                height: 12,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: 10),
+        ShimmerBox(width: 72, height: 72, borderRadius: BorderRadius.all(Radius.circular(18))),
+      ],
     );
   }
 }
@@ -564,7 +614,7 @@ class _DebtQuickView extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      _fmtCompactAmount(debts.fold<double>(0, (sum, debt) => sum + _numericValue(debt.amount))),
+                      _fmtCompactAmount(debts.fold<double>(0, (total, debt) => total + _numericValue(debt.amount))),
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             color: AppColors.error,
                             fontSize: 24,
