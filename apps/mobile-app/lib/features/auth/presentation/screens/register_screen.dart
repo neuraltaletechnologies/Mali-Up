@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
@@ -11,19 +9,15 @@ import '../../../../shared/widgets/pin_digit_box.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
+import '../utils/pin_auth_password.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Removed legacy PhoneAuth classes.
 
-enum AccountManagementType {
-  personal,
-  business,
-  both,
-}
+enum AccountManagementType { personal, business, both }
 
 extension AccountManagementTypeX on AccountManagementType {
   String label(bool isSwahili) {
@@ -62,24 +56,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
   AccountManagementType _selectedAccountType = AccountManagementType.personal;
-  
+
   bool _isLoading = false;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
-  
+
   // Owner Details (used for all account types)
   final TextEditingController _ownerNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _referralController = TextEditingController();
-  
+
   // Business Details
   final TextEditingController _businessNameController = TextEditingController();
-  final TextEditingController _placeOfBusinessController = TextEditingController();
-  
-  final List<TextEditingController> _pinControllers = List.generate(4, (_) => TextEditingController());
-  
+  final TextEditingController _placeOfBusinessController =
+      TextEditingController();
+
+  final List<TextEditingController> _pinControllers = List.generate(
+    4,
+    (_) => TextEditingController(),
+  );
+
   final String _businessCategoryKey = 'retail';
 
   bool get _includesBusiness =>
@@ -169,34 +167,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _successBurstTrigger++);
   }
 
-
-
   Future<void> _handleRegistration() async {
     // Validate owner details
     if (_ownerNameController.text.isEmpty) {
-      _setFeedback(_tr('Please enter your full name.', 'Tafadhali weka jina lako kamili.'), EmotionalStatusTone.warning);
+      _setFeedback(
+        _tr('Please enter your full name.', 'Tafadhali weka jina lako kamili.'),
+        EmotionalStatusTone.warning,
+      );
       return;
     }
-    
+
     if (_phoneController.text.isEmpty) {
-      _setFeedback(_tr('Please enter your phone number.', 'Tafadhali weka namba yako ya simu.'), EmotionalStatusTone.warning);
+      _setFeedback(
+        _tr(
+          'Please enter your phone number.',
+          'Tafadhali weka namba yako ya simu.',
+        ),
+        EmotionalStatusTone.warning,
+      );
       return;
     }
 
     final pin = _pinControllers.map((c) => c.text).join();
     if (pin.length < 4) {
-      _setFeedback(_tr('Please enter a 4-digit PIN.', 'Tafadhali weka PIN ya tarakimu 4.'), EmotionalStatusTone.warning);
+      _setFeedback(
+        _tr('Please enter a 4-digit PIN.', 'Tafadhali weka PIN ya tarakimu 4.'),
+        EmotionalStatusTone.warning,
+      );
       return;
     }
 
     // Validate business details if business is selected
     if (_includesBusiness) {
       if (_businessNameController.text.isEmpty) {
-        _setFeedback(_tr('Please enter your business name.', 'Tafadhali weka jina la biashara yako.'), EmotionalStatusTone.warning);
+        _setFeedback(
+          _tr(
+            'Please enter your business name.',
+            'Tafadhali weka jina la biashara yako.',
+          ),
+          EmotionalStatusTone.warning,
+        );
         return;
       }
       if (_placeOfBusinessController.text.isEmpty) {
-        _setFeedback(_tr('Please enter your place of business.', 'Tafadhali weka mahali pa biashara yako.'), EmotionalStatusTone.warning);
+        _setFeedback(
+          _tr(
+            'Please enter your place of business.',
+            'Tafadhali weka mahali pa biashara yako.',
+          ),
+          EmotionalStatusTone.warning,
+        );
         return;
       }
     }
@@ -204,7 +224,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final recoveryEmail = _emailController.text.trim();
     if (recoveryEmail.isNotEmpty &&
         !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(recoveryEmail)) {
-      _setFeedback(_tr('That email looks incorrect. Please check it.', 'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.'), EmotionalStatusTone.warning);
+      _setFeedback(
+        _tr(
+          'That email looks incorrect. Please check it.',
+          'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.',
+        ),
+        EmotionalStatusTone.warning,
+      );
       return;
     }
 
@@ -212,24 +238,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final phone = _phoneController.text.trim();
     final normalizedPhone = _normalizeLocalPhone(phone);
     final email = '$normalizedPhone@mali.up';
+    final authPassword = buildAuthPasswordFromPin(pin);
 
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
-        password: pin,
+        password: authPassword,
       );
       await _completeRegistration(userCredential.user, pin);
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
       String message = switch (e.code) {
-        'email-already-in-use' => _tr('This phone number is already registered.', 'Namba hii ya simu tayari imesajiliwa.'),
-        'weak-password' => _tr('PIN is too simple. Try another.', 'PIN ni rahisi sana. Jaribu nyingine.'),
-        _ => _tr('Registration failed. Please try again.', 'Usajili umeshindikana. Tafadhali jaribu tena.'),
+        'email-already-in-use' => _tr(
+          'This phone number is already registered.',
+          'Namba hii ya simu tayari imesajiliwa.',
+        ),
+        'weak-password' => _tr(
+          'PIN is too simple. Try another.',
+          'PIN ni rahisi sana. Jaribu nyingine.',
+        ),
+        _ => _tr(
+          'Registration failed. Please try again.',
+          'Usajili umeshindikana. Tafadhali jaribu tena.',
+        ),
       };
       _setFeedback(message, EmotionalStatusTone.error);
     } catch (e) {
       setState(() => _isLoading = false);
-      _setFeedback(_tr('An unexpected error occurred.', 'Hitilafu isiyotarajiwa imetokea.'), EmotionalStatusTone.error);
+      _setFeedback(
+        _tr(
+          'An unexpected error occurred.',
+          'Hitilafu isiyotarajiwa imetokea.',
+        ),
+        EmotionalStatusTone.error,
+      );
     }
   }
 
@@ -240,12 +282,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (user != null) {
         final recoveryEmail = _emailController.text.trim().toLowerCase();
         final displayName = _ownerNameController.text.trim();
-        final businessId = _firestore.collection('tenants').doc(user.uid).collection('businesses').doc().id;
+        final businessId = _firestore
+            .collection('tenants')
+            .doc(user.uid)
+            .collection('businesses')
+            .doc()
+            .id;
 
         final selectedAccountTypes = _selectedAccountValues;
         final defaultAccountType = selectedAccountTypes.first;
         final usagePreference = _usagePreference;
-        final defaultContext = _includesBusiness ? 'business:$businessId' : 'personal';
+        final defaultContext = _includesBusiness
+            ? 'business:$businessId'
+            : 'personal';
 
         final businesses = _includesBusiness
             ? [
@@ -265,7 +314,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'name': displayName,
           'displayName': displayName,
           if (recoveryEmail.isNotEmpty) 'email': recoveryEmail,
-          if (_includesBusiness) 'businessName': _businessNameController.text.trim(),
+          if (_includesBusiness)
+            'businessName': _businessNameController.text.trim(),
           'defaultAccountType': defaultAccountType,
           'accountTypes': selectedAccountTypes,
           'usagePreference': usagePreference,
@@ -279,19 +329,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         // Create business tenant if business is selected
         if (_includesBusiness) {
-          await _firestore.collection('tenants').doc(user.uid).collection('businesses').doc(businessId).set({
-            'id': businessId,
-            'businessName': _businessNameController.text.trim(),
-            'businessCategory': _businessCategoryKey,
-            'placeOfBusiness': _placeOfBusinessController.text.trim(),
-            'ownerName': displayName,
-            'ownerPhone': _phoneController.text.trim(),
-            'ownerUid': user.uid,
-            'accountType': 'business',
-            if (recoveryEmail.isNotEmpty) 'ownerEmail': recoveryEmail,
-            'createdAt': FieldValue.serverTimestamp(),
-            'plan': 'Trial',
-          }, SetOptions(merge: true));
+          await _firestore
+              .collection('tenants')
+              .doc(user.uid)
+              .collection('businesses')
+              .doc(businessId)
+              .set({
+                'id': businessId,
+                'businessName': _businessNameController.text.trim(),
+                'businessCategory': _businessCategoryKey,
+                'placeOfBusiness': _placeOfBusinessController.text.trim(),
+                'ownerName': displayName,
+                'ownerPhone': _phoneController.text.trim(),
+                'ownerUid': user.uid,
+                'accountType': 'business',
+                if (recoveryEmail.isNotEmpty) 'ownerEmail': recoveryEmail,
+                'createdAt': FieldValue.serverTimestamp(),
+                'plan': 'Trial',
+              }, SetOptions(merge: true));
         }
 
         // Create personal account if personal is selected
@@ -305,9 +360,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'createdAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
-        
+
         if (mounted) {
-          _setFeedback(_tr('Great news, your workspace is ready.', 'Habari njema, workspace yako iko tayari.'), EmotionalStatusTone.success);
+          _setFeedback(
+            _tr(
+              'Great news, your workspace is ready.',
+              'Habari njema, workspace yako iko tayari.',
+            ),
+            EmotionalStatusTone.success,
+          );
           _triggerSuccessBurst();
           await Future.delayed(const Duration(milliseconds: 420));
         }
@@ -318,10 +379,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-    _setFeedback(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'), EmotionalStatusTone.error);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_tr('Something didn\'t go as planned. Please try again.', 'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.'))),
-    );
+      _setFeedback(
+        _tr(
+          'Something didn\'t go as planned. Please try again.',
+          'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.',
+        ),
+        EmotionalStatusTone.error,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'Something didn\'t go as planned. Please try again.',
+              'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.',
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -374,7 +448,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         prefixIcon: prefix,
         suffixIcon: suffixWidget ?? Icon(suffix, color: textSecondary),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
       );
     }
 
@@ -443,7 +520,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: Colors.black.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(999),
                   child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ),
@@ -493,12 +574,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(Icons.shield_outlined, size: 16, color: textSecondary),
+                          const Icon(
+                            Icons.shield_outlined,
+                            size: 16,
+                            color: textSecondary,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              _tr('Your information stays secure and private.', 'Taarifa zako zinabaki salama na faragha.'),
-                              style: GoogleFonts.poppins(color: textSecondary, fontSize: 12.5),
+                              _tr(
+                                'Your information stays secure and private.',
+                                'Taarifa zako zinabaki salama na faragha.',
+                              ),
+                              style: GoogleFonts.poppins(
+                                color: textSecondary,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ),
                         ],
@@ -515,9 +606,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       Row(
                         children: [
-                          const Icon(Icons.person_outline_rounded, size: 18, color: textPrimary),
+                          const Icon(
+                            Icons.person_outline_rounded,
+                            size: 18,
+                            color: textPrimary,
+                          ),
                           const SizedBox(width: 8),
-                          Text(_tr('Personal Details', 'Taarifa Binafsi'), style: sectionTitleStyle),
+                          Text(
+                            _tr('Personal Details', 'Taarifa Binafsi'),
+                            style: sectionTitleStyle,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -533,7 +631,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         decoration: fieldDecoration(
-                          hint: _tr('Email address (optional)', 'Barua pepe (hiari)'),
+                          hint: _tr(
+                            'Email address (optional)',
+                            'Barua pepe (hiari)',
+                          ),
                           suffix: Icons.alternate_email_rounded,
                         ),
                       ),
@@ -549,9 +650,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                                const Text(
+                                  '🇹🇿',
+                                  style: TextStyle(fontSize: 18),
+                                ),
                                 const SizedBox(width: 6),
-                                Text('+255', style: GoogleFonts.poppins(color: textPrimary, fontWeight: FontWeight.w600)),
+                                Text(
+                                  '+255',
+                                  style: GoogleFonts.poppins(
+                                    color: textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -559,7 +669,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<AccountManagementType>(
-                        value: _selectedAccountType,
+                        initialValue: _selectedAccountType,
                         decoration: fieldDecoration(
                           hint: _tr('Account usage', 'Matumizi ya akaunti'),
                           suffix: Icons.expand_more_rounded,
@@ -568,7 +678,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             .map(
                               (type) => DropdownMenuItem<AccountManagementType>(
                                 value: type,
-                                child: Text(type.label(_language == AppLanguage.swahili)),
+                                child: Text(
+                                  type.label(_language == AppLanguage.swahili),
+                                ),
                               ),
                             )
                             .toList(),
@@ -583,9 +695,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       if (_includesBusiness) ...[
                         Row(
                           children: [
-                            const Icon(Icons.storefront_rounded, size: 18, color: textPrimary),
+                            const Icon(
+                              Icons.storefront_rounded,
+                              size: 18,
+                              color: textPrimary,
+                            ),
                             const SizedBox(width: 8),
-                            Text(_tr('Business Details', 'Taarifa za Biashara'), style: sectionTitleStyle),
+                            Text(
+                              _tr('Business Details', 'Taarifa za Biashara'),
+                              style: sectionTitleStyle,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -600,7 +719,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         TextField(
                           controller: _placeOfBusinessController,
                           decoration: fieldDecoration(
-                            hint: _tr('Place of business', 'Mahali pa biashara'),
+                            hint: _tr(
+                              'Place of business',
+                              'Mahali pa biashara',
+                            ),
                             suffix: Icons.location_on_outlined,
                           ),
                         ),
@@ -608,9 +730,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ],
                       Row(
                         children: [
-                          const Icon(Icons.lock_outline_rounded, size: 18, color: textPrimary),
+                          const Icon(
+                            Icons.lock_outline_rounded,
+                            size: 18,
+                            color: textPrimary,
+                          ),
                           const SizedBox(width: 8),
-                          Text(_tr('Set your 4-digit PIN', 'Weka PIN ya tarakimu 4'), style: sectionTitleStyle),
+                          Text(
+                            _tr(
+                              'Set your 4-digit PIN',
+                              'Weka PIN ya tarakimu 4',
+                            ),
+                            style: sectionTitleStyle,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -629,12 +761,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
                             minimumSize: const Size.fromHeight(52),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           onPressed: _isLoading ? null : _handleRegistration,
                           child: Text(
-                            _isLoading ? _tr('Registering...', 'Inasajili...') : _tr('Register Account', 'Sajili Akaunti'),
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                            _isLoading
+                                ? _tr('Registering...', 'Inasajili...')
+                                : _tr('Register Account', 'Sajili Akaunti'),
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
@@ -650,7 +788,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             onPressed: () => context.push(AppRouter.loginPath),
                             child: Text(
                               _tr('Login', 'Ingia'),
-                              style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w800),
+                              style: GoogleFonts.poppins(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ],
@@ -675,4 +816,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
-

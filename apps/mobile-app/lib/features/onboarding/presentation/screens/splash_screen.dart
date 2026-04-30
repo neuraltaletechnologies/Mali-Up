@@ -141,25 +141,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _buildBackgroundDecorations() {
-    return Stack(
-      children: [
-        Positioned(
-          top: 150,
-          left: 18,
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: OnboardingColors.accentGreen.withValues(alpha: 0.08),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildLogoSection() {
     return AnimatedBuilder(
       animation: _logoAnimation,
