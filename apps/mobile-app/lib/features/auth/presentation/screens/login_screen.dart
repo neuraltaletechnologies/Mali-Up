@@ -383,6 +383,14 @@ class _LoginScreenState extends State<LoginScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
+        ),
         prefixIcon: prefix != null
             ? Padding(
                 padding: const EdgeInsets.only(left: 12),
@@ -418,7 +426,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
@@ -437,11 +445,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     AppColors.primary,
                     AppColors.primaryDark,
                   ],
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(48),
-                  bottomRight: Radius.circular(48),
-                ),
+                )
+               
               ),
               child: Stack(
                 fit: StackFit.expand,
@@ -530,27 +535,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   // WhatsApp support and secure badge
                   Row(
                     children: [
-                      // WhatsApp support button
-                      Material(
-                        color: const Color(0xFF25D366).withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: _openWhatsAppHelpDesk,
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            child: const Icon(
-                              Icons.support_agent_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       // Secure badge with glass effect
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        onTap: _openWhatsAppHelpDesk,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
@@ -562,13 +550,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Row(
                           children: [
                             const Icon(
-                              Icons.lock_rounded,
+                              Icons.call_rounded,
                               size: 14,
                               color: Colors.white,
-                            ),
+                            ),                         
                             const SizedBox(width: 6),
                             Text(
-                              _tr('Secure', 'Salama'),
+                              _tr('Call', 'Piga'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -587,7 +575,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Main content sheet
           DraggableScrollableSheet(
             initialChildSize: 0.68,
-            minChildSize: 0.68,
+            minChildSize: 0.55,
             maxChildSize: 0.96,
             builder: (context, scrollController) {
               return Container(
@@ -604,7 +592,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(24, 24, 24, bottomInset + 24),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
