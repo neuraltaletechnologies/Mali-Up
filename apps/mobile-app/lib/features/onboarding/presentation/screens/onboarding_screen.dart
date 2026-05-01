@@ -86,23 +86,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         backgroundColor: AppColors.background,
         body: Stack(
           children: [
-            // Premium gradient background
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primaryDark,
-                      OnboardingColors.accentGreen,
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
-                  ),
-                ),
-              ),
-            ),
+
             // Page view for onboarding screens
             PageView.builder(
               controller: _pageController,
