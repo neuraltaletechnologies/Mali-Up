@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/services/default_context_routing_service.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
 
 
@@ -202,7 +203,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
       context: context,
       barrierDismissible: true,
       barrierLabel: _tr('Close navigation menu', 'Funga menyu ya urambazaji'),
-      barrierColor: Colors.black.withValues(alpha: 0.1),
+      barrierColor: AppColors.overlay,
       transitionDuration: const Duration(milliseconds: 300),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
@@ -227,285 +228,272 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
           alignment: Alignment.centerLeft,
           child: SafeArea(
             child: Container(
-              width: MediaQuery.of(dialogContext).size.width * 0.85,
+              width: MediaQuery.of(dialogContext).size.width * 0.82,
               decoration: BoxDecoration(
-                color: AppColors.secondary.withValues(alpha: 0.95),
+                color: AppColors.background,
                 borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
+                  topRight: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 30,
-                    offset: const Offset(10, 0),
-                  )
-                ],
+                boxShadow: AppTheme.modalShadow,
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: Column(
-                  children: [
-                    SafeArea(
-                      bottom: false,
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(24, 24, 20, 24),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              AppColors.primaryDark,
-                              AppColors.primary,
+              child: Column(
+                children: [
+                  // Profile Header - Light theme
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 20, 20),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(24),
+                      ),
+                      border: Border(
+                        bottom: BorderSide(color: AppColors.border, width: 1),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 2),
+                          ),
+                          child: CircleAvatar(
+                            radius: 28,
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                            child: Text(
+                              profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
+                              style: const TextStyle(
+                                color: AppColors.primaryDark,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                profile.fullName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                profile.contactLine,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
                             ],
                           ),
-                          borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(32),
-                          ),
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: CircleAvatar(
-                                radius: 28,
-                                backgroundColor: AppColors.secondary,
-                                child: Text(
-                                  profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    profile.fullName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    profile.contactLine,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.8),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () => Navigator.of(dialogContext).pop(),
-                              icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
-                            ),
-                          ],
+                        IconButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary, size: 24),
                         ),
-                      ),
+                      ],
                     ),
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                        children: [
-                          _DrawerItem(
-                            icon: Icons.grid_view_rounded,
-                            label: 'Dashboard',
-                            semanticsLabel: _tr('Dashboard, main app section', 'Dashboard, sehemu kuu ya biashara'),
-                            selected: isDashboard,
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
+                  ),
+                  // Navigation Items
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+                      children: [
+                        _DrawerItemLight(
+                          icon: Icons.grid_view_rounded,
+                          label: 'Dashboard',
+                          semanticsLabel: _tr('Dashboard, main app section', 'Dashboard, sehemu kuu ya biashara'),
+                          selected: isDashboard,
+                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
+                        ),
+                        const SizedBox(height: 4),
+                        if (isBusinessContext) ...[
+                          _DrawerItemLight(
+                            icon: Icons.receipt_long_rounded,
+                            label: _tr('Sales & Invoices', 'Mauzo na Ankara'),
+                            semanticsLabel: _tr('Sales and invoices', 'Mauzo na Ankara, sales and invoices'),
+                            selected: _isSelected(location, AppRouter.salesPath),
+                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
+                            trailingBadge: '3',
                           ),
-                          const SizedBox(height: 12),
-                          if (isBusinessContext) ...[
-                            _DrawerItem(
-                              icon: Icons.receipt_long_rounded,
-                              label: _tr('Sales & Invoices', 'Mauzo na Ankara'),
-                              semanticsLabel: _tr('Sales and invoices', 'Mauzo na Ankara, sales and invoices'),
-                              selected: _isSelected(location, AppRouter.salesPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
-                              trailingBadge: '3',
-                            ),
-                            const SizedBox(height: 12),
-                            _DrawerItem(
-                              icon: Icons.inventory_2_rounded,
-                              label: _tr('Inventory', 'Bidhaa / Inventory'),
-                              semanticsLabel: _tr('Inventory management', 'Bidhaa, inventory management'),
-                              selected: _isSelected(location, AppRouter.inventoryPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
-                            ),
-                            const SizedBox(height: 12),
-                            _DrawerItem(
-                              icon: Icons.people_alt_rounded,
-                              label: _tr('Customers', 'Wateja / Customers'),
-                              semanticsLabel: _tr('Customer relationship management', 'Wateja, customer relationship management'),
-                              selected: _isSelected(location, AppRouter.crmPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
-                            ),
-                            const SizedBox(height: 16),
-                            Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
-                            const SizedBox(height: 16),
-                            _DrawerItem(
-                              icon: Icons.account_balance_rounded,
-                              label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
-                              semanticsLabel: _tr('Debt tracking', 'Madeni, debt tracking'),
-                              selected: _isSelected(location, AppRouter.debtPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
-                            ),
-                            const SizedBox(height: 12),
-                            _DrawerItem(
-                              icon: Icons.payments_outlined,
-                              label: _tr('Expenses', 'Matumizi / Expenses'),
-                              semanticsLabel: _tr('Expense management', 'Matumizi, expense management'),
-                              selected: _isSelected(location, AppRouter.expensesPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
-                            ),
-                            const SizedBox(height: 12),
-                            _DrawerItem(
-                              icon: Icons.account_balance_wallet_outlined,
-                              label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
-                              semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha, cash flow and accounts'),
-                              selected: _isSelected(location, AppRouter.cashFlowPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
-                            ),
-                          ] else ...[
-                            _DrawerItem(
-                              icon: Icons.payments_outlined,
-                              label: _tr('Expenses', 'Matumizi / Expenses'),
-                              semanticsLabel: _tr('Expense management', 'Matumizi, expense management'),
-                              selected: _isSelected(location, AppRouter.expensesPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
-                            ),
-                            const SizedBox(height: 12),
-                            _DrawerItem(
-                              icon: Icons.account_balance_rounded,
-                              label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
-                              semanticsLabel: _tr('Debt tracking', 'Madeni, debt tracking'),
-                              selected: _isSelected(location, AppRouter.debtPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
-                            ),
-                            const SizedBox(height: 12),
-                            _DrawerItem(
-                              icon: Icons.account_balance_wallet_outlined,
-                              label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
-                              semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha, cash flow and accounts'),
-                              selected: _isSelected(location, AppRouter.cashFlowPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                          _DrawerItem(
-                            icon: Icons.storefront_rounded,
-                            label: _tr('Manage Businesses', 'Simamia Biashara'),
-                            semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
-                            selected: _isSelected(location, AppRouter.businessesPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
+                          const SizedBox(height: 4),
+                          _DrawerItemLight(
+                            icon: Icons.inventory_2_rounded,
+                            label: _tr('Inventory', 'Bidhaa / Inventory'),
+                            semanticsLabel: _tr('Inventory management', 'Bidhaa, inventory management'),
+                            selected: _isSelected(location, AppRouter.inventoryPath),
+                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
                           ),
-                          const SizedBox(height: 16),
-                          Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
-                          const SizedBox(height: 16),
-                          _DrawerItem(
-                            icon: Icons.settings_rounded,
-                            label: _tr('Settings', 'Mipangilio / Settings'),
-                            semanticsLabel: _tr('App settings', 'Mipangilio, app settings'),
-                            selected: _isSelected(location, AppRouter.settingsPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
+                          const SizedBox(height: 4),
+                          _DrawerItemLight(
+                            icon: Icons.people_alt_rounded,
+                            label: _tr('Customers', 'Wateja / Customers'),
+                            semanticsLabel: _tr('Customer relationship management', 'Wateja, customer relationship management'),
+                            selected: _isSelected(location, AppRouter.crmPath),
+                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
                           ),
-                          const SizedBox(height: 12),
-                          _DrawerItem(
-                            icon: Icons.headset_mic_rounded,
-                            label: _tr('Help & Support', 'Msaada / Help & Support'),
-                            semanticsLabel: _tr('Help and support', 'Msaada na support'),
-                            selected: false,
-                            onTap: () => Navigator.of(dialogContext).pop(),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Divider(color: AppColors.border, height: 1),
+                          ),
+                          const SizedBox(height: 8),
+                          _DrawerItemLight(
+                            icon: Icons.account_balance_rounded,
+                            label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
+                            semanticsLabel: _tr('Debt tracking', 'Madeni, debt tracking'),
+                            selected: _isSelected(location, AppRouter.debtPath),
+                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
+                          ),
+                          const SizedBox(height: 4),
+                          _DrawerItemLight(
+                            icon: Icons.payments_outlined,
+                            label: _tr('Expenses', 'Matumizi / Expenses'),
+                            semanticsLabel: _tr('Expense management', 'Matumizi, expense management'),
+                            selected: _isSelected(location, AppRouter.expensesPath),
+                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
+                          ),
+                          const SizedBox(height: 4),
+                          _DrawerItemLight(
+                            icon: Icons.account_balance_wallet_outlined,
+                            label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
+                            semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha, cash flow and accounts'),
+                            selected: _isSelected(location, AppRouter.cashFlowPath),
+                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
+                          ),
+                        ] else ...[
+                          _DrawerItemLight(
+                            icon: Icons.payments_outlined,
+                            label: _tr('Expenses', 'Matumizi / Expenses'),
+                            semanticsLabel: _tr('Expense management', 'Matumizi, expense management'),
+                            selected: _isSelected(location, AppRouter.expensesPath),
+                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
+                          ),
+                          const SizedBox(height: 4),
+                          _DrawerItemLight(
+                            icon: Icons.account_balance_rounded,
+                            label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
+                            semanticsLabel: _tr('Debt tracking', 'Madeni, debt tracking'),
+                            selected: _isSelected(location, AppRouter.debtPath),
+                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
+                          ),
+                          const SizedBox(height: 4),
+                          _DrawerItemLight(
+                            icon: Icons.account_balance_wallet_outlined,
+                            label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
+                            semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha, cash flow and accounts'),
+                            selected: _isSelected(location, AppRouter.cashFlowPath),
+                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
                           ),
                         ],
+                        const SizedBox(height: 4),
+                        _DrawerItemLight(
+                          icon: Icons.storefront_rounded,
+                          label: _tr('Manage Businesses', 'Simamia Biashara'),
+                          semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
+                          selected: _isSelected(location, AppRouter.businessesPath),
+                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Divider(color: AppColors.border, height: 1),
+                        ),
+                        const SizedBox(height: 8),
+                        _DrawerItemLight(
+                          icon: Icons.settings_rounded,
+                          label: _tr('Settings', 'Mipangilio / Settings'),
+                          semanticsLabel: _tr('App settings', 'Mipangilio, app settings'),
+                          selected: _isSelected(location, AppRouter.settingsPath),
+                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
+                        ),
+                        const SizedBox(height: 4),
+                        _DrawerItemLight(
+                          icon: Icons.headset_mic_rounded,
+                          label: _tr('Help & Support', 'Msaada / Help & Support'),
+                          semanticsLabel: _tr('Help and support', 'Msaada na support'),
+                          selected: false,
+                          onTap: () => Navigator.of(dialogContext).pop(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Sign Out Button
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: const BorderRadius.only(
+                        bottomRight: Radius.circular(24),
+                      ),
+                      border: Border(
+                        top: BorderSide(color: AppColors.border, width: 1),
                       ),
                     ),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        borderRadius: const BorderRadius.only(
-                          bottomRight: Radius.circular(32),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Semantics(
-                            button: true,
-                            label: _tr('Sign out from Mali App', 'Toka, logout from Mali App'),
-                            child: SizedBox(
-                              height: 54,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.logout_rounded, color: AppColors.primary, size: 22),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Sign Out',
-                                        style: TextStyle(
-                                          color: AppColors.primary,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.5,
-                                        ),
+                    child: Column(
+                      children: [
+                        Semantics(
+                          button: true,
+                          label: _tr('Sign out from Mali App', 'Toka, logout from Mali App'),
+                          child: SizedBox(
+                            height: 48,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppColors.error.withValues(alpha: 0.2), width: 1),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      _tr('Sign Out', 'Toka'),
+                                      style: const TextStyle(
+                                        color: AppColors.error,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Mali App v1.0.0',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 1,
-                            ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Mali App v1.0.0',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1169,4 +1157,117 @@ class _DrawerProfileData {
     required this.contactLine,
     required this.accountTypeLabel,
   });
+}
+
+/// Light theme drawer item for premium fintech look
+class _DrawerItemLight extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final String semanticsLabel;
+  final String? trailingBadge;
+  final bool selected;
+
+  const _DrawerItemLight({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.semanticsLabel,
+    this.trailingBadge,
+    this.selected = false,
+  });
+
+  @override
+  State<_DrawerItemLight> createState() => _DrawerItemLightState();
+}
+
+class _DrawerItemLightState extends State<_DrawerItemLight> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final active = AppColors.primary;
+
+    return Semantics(
+      button: true,
+      label: widget.semanticsLabel,
+      child: GestureDetector(
+        onTapDown: (_) => _controller.forward(),
+        onTapUp: (_) {
+          _controller.reverse();
+          widget.onTap();
+        },
+        onTapCancel: () => _controller.reverse(),
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            height: 52,
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              color: widget.selected ? active.withValues(alpha: 0.08) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: widget.selected ? Border.all(color: active.withValues(alpha: 0.15), width: 1) : null,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: widget.selected ? active.withValues(alpha: 0.12) : AppColors.surface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(widget.icon, size: 18, color: widget.selected ? active : AppColors.textSecondary),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    widget.label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: widget.selected ? active : AppColors.textPrimary,
+                      fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (widget.trailingBadge != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: active,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.trailingBadge!,
+                      style: const TextStyle(
+                        color: AppColors.secondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  )
+                else
+                  Icon(Icons.chevron_right_rounded, color: widget.selected ? active : AppColors.textMuted, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

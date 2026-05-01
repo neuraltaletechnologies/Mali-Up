@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Modern, premium color scheme for onboarding experience
 /// Designed for African market - clean and accessible
+/// Aligned with the main app's fintech design system
 class OnboardingColors {
   // Primary brand colors (white, black, yellow)
   static const Color primaryDeep = Color(0xFF111111); // Black
@@ -16,7 +17,7 @@ class OnboardingColors {
   // Neutral colors
   static const Color white = Color(0xFFFFFFFF);
   static const Color background = Color(0xFFFFFFFF); // White
-  static const Color textDark = Color(0xFF111111); // Black text
+  static const Color textDark = Color(0xFF1E3A8A); // Navy text (aligned with app theme)
   static const Color textLight = Color(0xFF6B7280); // Medium gray
   static const Color divider = Color(0xFFE5E7EB); // Light divider
   

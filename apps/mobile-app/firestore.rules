@@ -34,12 +34,22 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       match /businesses/{businessId} {
         allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+
+        // Tenant-scoped sales invoices used by the sales dashboard
+        match /sales_invoices/{invoiceId} {
+          allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+        }
       }
     }
 
     // Rules for personal account records created during registration and auth flows
     match /personal_accounts/{userId} {
       allow read, create, update, delete: if isSignedIn() && isOwner(userId);
+
+      // Personal-account sales invoices for users operating outside a business context
+      match /sales_invoices/{invoiceId} {
+        allow read, create, update, delete: if isSignedIn() && isOwner(userId);
+      }
     }
 
     // Rules for Debt Collections (Debt Exposure)
