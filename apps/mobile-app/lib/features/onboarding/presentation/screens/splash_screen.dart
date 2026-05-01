@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:go_router/go_router.dart';
 import '../../core/onboarding_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/phone_auth_service.dart';
+import '../../../../core/services/default_context_routing_service.dart';
+import '../../../../config/routing.dart';
 
 /// Premium splash screen with animated gradient background
 /// Displays MaliUp branding and smooth transition to onboarding
@@ -25,6 +30,8 @@ class _SplashScreenState extends State<SplashScreen>
   late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
   bool _initializedAnimations = false;
+  bool _isCheckingAuth = false;
+  bool _hasCompletedAuthCheck = false;
 
   @override
   void initState() {
@@ -71,10 +78,61 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _scheduleNavigation() {
-    Future.delayed(const Duration(milliseconds: 2400), () {
-      if (!mounted) return;
+    // Start auth check immediately
+    _checkAuthAndNavigate();
+    
+    // Fallback navigation after 3 seconds if auth check takes too long
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      if (!mounted || _hasCompletedAuthCheck) return;
       widget.onSplashComplete();
     });
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    if (_isCheckingAuth || _hasCompletedAuthCheck) return;
+    
+    setState(() {
+      _isCheckingAuth = true;
+    });
+
+    try {
+      // Wait a minimum of 1.5 seconds for splash animation
+      await Future.delayed(const Duration(milliseconds: 1500));
+      
+      // Check if user is logged in
+      final isLoggedIn = await PhoneAuthService.isUserLoggedIn();
+      
+      if (isLoggedIn && mounted) {
+        final user = PhoneAuthService.currentUser;
+        if (user != null) {
+          // Navigate to dashboard with proper route
+          final initialPath = await DefaultContextRoutingService.resolveInitialAuthenticatedPath();
+          if (mounted) {
+            _hasCompletedAuthCheck = true;
+            context.go(initialPath ?? AppRouter.dashboardPath);
+            return;
+          }
+        }
+      }
+      
+      // If not logged in or auth check failed, continue with normal flow
+      if (mounted) {
+        _hasCompletedAuthCheck = true;
+        widget.onSplashComplete();
+      }
+    } catch (e) {
+      // If any error occurs, continue with normal flow
+      if (mounted) {
+        _hasCompletedAuthCheck = true;
+        widget.onSplashComplete();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingAuth = false;
+        });
+      }
+    }
   }
 
   @override

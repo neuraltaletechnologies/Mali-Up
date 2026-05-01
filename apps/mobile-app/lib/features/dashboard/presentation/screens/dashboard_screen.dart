@@ -117,11 +117,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<Map<String, dynamic>?> _fetchUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get(const GetOptions(source: Source.serverAndCache));
-    return snapshot.data();
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get(const GetOptions(source: Source.serverAndCache));
+      return snapshot.data() ?? {};
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
+      return {};
+    }
   }
 
   bool _isBusinessContext(Map<String, dynamic>? profile) {
@@ -247,7 +252,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             child: _KPICard(
                               title: isBusinessContext
                                   ? _tr('Today Revenue', 'Mapato ya Leo')
-                                  : _tr('Monthly Budget Health', 'Afya ya Bajeti ya Mwezi'),
+                                  : _tr('MBudget Health', 'Afya ya Bajeti ya Mwezi'),
                               value: isBusinessContext ? _fmtCompactAmount(totalCash) : '${budgetHealth.round()}%',
                               icon: isBusinessContext
                                   ? Icons.trending_up
@@ -1363,10 +1368,17 @@ String _fmtCompactAmount(double amount) {
 }
 
 String _displayName(Map<String, dynamic>? profile) {
-  final explicit = (profile?['displayName'] as String?)?.trim();
-  if (explicit != null && explicit.isNotEmpty) return explicit;
-  final fallback = (profile?['name'] as String?)?.trim();
-  if (fallback != null && fallback.isNotEmpty) return fallback;
+  String? nameValue = profile?['displayName'] as String? ?? 
+                      profile?['name'] as String? ?? 
+                      profile?['fullName'] as String?;
+                      
+  if (nameValue == null || nameValue.trim().isEmpty) {
+    nameValue = FirebaseAuth.instance.currentUser?.displayName;
+  }
+  
+  if (nameValue != null && nameValue.trim().isNotEmpty) {
+    return nameValue.trim().split(' ').first;
+  }
   return 'there';
 }
 

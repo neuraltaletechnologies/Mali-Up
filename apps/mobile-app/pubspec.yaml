@@ -44,6 +44,9 @@ dependencies:
   cloud_firestore: ^5.6.1
   shared_preferences: ^2.3.2
   url_launcher: ^6.3.1
+  connectivity_plus: ^6.0.1
+  pin_code_fields: ^8.0.1
+  timer_count_down: ^2.2.2
 
 dev_dependencies:
   flutter_test:
