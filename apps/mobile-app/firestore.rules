@@ -30,6 +30,18 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
+    // Rules for tenant-scoped businesses created during registration and management
+    match /tenants/{tenantId} {
+      match /businesses/{businessId} {
+        allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+      }
+    }
+
+    // Rules for personal account records created during registration and auth flows
+    match /personal_accounts/{userId} {
+      allow read, create, update, delete: if isSignedIn() && isOwner(userId);
+    }
+
     // Rules for Debt Collections (Debt Exposure)
     match /debt_collections/{collectionId} {
       // Only the owner of the business the collection belongs to can access it

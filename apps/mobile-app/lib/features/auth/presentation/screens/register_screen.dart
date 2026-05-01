@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'dart:io';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/pin_digit_box.dart';
@@ -177,6 +179,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _successBurstTrigger++);
   }
 
+  String _registrationNetworkErrorMessage() {
+    return _tr(AppStrings.networkError, AppStrings.networkErrorSw);
+  }
+
+  String _registrationFallbackErrorMessage(Object error) {
+    if (error is SocketException) {
+      return _registrationNetworkErrorMessage();
+    }
+
+    if (error is FirebaseAuthException && error.code == 'network-request-failed') {
+      return _registrationNetworkErrorMessage();
+    }
+
+    if (error is FirebaseException && error.code == 'network-request-failed') {
+      return _registrationNetworkErrorMessage();
+    }
+
+    return _tr(
+      'Registration failed. Please try again.',
+      'Usajili umeshindikana. Tafadhali jaribu tena.',
+    );
+  }
+
   Future<void> _handleRegistration() async {
     // Validate owner details
     if (_ownerNameController.text.isEmpty) {
@@ -278,13 +303,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _setFeedback(message, EmotionalStatusTone.error);
     } catch (e) {
       setState(() => _isLoading = false);
-      _setFeedback(
-        _tr(
-          'An unexpected error occurred.',
-          'Hitilafu isiyotarajiwa imetokea.',
-        ),
-        EmotionalStatusTone.error,
-      );
+      _setFeedback(_registrationFallbackErrorMessage(e), EmotionalStatusTone.error);
     }
   }
 
@@ -403,13 +422,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         debugPrint('Failed to cleanup Firebase user: $deleteError');
       }
       setState(() => _isLoading = false);
-      _setFeedback(
-        _tr(
-          'Registration failed. Please try again.',
-          'Usajili umeshindikana. Tafadhali jaribu tena.',
-        ),
-        EmotionalStatusTone.error,
-      );
+      _setFeedback(_registrationFallbackErrorMessage(e), EmotionalStatusTone.error);
     }
   }
 
