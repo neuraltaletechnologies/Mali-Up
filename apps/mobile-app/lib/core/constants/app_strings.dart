@@ -183,8 +183,8 @@ class AppStrings {
   static const String errorOccurredSw = 'Hitilafu imetokea';
   static const String tryAgain = 'Please try again';
   static const String tryAgainSw = 'Tafadhali jaribu tena';
-  static const String networkError = 'Network error. Please check your connection.';
-  static const String networkErrorSw = 'Hitilafu ya mtandao. Tafadhali angalia muunganisho wako.';
+  static const String networkError = 'No internet connection. Please check your connection.';
+  static const String networkErrorSw = 'Hakuna muunganisho wa intaneti. Tafadhali angalia muunganisho wako.';
   static const String authError = 'Authentication error. Please try again.';
   static const String authErrorSw = 'Hitilafu ya kuingia. Tafadhali jaribu tena.';
   static const String validationError = 'Invalid information. Please check and try again.';
