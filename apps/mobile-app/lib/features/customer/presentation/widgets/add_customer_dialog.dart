@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/models/customer.dart';
 import '../../../../core/services/localization_service.dart';
 
 class AddCustomerDialog extends ConsumerStatefulWidget {
@@ -153,7 +152,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                               vertical: 8,
                             ),
                           ),
-                          onSubmitted: (value) {
+                          onFieldSubmitted: (value) {
                             if (value.isNotEmpty) {
                               setState(() {
                                 _tags.add(value);
