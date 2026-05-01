@@ -82,7 +82,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Service',
     'Manufacturing',
     'Food & Beverage',
+    'Agriculture',
+    'Transport',
+    'Construction',
+    'Healthcare',
+    'Education',
+    'Technology',
+    'Hospitality',
+    'Beauty & Wellness',
+    'Entertainment',
+    'Real Estate',
+    'Financial Services',
+    'Professional Services',
     'Other'
+  ];
+
+  // Tanzania cities/regions for place of business
+  String? _selectedCity;
+  final List<Map<String, String>> _tanzaniaCities = [
+    {'en': 'Dar es Salaam', 'sw': 'Dar es Salaam'},
+    {'en': 'Dodoma', 'sw': 'Dodoma'},
+    {'en': 'Mwanza', 'sw': 'Mwanza'},
+    {'en': 'Arusha', 'sw': 'Arusha'},
+    {'en': 'Mbeya', 'sw': 'Mbeya'},
+    {'en': 'Morogoro', 'sw': 'Morogoro'},
+    {'en': 'Tanga', 'sw': 'Tanga'},
+    {'en': 'Zanzibar', 'sw': 'Zanzibar'},
+    {'en': 'Kigoma', 'sw': 'Kigoma'},
+    {'en': 'Mtwara', 'sw': 'Mtwara'},
+    {'en': 'Tabora', 'sw': 'Tabora'},
+    {'en': 'Iringa', 'sw': 'Iringa'},
+    {'en': 'Singida', 'sw': 'Singida'},
+    {'en': 'Shinyanga', 'sw': 'Shinyanga'},
+    {'en': 'Musoma', 'sw': 'Musoma'},
+    {'en': 'Bukoba', 'sw': 'Bukoba'},
+    {'en': 'Sumbawanga', 'sw': 'Sumbawanga'},
+    {'en': 'Njombe', 'sw': 'Njombe'},
+    {'en': 'Other', 'sw': 'Nyingine'},
   ];
 
   final List<TextEditingController> _pinControllers = List.generate(
@@ -503,7 +539,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
@@ -585,7 +621,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // Main content sheet
           DraggableScrollableSheet(
             initialChildSize: 0.68,
-            minChildSize: 0.68,
+            minChildSize: 0.55,
             maxChildSize: 0.96,
             builder: (context, scrollController) {
               return Container(
@@ -602,7 +638,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(24, 24, 24, bottomInset + 24),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -829,16 +865,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           },
                         ),
                         const SizedBox(height: 12),
-                        // Place of business field
-                        TextField(
-                          controller: _placeOfBusinessController,
+                        // City dropdown for place of business
+                        DropdownButtonFormField<String>(
+                          value: _selectedCity,
                           decoration: fieldDecoration(
-                            hint: _tr(
-                              'Place of business',
-                              'Mahali pa biashara',
-                            ),
+                            hint: _tr('City/Region', 'Mji/Mkoa'),
                             suffix: Icons.location_on_outlined,
                           ),
+                          items: _tanzaniaCities.map((city) {
+                            final label = _language == AppLanguage.swahili 
+                                ? city['sw']! 
+                                : city['en']!;
+                            return DropdownMenuItem(
+                              value: city['en'],
+                              child: Text(label),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedCity = value;
+                              _placeOfBusinessController.text = value ?? '';
+                            });
+                          },
                         ),
                         const SizedBox(height: 20),
                       ],
