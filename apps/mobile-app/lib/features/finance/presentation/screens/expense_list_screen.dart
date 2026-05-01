@@ -4,6 +4,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/finance_providers.dart';
+import '../widgets/add_expense_dialog.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
