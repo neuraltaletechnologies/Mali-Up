@@ -396,23 +396,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       debugPrint('FIRESTORE REGISTRATION ERROR: $e');
       if (!mounted) return;
+      // If Firestore fails, we need to clean up the Firebase user to prevent "already registered" error
+      try {
+        await user?.delete();
+      } catch (deleteError) {
+        debugPrint('Failed to cleanup Firebase user: $deleteError');
+      }
       setState(() => _isLoading = false);
       _setFeedback(
         _tr(
-          'Something didn\'t go as planned. Please try again.',
-          'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.',
+          'Registration failed. Please try again.',
+          'Usajili umeshindikana. Tafadhali jaribu tena.',
         ),
         EmotionalStatusTone.error,
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'Something didn\'t go as planned. Please try again.',
-              'Kitu hakikuenda kama tulivyotarajia. Tafadhali jaribu tena.',
-            ),
-          ),
-        ),
       );
     }
   }

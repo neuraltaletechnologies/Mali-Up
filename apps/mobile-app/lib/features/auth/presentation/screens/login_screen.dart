@@ -266,8 +266,12 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } on FirebaseAuthException catch (e) {
         // Backward compatibility for any accounts created before auth-password derivation.
-        if (e.code != 'wrong-password') rethrow;
-        await _auth.signInWithEmailAndPassword(email: email, password: pin);
+        if (e.code != 'wrong-password' && e.code != 'invalid-credential') rethrow;
+        try {
+          await _auth.signInWithEmailAndPassword(email: email, password: pin);
+        } catch (_) {
+          rethrow; // Rethrow the original if fallback fails
+        }
       }
       if (!mounted) return;
 
@@ -282,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
       debugPrint('FIREBASE AUTH ERROR: ${e.code} - ${e.message}');
       setState(() => _isLoading = false);
       String message = switch (e.code) {
-        'wrong-password' => _tr(
+        'wrong-password' || 'invalid-credential' => _tr(
           'Incorrect PIN. Please try again.',
           'PIN si sahihi. Jaribu tena.',
         ),
@@ -706,27 +710,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        Center(
-                          child: TextButton(
-                            onPressed: () {
-                              final phone = _phoneController.text.trim();
-                              context.push(
-                                AppRouter.registerPath,
-                                extra: {'phone': phone},
-                              );
-                            },
+                                             Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _tr('Do not have an account? ', 'Huna akaunti? '),
+                            style: GoogleFonts.poppins(color: textSecondary),
+                          ),
+                          TextButton(
+                            onPressed: () => context.push(AppRouter.registerPath),
                             child: Text(
-                              _tr(
-                                "Don't have an account? Create one",
-                                'Huna akaunti? Sajili',
-                              ),
+                              _tr('Register', 'Jisajili'),
                               style: GoogleFonts.poppins(
-                                color: AppColors.secondary,
-                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
-                        ),
+                        ],
+                      ),
                       ] else ...[
                         Row(
                           children: [
