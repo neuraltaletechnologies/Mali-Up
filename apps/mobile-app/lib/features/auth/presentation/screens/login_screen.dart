@@ -521,7 +521,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
-                      onTap: () => Navigator.of(context).maybePop(),
+                      onTap: () => context.go(AppRouter.registerPath),
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         child: const Icon(
@@ -536,34 +536,40 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     children: [
                       // Secure badge with glass effect
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        onTap: _openWhatsAppHelpDesk,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
+                      Material(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.call_rounded,
-                              size: 14,
-                              color: Colors.white,
-                            ),                         
-                            const SizedBox(width: 6),
-                            Text(
-                              _tr('Call', 'Piga'),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                          onTap: _openWhatsAppHelpDesk,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                width: 1,
                               ),
                             ),
-                          ],
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.call_rounded,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _tr('Call', 'Piga'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ),
                         ),
                       ),
                     ],
