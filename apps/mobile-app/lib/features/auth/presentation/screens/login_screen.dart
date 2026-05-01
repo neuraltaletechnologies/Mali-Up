@@ -352,9 +352,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const textPrimary = Color(0xFF1A1A1A);
-    const textSecondary = Color(0xFF6B7280);
-    const fieldBg = Color(0xFFEFF5F2);
+    final theme = Theme.of(context);
+    final textPrimary = AppColors.textPrimary;
+    final textSecondary = AppColors.textSecondary;
+    final fieldBg = AppColors.surface;
     final mediaQuery = MediaQuery.of(context);
     final topHeight = mediaQuery.size.height * 0.25;
     final bottomInset = mediaQuery.viewInsets.bottom;
@@ -367,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }) {
       return InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: textSecondary),
+        hintStyle: TextStyle(color: AppColors.textMuted),
         filled: true,
         fillColor: fieldBg,
         border: OutlineInputBorder(
@@ -376,31 +377,31 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: AppColors.border, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         prefixIcon: prefix,
-        suffixIcon: suffixWidget ?? Icon(suffix, color: textSecondary),
+        suffixIcon: suffixWidget ?? Icon(suffix, color: AppColors.textSecondary),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
+          horizontal: 16,
+          vertical: 16,
         ),
       );
     }
 
     final headingStyle = GoogleFonts.poppins(
-      fontSize: 30,
+      fontSize: 28,
       color: textPrimary,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w800,
       height: 1.15,
     );
     final subtitleStyle = GoogleFonts.poppins(
       color: textSecondary,
       fontSize: 14,
-      height: 1.45,
+      height: 1.5,
       fontWeight: FontWeight.w400,
     );
     final sectionTitleStyle = GoogleFonts.poppins(
@@ -605,7 +606,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.shield_outlined,
                             size: 16,
                             color: textSecondary,
@@ -638,7 +639,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (!_showPinEntry) ...[
                         Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.person_outline_rounded,
                               size: 18,
                               color: textPrimary,
@@ -732,7 +733,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ] else ...[
                         Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.lock_outline_rounded,
                               size: 18,
                               color: textPrimary,

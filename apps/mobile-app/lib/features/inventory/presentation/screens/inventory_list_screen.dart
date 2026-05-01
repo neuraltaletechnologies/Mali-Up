@@ -15,12 +15,28 @@ class InventoryListScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
+  int _getLowStockCount(List<Map<String, dynamic>> items) {
+    return items.where((item) {
+      final currentStock = parseStock(item['currentStock']);
+      final reorderPoint = parseStock(item['reorderPoint']);
+      return currentStock > 0 && currentStock <= reorderPoint;
+    }).length;
+  }
+
+  int _getOutOfStockCount(List<Map<String, dynamic>> items) {
+    return items.where((item) {
+      final currentStock = parseStock(item['currentStock']);
+      return currentStock == 0;
+    }).length;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final inventoryAsync = ref.watch(inventoryItemListProvider);
     final items = inventoryAsync.maybeWhen(
       data: (items) => items.map((item) => Map<String, dynamic>.from(item)).toList(), 
-      orElse: () => [],
+      orElse: () => <Map<String, dynamic>>[],
     );
     final isLoading = inventoryAsync.isLoading;
     final error = inventoryAsync.error;
@@ -38,8 +54,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                     children: [
                       Text(
                         _tr('Manage your inventory efficiently', 'Dhibiti akiba yako kwa ufanisi'),
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.secondary,
+                        style: theme.textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
                       ),
@@ -49,9 +64,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                           'Track stock levels, get alerts for low items, and manage reordering.',
                           'Fuatilia viwango vya akiba, pata tahadhari kwa bidhaa chache, na dhibiti upya upatikaji.',
                         ),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                        style: theme.textTheme.bodyMedium,
                       ),
                     ],
                   ),
@@ -65,22 +78,28 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
             ),
           ),
 
+          // Inventory Summary - Premium card style
           Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadowCard,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               children: [
                 Text(
                   _tr('Inventory Summary', 'Muhtasari wa Akiba'),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -96,13 +115,13 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                       label: _tr('Low Stock', 'Akiba Ndogo'),
                       value: '${_getLowStockCount(items)}',
                       icon: Icons.warning_amber_outlined,
-                      color: Colors.orange,
+                      color: AppColors.warning,
                     ),
                     _SummaryStat(
                       label: _tr('Out of Stock', 'Imekuwa Hakuna'),
                       value: '${_getOutOfStockCount(items)}',
                       icon: Icons.error_outline_outlined,
-                      color: Colors.red,
+                      color: AppColors.error,
                     ),
                   ],
                 ),
@@ -232,31 +251,29 @@ class _SummaryStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final defaultColor = color ?? AppColors.primary;
+    final theme = Theme.of(context);
+    final statColor = color ?? AppColors.primary;
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: defaultColor.withOpacity(0.1),
+            color: statColor.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: defaultColor, size: 24),
+          child: Icon(icon, color: statColor, size: 24),
         ),
         const SizedBox(height: 8),
         Text(
           value,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: AppColors.secondary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+          style: theme.textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w800,
           ),
         ),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          style: theme.textTheme.labelSmall?.copyWith(
             color: AppColors.textMuted,
-            fontSize: 11,
           ),
         ),
       ],
@@ -270,24 +287,34 @@ class _InventoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final stockColor = _getStockColor(item['stockStatus']?.toString() ?? '');
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withOpacity(0.05)),
+        border: Border.all(color: AppColors.border, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _getStockColor(item['stockStatus']?.toString() ?? '').withValues(alpha: 0.1),
+              color: stockColor.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               Icons.inventory_2_outlined,
-              color: _getStockColor(item['stockStatus']?.toString() ?? ''),
+              color: stockColor,
               size: 24,
             ),
           ),
@@ -298,27 +325,20 @@ class _InventoryCard extends StatelessWidget {
               children: [
                 Text(
                   item['name']?.toString() ?? '',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.secondary,
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   item['category']?.toString() ?? '',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: theme.textTheme.bodySmall,
                 ),
                 if ((item['sku']?.toString() ?? '').isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
                     'SKU: ${item['sku']}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                    ),
+                    style: theme.textTheme.labelSmall,
                   ),
                 ],
               ],
@@ -329,34 +349,31 @@ class _InventoryCard extends StatelessWidget {
             children: [
               Text(
                 '${parseStock(item['currentStock'])} ${item['unit']?.toString() ?? ''}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: _getStockColor(item['stockStatus']?.toString() ?? ''),
-                  fontWeight: FontWeight.w700,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: stockColor,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 'TZS ${parseUnitPrice(item['unitPrice']).toStringAsFixed(0)}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
-                ),
+                style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getStockColor(item['stockStatus']?.toString() ?? '').withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: stockColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: _getStockColor(item['stockStatus']?.toString() ?? '').withValues(alpha: 0.3),
+                    color: stockColor.withValues(alpha: 0.3),
+                    width: 1,
                   ),
                 ),
                 child: Text(
                   item['stockStatus']?.toString() ?? '',
-                  style: TextStyle(
-                    color: _getStockColor(item['stockStatus']?.toString() ?? ''),
-                    fontSize: 10,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: stockColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -371,11 +388,11 @@ class _InventoryCard extends StatelessWidget {
   Color _getStockColor(String status) {
     switch (status) {
       case 'Out of Stock':
-        return Colors.red;
+        return AppColors.error;
       case 'Low Stock':
-        return Colors.orange;
+        return AppColors.warning;
       default:
-        return Colors.green;
+        return AppColors.success;
     }
   }
 }
@@ -652,20 +669,5 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
         }
       }
     }
-  }
-
-  int _getLowStockCount(List<Map<String, dynamic>> items) {
-    return items.where((item) {
-      final currentStock = parseStock(item['currentStock']);
-      final reorderPoint = parseStock(item['reorderPoint']);
-      return currentStock > 0 && currentStock <= reorderPoint;
-    }).length;
-  }
-
-  int _getOutOfStockCount(List<Map<String, dynamic>> items) {
-    return items.where((item) {
-      final currentStock = parseStock(item['currentStock']);
-      return currentStock == 0;
-    }).length;
   }
 }

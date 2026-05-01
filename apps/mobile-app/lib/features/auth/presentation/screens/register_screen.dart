@@ -319,7 +319,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   'type': _selectedBusinessType,
                   'category': _businessCategoryKey,
                   'placeOfBusiness': _placeOfBusinessController.text.trim(),
-                  'createdAt': FieldValue.serverTimestamp(),
+                  'createdAt': DateTime.now().toIso8601String(),
                 },
               ]
             : <Map<String, dynamic>>[];
@@ -339,8 +339,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'selectedBusinessId': _includesBusiness ? businessId : null,
           'businesses': businesses,
           if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
+          'createdAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toIso8601String(),
         }, SetOptions(merge: true));
 
         // Create business tenant if business is selected
@@ -361,7 +361,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 'ownerUid': user.uid,
                 'accountType': 'business',
                 if (recoveryEmail.isNotEmpty) 'ownerEmail': recoveryEmail,
-                'createdAt': FieldValue.serverTimestamp(),
+                'createdAt': DateTime.now().toIso8601String(),
                 'plan': 'Trial',
               }, SetOptions(merge: true));
         }
@@ -374,7 +374,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'ownerUid': user.uid,
             'accountType': 'personal',
             if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
-            'createdAt': FieldValue.serverTimestamp(),
+            'createdAt': DateTime.now().toIso8601String(),
           }, SetOptions(merge: true));
         }
 

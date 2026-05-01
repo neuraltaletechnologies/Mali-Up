@@ -13,6 +13,7 @@ class CustomerListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final customers = ref.watch(customerListProvider);
     final customerItems = customers.maybeWhen(data: (items) => items, orElse: () => const []);
 
@@ -29,8 +30,7 @@ class CustomerListScreen extends ConsumerWidget {
                     children: [
                       Text(
                         _tr('Build stronger customer trust', 'Jenga uaminifu mkubwa wa wateja'),
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.secondary,
+                        style: theme.textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
                       ),
@@ -40,9 +40,7 @@ class CustomerListScreen extends ConsumerWidget {
                           'Follow balances, tags, and recent activity for every customer.',
                           'Fuatilia salio, lebo, na shughuli za hivi karibuni kwa kila mteja.',
                         ),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                        style: theme.textTheme.bodyMedium,
                       ),
                     ],
                   ),
@@ -56,15 +54,21 @@ class CustomerListScreen extends ConsumerWidget {
             ),
           ),
 
-          // CRM Summary Header
+          // CRM Summary Header - Premium card style
           Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadowCard,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -115,30 +119,28 @@ class _SummaryStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.background.withValues(alpha: 0.5),
+            color: AppColors.primary.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: AppColors.primaryLight, size: 24),
+          child: Icon(icon, color: AppColors.primaryDark, size: 24),
         ),
         const SizedBox(height: 8),
         Text(
           value,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: AppColors.secondary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+          style: theme.textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w800,
           ),
         ),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          style: theme.textTheme.labelSmall?.copyWith(
             color: AppColors.textMuted,
-            fontSize: 11,
           ),
         ),
       ],
@@ -152,12 +154,22 @@ class _CustomerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasBalance = customer.balance != 'TSh 0';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.05)),
+        border: Border.all(color: AppColors.border, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -167,8 +179,8 @@ class _CustomerCard extends StatelessWidget {
                 backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                 child: Text(
                   customer.name[0],
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.primaryLight,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: AppColors.primaryDark,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -180,18 +192,14 @@ class _CustomerCard extends StatelessWidget {
                   children: [
                     Text(
                       customer.name,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.secondary,
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        fontSize: 16,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       customer.phone,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
+                      style: theme.textTheme.bodySmall,
                     ),
                   ],
                 ),
@@ -201,17 +209,14 @@ class _CustomerCard extends StatelessWidget {
                 children: [
                   Text(
                     _tr('Outstanding Balance', 'Salio Linalodaiwa'),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                    ),
+                    style: theme.textTheme.labelSmall,
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     customer.balance,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: customer.balance == 'TSh 0' ? AppColors.textMuted : AppColors.error, 
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: hasBalance ? AppColors.error : AppColors.textMuted,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
@@ -219,7 +224,7 @@ class _CustomerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(color: AppColors.glassBorder, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -227,16 +232,16 @@ class _CustomerCard extends StatelessWidget {
               Wrap(
                 spacing: 8,
                 children: customer.tags.map<Widget>((tag) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(5),
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1),
                   ),
                   child: Text(
                     tag,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.primaryLight,
-                      fontSize: 10,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AppColors.primaryDark,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -244,10 +249,7 @@ class _CustomerCard extends StatelessWidget {
               ),
               Text(
                 '${_tr('Last Tx', 'Muamala wa Mwisho')}: ${customer.lastTransactionDate}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
-                ),
+                style: theme.textTheme.bodySmall,
               ),
             ],
           ),
