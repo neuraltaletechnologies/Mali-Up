@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,7 +17,7 @@ class MainShellPage extends StatefulWidget {
   State<MainShellPage> createState() => _MainShellPageState();
 }
 
-class _MainShellPageState extends State<MainShellPage> {
+class _MainShellPageState extends State<MainShellPage> with SingleTickerProviderStateMixin {
   User? _currentUser;
   late Future<Map<String, dynamic>?> _profileFuture;
   late final VoidCallback _languageListener;
@@ -113,7 +114,6 @@ class _MainShellPageState extends State<MainShellPage> {
       }
     }
 
-    // Backward-compatible fallback for older user documents.
     final usagePreference = (profile?['usagePreference'] as String?)?.toLowerCase();
     if (usagePreference == 'both' || usagePreference == 'personal_and_business') {
       return true;
@@ -181,20 +181,13 @@ class _MainShellPageState extends State<MainShellPage> {
     return snapshot.data();
   }
 
-  static Future<void> _closeDrawerThenNavigate(BuildContext context, String route) async {
-    Navigator.of(context).pop();
-    await Future<void>.delayed(const Duration(milliseconds: 220));
-    if (!context.mounted) return;
-    context.go(route);
-  }
-
   static Future<void> _closeNavigationPanelThenNavigate(
     BuildContext sheetContext,
     BuildContext rootContext,
     String route,
   ) async {
     Navigator.of(sheetContext).pop();
-    await Future<void>.delayed(const Duration(milliseconds: 120));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
     if (!rootContext.mounted) return;
     rootContext.go(route);
   }
@@ -209,38 +202,95 @@ class _MainShellPageState extends State<MainShellPage> {
       context: context,
       barrierDismissible: true,
       barrierLabel: _tr('Close navigation menu', 'Funga menyu ya urambazaji'),
-      barrierColor: Colors.black.withValues(alpha: 0.35),
-      transitionDuration: Duration.zero,
-      pageBuilder: (dialogContext, _, __) {
+      barrierColor: Colors.black.withValues(alpha: 0.1),
+      transitionDuration: const Duration(milliseconds: 300),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        final fade = Tween<double>(begin: 0, end: 1).animate(curved);
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10 * fade.value, sigmaY: 10 * fade.value),
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(-1, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: FadeTransition(
+              opacity: fade,
+              child: child,
+            ),
+          ),
+        );
+      },
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
         final isDashboard = _isSelected(location, AppRouter.dashboardPath);
         return Align(
           alignment: Alignment.centerLeft,
           child: SafeArea(
-            child: SizedBox(
-              width: MediaQuery.of(dialogContext).size.width * 0.86,
+            child: Container(
+              width: MediaQuery.of(dialogContext).size.width * 0.85,
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.95),
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(32),
+                  bottomRight: Radius.circular(32),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 30,
+                    offset: const Offset(10, 0),
+                  )
+                ],
+              ),
               child: Material(
-                color: AppColors.secondary,
+                color: Colors.transparent,
                 child: Column(
                   children: [
                     SafeArea(
                       bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 20, 24),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColors.primaryDark,
+                              AppColors.primary,
+                            ],
+                          ),
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(32),
+                          ),
+                        ),
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              radius: 24,
-                              backgroundColor: AppColors.primary,
-                              child: Text(
-                                profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
-                                style: const TextStyle(
-                                  color: AppColors.secondary,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: CircleAvatar(
+                                radius: 28,
+                                backgroundColor: AppColors.secondary,
+                                child: Text(
+                                  profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 16),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +301,7 @@ class _MainShellPageState extends State<MainShellPage> {
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 17,
+                                      fontSize: 18,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -261,8 +311,9 @@ class _MainShellPageState extends State<MainShellPage> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      color: AppColors.background.withValues(alpha: 0.72),
-                                      fontSize: 12,
+                                      color: Colors.white.withValues(alpha: 0.8),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -270,19 +321,15 @@ class _MainShellPageState extends State<MainShellPage> {
                             ),
                             IconButton(
                               onPressed: () => Navigator.of(dialogContext).pop(),
-                              icon: const Icon(Icons.close_rounded, color: Colors.white),
+                              icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    Container(
-                      height: 1,
-                      color: AppColors.background.withValues(alpha: 0.10),
-                    ),
                     Expanded(
                       child: ListView(
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
                         children: [
                           _DrawerItem(
                             icon: Icons.grid_view_rounded,
@@ -291,7 +338,7 @@ class _MainShellPageState extends State<MainShellPage> {
                             selected: isDashboard,
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           if (isBusinessContext) ...[
                             _DrawerItem(
                               icon: Icons.receipt_long_rounded,
@@ -301,7 +348,7 @@ class _MainShellPageState extends State<MainShellPage> {
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
                               trailingBadge: '3',
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             _DrawerItem(
                               icon: Icons.inventory_2_rounded,
                               label: _tr('Inventory', 'Bidhaa / Inventory'),
@@ -309,7 +356,7 @@ class _MainShellPageState extends State<MainShellPage> {
                               selected: _isSelected(location, AppRouter.inventoryPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             _DrawerItem(
                               icon: Icons.people_alt_rounded,
                               label: _tr('Customers', 'Wateja / Customers'),
@@ -317,9 +364,9 @@ class _MainShellPageState extends State<MainShellPage> {
                               selected: _isSelected(location, AppRouter.crmPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
                             ),
-                            const SizedBox(height: 10),
-                            Divider(color: AppColors.background.withValues(alpha: 0.14), height: 1),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 16),
+                            Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
+                            const SizedBox(height: 16),
                             _DrawerItem(
                               icon: Icons.account_balance_rounded,
                               label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
@@ -327,7 +374,7 @@ class _MainShellPageState extends State<MainShellPage> {
                               selected: _isSelected(location, AppRouter.debtPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             _DrawerItem(
                               icon: Icons.payments_outlined,
                               label: _tr('Expenses', 'Matumizi / Expenses'),
@@ -335,7 +382,7 @@ class _MainShellPageState extends State<MainShellPage> {
                               selected: _isSelected(location, AppRouter.expensesPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             _DrawerItem(
                               icon: Icons.account_balance_wallet_outlined,
                               label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
@@ -351,7 +398,7 @@ class _MainShellPageState extends State<MainShellPage> {
                               selected: _isSelected(location, AppRouter.expensesPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             _DrawerItem(
                               icon: Icons.account_balance_rounded,
                               label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
@@ -359,7 +406,7 @@ class _MainShellPageState extends State<MainShellPage> {
                               selected: _isSelected(location, AppRouter.debtPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             _DrawerItem(
                               icon: Icons.account_balance_wallet_outlined,
                               label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
@@ -368,7 +415,7 @@ class _MainShellPageState extends State<MainShellPage> {
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
                             ),
                           ],
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _DrawerItem(
                             icon: Icons.storefront_rounded,
                             label: _tr('Manage Businesses', 'Simamia Biashara'),
@@ -376,9 +423,9 @@ class _MainShellPageState extends State<MainShellPage> {
                             selected: _isSelected(location, AppRouter.businessesPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
                           ),
-                          const SizedBox(height: 10),
-                          Divider(color: AppColors.background.withValues(alpha: 0.14), height: 1),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 16),
+                          Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
+                          const SizedBox(height: 16),
                           _DrawerItem(
                             icon: Icons.settings_rounded,
                             label: _tr('Settings', 'Mipangilio / Settings'),
@@ -386,7 +433,7 @@ class _MainShellPageState extends State<MainShellPage> {
                             selected: _isSelected(location, AppRouter.settingsPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           _DrawerItem(
                             icon: Icons.headset_mic_rounded,
                             label: _tr('Help & Support', 'Msaada / Help & Support'),
@@ -399,10 +446,11 @@ class _MainShellPageState extends State<MainShellPage> {
                     ),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                       decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: AppColors.background.withValues(alpha: 0.12)),
+                        color: Colors.black.withValues(alpha: 0.2),
+                        borderRadius: const BorderRadius.only(
+                          bottomRight: Radius.circular(32),
                         ),
                       ),
                       child: Column(
@@ -411,22 +459,29 @@ class _MainShellPageState extends State<MainShellPage> {
                             button: true,
                             label: _tr('Sign out from Mali App', 'Toka, logout from Mali App'),
                             child: SizedBox(
-                              height: 52,
+                              height: 54,
                               child: InkWell(
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(16),
                                 onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 12),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
                                   child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.logout_rounded, color: AppColors.primary, size: 20),
-                                      SizedBox(width: 12),
+                                      Icon(Icons.logout_rounded, color: AppColors.primary, size: 22),
+                                      const SizedBox(width: 12),
                                       Text(
                                         'Sign Out',
                                         style: TextStyle(
                                           color: AppColors.primary,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.5,
                                         ),
                                       ),
                                     ],
@@ -435,14 +490,15 @@ class _MainShellPageState extends State<MainShellPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 16),
                           const Text(
                             'Mali App v1.0.0',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
+                              color: Colors.white54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1,
                             ),
                           ),
                         ],
@@ -602,9 +658,6 @@ class _MainShellPageState extends State<MainShellPage> {
 
         final profileData = snapshot.data;
         final profile = _buildProfileData(currentUser, profileData);
-        final initials = profile.fullName.isNotEmpty
-            ? profile.fullName.trim()[0].toUpperCase()
-            : 'M';
         final businesses = _businessesFromProfile(profileData);
         final isBusinessContext =
             _defaultContextFromProfile(profileData).toLowerCase().startsWith('business');
@@ -616,97 +669,200 @@ class _MainShellPageState extends State<MainShellPage> {
         final currentIndex = _calculateIndex(location, destinations);
 
         return Scaffold(
-          drawerScrimColor: Colors.black.withValues(alpha: 0.45),
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            titleSpacing: 0,
-            leading: Builder(
-              builder: (context) {
-                return IconButton(
-                  icon: const Icon(Icons.menu_rounded),
-                  tooltip: _tr('Open navigation menu', 'Fungua menyu ya urambazaji'),
-                  onPressed: () => _openNavigationPanel(
-                    context: context,
-                    location: location,
-                    profile: profile,
-                    isBusinessContext: isBusinessContext,
-                  ),
-                );
-              },
-            ),
-            actions: [
-              _FinanceContextSwitcher(
-                selectedContext: selectedContext,
-                canSwitch: canSwitch,
-                businesses: businesses,
-                onChanged: _switchFinanceContext,
-                onManageBusinesses: () => context.go(AppRouter.businessesPath),
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
-          body: Column(
-            children: [
-              if (!isDashboard)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: AppColors.secondary.withValues(alpha: 0.06),
+          extendBody: true, // Allow body content to flow under the floating bottom bar
+          extendBodyBehindAppBar: true, // Allow body to flow under the glass app bar
+          drawerScrimColor: Colors.transparent,
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(kToolbarHeight + 16),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(32),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Container(
+                      height: kToolbarHeight,
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      decoration: BoxDecoration(
+                        color: AppColors.background.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(32),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.menu_rounded, color: AppColors.secondary, size: 28),
+                            tooltip: _tr('Open navigation menu', 'Fungua menyu ya urambazaji'),
+                            onPressed: () => _openNavigationPanel(
+                              context: context,
+                              location: location,
+                              profile: profile,
+                              isBusinessContext: isBusinessContext,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: _FinanceContextSwitcher(
+                              selectedContext: selectedContext,
+                              canSwitch: canSwitch,
+                              businesses: businesses,
+                              onChanged: _switchFinanceContext,
+                              onManageBusinesses: () => context.go(AppRouter.businessesPath),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.secondary,
-                              ),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
-              Expanded(child: widget.child),
-            ],
-          ),
-          bottomNavigationBar: Container(
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              border: Border(
-                top: BorderSide(color: AppColors.secondary.withValues(alpha: 0.08), width: 1.5),
               ),
             ),
-            child: BottomNavigationBar(
-              currentIndex: currentIndex,
-              onTap: (index) {
-                context.go(destinations[index].route);
-              },
-              items: destinations
-                  .map(
-                    (destination) => BottomNavigationBarItem(
-                      icon: Icon(destination.icon),
-                      activeIcon: Icon(destination.activeIcon),
-                      label: destination.label,
+          ),
+          body: Padding(
+            // We use padding so that the content isn't completely hidden behind the AppBar
+            // However, scroll views inside the children will automatically adjust for extendBody: true.
+            // If the child is not a scroll view, it will need padding.
+            padding: EdgeInsets.only(top: isDashboard ? 0 : kToolbarHeight + 24 + MediaQuery.of(context).padding.top),
+            child: Column(
+              children: [
+                if (!isDashboard)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: AppColors.secondary.withValues(alpha: 0.06),
+                        ),
+                      ),
                     ),
-                  )
-                  .toList(),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.secondary,
+                                  letterSpacing: 0.2,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(child: widget.child),
+              ],
+            ),
+          ),
+          bottomNavigationBar: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).padding.bottom + 20),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(32),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: List.generate(destinations.length, (index) {
+                        final destination = destinations[index];
+                        final isSelected = index == currentIndex;
+                        return _buildBottomNavItem(context, destination, isSelected, index);
+                      }),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         );
       },
     );
   }
-}
 
+  Widget _buildBottomNavItem(BuildContext context, _NavDestination destination, bool isSelected, int index) {
+    return GestureDetector(
+      onTap: () {
+        context.go(destination.route);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 18 : 12,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, animation) {
+                return ScaleTransition(scale: animation, child: child);
+              },
+              child: Icon(
+                isSelected ? destination.activeIcon : destination.icon,
+                key: ValueKey<bool>(isSelected),
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                size: 24,
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Text(
+                destination.label,
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _NavDestination {
   final String route;
@@ -722,8 +878,7 @@ class _NavDestination {
   });
 }
 
-
-class _DrawerItem extends StatelessWidget {
+class _DrawerItem extends StatefulWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -741,69 +896,95 @@ class _DrawerItem extends StatelessWidget {
   });
 
   @override
+  State<_DrawerItem> createState() => _DrawerItemState();
+}
+
+class _DrawerItemState extends State<_DrawerItem> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final active = AppColors.primary;
-    final labelColor = AppColors.background.withValues(alpha: 0.95);
-    final chevronColor = AppColors.background.withValues(alpha: 0.62);
+    final labelColor = Colors.white.withValues(alpha: 0.9);
+    final chevronColor = Colors.white.withValues(alpha: 0.5);
 
     return Semantics(
       button: true,
-      label: semanticsLabel,
-      child: SizedBox(
-        height: 52,
-        child: Material(
-          color: selected ? active.withValues(alpha: 0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                children: [
+      label: widget.semanticsLabel,
+      child: GestureDetector(
+        onTapDown: (_) => _controller.forward(),
+        onTapUp: (_) {
+          _controller.reverse();
+          widget.onTap();
+        },
+        onTapCancel: () => _controller.reverse(),
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            height: 56,
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              color: widget.selected ? active.withValues(alpha: 0.15) : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              border: widget.selected ? Border.all(color: active.withValues(alpha: 0.3), width: 1) : null,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: widget.selected ? active.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(widget.icon, size: 18, color: widget.selected ? active : Colors.white70),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    widget.label,
+                    style: TextStyle(
+                      color: widget.selected ? active : labelColor,
+                      fontSize: 15,
+                      fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+                if (widget.trailingBadge != null)
                   Container(
-                    width: 30,
-                    height: 30,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.background.withValues(alpha: selected ? 0.18 : 0.10),
-                      borderRadius: BorderRadius.circular(9),
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(icon, size: 16, color: selected ? active : Colors.white),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
                     child: Text(
-                      label,
-                      style: TextStyle(
-                        color: selected ? active : labelColor,
-                        fontSize: 14,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                        letterSpacing: 0.1,
+                      widget.trailingBadge!,
+                      style: const TextStyle(
+                        color: AppColors.secondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ),
-                  if (trailingBadge != null)
-                    Container(
-                      width: 18,
-                      height: 18,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        trailingBadge!,
-                        style: const TextStyle(
-                          color: AppColors.secondary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    )
-                  else
-                    Icon(Icons.chevron_right_rounded, color: chevronColor, size: 16),
-                ],
-              ),
+                  )
+                else
+                  Icon(Icons.chevron_right_rounded, color: widget.selected ? active : chevronColor, size: 18),
+              ],
             ),
           ),
         ),
@@ -857,98 +1038,121 @@ class _FinanceContextSwitcher extends StatelessWidget {
         : tr('Personal', 'Binafsi');
     final icon = _isBusiness ? Icons.business_center_rounded : Icons.person_rounded;
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: PopupMenuButton<String>(
-        enabled: canSwitch,
-        tooltip: canSwitch
-          ? tr('Switch finance context', 'Badili muktadha wa fedha')
-          : tr('Single account context', 'Muktadha mmoja wa akaunti'),
-        onSelected: (value) {
-          if (value == 'manage_businesses') {
-            onManageBusinesses();
-            return;
-          }
-          onChanged(value);
-        },
-        itemBuilder: (context) {
-          return <PopupMenuEntry<String>>[
-            PopupMenuItem<String>(
-              value: 'personal',
+    return PopupMenuButton<String>(
+      enabled: canSwitch,
+      tooltip: canSwitch
+        ? tr('Switch finance context', 'Badili muktadha wa fedha')
+        : tr('Single account context', 'Muktadha mmoja wa akaunti'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 8,
+      offset: const Offset(0, 48),
+      onSelected: (value) {
+        if (value == 'manage_businesses') {
+          onManageBusinesses();
+          return;
+        }
+        onChanged(value);
+      },
+      itemBuilder: (context) {
+        return <PopupMenuEntry<String>>[
+          PopupMenuItem<String>(
+            value: 'personal',
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.person_rounded, size: 20, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                Text(tr('Personal Context', 'Muktadha wa Kibinafsi'), style: const TextStyle(fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          if (businesses.isNotEmpty) const PopupMenuDivider(),
+          ...businesses.map(
+            (business) => PopupMenuItem<String>(
+              value: 'business:${business['id']}',
               child: Row(
                 children: [
-                  const Icon(Icons.person_rounded, size: 18),
-                  const SizedBox(width: 8),
-                  Text(tr('Personal Context', 'Muktadha wa Kibinafsi')),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.business_center_rounded, size: 20, color: AppColors.secondary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      (business['name'] as String?)?.trim().isNotEmpty == true
+                          ? (business['name'] as String).trim()
+                          : tr('Business Context', 'Muktadha wa Biashara'),
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ],
               ),
             ),
-            if (businesses.isNotEmpty) const PopupMenuDivider(),
-            ...businesses.map(
-              (business) => PopupMenuItem<String>(
-                value: 'business:${business['id']}',
-                child: Row(
-                  children: [
-                    const Icon(Icons.business_center_rounded, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        (business['name'] as String?)?.trim().isNotEmpty == true
-                            ? (business['name'] as String).trim()
-                            : tr('Business Context', 'Muktadha wa Biashara'),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem<String>(
+            value: 'manage_businesses',
+            child: Row(
+              children: [
+                const Icon(Icons.settings_rounded, size: 20, color: AppColors.textSecondary),
+                const SizedBox(width: 12),
+                Text(
+                  tr('Manage businesses', 'Simamia biashara'),
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
                 ),
-              ),
+              ],
             ),
-            const PopupMenuDivider(),
-            PopupMenuItem<String>(
-              value: 'manage_businesses',
-              child: Text(
-                tr('Manage businesses', 'Simamia biashara'),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ];
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
+          ),
+        ];
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: canSwitch
+              ? AppColors.primary.withValues(alpha: 0.1)
+              : AppColors.surface.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
             color: canSwitch
-                ? AppColors.primary.withValues(alpha: 0.14)
-                : AppColors.surface.withValues(alpha: 0.28),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: canSwitch
-                  ? AppColors.primary.withValues(alpha: 0.30)
-                  : AppColors.border.withValues(alpha: 0.35),
+                ? AppColors.primary.withValues(alpha: 0.2)
+                : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: canSwitch ? AppColors.primary : AppColors.secondary),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: canSwitch ? AppColors.primary : AppColors.secondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: AppColors.secondary),
+            if (canSwitch) ...[
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.secondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16,
+                color: AppColors.primary,
               ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.unfold_more_rounded,
-                size: 14,
-                color: canSwitch
-                    ? AppColors.secondary
-                    : AppColors.textSecondary,
-              ),
-            ],
-          ),
+            ]
+          ],
         ),
       ),
     );
@@ -966,4 +1170,3 @@ class _DrawerProfileData {
     required this.accountTypeLabel,
   });
 }
-

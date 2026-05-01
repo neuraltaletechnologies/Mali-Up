@@ -217,16 +217,16 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      setState(() {
-        _showPinEntry = true;
-        _isLoading = false;
-      });
-      _setFeedback(
-        _tr(
-          'Welcome back! Please enter your PIN.',
-          'Karibu tena! Tafadhali weka PIN yako.',
-        ),
-        EmotionalStatusTone.neutral,
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      
+      // Navigate to OTP verification
+      context.push(
+        AppRouter.otpPath,
+        extra: {
+          'phoneNumber': rawPhone,
+          'isRegistration': false,
+        },
       );
     } catch (e) {
       setState(() => _isLoading = false);

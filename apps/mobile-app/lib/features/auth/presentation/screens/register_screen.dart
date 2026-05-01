@@ -198,15 +198,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    final pin = _pinControllers.map((c) => c.text).join();
-    if (pin.length < 4) {
-      _setFeedback(
-        _tr('Please enter a 4-digit PIN.', 'Tafadhali weka PIN ya tarakimu 4.'),
-        EmotionalStatusTone.warning,
-      );
-      return;
-    }
-
     // Validate business details if business is selected
     if (_includesBusiness) {
       if (_businessNameController.text.isEmpty) {
@@ -244,45 +235,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() => _isLoading = false);
     final phone = _phoneController.text.trim();
-    final normalizedPhone = _normalizeLocalPhone(phone);
-    final email = '$normalizedPhone@mali.up';
-    final authPassword = buildAuthPasswordFromPin(pin);
 
-    try {
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: authPassword,
-      );
-      await _completeRegistration(userCredential.user, pin);
-    } on FirebaseAuthException catch (e) {
-      setState(() => _isLoading = false);
-      String message = switch (e.code) {
-        'email-already-in-use' => _tr(
-          'This phone number is already registered.',
-          'Namba hii ya simu tayari imesajiliwa.',
-        ),
-        'weak-password' => _tr(
-          'PIN is too simple. Try another.',
-          'PIN ni rahisi sana. Jaribu nyingine.',
-        ),
-        _ => _tr(
-          'Registration failed. Please try again.',
-          'Usajili umeshindikana. Tafadhali jaribu tena.',
-        ),
-      };
-      _setFeedback(message, EmotionalStatusTone.error);
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _setFeedback(
-        _tr(
-          'An unexpected error occurred.',
-          'Hitilafu isiyotarajiwa imetokea.',
-        ),
-        EmotionalStatusTone.error,
-      );
-    }
+    // Prepare user data for registration
+    final userData = {
+      'name': _ownerNameController.text.trim(),
+      'email': recoveryEmail,
+      'phone': phone,
+      'businessName': _includesBusiness ? _businessNameController.text.trim() : null,
+      'businessType': _includesBusiness ? _selectedBusinessType : null,
+      'businessCategory': _includesBusiness ? _businessCategoryKey : null,
+      'placeOfBusiness': _includesBusiness ? _placeOfBusinessController.text.trim() : null,
+      'defaultAccountType': _usagePreference,
+      'accountTypes': _selectedAccountValues,
+      'usagePreference': _usagePreference,
+      'includesBusiness': _includesBusiness,
+      'includesPersonal': _includesPersonal,
+    };
+
+    // Navigate to OTP verification for registration
+    if (!mounted) return;
+    context.push(
+      AppRouter.otpPath,
+      extra: {
+        'phoneNumber': phone,
+        'isRegistration': true,
+        'userData': userData,
+      },
+    );
   }
 
   // Verification logic removed in favor of PIN registration.
@@ -391,6 +372,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       }
     } catch (e) {
+      debugPrint('FIRESTORE REGISTRATION ERROR: $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
       _setFeedback(
@@ -735,7 +717,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
-                          value: _selectedBusinessType,
+                          initialValue: _selectedBusinessType,
                           decoration: fieldDecoration(
                             hint: _tr('Business Type', 'Aina ya Biashara'),
                             suffix: Icons.category_rounded,

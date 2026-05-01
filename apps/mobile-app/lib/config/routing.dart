@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
+import '../features/auth/presentation/screens/otp_verification_screen.dart' deferred as otp_verification;
 import '../features/onboarding/presentation/screens/onboarding_flow.dart' deferred as onboarding_flow;
 import '../features/onboarding/presentation/screens/language_selection_screen.dart' deferred as language_selection;
 import '../features/dashboard/presentation/screens/dashboard_screen.dart' deferred as dashboard_screen;
@@ -20,6 +21,7 @@ class AppRouter {
   static const String onboardingPath = '/onboarding';
   static const String loginPath = '/login';
   static const String registerPath = '/register';
+  static const String otpPath = '/otp-verification';
   static const String dashboardPath = '/';
   static const String salesPath = '/sales';
   static const String inventoryPath = '/inventory';
@@ -95,6 +97,28 @@ class AppRouter {
                 : const RegisterScreen();
 
             return _buildAuthTransitionPage(state, screen);
+          },
+        ),
+        GoRoute(
+          path: otpPath,
+          pageBuilder: (context, state) {
+            final extra = state.extra;
+            if (extra is Map<String, dynamic>) {
+              return _buildAuthTransitionPage(
+                state,
+                otp_verification.OTPVerificationScreen(
+                  phoneNumber: extra['phoneNumber'] as String,
+                  isRegistration: extra['isRegistration'] as bool? ?? false,
+                  userData: extra['userData'] as Map<String, dynamic>?,
+                ),
+              );
+            }
+            return _buildAuthTransitionPage(
+              state,
+              otp_verification.OTPVerificationScreen(
+                phoneNumber: '',
+              ),
+            );
           },
         ),
         ShellRoute(
