@@ -357,7 +357,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final textSecondary = AppColors.textSecondary;
     final fieldBg = AppColors.surface;
     final mediaQuery = MediaQuery.of(context);
-    final topHeight = mediaQuery.size.height * 0.25;
+    final topHeight = mediaQuery.size.height * 0.35;
     final bottomInset = mediaQuery.viewInsets.bottom;
 
     InputDecoration fieldDecoration({
@@ -368,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }) {
       return InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: AppColors.textMuted),
+        hintStyle: const TextStyle(color: AppColors.textMuted),
         filled: true,
         fillColor: fieldBg,
         border: OutlineInputBorder(
@@ -383,8 +383,13 @@ class _LoginScreenState extends State<LoginScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
-        prefixIcon: prefix,
-        suffixIcon: suffixWidget ?? Icon(suffix, color: AppColors.textSecondary),
+        prefixIcon: prefix != null
+            ? Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: prefix,
+              )
+            : null,
+        suffixIcon: suffixWidget ?? Icon(suffix, color: AppColors.textSecondary, size: 20),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
@@ -397,6 +402,7 @@ class _LoginScreenState extends State<LoginScreen> {
       color: textPrimary,
       fontWeight: FontWeight.w800,
       height: 1.15,
+      letterSpacing: -0.5,
     );
     final subtitleStyle = GoogleFonts.poppins(
       color: textSecondary,
@@ -405,33 +411,58 @@ class _LoginScreenState extends State<LoginScreen> {
       fontWeight: FontWeight.w400,
     );
     final sectionTitleStyle = GoogleFonts.poppins(
-      fontWeight: FontWeight.w600,
+      fontWeight: FontWeight.w700,
       color: textPrimary,
-      fontSize: 15,
+      fontSize: 14,
+      letterSpacing: 0.3,
     );
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
+          // Premium gradient header with subtle overlay
           Positioned(
             left: 0,
             right: 0,
             top: 0,
             height: topHeight,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Container(
-                  color: AppColors.primary,
-                  child: Center(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primaryDark,
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(48),
+                  bottomRight: Radius.circular(48),
+                ),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Subtle pattern overlay
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: 0.03,
+                      child: Image.asset(
+                        'assets/images/pattern.png',
+                        repeat: ImageRepeat.repeat,
+                      ),
+                    ),
+                  ),
+                  Center(
                     child: ValueListenableBuilder<bool>(
                       valueListenable: MotionService.reducedMotionNotifier,
                       builder: (context, reducedMotion, _) {
                         return RepaintBoundary(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
+                            padding: const EdgeInsets.fromLTRB(24, 64, 24, 24),
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 220),
                               child: _showHeroAnimation && !reducedMotion
@@ -450,16 +481,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                         width: 120,
                                         height: 120,
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.10,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            28,
-                                          ),
+                                          color: Colors.white.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(28),
                                           border: Border.all(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.15,
-                                            ),
+                                            color: Colors.white.withValues(alpha: 0.2),
                                           ),
                                         ),
                                         child: const Center(
@@ -473,68 +498,66 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                   ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.18),
-                        Colors.black.withValues(alpha: 0.38),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
+          // Top navigation bar with glass effect
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Back button with subtle glass effect
                   Material(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(999),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white,
-                        size: 18,
+                    color: Colors.white.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.of(context).maybePop(),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
                       ),
-                      onPressed: () => Navigator.of(context).maybePop(),
                     ),
                   ),
+                  // WhatsApp support and secure badge
                   Row(
                     children: [
+                      // WhatsApp support button
                       Material(
-                        color: const Color(0xFF25D366).withValues(alpha: 0.95),
-                        borderRadius: BorderRadius.circular(999),
-                        child: IconButton(
-                          tooltip: _tr(
-                            'Emergency WhatsApp support',
-                            'Msaada wa dharura WhatsApp',
+                        color: const Color(0xFF25D366).withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: _openWhatsAppHelpDesk,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            child: const Icon(
+                              Icons.support_agent_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
-                          icon: const Icon(
-                            Icons.support_agent_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          onPressed: _openWhatsAppHelpDesk,
                         ),
                       ),
                       const SizedBox(width: 8),
+                      // Secure badge with glass effect
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.42),
-                          borderRadius: BorderRadius.circular(999),
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -549,6 +572,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
+                                fontSize: 13,
                               ),
                             ),
                           ],
@@ -560,40 +584,63 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+          // Main content sheet
           DraggableScrollableSheet(
-            initialChildSize: 0.72,
-            minChildSize: 0.72,
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
             maxChildSize: 0.96,
             builder: (context, scrollController) {
               return Container(
                 decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
                 ),
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 80),
+                  padding: EdgeInsets.fromLTRB(24, 24, 24, bottomInset + 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Center(child: MaliUpLogo(size: 54)),
+                      // Handle bar
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      // Logo
+                      const Center(child: MaliUpLogo(size: 48)),
                       const SizedBox(height: 16),
+                      // Title
                       Center(
                         child: Text(
                           _showPinEntry
                               ? _tr('Verify PIN', 'Thibitisha PIN')
-                              : _tr('Login to Mali App', 'Ingia Mali App'),
+                              : _tr('Welcome Back', 'Karibu Tena'),
                           textAlign: TextAlign.center,
                           style: headingStyle,
                         ),
                       ),
                       const SizedBox(height: 8),
+                      // Subtitle
                       Center(
                         child: Text(
                           _showPinEntry
                               ? _tr(
-                                  'Enter your 4-digit PIN to secure your access.',
-                                  'Weka PIN yako ya tarakimu 4 ili kulinda ufikiaji wako.',
+                                  'Enter your 4-digit PIN to access your account.',
+                                  'Weka PIN yako ya tarakimu 4 ili kufikia akaunti yako.',
                                 )
                               : _tr(
                                   'Enter your phone number to continue securely.',
@@ -603,30 +650,43 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: subtitleStyle,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.shield_outlined,
-                            size: 16,
-                            color: textSecondary,
+                      const SizedBox(height: 24),
+                      // Security badge
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.1),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _tr(
-                                'Your transactions are protected with secure encryption.',
-                                'Miamala yako inalindwa kwa usimbaji salama.',
-                              ),
-                              style: GoogleFonts.poppins(
-                                color: textSecondary,
-                                fontSize: 12.5,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.shield_outlined,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _tr(
+                                  'Your transactions are protected with bank-level encryption.',
+                                  'Miamala yako inalindwa kwa usimbaji salama.',
+                                ),
+                                style: GoogleFonts.poppins(
+                                  color: textSecondary,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
+                      // Feedback message
                       if (_feedbackText != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -636,6 +696,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             tone: _feedbackTone,
                           ),
                         ),
+                      // Phone entry section
                       if (!_showPinEntry) ...[
                         Row(
                           children: [
@@ -651,7 +712,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
+                        // Phone number field
                         TextField(
                           controller: _phoneController,
                           focusNode: _phoneFocusNode,
@@ -663,37 +725,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: fieldDecoration(
                             hint: _tr('Phone number', 'Namba ya simu'),
                             suffix: Icons.phone_iphone_rounded,
-                            prefix: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    '🇹🇿',
-                                    style: TextStyle(fontSize: 18),
+                            prefix: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '+255',
+                                  style: GoogleFonts.poppins(
+                                    color: textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '+255',
-                                    style: GoogleFonts.poppins(
-                                      color: textPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
+                        // Continue button
                         SizedBox(
                           width: double.infinity,
+                          height: 52,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
+                              elevation: 4,
+                              shadowColor: AppColors.primary.withValues(alpha: 0.3),
                               minimumSize: const Size.fromHeight(52),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -706,31 +765,39 @@ class _LoginScreenState extends State<LoginScreen> {
                                   : _tr('Continue', 'Endelea'),
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w700,
+                                fontSize: 16,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                                             Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _tr('Do not have an account? ', 'Huna akaunti? '),
-                            style: GoogleFonts.poppins(color: textSecondary),
-                          ),
-                          TextButton(
-                            onPressed: () => context.push(AppRouter.registerPath),
-                            child: Text(
-                              _tr('Register', 'Jisajili'),
+                        const SizedBox(height: 16),
+                        // Register link
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _tr('Do not have an account? ', 'Huna akaunti? '),
                               style: GoogleFonts.poppins(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w800,
+                                color: textSecondary,
+                                fontSize: 14,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                            TextButton(
+                              onPressed: () => context.push(AppRouter.registerPath),
+                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                              child: Text(
+                                _tr('Register', 'Jisajili'),
+                                style: GoogleFonts.poppins(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ] else ...[
+                        // PIN entry section
                         Row(
                           children: [
                             Icon(
@@ -745,7 +812,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
+                        // PIN digit boxes
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: List.generate(
@@ -753,11 +821,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             (i) => PinDigitBox(controller: _pinControllers[i]),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
+                        // Forgot PIN link
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
                             onPressed: _handleForgotPIN,
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
                             child: Text(
                               _tr('Forgot PIN?', 'Umesahau PIN?'),
                               style: GoogleFonts.poppins(
@@ -768,13 +838,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
+                        // Login button
                         SizedBox(
                           width: double.infinity,
+                          height: 52,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
+                              elevation: 4,
+                              shadowColor: AppColors.primary.withValues(alpha: 0.3),
                               minimumSize: const Size.fromHeight(52),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -787,25 +861,30 @@ class _LoginScreenState extends State<LoginScreen> {
                                   : _tr('Login', 'Ingia'),
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w700,
+                                fontSize: 16,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
+                        // Change number link
                         Center(
                           child: TextButton(
-                            onPressed: () => setState(() {
-                              _showPinEntry = false;
-                              for (var c in _pinControllers) {
-                                c.clear();
-                              }
-                            }),
+                            onPressed: () {
+                              setState(() {
+                                _showPinEntry = false;
+                                for (var c in _pinControllers) {
+                                  c.clear();
+                                }
+                              });
+                            },
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
                             child: Text(
-                              _tr(
-                                'Use different number',
-                                'Tumia namba nyingine',
+                              _tr('Use different number', 'Tumia namba nyingine'),
+                              style: GoogleFonts.poppins(
+                                color: textSecondary,
+                                fontSize: 14,
                               ),
-                              style: GoogleFonts.poppins(color: textSecondary),
                             ),
                           ),
                         ),

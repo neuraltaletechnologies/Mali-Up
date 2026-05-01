@@ -443,11 +443,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const textPrimary = Color(0xFF1A1A1A);
-    const textSecondary = Color(0xFF6B7280);
-    const fieldBg = Color(0xFFEFF5F2);
+    final textPrimary = AppColors.textPrimary;
+    final textSecondary = AppColors.textSecondary;
+    final fieldBg = AppColors.surface;
     final mediaQuery = MediaQuery.of(context);
-    final topHeight = mediaQuery.size.height * 0.25;
+    final topHeight = mediaQuery.size.height * 0.35;
     final bottomInset = mediaQuery.viewInsets.bottom;
 
     InputDecoration fieldDecoration({
@@ -458,7 +458,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }) {
       return InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: textSecondary),
+        hintStyle: const TextStyle(color: AppColors.textMuted),
         filled: true,
         fillColor: fieldBg,
         border: OutlineInputBorder(
@@ -467,52 +467,83 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: AppColors.border, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
-        prefixIcon: prefix,
-        suffixIcon: suffixWidget ?? Icon(suffix, color: textSecondary),
+        prefixIcon: prefix != null
+            ? Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: prefix,
+              )
+            : null,
+        suffixIcon: suffixWidget ?? Icon(suffix, color: AppColors.textSecondary, size: 20),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
+          horizontal: 16,
+          vertical: 16,
         ),
       );
     }
 
     final headingStyle = GoogleFonts.poppins(
-      fontSize: 30,
+      fontSize: 28,
       color: textPrimary,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w800,
       height: 1.15,
+      letterSpacing: -0.5,
     );
 
     final sectionTitleStyle = GoogleFonts.poppins(
-      fontSize: 14,
-      color: textPrimary,
       fontWeight: FontWeight.w700,
+      color: textPrimary,
+      fontSize: 14,
+      letterSpacing: 0.3,
     );
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
+          // Premium gradient header
           Positioned(
             left: 0,
             right: 0,
             top: 0,
             height: topHeight,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Container(
-                  color: AppColors.primary,
-                  child: Center(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primaryDark,
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(48),
+                  bottomRight: Radius.circular(48),
+                ),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Subtle pattern overlay
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: 0.03,
+                      child: Image.asset(
+                        'assets/images/pattern.png',
+                        repeat: ImageRepeat.repeat,
+                      ),
+                    ),
+                  ),
+                  Center(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
+                      padding: const EdgeInsets.fromLTRB(24, 64, 24, 24),
                       child: Lottie.asset(
                         'assets/lottie/Login.json',
                         key: const ValueKey('register-hero-lottie'),
@@ -522,60 +553,75 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                   ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.18),
-                        Colors.black.withValues(alpha: 0.38),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+          // Top navigation bar
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Align(
                 alignment: Alignment.topLeft,
                 child: Material(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(999),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: 18,
+                  color: Colors.white.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
-                    onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ),
               ),
             ),
           ),
+          // Main content sheet
           DraggableScrollableSheet(
-            initialChildSize: 0.76,
-            minChildSize: 0.76,
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
             maxChildSize: 0.96,
             builder: (context, scrollController) {
               return Container(
                 decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
                 ),
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(24, 20, 24, bottomInset + 80),
+                  padding: EdgeInsets.fromLTRB(24, 24, 24, bottomInset + 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Center(child: MaliUpLogo(size: 54)),
+                      // Handle bar
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      // Logo
+                      const Center(child: MaliUpLogo(size: 48)),
                       const SizedBox(height: 16),
+                      // Title
                       Center(
                         child: Text(
                           _tr('Create Account', 'Sajili Akaunti'),
@@ -584,6 +630,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
+                      // Subtitle
                       Center(
                         child: Text(
                           _tr(
@@ -598,30 +645,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.shield_outlined,
-                            size: 16,
-                            color: textSecondary,
+                      const SizedBox(height: 24),
+                      // Security badge
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.1),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _tr(
-                                'Your information stays secure and private.',
-                                'Taarifa zako zinabaki salama na faragha.',
-                              ),
-                              style: GoogleFonts.poppins(
-                                color: textSecondary,
-                                fontSize: 12.5,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.shield_outlined,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _tr(
+                                  'Your information stays secure and private.',
+                                  'Taarifa zako zinabaki salama na faragha.',
+                                ),
+                                style: GoogleFonts.poppins(
+                                  color: textSecondary,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
+                      // Feedback message
                       if (_feedbackText != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -631,9 +691,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             tone: _feedbackTone,
                           ),
                         ),
+                      // Personal Details section
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.person_outline_rounded,
                             size: 18,
                             color: textPrimary,
@@ -645,7 +706,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
+                      // Full name field
                       TextField(
                         controller: _ownerNameController,
                         decoration: fieldDecoration(
@@ -654,6 +716,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      // Email field
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -666,6 +729,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      // Phone field
                       TextField(
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
@@ -676,29 +740,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         decoration: fieldDecoration(
                           hint: _tr('Phone number', 'Namba ya simu'),
                           suffix: Icons.phone_iphone_rounded,
-                          prefix: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text(
-                                  '🇹🇿',
-                                  style: TextStyle(fontSize: 18),
+                          prefix: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('🇹🇿', style: TextStyle(fontSize: 18)),
+                              const SizedBox(width: 6),
+                              Text(
+                                '+255',
+                                style: GoogleFonts.poppins(
+                                  color: textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '+255',
-                                  style: GoogleFonts.poppins(
-                                    color: textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
+                      // Account type dropdown
                       DropdownButtonFormField<AccountManagementType>(
                         initialValue: _selectedAccountType,
                         decoration: fieldDecoration(
@@ -722,11 +782,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           });
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
+                      // Business Details section
                       if (_includesBusiness) ...[
                         Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.storefront_rounded,
                               size: 18,
                               color: textPrimary,
@@ -738,7 +799,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
+                        // Business name field
                         TextField(
                           controller: _businessNameController,
                           decoration: fieldDecoration(
@@ -746,7 +808,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             suffix: Icons.store_outlined,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
+                        // Business type dropdown
                         DropdownButtonFormField<String>(
                           initialValue: _selectedBusinessType,
                           decoration: fieldDecoration(
@@ -765,7 +828,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             }
                           },
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
+                        // Place of business field
                         TextField(
                           controller: _placeOfBusinessController,
                           decoration: fieldDecoration(
@@ -778,9 +842,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         const SizedBox(height: 20),
                       ],
+                      // PIN section
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.lock_outline_rounded,
                             size: 18,
                             color: textPrimary,
@@ -795,7 +860,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
+                      // PIN digit boxes
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: List.generate(
@@ -803,13 +869,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           (i) => PinDigitBox(controller: _pinControllers[i]),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
+                      // Register button
                       SizedBox(
                         width: double.infinity,
+                        height: 52,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
+                            elevation: 4,
+                            shadowColor: AppColors.primary.withValues(alpha: 0.3),
                             minimumSize: const Size.fromHeight(52),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -821,26 +891,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ? _tr('Registering...', 'Inasajili...')
                                 : _tr('Register Account', 'Sajili Akaunti'),
                             style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
+                      // Login link
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
                             _tr('Already have an account? ', 'Una akaunti? '),
-                            style: GoogleFonts.poppins(color: textSecondary),
+                            style: GoogleFonts.poppins(
+                              color: textSecondary,
+                              fontSize: 14,
+                            ),
                           ),
                           TextButton(
                             onPressed: () => context.push(AppRouter.loginPath),
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
                             child: Text(
                               _tr('Login', 'Ingia'),
                               style: GoogleFonts.poppins(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w800,
+                                fontSize: 14,
                               ),
                             ),
                           ),

@@ -83,16 +83,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ),
       child: Scaffold(
         extendBody: true,
-        backgroundColor: OnboardingColors.background,
+        backgroundColor: AppColors.background,
         body: Stack(
           children: [
-            const AmbientEmotionBackground(
-              palette: [
-                OnboardingColors.primaryDeep,
-                OnboardingColors.accentGreen,
-                AppColors.primaryLight,
-              ],
-              intensity: 1.1,
+            // Premium gradient background
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary,
+                      AppColors.primaryDark,
+                      OnboardingColors.accentGreen,
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
             ),
             // Page view for onboarding screens
             PageView.builder(
@@ -286,8 +295,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.30),
-              blurRadius: 12,
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 16,
               offset: const Offset(0, 4),
             ),
           ],
@@ -297,7 +306,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             label,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: AppColors.secondary,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
                 ),
           ),
         ),
