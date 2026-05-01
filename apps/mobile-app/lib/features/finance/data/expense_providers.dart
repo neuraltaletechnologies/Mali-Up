@@ -1,0 +1,21 @@
+import '../domain/models/expense.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../core/data/repositories/context_firestore_repository.dart';
+
+final contextFirestoreRepositoryProvider = Provider<ContextFirestoreRepository>((ref) {
+  return ContextFirestoreRepository();
+});
+
+final expenseListProvider = StreamProvider<List<Expense>>((ref) async* {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    yield const <Expense>[];
+    return;
+  }
+
+  final repository = ref.watch(contextFirestoreRepositoryProvider);
+  final context = await repository.resolveContextForUser(user.uid);
+
+  yield* repository.watchExpenses(uid: user.uid, context: context);
+});
