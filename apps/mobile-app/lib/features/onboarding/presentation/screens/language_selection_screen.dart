@@ -17,7 +17,8 @@ class LanguageSelectionScreen extends StatefulWidget {
 class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
-  bool _isSelecting = false;
+  bool _isApplyingLanguage = false;
+  bool _isContinuing = false;
 
   @override
   void initState() {
@@ -41,15 +42,27 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   }
 
   Future<void> _selectLanguage(AppLanguage language) async {
-    if (_isSelecting) return;
-    setState(() => _isSelecting = true);
+    if (_isApplyingLanguage || _language == language) return;
+    setState(() => _isApplyingLanguage = true);
     try {
       await LocalizationService.setLanguage(language);
       if (!mounted) return;
-      widget.onLanguageSelected();
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isSelecting = false);
+    } finally {
+      if (!mounted) return;
+      setState(() => _isApplyingLanguage = false);
+    }
+  }
+
+  Future<void> _continue() async {
+    if (_isContinuing) return;
+    setState(() => _isContinuing = true);
+    try {
+      widget.onLanguageSelected();
+    } finally {
+      if (!mounted) return;
+      setState(() => _isContinuing = false);
     }
   }
 
@@ -93,10 +106,13 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                           'You can change this later in Settings.',
                           'Unaweza kubadilisha baadaye kwenye Mipangilio.',
                         ),
+                        textAlign: TextAlign.start,
+                        softWrap: true,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.92),
-                              height: 1.4,
-                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withValues(alpha: 0.96),
+                              height: 1.5,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
                             ),
                       ),
                     ],
@@ -155,7 +171,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                         title: 'English',
                         subtitle: 'Continue in English',
                         selected: LocalizationService.languageNotifier.value == AppLanguage.english,
-                        loading: _isSelecting,
+                        loading: _isApplyingLanguage,
                         onTap: () => _selectLanguage(AppLanguage.english),
                       ),
                       const SizedBox(height: 12),
@@ -163,8 +179,40 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                         title: 'Kiswahili',
                         subtitle: 'Endelea kwa Kiswahili',
                         selected: LocalizationService.languageNotifier.value == AppLanguage.swahili,
-                        loading: _isSelecting,
+                        loading: _isApplyingLanguage,
                         onTap: () => _selectLanguage(AppLanguage.swahili),
+                      ),
+                      const SizedBox(height: 22),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isContinuing ? null : _continue,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _isContinuing
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  _tr('Continue', 'Endelea'),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
                       ),
                     ],
                   ),

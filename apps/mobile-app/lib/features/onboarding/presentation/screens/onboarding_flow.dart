@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'splash_screen.dart';
 import 'onboarding_screen.dart';
 import '../../providers/onboarding_provider.dart';
 
@@ -20,14 +19,6 @@ class OnboardingFlow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final onboardingState = ref.watch(onboardingStateProvider);
-
-    if (onboardingState == OnboardingState.splash) {
-      return SplashScreen(
-        onSplashComplete: () {
-          ref.read(onboardingStateProvider.notifier).showOnboarding();
-        },
-      );
-    }
 
     if (onboardingState == OnboardingState.onboarding) {
       return OnboardingScreen(

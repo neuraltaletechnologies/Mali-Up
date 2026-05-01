@@ -49,21 +49,27 @@ class AppRouter {
       routes: [
         GoRoute(
           path: languageSelectionPath,
-          builder: (context, state) => _buildDeferredRoute(
-            loadLibrary: language_selection.loadLibrary,
-            builder: () => language_selection.LanguageSelectionScreen(
-              onLanguageSelected: () => context.go(onboardingPath),
+          pageBuilder: (context, state) => _buildAuthTransitionPage(
+            state,
+            _buildDeferredRoute(
+              loadLibrary: language_selection.loadLibrary,
+              builder: () => language_selection.LanguageSelectionScreen(
+                onLanguageSelected: () => context.go(onboardingPath),
+              ),
             ),
           ),
         ),
         GoRoute(
           path: onboardingPath,
-          builder: (context, state) => _buildDeferredRoute(
-            loadLibrary: onboarding_flow.loadLibrary,
-            builder: () => onboarding_flow.OnboardingFlow(
-              onComplete: () => context.go(
-                registerPath,
-                extra: {'fromOnboarding': true},
+          pageBuilder: (context, state) => _buildAuthTransitionPage(
+            state,
+            _buildDeferredRoute(
+              loadLibrary: onboarding_flow.loadLibrary,
+              builder: () => onboarding_flow.OnboardingFlow(
+                onComplete: () => context.go(
+                  registerPath,
+                  extra: {'fromOnboarding': true},
+                ),
               ),
             ),
           ),
