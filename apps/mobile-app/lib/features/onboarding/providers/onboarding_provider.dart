@@ -15,13 +15,13 @@ final onboardingStateProvider =
 
 class OnboardingNotifier extends Notifier<OnboardingState> {
   @override
-  OnboardingState build() => OnboardingState.splash;
+  OnboardingState build() => OnboardingState.onboarding;
 
   void showOnboarding() => state = OnboardingState.onboarding;
 
   void completeOnboarding() => state = OnboardingState.complete;
 
-  void reset() => state = OnboardingState.splash;
+  void reset() => state = OnboardingState.onboarding;
 }
 
 /// Provider to check if onboarding has been completed

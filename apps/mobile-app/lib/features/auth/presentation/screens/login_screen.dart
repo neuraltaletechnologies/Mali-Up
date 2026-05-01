@@ -231,12 +231,27 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (!mounted) return;
+      final errorMessage = switch (e) {
+        FirebaseException(code: 'permission-denied') => _tr(
+            'Access denied by server rules. Please contact support or try again later.',
+            'Ufikiaji umekataliwa na sheria za seva. Tafadhali wasiliana na msaada au jaribu tena baadaye.',
+          ),
+        FirebaseException(code: 'unavailable') => _tr(
+            'Service is temporarily unavailable. Please try again shortly.',
+            'Huduma haipatikani kwa sasa. Tafadhali jaribu tena muda mfupi ujao.',
+          ),
+        FirebaseException(code: 'network-request-failed') => _tr(
+            'No internet connection. Please check your network and try again.',
+            'Hakuna muunganisho wa intaneti. Tafadhali angalia mtandao wako na ujaribu tena.',
+          ),
+        _ => _tr(
+            'Connection error. Please try again.',
+            'Hitilafu ya muunganisho. Tafadhali jaribu tena.',
+          ),
+      };
       await _NotificationHelper.showError(
         context,
-        _tr(
-          'Connection error. Please try again.',
-          'Hitilafu ya muunganisho. Tafadhali jaribu tena.',
-        ),
+        errorMessage,
       );
     }
   }

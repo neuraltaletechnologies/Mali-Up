@@ -16,10 +16,9 @@ service cloud.firestore {
     match /users/{userId} {
       // Users can only read and write their own profile
       allow read, write: if isSignedIn() && isOwner(userId);
-      // Allow searching for phone numbers during login (optional, depending on your flow)
-      // If the app needs to check if a phone exists before login, 
-      // you might need a more open read rule or a dedicated check.
-      allow list: if isSignedIn(); 
+      // Allow pre-auth phone lookup used by login/registration flows.
+      // App queries this path with where('phone', ...).limit(1).
+      allow list: if isSignedIn() || (request.auth == null && request.query.limit != null && request.query.limit <= 1);
     }
 
     // Rules for Businesses
