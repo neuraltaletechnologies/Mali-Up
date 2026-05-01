@@ -4,7 +4,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/customer_providers.dart';
-import '../../domain/models/customer.dart';
+import '../widgets/add_customer_dialog.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -101,7 +101,7 @@ class CustomerListScreen extends ConsumerWidget {
   void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (context) => const AddCustomerDialog(),
+      builder: (context) => AddCustomerDialog(),
     );
   }
 }
