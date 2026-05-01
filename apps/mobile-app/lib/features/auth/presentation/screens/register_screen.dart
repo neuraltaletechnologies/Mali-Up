@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../shared/widgets/logo.dart';
@@ -165,6 +166,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
     if (!mounted) return;
     context.go(route);
+  }
+
+  Future<void> _openWhatsAppHelpDesk() async {
+    final message = Uri.encodeComponent(
+      _tr(
+        'Hello Mali App Help Desk, I need support with registration.',
+        'Habari Mali App Help Desk, nahitaji msaada wa usajili.',
+      ),
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   String _normalizeLocalPhone(String input) {
@@ -484,7 +496,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final fieldBg = AppColors.surface;
     final mediaQuery = MediaQuery.of(context);
     final topHeight = mediaQuery.size.height * 0.35;
-    final bottomInset = mediaQuery.viewInsets.bottom;
 
     InputDecoration fieldDecoration({
       required String hint,
@@ -559,10 +570,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     AppColors.primaryDark,
                   ],
                 ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(48),
-                  bottomRight: Radius.circular(48),
-                ),
               ),
               child: Stack(
                 fit: StackFit.expand,
@@ -597,24 +604,62 @@ class _RegisterScreenState extends State<RegisterScreen> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: Material(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(12),
-                  child: InkWell(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Material(
+                    color: Colors.white.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(12),
-                    onTap: () => Navigator.of(context).maybePop(),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white,
-                        size: 18,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                            onTap: () => context.go(AppRouter.loginPath),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  Material(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _openWhatsAppHelpDesk,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.call_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _tr('Call', 'Piga'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
