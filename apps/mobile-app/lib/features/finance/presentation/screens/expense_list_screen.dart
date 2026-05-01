@@ -125,7 +125,7 @@ class ExpenseListScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () => _showAddExpenseDialog(context),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.receipt_long_rounded, color: AppColors.secondary),
         label: Text(
@@ -136,6 +136,13 @@ class ExpenseListScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showAddExpenseDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const AddExpenseDialog(),
     );
   }
 }
