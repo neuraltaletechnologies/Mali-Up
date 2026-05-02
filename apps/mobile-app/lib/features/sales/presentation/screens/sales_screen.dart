@@ -498,10 +498,8 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
           24,
           MediaQuery.of(context).viewInsets.bottom + 28,
         ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: MediaQuery.of(context).size.width - 48,
-          ),
+        child: SizedBox(
+          width: double.infinity,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1375,10 +1373,8 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
           24,
           MediaQuery.of(context).viewInsets.bottom + 28,
         ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: MediaQuery.of(context).size.width - 48,
-          ),
+        child: SizedBox(
+          width: double.infinity,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
