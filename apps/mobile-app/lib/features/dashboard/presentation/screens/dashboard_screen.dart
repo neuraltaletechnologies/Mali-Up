@@ -41,7 +41,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _showPersonalExpense = true;
   bool _showHeavyContent = false;
   Timer? _clockTimer;
-  Future<Map<String, dynamic>?> _profileFuture = Future.value(null);
+  Future<Map<String, dynamic>?> _profileFuture = Future.value();
 
   @override
   void initState() {
@@ -121,7 +121,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .get(const GetOptions(source: Source.serverAndCache));
+          .get(const GetOptions());
       return snapshot.data() ?? {};
     } catch (e) {
       debugPrint('Error fetching user profile: $e');
@@ -240,7 +240,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           const EmotionalLottieSpot(
                             scene: EmotionalLottieScene.dashboard,
                             size: 72,
-                            fallbackMood: CompanionMood.calm,
                           ),
                         ],
                       ),
@@ -884,7 +883,6 @@ class _SalesLineChart extends StatelessWidget {
           barWidth: 4,
           isStrokeCapRound: true,
           dotData: FlDotData(
-            show: true,
             getDotPainter: (spot, percent, bar, index) {
               final isPeak = spot.y >= 5;
               return FlDotCirclePainter(
@@ -919,7 +917,6 @@ class _SalesLineChart extends StatelessWidget {
             barWidth: 4,
             isStrokeCapRound: true,
             dotData: FlDotData(
-              show: true,
               getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
                 radius: 3.6,
                 color: AppColors.success,
@@ -952,7 +949,6 @@ class _SalesLineChart extends StatelessWidget {
             barWidth: 3,
             isStrokeCapRound: true,
             dotData: FlDotData(
-              show: true,
               getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
                 radius: 3.4,
                 color: AppColors.error,
@@ -1003,7 +999,6 @@ class _SalesLineChart extends StatelessWidget {
         minY: 0,
         maxY: isBusinessContext ? 6.0 : 4.0,
         gridData: FlGridData(
-          show: true,
           drawVerticalLine: false,
           horizontalInterval: 1,
           getDrawingHorizontalLine: (_) => FlLine(
@@ -1012,8 +1007,8 @@ class _SalesLineChart extends StatelessWidget {
           ),
         ),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(),
+          rightTitles: const AxisTitles(),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -1063,7 +1058,6 @@ class _SalesLineChart extends StatelessWidget {
         ),
         borderData: FlBorderData(show: false),
         lineTouchData: LineTouchData(
-          enabled: true,
           touchTooltipData: LineTouchTooltipData(
             getTooltipColor: (_) => AppColors.secondary,
             tooltipBorderRadius: BorderRadius.circular(10),

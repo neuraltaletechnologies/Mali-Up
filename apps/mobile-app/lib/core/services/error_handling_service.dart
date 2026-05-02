@@ -295,7 +295,6 @@ class ErrorHandlingService {
           ],
         ),
         backgroundColor: _getColorForErrorType(error.type),
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

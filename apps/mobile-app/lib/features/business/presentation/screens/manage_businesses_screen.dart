@@ -44,7 +44,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     final snapshot = await _firestore
         .collection('users')
         .doc(user.uid)
-        .get(const GetOptions(source: Source.serverAndCache));
+        .get(const GetOptions());
     return snapshot.data();
   }
 

@@ -229,7 +229,7 @@ class DashboardProvider extends ChangeNotifier {
       activities.add({
         'type': 'expense',
         'title': expense.category,
-        'description': '${formatCurrency(double.tryParse(expense.amount) ?? 0)}',
+        'description': formatCurrency(double.tryParse(expense.amount) ?? 0),
         'date': expense.date,
         'note': expense.note,
       });
@@ -267,25 +267,29 @@ class DashboardProvider extends ChangeNotifier {
     if (monthSales > 0) score += 20;
     
     // Profitability (20 points)
-    if (netProfit > 0) score += 20;
-    else if (netProfit > -monthSales * 0.1) score += 10;
+    if (netProfit > 0) {
+      score += 20;
+    } else if (netProfit > -monthSales * 0.1) score += 10;
     
     // Debt management (15 points)
-    if (totalDebts < monthSales * 0.2) score += 15;
-    else if (totalDebts < monthSales * 0.4) score += 10;
+    if (totalDebts < monthSales * 0.2) {
+      score += 15;
+    } else if (totalDebts < monthSales * 0.4) score += 10;
     else if (totalDebts < monthSales * 0.6) score += 5;
     
     // Inventory management (15 points)
     final lowStockRatio = _inventoryProvider.itemCount > 0 
         ? lowStockCount / _inventoryProvider.itemCount 
         : 0;
-    if (lowStockRatio < 0.1) score += 15;
-    else if (lowStockRatio < 0.2) score += 10;
+    if (lowStockRatio < 0.1) {
+      score += 15;
+    } else if (lowStockRatio < 0.2) score += 10;
     else if (lowStockRatio < 0.3) score += 5;
     
     // Cash flow (15 points)
-    if (monthSales > totalExpenses) score += 15;
-    else if (monthSales > totalExpenses * 0.8) score += 10;
+    if (monthSales > totalExpenses) {
+      score += 15;
+    } else if (monthSales > totalExpenses * 0.8) score += 10;
     else if (monthSales > totalExpenses * 0.6) score += 5;
     
     return score.clamp(0.0, 100.0);

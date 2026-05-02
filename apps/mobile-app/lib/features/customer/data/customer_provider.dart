@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../domain/models/customer.dart';
 import '../../../core/services/firestore_service.dart';
-import '../../../core/services/error_handling_service.dart';
 
 class CustomerProvider extends ChangeNotifier {
   final FirestoreService _firestoreService;

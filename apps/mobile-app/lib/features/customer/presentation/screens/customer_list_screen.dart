@@ -61,12 +61,12 @@ class CustomerListScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border, width: 1),
-              boxShadow: [
+              border: Border.all(color: AppColors.border),
+              boxShadow: const [
                 BoxShadow(
                   color: AppColors.shadowCard,
                   blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  offset: Offset(0, 2),
                 ),
               ],
             ),
@@ -105,7 +105,7 @@ class CustomerListScreen extends ConsumerWidget {
   void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (context) => AddCustomerDialog(),
+      builder: (context) => const AddCustomerDialog(),
     );
   }
 }
@@ -162,12 +162,12 @@ class _CustomerCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 1),
-        boxShadow: [
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadowCard,
             blurRadius: 6,
-            offset: const Offset(0, 1),
+            offset: Offset(0, 1),
           ),
         ],
       ),
@@ -224,7 +224,7 @@ class _CustomerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Divider(color: AppColors.border, height: 1),
+          const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -236,7 +236,7 @@ class _CustomerCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 1),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
                   ),
                   child: Text(
                     tag,

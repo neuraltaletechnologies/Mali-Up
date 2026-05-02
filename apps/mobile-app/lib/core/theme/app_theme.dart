@@ -9,43 +9,43 @@ class AppTheme {
 
   /// Ultra-subtle shadow for cards (premium fintech look)
   static List<BoxShadow> get cardShadow => [
-        BoxShadow(
+        const BoxShadow(
           color: AppColors.shadowCard,
           blurRadius: 8,
-          offset: const Offset(0, 2),
+          offset: Offset(0, 2),
         ),
-        BoxShadow(
+        const BoxShadow(
           color: AppColors.shadowCard,
           blurRadius: 4,
-          offset: const Offset(0, 1),
+          offset: Offset(0, 1),
         ),
       ];
 
   /// Elevated shadow for floating elements
   static List<BoxShadow> get elevatedShadow => [
-        BoxShadow(
+        const BoxShadow(
           color: AppColors.shadowElevated,
           blurRadius: 16,
-          offset: const Offset(0, 4),
+          offset: Offset(0, 4),
         ),
-        BoxShadow(
+        const BoxShadow(
           color: AppColors.shadowCard,
           blurRadius: 8,
-          offset: const Offset(0, 2),
+          offset: Offset(0, 2),
         ),
       ];
 
   /// Soft shadow for modals and dialogs
   static List<BoxShadow> get modalShadow => [
-        BoxShadow(
+        const BoxShadow(
           color: AppColors.shadowModal,
           blurRadius: 24,
-          offset: const Offset(0, 8),
+          offset: Offset(0, 8),
         ),
-        BoxShadow(
+        const BoxShadow(
           color: AppColors.shadowElevated,
           blurRadius: 12,
-          offset: const Offset(0, 4),
+          offset: Offset(0, 4),
         ),
       ];
 
@@ -188,7 +188,6 @@ class AppTheme {
         onPrimary: AppColors.secondary,
         onSecondary: AppColors.background,
         onSurface: AppColors.textPrimary,
-        onError: AppColors.inverseText,
         outline: AppColors.border,
         shadow: AppColors.shadowCard,
       ),
@@ -232,7 +231,7 @@ class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border, width: 1),
+          side: const BorderSide(color: AppColors.border),
         ),
       ),
 
@@ -307,7 +306,7 @@ class AppTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border, width: 1),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -315,7 +314,7 @@ class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error, width: 1),
+          borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -323,7 +322,7 @@ class AppTheme {
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border, width: 1),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         labelStyle: const TextStyle(
           color: AppColors.textSecondary,
@@ -344,23 +343,23 @@ class AppTheme {
       ),
 
       // ── Tab Bar ──
-      tabBarTheme: TabBarThemeData(
+      tabBarTheme: const TabBarThemeData(
         labelColor: AppColors.textPrimary,
         unselectedLabelColor: AppColors.textMuted,
         indicatorSize: TabBarIndicatorSize.label,
-        indicator: const UnderlineTabIndicator(
+        indicator: UnderlineTabIndicator(
           borderSide: BorderSide(color: AppColors.primary, width: 3),
         ),
-        labelStyle: const TextStyle(
+        labelStyle: TextStyle(
           fontWeight: FontWeight.w700,
           fontSize: 14,
         ),
-        unselectedLabelStyle: const TextStyle(
+        unselectedLabelStyle: TextStyle(
           fontWeight: FontWeight.w500,
           fontSize: 14,
         ),
         dividerColor: AppColors.border,
-        labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+        labelPadding: EdgeInsets.symmetric(horizontal: 8),
       ),
 
       // ── Bottom Navigation Bar ──
@@ -386,8 +385,8 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.background,
         indicatorColor: AppColors.primary.withValues(alpha: 0.12),
-        labelTextStyle: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 12,
@@ -400,8 +399,8 @@ class AppTheme {
             color: AppColors.textMuted,
           );
         }),
-        iconTheme: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const IconThemeData(
               color: AppColors.primary,
               size: 24,
@@ -445,7 +444,7 @@ class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: AppColors.border, width: 1),
+          side: const BorderSide(color: AppColors.border),
         ),
         labelStyle: const TextStyle(
           color: AppColors.textPrimary,
@@ -493,14 +492,14 @@ class AppTheme {
 
       // ── Switch ──
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary;
           }
           return AppColors.textMuted;
         }),
-        trackColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary.withValues(alpha: 0.5);
           }
           return AppColors.border;
@@ -509,13 +508,13 @@ class AppTheme {
 
       // ── Checkbox ──
       checkboxTheme: CheckboxThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary;
           }
           return Colors.transparent;
         }),
-        checkColor: MaterialStateProperty.resolveWith((states) {
+        checkColor: WidgetStateProperty.resolveWith((states) {
           return AppColors.secondary;
         }),
         shape: RoundedRectangleBorder(
@@ -526,8 +525,8 @@ class AppTheme {
 
       // ── Radio ──
       radioTheme: RadioThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary;
           }
           return Colors.transparent;
@@ -623,7 +622,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        labelTextStyle: MaterialStateProperty.all(
+        labelTextStyle: WidgetStateProperty.all(
           const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 14,

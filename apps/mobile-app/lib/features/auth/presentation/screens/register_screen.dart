@@ -334,7 +334,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await _completeRegistration(userCredential.user, pin);
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
-      String message = switch (e.code) {
+      final String message = switch (e.code) {
         'email-already-in-use' => _tr(
           'This phone number is already registered.',
           'Namba hii ya simu tayari imesajiliwa.',
@@ -491,9 +491,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final textPrimary = AppColors.textPrimary;
-    final textSecondary = AppColors.textSecondary;
-    final fieldBg = AppColors.surface;
+    const textPrimary = AppColors.textPrimary;
+    const textSecondary = AppColors.textSecondary;
+    const fieldBg = AppColors.surface;
     final mediaQuery = MediaQuery.of(context);
     final topHeight = mediaQuery.size.height * 0.35;
 
@@ -514,7 +514,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border, width: 1),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -561,7 +561,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             top: 0,
             height: topHeight,
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -635,7 +635,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.3),
-                            width: 1,
                           ),
                         ),
                         child: Row(
@@ -670,6 +669,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             maxChildSize: 0.96,
             builder: (context, scrollController) {
               return Container(
+                clipBehavior: Clip.hardEdge,
                 decoration: const BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -681,10 +681,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-                  child: Column(
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    physics: const ClampingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Handle bar
@@ -912,7 +918,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 12),
                         // City dropdown for place of business
                         DropdownButtonFormField<String>(
-                          value: _selectedCity,
+                          initialValue: _selectedCity,
                           decoration: fieldDecoration(
                             hint: _tr('City/Region', 'Mji/Mkoa'),
                             suffix: Icons.location_on_outlined,

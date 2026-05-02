@@ -141,7 +141,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               child: EmotionalLottieSpot(
                 scene: _lottieSceneForPage(page.index),
                 size: 160,
-                fallbackMood: CompanionMood.calm,
               ),
             ),
             const SizedBox(height: 40),
@@ -191,7 +190,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Widget _buildBottomControls() {
-    bool isLastPage = _currentIndex == onboardingPages.length - 1;
+    final bool isLastPage = _currentIndex == onboardingPages.length - 1;
 
     return SafeArea(
       bottom: false,

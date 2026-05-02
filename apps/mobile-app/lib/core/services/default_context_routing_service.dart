@@ -34,7 +34,7 @@ class DefaultContextRoutingService {
       final snapshot = await resolvedStore
           .collection('users')
           .doc(user.uid)
-          .get(const GetOptions(source: Source.serverAndCache));
+          .get(const GetOptions());
       return routeFromUserProfile(snapshot.data());
     } catch (_) {
       // Fall back to dashboard when profile fetch is unavailable.

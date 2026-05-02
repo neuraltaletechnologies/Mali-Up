@@ -86,7 +86,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           _errorMessage = _getErrorMessage(error);
         });
       },
-      forceResending: false,
     );
 
     if (result != AuthResult.otpSent) {
@@ -268,14 +267,14 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       );
     }
 
-    final headingStyle = const TextStyle(
+    const headingStyle = TextStyle(
       fontSize: 30,
       color: textPrimary,
       fontWeight: FontWeight.w700,
       height: 1.15,
     );
 
-    final subtitleStyle = const TextStyle(
+    const subtitleStyle = TextStyle(
       color: textSecondary,
       fontSize: 14,
       height: 1.45,
@@ -497,7 +496,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         child: PinCodeTextField(
                           appContext: context,
                           length: 6,
-                          obscureText: false,
                           animationType: AnimationType.fade,
                           pinTheme: PinTheme(
                             shape: PinCodeFieldShape.box,
