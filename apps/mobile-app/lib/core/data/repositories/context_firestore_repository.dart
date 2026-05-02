@@ -11,12 +11,16 @@ class ResolvedFinanceContext {
   final FinanceContextType type;
   final String? businessId;
 
-  const ResolvedFinanceContext._({required this.type, required this.businessId});
+  const ResolvedFinanceContext._({
+    required this.type,
+    required this.businessId,
+  });
 
-  const ResolvedFinanceContext.personal() : this._(type: FinanceContextType.personal, businessId: null);
+  const ResolvedFinanceContext.personal()
+    : this._(type: FinanceContextType.personal, businessId: null);
 
   const ResolvedFinanceContext.business(String businessId)
-      : this._(type: FinanceContextType.business, businessId: businessId);
+    : this._(type: FinanceContextType.business, businessId: businessId);
 
   bool get isBusiness => type == FinanceContextType.business;
 }
@@ -25,7 +29,7 @@ class ContextFirestoreRepository {
   final FirebaseFirestore _firestore;
 
   ContextFirestoreRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   Future<ResolvedFinanceContext> resolveContextForUser(String uid) async {
     try {
@@ -35,12 +39,17 @@ class ContextFirestoreRepository {
           .get(const GetOptions());
       final data = snapshot.data();
 
-      final defaultContext = (data?['defaultContext'] as String?)?.toLowerCase();
-      final selectedBusinessId = (data?['selectedBusinessId'] as String?)?.trim();
+      final defaultContext = (data?['defaultContext'] as String?)
+          ?.toLowerCase();
+      final selectedBusinessId = (data?['selectedBusinessId'] as String?)
+          ?.trim();
       final businesses = _businessListFromProfile(data);
 
       if (defaultContext != null && defaultContext.startsWith('business')) {
-        final businessId = _businessIdFromContext(defaultContext) ?? selectedBusinessId ?? businesses.firstOrNull?.id;
+        final businessId =
+            _businessIdFromContext(defaultContext) ??
+            selectedBusinessId ??
+            businesses.firstOrNull?.id;
         if (businessId != null && businessId.isNotEmpty) {
           return ResolvedFinanceContext.business(businessId);
         }
@@ -49,8 +58,8 @@ class ContextFirestoreRepository {
         return const ResolvedFinanceContext.personal();
       }
 
-      final defaultAccountType =
-          (data?['defaultAccountType'] as String?)?.toLowerCase();
+      final defaultAccountType = (data?['defaultAccountType'] as String?)
+          ?.toLowerCase();
       if (defaultAccountType == 'business') {
         final businessId = selectedBusinessId ?? businesses.firstOrNull?.id;
         if (businessId != null && businessId.isNotEmpty) {
@@ -62,7 +71,9 @@ class ContextFirestoreRepository {
       }
 
       if (businesses.isNotEmpty) {
-        return ResolvedFinanceContext.business(selectedBusinessId ?? businesses.first.id);
+        return ResolvedFinanceContext.business(
+          selectedBusinessId ?? businesses.first.id,
+        );
       }
     } catch (_) {
       // Keep a safe fallback when user profile is unavailable.
@@ -86,6 +97,18 @@ class ContextFirestoreRepository {
           .map((doc) => Customer.fromFirestore(doc.data(), doc.id))
           .toList();
     });
+  }
+
+  Future<void> addCustomer({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required Customer customer,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'customers',
+    ).add(customer.toFirestore());
   }
 
   Stream<List<Debt>> watchDebts({
@@ -185,7 +208,9 @@ class ContextFirestoreRepository {
     return parts.sublist(1).join(':').trim();
   }
 
-  List<_BusinessProfileRecord> _businessListFromProfile(Map<String, dynamic>? profile) {
+  List<_BusinessProfileRecord> _businessListFromProfile(
+    Map<String, dynamic>? profile,
+  ) {
     final businessesRaw = profile?['businesses'];
     if (businessesRaw is! List) return const [];
 
