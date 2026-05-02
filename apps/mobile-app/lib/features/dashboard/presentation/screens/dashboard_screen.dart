@@ -129,6 +129,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
+  String? _getBusinessName(Map<String, dynamic>? profile) {
+    final businesses = profile?['businesses'];
+    if (businesses is! List || businesses.isEmpty) return null;
+    final selectedId = profile?['selectedBusinessId'] as String?;
+    final business = selectedId != null
+        ? businesses.whereType<Map>().cast<Map<String, dynamic>>().firstWhere(
+            (b) => b['id'] == selectedId,
+            orElse: () => businesses.first as Map<String, dynamic>,
+          )
+        : businesses.first as Map<String, dynamic>;
+    return (business['name'] as String?)?.trim();
+  }
+
+  String? _getBusinessLogoUrl(Map<String, dynamic>? profile) {
+    final businesses = profile?['businesses'];
+    if (businesses is! List || businesses.isEmpty) return null;
+    final selectedId = profile?['selectedBusinessId'] as String?;
+    final business = selectedId != null
+        ? businesses.whereType<Map>().cast<Map<String, dynamic>>().firstWhere(
+            (b) => b['id'] == selectedId,
+            orElse: () => businesses.first as Map<String, dynamic>,
+          )
+        : businesses.first as Map<String, dynamic>;
+    return (business['logoUrl'] as String?)?.trim();
+  }
+
   bool _isBusinessContext(Map<String, dynamic>? profile) {
     final defaultContext = (profile?['defaultContext'] as String?)?.toLowerCase();
     if (defaultContext != null && defaultContext.isNotEmpty) {
@@ -176,22 +202,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final budgetHealth = totalCash <= 0 ? 0 : ((totalCash - totalExpenses) / totalCash * 100).clamp(0, 100);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          const AmbientEmotionBackground(
-            palette: [
-              AppColors.primary,
-              AppColors.secondaryLight,
-              AppColors.success,
-            ],
-            intensity: 0.56,
-          ),
           FutureBuilder<Map<String, dynamic>?>(
             future: _profileFuture,
             builder: (context, snapshot) {
               final isBusinessContext = _isBusinessContext(snapshot.data);
               return SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  MediaQuery.of(context).padding.top + kToolbarHeight + 16,
+                  20,
+                  24,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -243,20 +267,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                         ],
                       ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     if (_showHeavyContent)
-                      if (isBusinessContext)
-                        _BusinessHeroCard(
-                          totalCash: totalCash,
-                          totalExpenses: totalExpenses,
-                          customerCount: customerCount,
-                        )
-                      else
-                        _PersonalHeroCard(
-                          totalCash: totalCash,
-                          totalExpenses: totalExpenses,
-                          budgetHealth: budgetHealth.toDouble(),
-                        )
+                      _UnifiedHeroCard(
+                        isBusinessContext: isBusinessContext,
+                        totalCash: totalCash,
+                        totalExpenses: totalExpenses,
+                        customerCount: customerCount,
+                        budgetHealth: budgetHealth.toDouble(),
+                        businessName: _getBusinessName(snapshot.data),
+                        logoUrl: _getBusinessLogoUrl(snapshot.data),
+                      )
                     else
                       const _DashboardHeroSkeleton(),
                     const SizedBox(height: 20),
@@ -544,44 +565,75 @@ class _DashboardHeaderSkeleton extends StatelessWidget {
   }
 }
 
-class _BusinessHeroCard extends StatelessWidget {
+class _UnifiedHeroCard extends StatefulWidget {
+  final bool isBusinessContext;
   final double totalCash;
   final double totalExpenses;
   final int customerCount;
+  final double budgetHealth;
+  final String? businessName;
+  final String? logoUrl;
 
-  const _BusinessHeroCard({
+  const _UnifiedHeroCard({
+    required this.isBusinessContext,
     required this.totalCash,
     required this.totalExpenses,
     required this.customerCount,
+    required this.budgetHealth,
+    this.businessName,
+    this.logoUrl,
   });
 
   @override
+  State<_UnifiedHeroCard> createState() => _UnifiedHeroCardState();
+}
+
+class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
+  bool _detailsVisible = true;
+
+  @override
   Widget build(BuildContext context) {
+    return widget.isBusinessContext
+        ? _buildCreditCard()
+        : _buildPersonalCard();
+  }
+
+  // ── Business: premium credit card ──────────────────────────────────────────
+  Widget _buildCreditCard() {
+    final name = widget.businessName ?? _tr('My Business', 'Biashara yangu');
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
+    final amountText = _detailsVisible
+        ? _fmtCompactAmount(widget.totalCash)
+        : '•••• ••••';
+    final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
+    final expText = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
+    final net = widget.totalCash - widget.totalExpenses;
+    final netText = _detailsVisible ? _fmtCompactAmount(net) : '••••';
+    final netColor = net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
+
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.navyPrimary, AppColors.navySecondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: AppColors.navyPrimary.withValues(alpha: 0.45),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
       child: Stack(
         children: [
+          // Decorative background circles
           Positioned(
-            right: -20,
-            top: -20,
+            right: -24, top: -24,
             child: Container(
-              width: 100,
-              height: 100,
+              width: 130, height: 130,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withValues(alpha: 0.04),
@@ -589,57 +641,292 @@ class _BusinessHeroCard extends StatelessWidget {
             ),
           ),
           Positioned(
-            right: 20,
-            bottom: -30,
+            left: -16, bottom: -20,
             child: Container(
-              width: 70,
-              height: 70,
+              width: 90, height: 90,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.yellowBrand.withValues(alpha: 0.08),
+                color: AppColors.yellowBrand.withValues(alpha: 0.07),
               ),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _tr('Total Cash Balance', 'Jumla ya Fedha'),
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.65),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.5,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Row 1: chip + business name + logo
+                Row(
+                  children: [
+                    // SIM chip
+                    Container(
+                      width: 30, height: 22,
+                      decoration: BoxDecoration(
+                        color: AppColors.yellowBrand.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 20, height: 14,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: AppColors.navyPrimary.withValues(alpha: 0.4),
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Logo circle
+                    ClipOval(
+                      child: widget.logoUrl != null && widget.logoUrl!.isNotEmpty
+                          ? Image.network(
+                              widget.logoUrl!,
+                              width: 42, height: 42,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _BusinessLogoFallback(initial: initial),
+                            )
+                          : _BusinessLogoFallback(initial: initial),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _fmtCompactAmount(totalCash),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
+                const SizedBox(height: 20),
+                // Row 2: balance label + eye toggle
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      _tr('Total Cash Balance', 'Jumla ya Fedha'),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontSize: 11,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () =>
+                          setState(() => _detailsVisible = !_detailsVisible),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _detailsVisible
+                                  ? Icons.visibility_rounded
+                                  : Icons.visibility_off_rounded,
+                              size: 13,
+                              color: Colors.white.withValues(alpha: 0.75),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              _detailsVisible
+                                  ? _tr('Hide', 'Ficha')
+                                  : _tr('Show', 'Onyesha'),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.75),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _HeroStat(
-                    icon: Icons.people_rounded,
-                    label: _tr('Clients', 'Wateja'),
-                    value: '$customerCount',
+                const SizedBox(height: 6),
+                // Row 3: amount
+                Text(
+                  amountText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    height: 1.1,
                   ),
-                  const SizedBox(width: 24),
-                  _HeroStat(
-                    icon: Icons.payments_rounded,
-                    label: _tr('Expenses', 'Gharama'),
-                    value: _fmtCompactAmount(totalExpenses),
-                    valueColor: totalExpenses > 0 ? AppColors.warning : Colors.white,
+                ),
+                const SizedBox(height: 20),
+                // Stats bar
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(22),
+                      bottomRight: Radius.circular(22),
+                    ),
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
                   ),
-                ],
-              ),
-            ],
+                  child: Row(
+                    children: [
+                      _CardStat(
+                        label: _tr('Clients', 'Wateja'),
+                        value: clientsText,
+                      ),
+                      Container(
+                        width: 1, height: 28,
+                        color: Colors.white.withValues(alpha: 0.15),
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      _CardStat(
+                        label: _tr('Expenses', 'Gharama'),
+                        value: expText,
+                        valueColor: _detailsVisible && widget.totalExpenses > 0
+                            ? const Color(0xFFF87171)
+                            : null,
+                      ),
+                      Container(
+                        width: 1, height: 28,
+                        color: Colors.white.withValues(alpha: 0.15),
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      _CardStat(
+                        label: _tr('Net', 'Faida'),
+                        value: netText,
+                        valueColor: _detailsVisible ? netColor : null,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Personal: clean white card ──────────────────────────────────────────────
+  Widget _buildPersonalCard() {
+    final healthColor = widget.budgetHealth >= 60
+        ? AppColors.success
+        : widget.budgetHealth >= 30
+            ? AppColors.warning
+            : AppColors.error;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _tr('Budget Health', 'Afya ya Bajeti'),
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${widget.budgetHealth.round()}%',
+                        style: TextStyle(
+                          color: healthColor,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          height: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    size: 20,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+            child: Row(
+              children: [
+                _StatChip(
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: _tr('Cash', 'Fedha'),
+                  value: _fmtCompactAmount(widget.totalCash),
+                ),
+                const _StatDivider(),
+                _StatChip(
+                  icon: Icons.payments_rounded,
+                  label: _tr('Spent', 'Gharama'),
+                  value: _fmtCompactAmount(widget.totalExpenses),
+                  valueColor:
+                      widget.totalExpenses > 0 ? AppColors.error : null,
+                ),
+                const _StatDivider(),
+                _StatChip(
+                  icon: Icons.shield_rounded,
+                  label: _tr('Health', 'Hali'),
+                  value: '${widget.budgetHealth.round()}%',
+                  valueColor: healthColor,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -647,13 +934,75 @@ class _BusinessHeroCard extends StatelessWidget {
   }
 }
 
-class _HeroStat extends StatelessWidget {
+class _BusinessLogoFallback extends StatelessWidget {
+  final String initial;
+  const _BusinessLogoFallback({required this.initial});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42, height: 42,
+      color: AppColors.yellowBrand,
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            color: AppColors.navyPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CardStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const _CardStat({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
   final Color? valueColor;
 
-  const _HeroStat({
+  const _StatChip({
     required this.icon,
     required this.label,
     required this.value,
@@ -662,126 +1011,27 @@ class _HeroStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.5)),
-        const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                color: valueColor ?? Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _PersonalHeroCard extends StatelessWidget {
-  final double totalCash;
-  final double totalExpenses;
-  final double budgetHealth;
-
-  const _PersonalHeroCard({
-    required this.totalCash,
-    required this.totalExpenses,
-    required this.budgetHealth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final healthColor = budgetHealth >= 60
-        ? AppColors.success
-        : budgetHealth >= 30
-            ? AppColors.warning
-            : AppColors.error;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _tr('Budget Health', 'Afya ya Bajeti'),
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${budgetHealth.round()}%',
-                      style: TextStyle(
-                        color: healthColor,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _QuickRouteCard(
-                icon: Icons.payments_outlined,
-                title: _tr('Expenses', 'Matumizi'),
-                subtitle: _fmtCompactAmount(totalExpenses),
-                route: AppRouter.expensesPath,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: budgetHealth / 100,
-              minHeight: 6,
-              backgroundColor: AppColors.border,
-              valueColor: AlwaysStoppedAnimation<Color>(healthColor),
+          Icon(icon, size: 14, color: AppColors.textMuted),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? AppColors.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickRouteCard(
-                  icon: Icons.account_balance_rounded,
-                  title: _tr('Debt', 'Madeni'),
-                  subtitle: _tr('View all', 'Angalia yote'),
-                  route: AppRouter.debtPath,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _QuickRouteCard(
-                  icon: Icons.account_balance_wallet_outlined,
-                  title: _tr('Cash Flow', 'Fedha'),
-                  subtitle: _fmtCompactAmount(totalCash),
-                  route: AppRouter.cashFlowPath,
-                ),
-              ),
-            ],
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -789,54 +1039,16 @@ class _PersonalHeroCard extends StatelessWidget {
   }
 }
 
-class _QuickRouteCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String route;
-
-  const _QuickRouteCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.route,
-  });
+class _StatDivider extends StatelessWidget {
+  const _StatDivider();
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push(route),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 17, color: AppColors.secondary),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return Container(
+      height: 36,
+      width: 1,
+      color: AppColors.border,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
     );
   }
 }

@@ -441,7 +441,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: AppColors.primaryDark,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
           // Premium gradient header with subtle overlay
@@ -593,8 +593,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           // Main content sheet — "bottom content panel"
           DraggableScrollableSheet(
-            initialChildSize: 0.65,
-            minChildSize: 0.55,
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
             maxChildSize: 0.96,
             builder: (context, scrollController) {
               return Container(
@@ -832,7 +832,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: List.generate(
                             4,
-                            (i) => PinDigitBox(controller: _pinControllers[i]),
+                            (i) => PinDigitBox(
+                              controller: _pinControllers[i],
+                              isLast: i == 3,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),

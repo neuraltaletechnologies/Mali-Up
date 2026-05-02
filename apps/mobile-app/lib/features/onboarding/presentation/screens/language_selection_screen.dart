@@ -29,9 +29,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     if (_isContinuing) return;
     setState(() => _isContinuing = true);
     try {
-      await LocalizationService.setLanguage(_language);
-      if (!mounted) return;
+      // Navigate first so the router transition is clean, then persist.
+      // Reversing the order caused MaliUpApp to rebuild (via languageNotifier)
+      // before navigation completed, making the screen appear to "reload".
       widget.onLanguageSelected();
+      await LocalizationService.setLanguage(_language);
     } finally {
       if (!mounted) return;
       setState(() => _isContinuing = false);
@@ -61,8 +63,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Spacer(),
                       Text(
                         _tr('Choose your language', 'Chagua lugha'),
                         style: Theme.of(context).textTheme.headlineMedium
@@ -72,7 +74,6 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                               height: 1.1,
                             ),
                       ),
-                      const SizedBox(height: 6),
                     ],
                   ),
                 ),
