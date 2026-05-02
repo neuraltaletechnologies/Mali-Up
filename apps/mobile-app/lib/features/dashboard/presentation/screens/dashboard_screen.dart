@@ -604,227 +604,343 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
         ? _fmtCompactAmount(widget.totalCash)
-        : '•••• ••••';
+        : '••••••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
-    final expText = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
+    final expText =
+        _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
     final net = widget.totalCash - widget.totalExpenses;
     final netText = _detailsVisible ? _fmtCompactAmount(net) : '••••';
-    final netColor = net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
+    final netColor =
+        net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
+    final now = DateTime.now();
+    final validThru =
+        '${now.month.toString().padLeft(2, '0')}/${(now.year + 3).toString().substring(2)}';
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.navyPrimary, AppColors.navySecondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.45),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
+            color: AppColors.navyPrimary.withValues(alpha: 0.5),
+            blurRadius: 32,
+            offset: const Offset(0, 14),
+          ),
+          BoxShadow(
+            color: AppColors.navySecondary.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Decorative background circles
-          Positioned(
-            right: -24, top: -24,
-            child: Container(
-              width: 130, height: 130,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.04),
-              ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.navyPrimary,
+                Color(0xFF142B5E),
+                AppColors.navySecondary,
+              ],
+              stops: [0.0, 0.52, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
-          Positioned(
-            left: -16, bottom: -20,
-            child: Container(
-              width: 90, height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.yellowBrand.withValues(alpha: 0.07),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Row 1: chip + business name + logo
-                Row(
-                  children: [
-                    // SIM chip
-                    Container(
-                      width: 30, height: 22,
-                      decoration: BoxDecoration(
-                        color: AppColors.yellowBrand.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 20, height: 14,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: AppColors.navyPrimary.withValues(alpha: 0.4),
-                              width: 1,
-                            ),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Logo circle
-                    ClipOval(
-                      child: widget.logoUrl != null && widget.logoUrl!.isNotEmpty
-                          ? Image.network(
-                              widget.logoUrl!,
-                              width: 42, height: 42,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  _BusinessLogoFallback(initial: initial),
-                            )
-                          : _BusinessLogoFallback(initial: initial),
-                    ),
-                  ],
+          child: Stack(
+            children: [
+              // ── Decorative background ──────────────────────────────
+              Positioned(
+                right: -50, top: -50,
+                child: Container(
+                  width: 200, height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.04),
+                  ),
                 ),
-                const SizedBox(height: 20),
-                // Row 2: balance label + eye toggle
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      _tr('Total Cash Balance', 'Jumla ya Fedha'),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.55),
-                        fontSize: 11,
-                        letterSpacing: 0.3,
-                      ),
+              ),
+              Positioned(
+                left: -30, bottom: -35,
+                child: Container(
+                  width: 130, height: 130,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.yellowBrand.withValues(alpha: 0.06),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 55, bottom: -18,
+                child: Container(
+                  width: 80, height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.tealAccent.withValues(alpha: 0.1),
+                  ),
+                ),
+              ),
+              // Top-edge shine line
+              Positioned(
+                left: 0, right: 0, top: 0,
+                child: Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        Colors.white.withValues(alpha: 0.18),
+                        Colors.transparent,
+                      ],
                     ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () =>
-                          setState(() => _detailsVisible = !_detailsVisible),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.15),
+                  ),
+                ),
+              ),
+
+              // ── Card content ───────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Row 1: chip + brand label + logo
+                    Row(
+                      children: [
+                        const _CardChip(),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'MALI UP',
+                            style: TextStyle(
+                              color:
+                                  AppColors.yellowBrand.withValues(alpha: 0.9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2.8,
+                            ),
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _detailsVisible
-                                  ? Icons.visibility_rounded
-                                  : Icons.visibility_off_rounded,
-                              size: 13,
-                              color: Colors.white.withValues(alpha: 0.75),
+                        // Logo — rounded square
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: SizedBox(
+                            width: 42,
+                            height: 42,
+                            child: widget.logoUrl != null &&
+                                    widget.logoUrl!.isNotEmpty
+                                ? Image.network(
+                                    widget.logoUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) =>
+                                        _BusinessLogoFallback(
+                                            initial: initial),
+                                  )
+                                : _BusinessLogoFallback(initial: initial),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Masked card number dots
+                    Text(
+                      '••••  ••••  ••••  ••••',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        fontSize: 13,
+                        letterSpacing: 2.5,
+                        fontWeight: FontWeight.w500,
+                        height: 1,
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Balance label + show/hide toggle
+                    Row(
+                      children: [
+                        Text(
+                          _tr('TOTAL BALANCE', 'JUMLA YA FEDHA'),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            fontSize: 9,
+                            letterSpacing: 1.6,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => setState(
+                              () => _detailsVisible = !_detailsVisible),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: _detailsVisible
+                                  ? Colors.white.withValues(alpha: 0.12)
+                                  : AppColors.yellowBrand
+                                      .withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _detailsVisible
+                                    ? Colors.white.withValues(alpha: 0.18)
+                                    : AppColors.yellowBrand
+                                        .withValues(alpha: 0.45),
+                              ),
                             ),
-                            const SizedBox(width: 5),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _detailsVisible
+                                      ? Icons.visibility_rounded
+                                      : Icons.visibility_off_rounded,
+                                  size: 13,
+                                  color: _detailsVisible
+                                      ? Colors.white.withValues(alpha: 0.8)
+                                      : AppColors.yellowBrand,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  _detailsVisible
+                                      ? _tr('Hide', 'Ficha')
+                                      : _tr('Show', 'Onyesha'),
+                                  style: TextStyle(
+                                    color: _detailsVisible
+                                        ? Colors.white.withValues(alpha: 0.8)
+                                        : AppColors.yellowBrand,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 5),
+
+                    // Balance amount
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: child,
+                      ),
+                      child: Text(
+                        amountText,
+                        key: ValueKey(_detailsVisible),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Footer: business name + valid thru
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name.toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
                             Text(
-                              _detailsVisible
-                                  ? _tr('Hide', 'Ficha')
-                                  : _tr('Show', 'Onyesha'),
+                              'VALID THRU',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.38),
+                                fontSize: 7,
+                                letterSpacing: 1.2,
                                 fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              validThru,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.72),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1,
                               ),
                             ),
                           ],
                         ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Stats bar — full width, clips with outer ClipRRect
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      margin: const EdgeInsets.symmetric(horizontal: -22),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        border: Border(
+                          top: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          _CardStat(
+                            label: _tr('Clients', 'Wateja'),
+                            value: clientsText,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 26,
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                          _CardStat(
+                            label: _tr('Expenses', 'Gharama'),
+                            value: expText,
+                            valueColor:
+                                _detailsVisible && widget.totalExpenses > 0
+                                    ? const Color(0xFFF87171)
+                                    : null,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 26,
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                          _CardStat(
+                            label: _tr('Net', 'Faida'),
+                            value: netText,
+                            valueColor:
+                                _detailsVisible ? netColor : null,
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                // Row 3: amount
-                Text(
-                  amountText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Stats bar
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(22),
-                      bottomRight: Radius.circular(22),
-                    ),
-                    border: Border(
-                      top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      _CardStat(
-                        label: _tr('Clients', 'Wateja'),
-                        value: clientsText,
-                      ),
-                      Container(
-                        width: 1, height: 28,
-                        color: Colors.white.withValues(alpha: 0.15),
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      _CardStat(
-                        label: _tr('Expenses', 'Gharama'),
-                        value: expText,
-                        valueColor: _detailsVisible && widget.totalExpenses > 0
-                            ? const Color(0xFFF87171)
-                            : null,
-                      ),
-                      Container(
-                        width: 1, height: 28,
-                        color: Colors.white.withValues(alpha: 0.15),
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      _CardStat(
-                        label: _tr('Net', 'Faida'),
-                        value: netText,
-                        valueColor: _detailsVisible ? netColor : null,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -994,6 +1110,64 @@ class _CardStat extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── EMV chip widget ────────────────────────────────────────────────────────────
+class _CardChip extends StatelessWidget {
+  const _CardChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 28,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFD4A843), Color(0xFFF0C832), Color(0xFFB8902A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: CustomPaint(painter: _ChipPainter()),
+    );
+  }
+}
+
+class _ChipPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF8B6010).withValues(alpha: 0.55)
+      ..strokeWidth = 0.7
+      ..style = PaintingStyle.stroke;
+
+    final w = size.width;
+    final h = size.height;
+
+    // Outer inset rect
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(3, 3, w - 6, h - 6),
+        const Radius.circular(2),
+      ),
+      paint,
+    );
+    // Vertical center line
+    canvas.drawLine(Offset(w / 2, 3), Offset(w / 2, h - 3), paint);
+    // Horizontal center line
+    canvas.drawLine(Offset(3, h / 2), Offset(w - 3, h / 2), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter _) => false;
 }
 
 class _StatChip extends StatelessWidget {
