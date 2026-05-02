@@ -906,7 +906,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-              );
+              ),
+            );
             },
           ),
           if (_successBurstTrigger > 0)
