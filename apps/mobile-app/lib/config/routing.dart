@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
+import '../shared/widgets/mali_components.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/otp_verification_screen.dart' deferred as otp_verification;
@@ -237,11 +238,7 @@ class AppRouter {
         if (snapshot.connectionState == ConnectionState.done) {
           return builder();
         }
-        return const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
+        return const SkeletonScreen();
       },
     );
   }
