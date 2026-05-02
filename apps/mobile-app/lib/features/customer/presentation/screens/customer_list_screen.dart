@@ -15,7 +15,10 @@ class CustomerListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final customers = ref.watch(customerListProvider);
-    final customerItems = customers.maybeWhen(data: (items) => items, orElse: () => const []);
+    final customerItems = customers.maybeWhen(
+      data: (items) => items,
+      orElse: () => const [],
+    );
 
     return Scaffold(
       body: Column(
@@ -29,10 +32,13 @@ class CustomerListScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _tr('Build stronger customer trust', 'Jenga uaminifu mkubwa wa wateja'),
+                        _tr(
+                          'Build stronger customer trust',
+                          'Jenga uaminifu mkubwa wa wateja',
+                        ),
                         style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -73,14 +79,22 @@ class CustomerListScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _SummaryStat(label: _tr('Active Clients', 'Wateja Hai'), value: '${customerItems.length}', icon: Icons.people_alt_outlined),
-                _SummaryStat(label: _tr('Total Balances', 'Jumla ya Salio'), value: 'TSh 3.4M', icon: Icons.account_balance_wallet_outlined),
+                _SummaryStat(
+                  label: _tr('Active Clients', 'Wateja Hai'),
+                  value: '${customerItems.length}',
+                  icon: Icons.people_alt_outlined,
+                ),
+                _SummaryStat(
+                  label: _tr('Total Balances', 'Jumla ya Salio'),
+                  value: 'TSh 3.4M',
+                  icon: Icons.account_balance_wallet_outlined,
+                ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -97,14 +111,20 @@ class CustomerListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddCustomerDialog(context, ref),
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.secondary),
+        child: const Icon(
+          Icons.person_add_alt_1_rounded,
+          color: AppColors.secondary,
+        ),
       ),
     );
   }
 
   void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => const AddCustomerDialog(),
     );
   }
@@ -115,7 +135,11 @@ class _SummaryStat extends StatelessWidget {
   final String value;
   final IconData icon;
 
-  const _SummaryStat({required this.label, required this.value, required this.icon});
+  const _SummaryStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -197,10 +221,7 @@ class _CustomerCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      customer.phone,
-                      style: theme.textTheme.bodySmall,
-                    ),
+                    Text(customer.phone, style: theme.textTheme.bodySmall),
                   ],
                 ),
               ),
@@ -231,21 +252,30 @@ class _CustomerCard extends StatelessWidget {
             children: [
               Wrap(
                 spacing: 8,
-                children: customer.tags.map<Widget>((tag) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-                  ),
-                  child: Text(
-                    tag,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: AppColors.primaryDark,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                )).toList(),
+                children: customer.tags
+                    .map<Widget>(
+                      (tag) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: Text(
+                          tag,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: AppColors.primaryDark,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
               Text(
                 '${_tr('Last Tx', 'Muamala wa Mwisho')}: ${customer.lastTransactionDate}',

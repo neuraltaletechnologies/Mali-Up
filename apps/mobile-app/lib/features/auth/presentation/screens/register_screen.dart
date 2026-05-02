@@ -7,6 +7,7 @@ import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/pin_digit_box.dart';
@@ -79,22 +80,102 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedBusinessType = 'Retail';
   final List<Map<String, dynamic>> _businessTypes = [
     {'value': 'Retail', 'en': 'Retail', 'sw': 'Uuzaji', 'icon': Icons.store},
-    {'value': 'Wholesale', 'en': 'Wholesale', 'sw': 'Uuzaji wa Jumla', 'icon': Icons.store_mall_directory},
-    {'value': 'Service', 'en': 'Service', 'sw': 'Huduma', 'icon': Icons.room_service},
-    {'value': 'Manufacturing', 'en': 'Manufacturing', 'sw': 'Uzalishaji', 'icon': Icons.build},
-    {'value': 'Food & Beverage', 'en': 'Food & Beverage', 'sw': 'Chakula na Vinywaji', 'icon': Icons.restaurant},
-    {'value': 'Agriculture', 'en': 'Agriculture', 'sw': 'Kilimo', 'icon': Icons.agriculture},
-    {'value': 'Transport', 'en': 'Transport', 'sw': 'Usafiri', 'icon': Icons.local_shipping},
-    {'value': 'Construction', 'en': 'Construction', 'sw': 'Ujenzi', 'icon': Icons.construction},
-    {'value': 'Healthcare', 'en': 'Healthcare', 'sw': 'Afya', 'icon': Icons.local_hospital},
-    {'value': 'Education', 'en': 'Education', 'sw': 'Elimu', 'icon': Icons.school},
-    {'value': 'Technology', 'en': 'Technology', 'sw': 'Teknolojia', 'icon': Icons.computer},
-    {'value': 'Hospitality', 'en': 'Hospitality', 'sw': 'Ukarimu', 'icon': Icons.hotel},
-    {'value': 'Beauty & Wellness', 'en': 'Beauty & Wellness', 'sw': 'Uzuri na Afya', 'icon': Icons.spa},
-    {'value': 'Entertainment', 'en': 'Entertainment', 'sw': 'Burudani', 'icon': Icons.theater_comedy},
-    {'value': 'Real Estate', 'en': 'Real Estate', 'sw': 'Mali Isiyohamishika', 'icon': Icons.apartment},
-    {'value': 'Financial Services', 'en': 'Financial Services', 'sw': 'Huduma za Kifedha', 'icon': Icons.account_balance},
-    {'value': 'Professional Services', 'en': 'Professional Services', 'sw': 'Huduma za Kitaalam', 'icon': Icons.business_center},
+    {
+      'value': 'Wholesale',
+      'en': 'Wholesale',
+      'sw': 'Uuzaji wa Jumla',
+      'icon': Icons.store_mall_directory,
+    },
+    {
+      'value': 'Service',
+      'en': 'Service',
+      'sw': 'Huduma',
+      'icon': Icons.room_service,
+    },
+    {
+      'value': 'Manufacturing',
+      'en': 'Manufacturing',
+      'sw': 'Uzalishaji',
+      'icon': Icons.build,
+    },
+    {
+      'value': 'Food & Beverage',
+      'en': 'Food & Beverage',
+      'sw': 'Chakula na Vinywaji',
+      'icon': Icons.restaurant,
+    },
+    {
+      'value': 'Agriculture',
+      'en': 'Agriculture',
+      'sw': 'Kilimo',
+      'icon': Icons.agriculture,
+    },
+    {
+      'value': 'Transport',
+      'en': 'Transport',
+      'sw': 'Usafiri',
+      'icon': Icons.local_shipping,
+    },
+    {
+      'value': 'Construction',
+      'en': 'Construction',
+      'sw': 'Ujenzi',
+      'icon': Icons.construction,
+    },
+    {
+      'value': 'Healthcare',
+      'en': 'Healthcare',
+      'sw': 'Afya',
+      'icon': Icons.local_hospital,
+    },
+    {
+      'value': 'Education',
+      'en': 'Education',
+      'sw': 'Elimu',
+      'icon': Icons.school,
+    },
+    {
+      'value': 'Technology',
+      'en': 'Technology',
+      'sw': 'Teknolojia',
+      'icon': Icons.computer,
+    },
+    {
+      'value': 'Hospitality',
+      'en': 'Hospitality',
+      'sw': 'Ukarimu',
+      'icon': Icons.hotel,
+    },
+    {
+      'value': 'Beauty & Wellness',
+      'en': 'Beauty & Wellness',
+      'sw': 'Uzuri na Afya',
+      'icon': Icons.spa,
+    },
+    {
+      'value': 'Entertainment',
+      'en': 'Entertainment',
+      'sw': 'Burudani',
+      'icon': Icons.theater_comedy,
+    },
+    {
+      'value': 'Real Estate',
+      'en': 'Real Estate',
+      'sw': 'Mali Isiyohamishika',
+      'icon': Icons.apartment,
+    },
+    {
+      'value': 'Financial Services',
+      'en': 'Financial Services',
+      'sw': 'Huduma za Kifedha',
+      'icon': Icons.account_balance,
+    },
+    {
+      'value': 'Professional Services',
+      'en': 'Professional Services',
+      'sw': 'Huduma za Kitaalam',
+      'icon': Icons.business_center,
+    },
     {'value': 'Other', 'en': 'Other', 'sw': 'Nyingine', 'icon': Icons.category},
   ];
 
@@ -227,6 +308,130 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _successBurstTrigger++);
   }
 
+  Widget _buildSelectField({
+    required String placeholder,
+    required String displayValue,
+    required bool hasValue,
+    required VoidCallback onTap,
+    required IconData icon,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hasValue
+                ? AppColors.primary.withValues(alpha: 0.5)
+                : AppColors.border,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: hasValue ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                hasValue ? displayValue : placeholder,
+                style: GoogleFonts.dmSans(
+                  color: hasValue ? AppColors.textPrimary : AppColors.textMuted,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.expand_more_rounded,
+              size: 20,
+              color: AppColors.textMuted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAccountTypeSheet() async {
+    final isSwahili = _language == AppLanguage.swahili;
+    final selected = await showModalBottomSheet<AccountManagementType>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SelectSheet<AccountManagementType>(
+        title: _tr('Account Usage', 'Matumizi ya Akaunti'),
+        items: AccountManagementType.values,
+        selectedValue: _selectedAccountType,
+        labelBuilder: (type) => type.label(isSwahili),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedAccountType = selected);
+    }
+  }
+
+  Future<void> _showBusinessTypeSheet() async {
+    final isSwahili = _language == AppLanguage.swahili;
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SelectSheet<String>(
+        title: _tr('Business Type', 'Aina ya Biashara'),
+        items: _businessTypes.map((t) => t['value'] as String).toList(),
+        selectedValue: _selectedBusinessType,
+        labelBuilder: (value) {
+          final type = _businessTypes.firstWhere(
+            (t) => t['value'] == value,
+            orElse: () => _businessTypes.first,
+          );
+          return isSwahili ? type['sw'] as String : type['en'] as String;
+        },
+        iconBuilder: (value) {
+          final type = _businessTypes.firstWhere(
+            (t) => t['value'] == value,
+            orElse: () => _businessTypes.first,
+          );
+          return type['icon'] as IconData;
+        },
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedBusinessType = selected);
+    }
+  }
+
+  Future<void> _showCitySheet() async {
+    final isSwahili = _language == AppLanguage.swahili;
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SelectSheet<String>(
+        title: _tr('City / Region', 'Mji / Mkoa'),
+        items: _tanzaniaCities.map((c) => c['en']!).toList(),
+        selectedValue: _selectedCity,
+        labelBuilder: (value) {
+          final city = _tanzaniaCities.firstWhere(
+            (c) => c['en'] == value,
+            orElse: () => _tanzaniaCities.first,
+          );
+          return isSwahili ? city['sw']! : city['en']!;
+        },
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedCity = selected;
+        _placeOfBusinessController.text = selected;
+      });
+    }
+  }
+
   String _registrationNetworkErrorMessage() {
     return _tr(AppStrings.networkError, AppStrings.networkErrorSw);
   }
@@ -236,7 +441,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return _registrationNetworkErrorMessage();
     }
 
-    if (error is FirebaseAuthException && error.code == 'network-request-failed') {
+    if (error is FirebaseAuthException &&
+        error.code == 'network-request-failed') {
       return _registrationNetworkErrorMessage();
     }
 
@@ -329,7 +535,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: authPassword,
       );
       try {
-        await userCredential.user?.updateDisplayName(_ownerNameController.text.trim());
+        await userCredential.user?.updateDisplayName(
+          _ownerNameController.text.trim(),
+        );
       } catch (_) {}
       await _completeRegistration(userCredential.user, pin);
     } on FirebaseAuthException catch (e) {
@@ -351,7 +559,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _setFeedback(message, EmotionalStatusTone.error);
     } catch (e) {
       setState(() => _isLoading = false);
-      _setFeedback(_registrationFallbackErrorMessage(e), EmotionalStatusTone.error);
+      _setFeedback(
+        _registrationFallbackErrorMessage(e),
+        EmotionalStatusTone.error,
+      );
     }
   }
 
@@ -362,8 +573,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (user != null) {
         final recoveryEmail = _emailController.text.trim().toLowerCase();
         final displayName = _ownerNameController.text.trim();
-        final normalizedPhone =
-            _normalizeLocalPhone(_phoneController.text.trim());
+        final normalizedPhone = _normalizeLocalPhone(
+          _phoneController.text.trim(),
+        );
         final businessId = _firestore
             .collection('tenants')
             .doc(user.uid)
@@ -470,7 +682,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         debugPrint('Failed to cleanup Firebase user: $deleteError');
       }
       setState(() => _isLoading = false);
-      _setFeedback(_registrationFallbackErrorMessage(e), EmotionalStatusTone.error);
+      _setFeedback(
+        _registrationFallbackErrorMessage(e),
+        EmotionalStatusTone.error,
+      );
     }
   }
 
@@ -521,12 +736,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         prefixIcon: prefix != null
-            ? Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: prefix,
-              )
+            ? Padding(padding: const EdgeInsets.only(left: 12), child: prefix)
             : null,
-        suffixIcon: suffixWidget ?? Icon(suffix, color: AppColors.textSecondary, size: 20),
+        suffixIcon:
+            suffixWidget ??
+            Icon(suffix, color: AppColors.textSecondary, size: 20),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
@@ -551,7 +765,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.primaryDark,
       body: Stack(
         children: [
           // Premium gradient header
@@ -565,10 +779,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primaryDark,
-                  ],
+                  colors: [AppColors.primary, AppColors.primaryDark],
                 ),
               ),
               child: Stack(
@@ -612,7 +823,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
-                            onTap: () => context.go(AppRouter.loginPath),
+                      onTap: () => context.go(AppRouter.loginPath),
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         child: const Icon(
@@ -630,7 +841,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(12),
                       onTap: _openWhatsAppHelpDesk,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
@@ -662,9 +876,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-          // Main content sheet
+          // Main content sheet — "bottom content panel"
           DraggableScrollableSheet(
-            initialChildSize: 0.68,
+            initialChildSize: 0.65,
             minChildSize: 0.55,
             maxChildSize: 0.96,
             builder: (context, scrollController) {
@@ -691,365 +905,514 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     physics: const ClampingScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                     child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Handle bar
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(bottom: 20),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Handle bar
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                              color: AppColors.border,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                        // Logo
+                        const Center(child: MaliUpLogo(size: 48)),
+                        const SizedBox(height: 16),
+                        // Title
+                        Center(
+                          child: Text(
+                            _tr('Create Account', 'Sajili Akaunti'),
+                            textAlign: TextAlign.center,
+                            style: headingStyle,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Subtitle
+                        Center(
+                          child: Text(
+                            _tr(
+                              'Create your Mali workspace in seconds.',
+                              'Tengeneza workspace yako ya Mali kwa sekunde chache.',
+                            ),
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              color: textSecondary,
+                              fontSize: 14,
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // Security badge
+                        Container(
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.border,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      // Logo
-                      const Center(child: MaliUpLogo(size: 48)),
-                      const SizedBox(height: 16),
-                      // Title
-                      Center(
-                        child: Text(
-                          _tr('Create Account', 'Sajili Akaunti'),
-                          textAlign: TextAlign.center,
-                          style: headingStyle,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Subtitle
-                      Center(
-                        child: Text(
-                          _tr(
-                            'Create your Mali workspace in seconds.',
-                            'Tengeneza workspace yako ya Mali kwa sekunde chache.',
-                          ),
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            color: textSecondary,
-                            fontSize: 14,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Security badge
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.shield_outlined,
-                              size: 18,
-                              color: AppColors.primary,
+                            color: AppColors.primary.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.1),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _tr(
-                                  'Your information stays secure and private.',
-                                  'Taarifa zako zinabaki salama na faragha.',
-                                ),
-                                style: GoogleFonts.poppins(
-                                  color: textSecondary,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      // Feedback message
-                      if (_feedbackText != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: EmotionalStatusChip(
-                            visible: true,
-                            text: _feedbackText!,
-                            tone: _feedbackTone,
                           ),
-                        ),
-                      // Personal Details section
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.person_outline_rounded,
-                            size: 18,
-                            color: textPrimary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _tr('Personal Details', 'Taarifa Binafsi'),
-                            style: sectionTitleStyle,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Full name field
-                      TextField(
-                        controller: _ownerNameController,
-                        decoration: fieldDecoration(
-                          hint: _tr('Full name', 'Jina kamili'),
-                          suffix: Icons.person_outline_rounded,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Email field
-                      TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: fieldDecoration(
-                          hint: _tr(
-                            'Email address (optional)',
-                            'Barua pepe (hiari)',
-                          ),
-                          suffix: Icons.alternate_email_rounded,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Phone field
-                      TextField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(12),
-                        ],
-                        decoration: fieldDecoration(
-                          hint: _tr('Phone number', 'Namba ya simu'),
-                          suffix: Icons.phone_iphone_rounded,
-                          prefix: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          child: Row(
                             children: [
-                              const Text('🇹🇿', style: TextStyle(fontSize: 18)),
-                              const SizedBox(width: 6),
-                              Text(
-                                '+255',
-                                style: GoogleFonts.poppins(
-                                  color: textPrimary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
+                              const Icon(
+                                Icons.shield_outlined,
+                                size: 18,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _tr(
+                                    'Your information stays secure and private.',
+                                    'Taarifa zako zinabaki salama na faragha.',
+                                  ),
+                                  style: GoogleFonts.poppins(
+                                    color: textSecondary,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Account type dropdown
-                      DropdownButtonFormField<AccountManagementType>(
-                        initialValue: _selectedAccountType,
-                        decoration: fieldDecoration(
-                          hint: _tr('Account usage', 'Matumizi ya akaunti'),
-                          suffix: Icons.expand_more_rounded,
-                        ),
-                        items: AccountManagementType.values
-                            .map(
-                              (type) => DropdownMenuItem<AccountManagementType>(
-                                value: type,
-                                child: Text(
-                                  type.label(_language == AppLanguage.swahili),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() {
-                            _selectedAccountType = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      // Business Details section
-                      if (_includesBusiness) ...[
+                        const SizedBox(height: 20),
+                        // Feedback message
+                        if (_feedbackText != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: EmotionalStatusChip(
+                              visible: true,
+                              text: _feedbackText!,
+                              tone: _feedbackTone,
+                            ),
+                          ),
+                        // Personal Details section
                         Row(
                           children: [
                             Icon(
-                              Icons.storefront_rounded,
+                              Icons.person_outline_rounded,
                               size: 18,
                               color: textPrimary,
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              _tr('Business Details', 'Taarifa za Biashara'),
+                              _tr('Personal Details', 'Taarifa Binafsi'),
                               style: sectionTitleStyle,
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        // Business name field
+                        // Full name field
                         TextField(
-                          controller: _businessNameController,
+                          controller: _ownerNameController,
                           decoration: fieldDecoration(
-                            hint: _tr('Business name', 'Jina la biashara'),
-                            suffix: Icons.store_outlined,
+                            hint: _tr('Full name', 'Jina kamili'),
+                            suffix: Icons.person_outline_rounded,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        // Business type dropdown
-                        DropdownButtonFormField<String>(
-                          value: _selectedBusinessType,
+                        // Email field
+                        TextField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
                           decoration: fieldDecoration(
-                            hint: _tr('Business Type', 'Aina ya Biashara'),
-                            suffix: Icons.category_rounded,
+                            hint: _tr(
+                              'Email address (optional)',
+                              'Barua pepe (hiari)',
+                            ),
+                            suffix: Icons.alternate_email_rounded,
                           ),
-                          items: _businessTypes.map((type) {
-                            final value = type['value'] as String;
-                            final label = _language == AppLanguage.swahili 
-                                ? type['sw'] as String 
-                                : type['en'] as String;
-                            final icon = type['icon'] as IconData;
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Row(
-                                children: [
-                                  Icon(icon, size: 20, color: AppColors.primary),
-                                  const SizedBox(width: 8),
-                                  Text(label),
-                                ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Phone field
+                        TextField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(12),
+                          ],
+                          decoration: fieldDecoration(
+                            hint: _tr('Phone number', 'Namba ya simu'),
+                            suffix: Icons.phone_iphone_rounded,
+                            prefix: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  '🇹🇿',
+                                  style: TextStyle(fontSize: 18),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '+255',
+                                  style: GoogleFonts.poppins(
+                                    color: textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Account type selector
+                        _buildSelectField(
+                          placeholder: _tr(
+                            'Account usage',
+                            'Matumizi ya akaunti',
+                          ),
+                          displayValue: _selectedAccountType.label(
+                            _language == AppLanguage.swahili,
+                          ),
+                          hasValue: true,
+                          onTap: _showAccountTypeSheet,
+                          icon: Icons.manage_accounts_rounded,
+                        ),
+                        const SizedBox(height: 16),
+                        // Business Details section
+                        if (_includesBusiness) ...[
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.storefront_rounded,
+                                size: 18,
+                                color: textPrimary,
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() => _selectedBusinessType = value);
-                            }
-                          },
+                              const SizedBox(width: 8),
+                              Text(
+                                _tr('Business Details', 'Taarifa za Biashara'),
+                                style: sectionTitleStyle,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Business name field
+                          TextField(
+                            controller: _businessNameController,
+                            decoration: fieldDecoration(
+                              hint: _tr('Business name', 'Jina la biashara'),
+                              suffix: Icons.store_outlined,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Business type selector
+                          _buildSelectField(
+                            placeholder: _tr(
+                              'Business Type',
+                              'Aina ya Biashara',
+                            ),
+                            displayValue: () {
+                              final type = _businessTypes.firstWhere(
+                                (t) => t['value'] == _selectedBusinessType,
+                                orElse: () => _businessTypes.first,
+                              );
+                              return _language == AppLanguage.swahili
+                                  ? type['sw'] as String
+                                  : type['en'] as String;
+                            }(),
+                            hasValue: true,
+                            onTap: _showBusinessTypeSheet,
+                            icon: Icons.category_rounded,
+                          ),
+                          const SizedBox(height: 12),
+                          // City/Region selector
+                          _buildSelectField(
+                            placeholder: _tr('City/Region', 'Mji/Mkoa'),
+                            displayValue: () {
+                              if (_selectedCity == null) return '';
+                              final city = _tanzaniaCities.firstWhere(
+                                (c) => c['en'] == _selectedCity,
+                                orElse: () => _tanzaniaCities.first,
+                              );
+                              return _language == AppLanguage.swahili
+                                  ? city['sw']!
+                                  : city['en']!;
+                            }(),
+                            hasValue: _selectedCity != null,
+                            onTap: _showCitySheet,
+                            icon: Icons.location_on_outlined,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                        // PIN section
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.lock_outline_rounded,
+                              size: 18,
+                              color: textPrimary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _tr(
+                                'Set your 4-digit PIN',
+                                'Weka PIN ya tarakimu 4',
+                              ),
+                              style: sectionTitleStyle,
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
-                        // City dropdown for place of business
-                        DropdownButtonFormField<String>(
-                          initialValue: _selectedCity,
-                          decoration: fieldDecoration(
-                            hint: _tr('City/Region', 'Mji/Mkoa'),
-                            suffix: Icons.location_on_outlined,
-                          ),
-                          items: _tanzaniaCities.map((city) {
-                            final label = _language == AppLanguage.swahili 
-                                ? city['sw']! 
-                                : city['en']!;
-                            return DropdownMenuItem<String>(
-                              value: city['en']!,
-                              child: Text(label),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedCity = value;
-                              _placeOfBusinessController.text = value ?? '';
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                      // PIN section
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.lock_outline_rounded,
-                            size: 18,
-                            color: textPrimary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _tr(
-                              'Set your 4-digit PIN',
-                              'Weka PIN ya tarakimu 4',
-                            ),
-                            style: sectionTitleStyle,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // PIN digit boxes
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(
-                          4,
-                          (i) => PinDigitBox(controller: _pinControllers[i]),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Register button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 4,
-                            shadowColor: AppColors.primary.withValues(alpha: 0.3),
-                            minimumSize: const Size.fromHeight(52),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: _isLoading ? null : _handleRegistration,
-                          child: Text(
-                            _isLoading
-                                ? _tr('Registering...', 'Inasajili...')
-                                : _tr('Register Account', 'Sajili Akaunti'),
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            ),
+                        // PIN digit boxes
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(
+                            4,
+                            (i) => PinDigitBox(controller: _pinControllers[i]),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Login link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _tr('Already have an account? ', 'Una akaunti? '),
-                            style: GoogleFonts.poppins(
-                              color: textSecondary,
-                              fontSize: 14,
+                        const SizedBox(height: 24),
+                        // Register button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 4,
+                              shadowColor: AppColors.primary.withValues(
+                                alpha: 0.3,
+                              ),
+                              minimumSize: const Size.fromHeight(52),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                          ),
-                          TextButton(
-                            onPressed: () => context.push(AppRouter.loginPath),
-                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                            onPressed: _isLoading ? null : _handleRegistration,
                             child: Text(
-                              _tr('Login', 'Ingia'),
+                              _isLoading
+                                  ? _tr('Registering...', 'Inasajili...')
+                                  : _tr('Register Account', 'Sajili Akaunti'),
                               style: GoogleFonts.poppins(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Login link
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _tr('Already have an account? ', 'Una akaunti? '),
+                              style: GoogleFonts.poppins(
+                                color: textSecondary,
                                 fontSize: 14,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            TextButton(
+                              onPressed: () =>
+                                  context.push(AppRouter.loginPath),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                              ),
+                              child: Text(
+                                _tr('Login', 'Ingia'),
+                                style: GoogleFonts.poppins(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
+              );
             },
           ),
           if (_isLoading)
             Positioned.fill(
               child: Container(
-                color: Colors.white.withValues(alpha: 0.45),
-                child: const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
+                color: Colors.white.withValues(alpha: 0.55),
+                child: Center(
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 20,
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: ShimmerBox(
+                        width: 120,
+                        height: 16,
+                        borderRadius: BorderRadius.all(Radius.circular(999)),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _SelectSheet<T> extends StatelessWidget {
+  final String title;
+  final List<T> items;
+  final T? selectedValue;
+  final String Function(T) labelBuilder;
+  final IconData Function(T)? iconBuilder;
+
+  const _SelectSheet({
+    super.key,
+    required this.title,
+    required this.items,
+    required this.selectedValue,
+    required this.labelBuilder,
+    this.iconBuilder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.62,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: AppColors.border),
+            Flexible(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shrinkWrap: true,
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final label = labelBuilder(item);
+                  final icon = iconBuilder?.call(item);
+                  final isSelected = item == selectedValue;
+                  return InkWell(
+                    onTap: () => Navigator.of(context).pop(item),
+                    child: Container(
+                      height: 52,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      color: isSelected
+                          ? AppColors.primary.withValues(alpha: 0.06)
+                          : Colors.transparent,
+                      child: Row(
+                        children: [
+                          if (icon != null) ...[
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primary.withValues(alpha: 0.1)
+                                    : AppColors.surface,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                icon,
+                                size: 17,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                          ],
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 15,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              size: 20,
+                              color: AppColors.primary,
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SafeArea(top: false, child: SizedBox(height: 8)),
+          ],
+        ),
       ),
     );
   }

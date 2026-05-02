@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/page_intro_header.dart';
 import '../../data/inventory_providers.dart';
 
@@ -28,20 +29,33 @@ class InventoryScreen extends ConsumerWidget {
           ),
           Expanded(
             child: inventoryAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: SkeletonList(itemCount: 5),
+              ),
               error: (error, _) => Center(
                 child: Text(
-                  _tr('Unable to load inventory right now.', 'Imeshindikana kupakia stoo kwa sasa.'),
+                  _tr(
+                    'Unable to load inventory right now.',
+                    'Imeshindikana kupakia stoo kwa sasa.',
+                  ),
                 ),
               ),
               data: (items) {
                 final totalItems = items.length;
                 final stockValue = items.fold<double>(0, (sum, item) {
                   final qty = parseStock(item['stock'] ?? item['quantity']);
-                  final unitPrice = parseUnitPrice(item['price'] ?? item['unitPrice']);
+                  final unitPrice = parseUnitPrice(
+                    item['price'] ?? item['unitPrice'],
+                  );
                   return sum + (qty * unitPrice);
                 });
-                final lowStock = items.where((item) => parseStock(item['stock'] ?? item['quantity']) <= 5).toList();
+                final lowStock = items
+                    .where(
+                      (item) =>
+                          parseStock(item['stock'] ?? item['quantity']) <= 5,
+                    )
+                    .toList();
 
                 return Column(
                   children: [
@@ -74,14 +88,20 @@ class InventoryScreen extends ConsumerWidget {
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           itemCount: lowStock.length,
-                          separatorBuilder: (context, index) => const SizedBox(width: 12),
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 12),
                           itemBuilder: (context, index) {
                             final item = lowStock[index];
-                            final name = (item['name'] ?? item['productName'] ?? 'Item').toString();
-                            final stock = parseStock(item['stock'] ?? item['quantity']);
+                            final name =
+                                (item['name'] ?? item['productName'] ?? 'Item')
+                                    .toString();
+                            final stock = parseStock(
+                              item['stock'] ?? item['quantity'],
+                            );
                             return _AlertCard(
                               title: '${_tr('Low Stock', 'Stoo Chini')}: $name',
-                              subtitle: '${_tr('Only', 'Zimebaki')} $stock ${_tr('units', 'vipande')}',
+                              subtitle:
+                                  '${_tr('Only', 'Zimebaki')} $stock ${_tr('units', 'vipande')}',
                               color: AppColors.error,
                             );
                           },
@@ -90,17 +110,41 @@ class InventoryScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     Expanded(
                       child: items.isEmpty
-                          ? Center(child: Text(_tr('No inventory items yet.', 'Bado hakuna bidhaa za stoo.')))
+                          ? Center(
+                              child: Text(
+                                _tr(
+                                  'No inventory items yet.',
+                                  'Bado hakuna bidhaa za stoo.',
+                                ),
+                              ),
+                            )
                           : ListView.separated(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 8,
+                              ),
                               itemCount: items.length,
-                              separatorBuilder: (context, index) => const SizedBox(height: 1),
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 1),
                               itemBuilder: (context, index) {
                                 final item = items[index];
-                                final name = (item['name'] ?? item['productName'] ?? 'Item').toString();
-                                final sku = (item['sku'] ?? item['code'] ?? item['id'] ?? '').toString();
-                                final stock = parseStock(item['stock'] ?? item['quantity']);
-                                final price = parseUnitPrice(item['price'] ?? item['unitPrice']);
+                                final name =
+                                    (item['name'] ??
+                                            item['productName'] ??
+                                            'Item')
+                                        .toString();
+                                final sku =
+                                    (item['sku'] ??
+                                            item['code'] ??
+                                            item['id'] ??
+                                            '')
+                                        .toString();
+                                final stock = parseStock(
+                                  item['stock'] ?? item['quantity'],
+                                );
+                                final price = parseUnitPrice(
+                                  item['price'] ?? item['unitPrice'],
+                                );
                                 return _ProductListItem(
                                   name: name,
                                   sku: sku,
@@ -123,7 +167,8 @@ class InventoryScreen extends ConsumerWidget {
   }
 
   static String _fmtAmount(double amount) {
-    if (amount >= 1000000) return 'TSh ${(amount / 1000000).toStringAsFixed(1)}M';
+    if (amount >= 1000000)
+      return 'TSh ${(amount / 1000000).toStringAsFixed(1)}M';
     if (amount >= 1000) return 'TSh ${(amount / 1000).toStringAsFixed(0)}K';
     return 'TSh ${amount.toStringAsFixed(0)}';
   }
@@ -134,7 +179,11 @@ class _SummaryBox extends StatelessWidget {
   final String value;
   final Color borderColor;
 
-  const _SummaryBox({required this.label, required this.value, required this.borderColor});
+  const _SummaryBox({
+    required this.label,
+    required this.value,
+    required this.borderColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -148,9 +197,22 @@ class _SummaryBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted, fontSize: 12)),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textMuted,
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.secondary, fontSize: 18, fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: AppColors.secondary,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -162,7 +224,11 @@ class _AlertCard extends StatelessWidget {
   final String subtitle;
   final Color color;
 
-  const _AlertCard({required this.title, required this.subtitle, required this.color});
+  const _AlertCard({
+    required this.title,
+    required this.subtitle,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -183,8 +249,22 @@ class _AlertCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 12), overflow: TextOverflow.ellipsis),
-                Text(subtitle, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color.withValues(alpha: 0.8), fontSize: 11)),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color.withValues(alpha: 0.8),
+                    fontSize: 11,
+                  ),
+                ),
               ],
             ),
           ),
@@ -223,16 +303,45 @@ class _ProductListItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.glassBorder),
         ),
-        child: const Icon(Icons.inventory_2_outlined, color: AppColors.textMuted),
+        child: const Icon(
+          Icons.inventory_2_outlined,
+          color: AppColors.textMuted,
+        ),
       ),
-      title: Text(name, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w700, fontSize: 14)),
-      subtitle: Text(sku, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted, fontSize: 12)),
+      title: Text(
+        name,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: AppColors.secondary,
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+        ),
+      ),
+      subtitle: Text(
+        sku,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppColors.textMuted,
+          fontSize: 12,
+        ),
+      ),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text('$stock $unit', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: isLow ? AppColors.error : AppColors.success, fontWeight: FontWeight.w700, fontSize: 14)),
-          Text(price, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary, fontSize: 11)),
+          Text(
+            '$stock $unit',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: isLow ? AppColors.error : AppColors.success,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+          ),
+          Text(
+            price,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
         ],
       ),
     );

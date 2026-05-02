@@ -1,64 +1,36 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/shimmer.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
   final VoidCallback onLanguageSelected;
 
-  const LanguageSelectionScreen({
-    super.key,
-    required this.onLanguageSelected,
-  });
+  const LanguageSelectionScreen({super.key, required this.onLanguageSelected});
 
   @override
-  State<LanguageSelectionScreen> createState() => _LanguageSelectionScreenState();
+  State<LanguageSelectionScreen> createState() =>
+      _LanguageSelectionScreenState();
 }
 
 class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
-  late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
-  bool _isApplyingLanguage = false;
   bool _isContinuing = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _languageListener = () {
-      if (mounted) {
-        setState(() => _language = LocalizationService.languageNotifier.value);
-      }
-    };
-    LocalizationService.languageNotifier.addListener(_languageListener);
-  }
+  String _tr(String en, String sw) =>
+      _language == AppLanguage.swahili ? sw : en;
 
-  @override
-  void dispose() {
-    LocalizationService.languageNotifier.removeListener(_languageListener);
-    super.dispose();
-  }
-
-  String _tr(String en, String sw) {
-    return _language == AppLanguage.swahili ? sw : en;
-  }
-
-  Future<void> _selectLanguage(AppLanguage language) async {
-    if (_isApplyingLanguage || _language == language) return;
-    setState(() => _isApplyingLanguage = true);
-    try {
-      await LocalizationService.setLanguage(language);
-      if (!mounted) return;
-    } catch (_) {
-      if (!mounted) return;
-    } finally {
-      if (!mounted) return;
-      setState(() => _isApplyingLanguage = false);
-    }
+  void _selectLanguage(AppLanguage language) {
+    if (_language == language) return;
+    setState(() => _language = language);
   }
 
   Future<void> _continue() async {
     if (_isContinuing) return;
     setState(() => _isContinuing = true);
     try {
+      await LocalizationService.setLanguage(_language);
+      if (!mounted) return;
       widget.onLanguageSelected();
     } finally {
       if (!mounted) return;
@@ -90,11 +62,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                     
                       const Spacer(),
                       Text(
                         _tr('Choose your language', 'Chagua lugha'),
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
                               height: 1.1,
@@ -137,9 +109,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                       Text(
                         _tr('Language', 'Lugha'),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: textPrimary,
-                            ),
+                          fontWeight: FontWeight.w800,
+                          color: textPrimary,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -148,24 +120,24 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                           'Chagua lugha unayoipendelea.',
                         ),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: textSecondary,
-                              height: 1.45,
-                            ),
+                          color: textSecondary,
+                          height: 1.45,
+                        ),
                       ),
                       const SizedBox(height: 18),
                       _PremiumLanguageTile(
                         title: 'English',
                         subtitle: 'Continue in English',
-                        selected: LocalizationService.languageNotifier.value == AppLanguage.english,
-                        loading: _isApplyingLanguage,
+                        selected: _language == AppLanguage.english,
+                        loading: _isContinuing,
                         onTap: () => _selectLanguage(AppLanguage.english),
                       ),
                       const SizedBox(height: 12),
                       _PremiumLanguageTile(
                         title: 'Kiswahili',
                         subtitle: 'Endelea kwa Kiswahili',
-                        selected: LocalizationService.languageNotifier.value == AppLanguage.swahili,
-                        loading: _isApplyingLanguage,
+                        selected: _language == AppLanguage.swahili,
+                        loading: _isContinuing,
                         onTap: () => _selectLanguage(AppLanguage.swahili),
                       ),
                       const SizedBox(height: 22),
@@ -183,12 +155,11 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                             elevation: 0,
                           ),
                           child: _isContinuing
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ? const ShimmerBox(
+                                  width: 104,
+                                  height: 14,
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(999),
                                   ),
                                 )
                               : Text(
@@ -255,30 +226,27 @@ class _PremiumLanguageTile extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF111111),
-                          ),
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF111111),
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF6B7280),
-                            height: 1.35,
-                          ),
+                        color: const Color(0xFF6B7280),
+                        height: 1.35,
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
               if (loading)
-                const SizedBox(
+                const ShimmerBox(
                   width: 22,
                   height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                  ),
+                  borderRadius: BorderRadius.all(Radius.circular(999)),
                 )
               else
                 Container(

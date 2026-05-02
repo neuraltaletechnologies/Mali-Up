@@ -64,15 +64,13 @@ class HeroCard extends StatelessWidget {
     this.padding,
   });
 
-  const HeroCard.business({
-    super.key,
-    required this.child,
-    this.padding,
-  }) : gradientColors = const [AppColors.navyPrimary, AppColors.navySecondary];
+  const HeroCard.business({super.key, required this.child, this.padding})
+    : gradientColors = const [AppColors.navyPrimary, AppColors.navySecondary];
 
   @override
   Widget build(BuildContext context) {
-    final colors = gradientColors ?? [AppColors.navyPrimary, AppColors.navySecondary];
+    final colors =
+        gradientColors ?? [AppColors.navyPrimary, AppColors.navySecondary];
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -118,10 +116,7 @@ class HeroCard extends StatelessWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: padding ?? const EdgeInsets.all(20),
-              child: child,
-            ),
+            Padding(padding: padding ?? const EdgeInsets.all(20), child: child),
           ],
         ),
       ),
@@ -161,16 +156,15 @@ class PrimaryButton extends StatelessWidget {
           foregroundColor: AppColors.navyPrimary,
           disabledBackgroundColor: AppColors.yellowBrand.withValues(alpha: 0.6),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         child: loading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.navyPrimary),
-                ),
+            ? const ShimmerBox(
+                width: 96,
+                height: 14,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
@@ -227,16 +221,15 @@ class SecondaryButton extends StatelessWidget {
           foregroundColor: AppColors.inverseText,
           disabledBackgroundColor: AppColors.navyPrimary.withValues(alpha: 0.6),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         child: loading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.inverseText),
-                ),
+            ? const ShimmerBox(
+                width: 96,
+                height: 14,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
@@ -294,7 +287,9 @@ class GhostButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           foregroundColor: fgColor,
           side: BorderSide(color: borderColor ?? AppColors.border, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           backgroundColor: Colors.transparent,
         ),
         child: Row(
@@ -400,20 +395,52 @@ class StatusChip extends StatelessWidget {
 
   const StatusChip({super.key, required this.status, this.customLabel});
 
-  static ({Color bg, Color text, String label, IconData icon}) _resolve(InvoiceStatus s) {
+  static ({Color bg, Color text, String label, IconData icon}) _resolve(
+    InvoiceStatus s,
+  ) {
     switch (s) {
       case InvoiceStatus.paid:
-        return (bg: const Color(0xFFD1FAE5), text: AppColors.success, label: 'Imelipwa', icon: Icons.check_circle_rounded);
+        return (
+          bg: const Color(0xFFD1FAE5),
+          text: AppColors.success,
+          label: 'Imelipwa',
+          icon: Icons.check_circle_rounded,
+        );
       case InvoiceStatus.sent:
-        return (bg: const Color(0xFFDBEAFE), text: AppColors.tealAccent, label: 'Imetumwa', icon: Icons.send_rounded);
+        return (
+          bg: const Color(0xFFDBEAFE),
+          text: AppColors.tealAccent,
+          label: 'Imetumwa',
+          icon: Icons.send_rounded,
+        );
       case InvoiceStatus.overdue:
-        return (bg: AppColors.errorBg, text: AppColors.error, label: 'Imechelewa', icon: Icons.warning_rounded);
+        return (
+          bg: AppColors.errorBg,
+          text: AppColors.error,
+          label: 'Imechelewa',
+          icon: Icons.warning_rounded,
+        );
       case InvoiceStatus.draft:
-        return (bg: AppColors.surfaceVariant, text: AppColors.textMuted, label: 'Rasimu', icon: Icons.edit_rounded);
+        return (
+          bg: AppColors.surfaceVariant,
+          text: AppColors.textMuted,
+          label: 'Rasimu',
+          icon: Icons.edit_rounded,
+        );
       case InvoiceStatus.pending:
-        return (bg: AppColors.warningBg, text: AppColors.warning, label: 'Inasubiri', icon: Icons.hourglass_empty_rounded);
+        return (
+          bg: AppColors.warningBg,
+          text: AppColors.warning,
+          label: 'Inasubiri',
+          icon: Icons.hourglass_empty_rounded,
+        );
       case InvoiceStatus.cancelled:
-        return (bg: const Color(0xFFF1F5F9), text: AppColors.textDisabled, label: 'Imefutwa', icon: Icons.cancel_rounded);
+        return (
+          bg: const Color(0xFFF1F5F9),
+          text: AppColors.textDisabled,
+          label: 'Imefutwa',
+          icon: Icons.cancel_rounded,
+        );
     }
   }
 
@@ -506,7 +533,11 @@ class EmptyState extends StatelessWidget {
             ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 24),
-              PrimaryButton(label: actionLabel!, onPressed: onAction, width: 200),
+              PrimaryButton(
+                label: actionLabel!,
+                onPressed: onAction,
+                width: 200,
+              ),
             ],
           ],
         ),
@@ -525,7 +556,11 @@ class ContextSwitcher extends StatelessWidget {
   final AppContext current;
   final ValueChanged<AppContext> onChanged;
 
-  const ContextSwitcher({super.key, required this.current, required this.onChanged});
+  const ContextSwitcher({
+    super.key,
+    required this.current,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -590,7 +625,11 @@ class _Pill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: active ? AppColors.inverseText : AppColors.textMuted),
+            Icon(
+              icon,
+              size: 14,
+              color: active ? AppColors.inverseText : AppColors.textMuted,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
@@ -634,7 +673,11 @@ class SkeletonListItem extends StatelessWidget {
       child: Row(
         children: [
           if (hasLeadingCircle) ...[
-            const ShimmerBox(width: 44, height: 44, borderRadius: BorderRadius.all(Radius.circular(14))),
+            const ShimmerBox(
+              width: 44,
+              height: 44,
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+            ),
             const SizedBox(width: 12),
           ],
           const Expanded(
@@ -642,15 +685,27 @@ class SkeletonListItem extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ShimmerBox(width: double.infinity, height: 12, borderRadius: BorderRadius.all(Radius.circular(999))),
+                ShimmerBox(
+                  width: double.infinity,
+                  height: 12,
+                  borderRadius: BorderRadius.all(Radius.circular(999)),
+                ),
                 SizedBox(height: 8),
-                ShimmerBox(width: 140, height: 10, borderRadius: BorderRadius.all(Radius.circular(999))),
+                ShimmerBox(
+                  width: 140,
+                  height: 10,
+                  borderRadius: BorderRadius.all(Radius.circular(999)),
+                ),
               ],
             ),
           ),
           if (hasTrailing) ...[
             const SizedBox(width: 12),
-            const ShimmerBox(width: 64, height: 12, borderRadius: BorderRadius.all(Radius.circular(999))),
+            const ShimmerBox(
+              width: 64,
+              height: 12,
+              borderRadius: BorderRadius.all(Radius.circular(999)),
+            ),
           ],
         ],
       ),
@@ -694,9 +749,17 @@ class SkeletonScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (hasHeader) ...[
-                const ShimmerBox(width: 200, height: 20, borderRadius: BorderRadius.all(Radius.circular(999))),
+                const ShimmerBox(
+                  width: 200,
+                  height: 20,
+                  borderRadius: BorderRadius.all(Radius.circular(999)),
+                ),
                 const SizedBox(height: 8),
-                const ShimmerBox(width: 280, height: 14, borderRadius: BorderRadius.all(Radius.circular(999))),
+                const ShimmerBox(
+                  width: 280,
+                  height: 14,
+                  borderRadius: BorderRadius.all(Radius.circular(999)),
+                ),
                 const SizedBox(height: 24),
               ],
               SkeletonList(itemCount: listItems),
@@ -723,7 +786,9 @@ class PlanBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         gradient: isPremium
-            ? const LinearGradient(colors: [AppColors.yellowBrand, Color(0xFFE5AC00)])
+            ? const LinearGradient(
+                colors: [AppColors.yellowBrand, Color(0xFFE5AC00)],
+              )
             : null,
         color: isPremium ? null : AppColors.surface,
         borderRadius: BorderRadius.circular(20),

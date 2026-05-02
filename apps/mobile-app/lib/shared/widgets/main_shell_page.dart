@@ -240,78 +240,146 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
               ),
               child: Column(
                 children: [
-                  // Profile Header - Light theme
+                  // Profile Header — navy gradient
                   Container(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 20, 20),
                     decoration: const BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.only(
-                        topRight: Radius.circular(24),
+                      gradient: LinearGradient(
+                        colors: [AppColors.navyPrimary, AppColors.navySecondary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      border: Border(
-                        bottom: BorderSide(color: AppColors.border),
-                      ),
+                      borderRadius: BorderRadius.only(topRight: Radius.circular(24)),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 2),
-                          ),
-                          child: CircleAvatar(
-                            radius: 28,
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                            child: Text(
-                              profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
-                              style: const TextStyle(
-                                color: AppColors.primaryDark,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                              ),
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 52,
+                                  height: 52,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.yellowBrand,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
+                                      style: const TextStyle(
+                                        color: AppColors.navyPrimary,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        profile.fullName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        profile.contactLine,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(alpha: 0.6),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => Navigator.of(dialogContext).pop(),
+                                  icon: Icon(Icons.close_rounded, color: Colors.white.withValues(alpha: 0.7), size: 22),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                profile.fullName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.yellowBrand.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(color: AppColors.yellowBrand.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.stars_rounded, size: 12, color: AppColors.yellowBrand),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _tr('Free', 'Bure'),
+                                        style: const TextStyle(
+                                          color: AppColors.yellowBrand,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                profile.contactLine,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isBusinessContext ? Icons.business_center_rounded : Icons.person_rounded,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isBusinessContext ? _tr('Business', 'Biashara') : _tr('Personal', 'Binafsi'),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(),
-                          icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary, size: 24),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                   // Navigation Items
                   Expanded(
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                       children: [
                         _DrawerItemLight(
                           icon: Icons.grid_view_rounded,
@@ -320,8 +388,8 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           selected: isDashboard,
                           onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
                         ),
-                        const SizedBox(height: 4),
                         if (isBusinessContext) ...[
+                          _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
                           _DrawerItemLight(
                             icon: Icons.receipt_long_rounded,
                             label: _tr('Tuma ankara', 'Tuma ankara'),
@@ -329,7 +397,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             selected: _isSelected(location, AppRouter.salesPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           _DrawerItemLight(
                             icon: Icons.inventory_2_rounded,
                             label: _tr('Hisa zangu', 'Hisa zangu'),
@@ -337,7 +405,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             selected: _isSelected(location, AppRouter.inventoryPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           _DrawerItemLight(
                             icon: Icons.people_alt_rounded,
                             label: _tr('Wateja wangu', 'Wateja wangu'),
@@ -345,12 +413,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             selected: _isSelected(location, AppRouter.crmPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
                           ),
-                          const SizedBox(height: 8),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 12),
-                            child: Divider(color: AppColors.border, height: 1),
-                          ),
-                          const SizedBox(height: 8),
+                          _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
                           _DrawerItemLight(
                             icon: Icons.account_balance_rounded,
                             label: _tr('Madeni', 'Madeni'),
@@ -358,7 +421,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             selected: _isSelected(location, AppRouter.debtPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           _DrawerItemLight(
                             icon: Icons.payments_outlined,
                             label: _tr('Gharama zangu', 'Gharama zangu'),
@@ -366,7 +429,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             selected: _isSelected(location, AppRouter.expensesPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           _DrawerItemLight(
                             icon: Icons.account_balance_wallet_outlined,
                             label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
@@ -375,6 +438,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
                           ),
                         ] else ...[
+                          _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
                           _DrawerItemLight(
                             icon: Icons.payments_outlined,
                             label: _tr('Gharama zangu', 'Gharama zangu'),
@@ -382,7 +446,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             selected: _isSelected(location, AppRouter.expensesPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           _DrawerItemLight(
                             icon: Icons.account_balance_rounded,
                             label: _tr('Madeni', 'Madeni'),
@@ -390,7 +454,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             selected: _isSelected(location, AppRouter.debtPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           _DrawerItemLight(
                             icon: Icons.account_balance_wallet_outlined,
                             label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
@@ -399,7 +463,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
                           ),
                         ],
-                        const SizedBox(height: 4),
+                        _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
                         _DrawerItemLight(
                           icon: Icons.storefront_rounded,
                           label: _tr('Simamia Biashara', 'Simamia Biashara'),
@@ -407,12 +471,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           selected: _isSelected(location, AppRouter.businessesPath),
                           onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
                         ),
-                        const SizedBox(height: 8),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Divider(color: AppColors.border, height: 1),
-                        ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 2),
                         _DrawerItemLight(
                           icon: Icons.settings_rounded,
                           label: _tr('Mipangilio', 'Mipangilio'),
@@ -420,7 +479,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           selected: _isSelected(location, AppRouter.settingsPath),
                           onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         _DrawerItemLight(
                           icon: Icons.headset_mic_rounded,
                           label: _tr('Msaada', 'Msaada'),
@@ -861,121 +920,6 @@ class _NavDestination {
   });
 }
 
-class _DrawerItem extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final String semanticsLabel;
-  final String? trailingBadge;
-  final bool selected;
-
-  const _DrawerItem({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.semanticsLabel,
-    this.trailingBadge,
-    this.selected = false,
-  });
-
-  @override
-  State<_DrawerItem> createState() => _DrawerItemState();
-}
-
-class _DrawerItemState extends State<_DrawerItem> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const active = AppColors.primary;
-    final labelColor = Colors.white.withValues(alpha: 0.9);
-    final chevronColor = Colors.white.withValues(alpha: 0.5);
-
-    return Semantics(
-      button: true,
-      label: widget.semanticsLabel,
-      child: GestureDetector(
-        onTapDown: (_) => _controller.forward(),
-        onTapUp: (_) {
-          _controller.reverse();
-          widget.onTap();
-        },
-        onTapCancel: () => _controller.reverse(),
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: Container(
-            height: 56,
-            margin: const EdgeInsets.only(bottom: 4),
-            decoration: BoxDecoration(
-              color: widget.selected ? active.withValues(alpha: 0.15) : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              border: widget.selected ? Border.all(color: active.withValues(alpha: 0.3)) : null,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: widget.selected ? active.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(widget.icon, size: 18, color: widget.selected ? active : Colors.white70),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    widget.label,
-                    style: TextStyle(
-                      color: widget.selected ? active : labelColor,
-                      fontSize: 15,
-                      fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-                if (widget.trailingBadge != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      widget.trailingBadge!,
-                      style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  )
-                else
-                  Icon(Icons.chevron_right_rounded, color: widget.selected ? active : chevronColor, size: 18),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _FinanceContextSwitcher extends StatelessWidget {
   final String selectedContext;
   final bool canSwitch;
@@ -1160,7 +1104,6 @@ class _DrawerItemLight extends StatefulWidget {
   final String label;
   final VoidCallback onTap;
   final String semanticsLabel;
-  final String? trailingBadge;
   final bool selected;
 
   const _DrawerItemLight({
@@ -1168,7 +1111,6 @@ class _DrawerItemLight extends StatefulWidget {
     required this.label,
     required this.onTap,
     required this.semanticsLabel,
-    this.trailingBadge,
     this.selected = false,
   });
 
@@ -1240,27 +1182,31 @@ class _DrawerItemLightState extends State<_DrawerItemLight> with SingleTickerPro
                     ),
                   ),
                 ),
-                if (widget.trailingBadge != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: active,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      widget.trailingBadge!,
-                      style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  )
-                else
-                  Icon(Icons.chevron_right_rounded, color: widget.selected ? active : AppColors.textMuted, size: 18),
+                Icon(Icons.chevron_right_rounded, color: widget.selected ? active : AppColors.textMuted, size: 18),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DrawerSectionLabel extends StatelessWidget {
+  final String label;
+  const _DrawerSectionLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 6),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.textMuted,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
         ),
       ),
     );

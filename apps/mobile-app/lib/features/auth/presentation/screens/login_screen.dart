@@ -441,7 +441,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.primaryDark,
       body: Stack(
         children: [
           // Premium gradient header with subtle overlay
@@ -591,9 +591,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          // Main content sheet
+          // Main content sheet — "bottom content panel"
           DraggableScrollableSheet(
-            initialChildSize: 0.68,
+            initialChildSize: 0.65,
             minChildSize: 0.55,
             maxChildSize: 0.96,
             builder: (context, scrollController) {

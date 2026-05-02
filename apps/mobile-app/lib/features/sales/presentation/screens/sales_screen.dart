@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/page_intro_header.dart';
 import '../../data/sales_providers.dart';
 
@@ -28,18 +29,41 @@ class SalesScreen extends ConsumerWidget {
           ),
           Expanded(
             child: salesAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: SkeletonList(itemCount: 5),
+              ),
               error: (error, _) => Center(
                 child: Text(
-                  _tr('Unable to load sales right now.', 'Imeshindikana kupakia mauzo kwa sasa.'),
+                  _tr(
+                    'Unable to load sales right now.',
+                    'Imeshindikana kupakia mauzo kwa sasa.',
+                  ),
                 ),
               ),
               data: (items) {
-                final paid = items.where((item) => readInvoiceStatus(item).toLowerCase() == 'paid').toList();
-                final pending = items.where((item) => readInvoiceStatus(item).toLowerCase() != 'paid').toList();
-                final totalSales = items.fold<double>(0, (sum, item) => sum + parseNumericAmount(item['amount']));
-                final paidSales = paid.fold<double>(0, (sum, item) => sum + parseNumericAmount(item['amount']));
-                final pendingSales = pending.fold<double>(0, (sum, item) => sum + parseNumericAmount(item['amount']));
+                final paid = items
+                    .where(
+                      (item) => readInvoiceStatus(item).toLowerCase() == 'paid',
+                    )
+                    .toList();
+                final pending = items
+                    .where(
+                      (item) => readInvoiceStatus(item).toLowerCase() != 'paid',
+                    )
+                    .toList();
+                final totalSales = items.fold<double>(
+                  0,
+                  (sum, item) => sum + parseNumericAmount(item['amount']),
+                );
+                final paidSales = paid.fold<double>(
+                  0,
+                  (sum, item) => sum + parseNumericAmount(item['amount']),
+                );
+                final pendingSales = pending.fold<double>(
+                  0,
+                  (sum, item) => sum + parseNumericAmount(item['amount']),
+                );
 
                 return Column(
                   children: [
@@ -55,9 +79,21 @@ class SalesScreen extends ConsumerWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _OverviewStat(label: _tr('Total Sales', 'Jumla ya Mauzo'), value: _fmtAmount(totalSales), color: AppColors.primaryLight),
-                          _OverviewStat(label: _tr('Pending', 'Inasubiri'), value: _fmtAmount(pendingSales), color: AppColors.secondary),
-                          _OverviewStat(label: _tr('Paid', 'Imelipwa'), value: _fmtAmount(paidSales), color: AppColors.success),
+                          _OverviewStat(
+                            label: _tr('Total Sales', 'Jumla ya Mauzo'),
+                            value: _fmtAmount(totalSales),
+                            color: AppColors.primaryLight,
+                          ),
+                          _OverviewStat(
+                            label: _tr('Pending', 'Inasubiri'),
+                            value: _fmtAmount(pendingSales),
+                            color: AppColors.secondary,
+                          ),
+                          _OverviewStat(
+                            label: _tr('Paid', 'Imelipwa'),
+                            value: _fmtAmount(paidSales),
+                            color: AppColors.success,
+                          ),
                         ],
                       ),
                     ),
@@ -65,19 +101,42 @@ class SalesScreen extends ConsumerWidget {
                     Expanded(
                       child: items.isEmpty
                           ? Center(
-                              child: Text(_tr('No sales invoices yet.', 'Bado hakuna ankara za mauzo.')),
+                              child: Text(
+                                _tr(
+                                  'No sales invoices yet.',
+                                  'Bado hakuna ankara za mauzo.',
+                                ),
+                              ),
                             )
                           : ListView.separated(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 8,
+                              ),
                               itemCount: items.length,
-                              separatorBuilder: (context, index) => const SizedBox(height: 12),
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final item = items[index];
                                 final status = readInvoiceStatus(item);
-                                final amount = parseNumericAmount(item['amount']);
-                                final id = (item['invoiceNumber'] ?? item['id'] ?? '').toString();
-                                final customer = (item['customerName'] ?? item['customer'] ?? item['partyName'] ?? _tr('Unknown customer', 'Mteja hajulikani')).toString();
-                                final date = readTimestamp(item['createdAt'] ?? item['date']);
+                                final amount = parseNumericAmount(
+                                  item['amount'],
+                                );
+                                final id =
+                                    (item['invoiceNumber'] ?? item['id'] ?? '')
+                                        .toString();
+                                final customer =
+                                    (item['customerName'] ??
+                                            item['customer'] ??
+                                            item['partyName'] ??
+                                            _tr(
+                                              'Unknown customer',
+                                              'Mteja hajulikani',
+                                            ))
+                                        .toString();
+                                final date = readTimestamp(
+                                  item['createdAt'] ?? item['date'],
+                                );
 
                                 return _InvoiceListItem(
                                   id: id.isEmpty ? '#${index + 1}' : '#$id',
@@ -120,16 +179,33 @@ class _OverviewStat extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _OverviewStat({required this.label, required this.value, required this.color});
+  const _OverviewStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted, fontSize: 12)),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textMuted,
+            fontSize: 12,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: color, fontSize: 18, fontWeight: FontWeight.w700)),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }
@@ -142,7 +218,13 @@ class _InvoiceListItem extends StatelessWidget {
   final String status;
   final String date;
 
-  const _InvoiceListItem({required this.id, required this.customer, required this.amount, required this.status, required this.date});
+  const _InvoiceListItem({
+    required this.id,
+    required this.customer,
+    required this.amount,
+    required this.status,
+    required this.date,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -181,14 +263,39 @@ class _InvoiceListItem extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(id, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted, fontSize: 12)),
-                    Text(date, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted, fontSize: 12)),
+                    Text(
+                      id,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      date,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(customer, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w700, fontSize: 16)),
+                Text(
+                  customer,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(amount, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w500)),
+                Text(
+                  amount,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -201,7 +308,11 @@ class _InvoiceListItem extends StatelessWidget {
             ),
             child: Text(
               status.toUpperCase(),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: statusColor, fontSize: 10, fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: statusColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

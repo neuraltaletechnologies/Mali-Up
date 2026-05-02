@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
+import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/shimmer.dart';
 import '../../data/inventory_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -11,7 +13,8 @@ class InventoryListScreen extends ConsumerStatefulWidget {
   const InventoryListScreen({super.key});
 
   @override
-  ConsumerState<InventoryListScreen> createState() => _InventoryListScreenState();
+  ConsumerState<InventoryListScreen> createState() =>
+      _InventoryListScreenState();
 }
 
 class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
@@ -35,7 +38,8 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
     final theme = Theme.of(context);
     final inventoryAsync = ref.watch(inventoryItemListProvider);
     final items = inventoryAsync.maybeWhen(
-      data: (items) => items.map((item) => Map<String, dynamic>.from(item)).toList(), 
+      data: (items) =>
+          items.map((item) => Map<String, dynamic>.from(item)).toList(),
       orElse: () => <Map<String, dynamic>>[],
     );
     final isLoading = inventoryAsync.isLoading;
@@ -53,10 +57,13 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _tr('Manage your inventory efficiently', 'Dhibiti akiba yako kwa ufanisi'),
+                        _tr(
+                          'Manage your inventory efficiently',
+                          'Dhibiti akiba yako kwa ufanisi',
+                        ),
                         style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -128,9 +135,9 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           Expanded(
             child: _buildInventoryList(items, isLoading, error?.toString()),
           ),
@@ -139,7 +146,10 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddItemDialog(context),
         backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add_shopping_cart_rounded, color: AppColors.secondary),
+        icon: const Icon(
+          Icons.add_shopping_cart_rounded,
+          color: AppColors.secondary,
+        ),
         label: Text(
           _tr('Add Item', 'Ongeza Bidhaa'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -151,9 +161,16 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
     );
   }
 
-  Widget _buildInventoryList(List<Map<String, dynamic>> items, bool isLoading, String? error) {
+  Widget _buildInventoryList(
+    List<Map<String, dynamic>> items,
+    bool isLoading,
+    String? error,
+  ) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24),
+        child: SkeletonList(itemCount: 5),
+      );
     }
 
     if (error != null) {
@@ -176,8 +193,8 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
-      // Refresh logic can be implemented here
-    },
+                // Refresh logic can be implemented here
+              },
               child: const Text('Retry'),
             ),
           ],
@@ -198,7 +215,10 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _tr('Add your first inventory item to get started', 'Ongeza bidhaa yako ya kwanza ya akiba kuanza'),
+              _tr(
+                'Add your first inventory item to get started',
+                'Ongeza bidhaa yako ya kwanza ya akiba kuanza',
+              ),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[500]),
             ),
@@ -214,8 +234,8 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
 
     return RefreshIndicator(
       onRefresh: () async {
-      // Refresh logic can be implemented here
-    },
+        // Refresh logic can be implemented here
+      },
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         itemCount: items.length,
@@ -229,8 +249,11 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
   }
 
   void _showAddItemDialog(BuildContext context) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => const AddItemDialog(),
     );
   }
@@ -365,9 +388,7 @@ class _InventoryCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: stockColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: stockColor.withValues(alpha: 0.3),
-                  ),
+                  border: Border.all(color: stockColor.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   item['stockStatus']?.toString() ?? '',
@@ -463,177 +484,216 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        _tr('Add New Item', 'Ongeza Bidhaa Mpya'),
-      ),
-      content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 12,
+            bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Form(
             key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: _tr('Item Name', 'Jina la Bidhaa'),
-                    border: const OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return _tr('Please enter item name', 'Tafadhali weka jina la bidhaa');
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: InputDecoration(
-                    labelText: _tr('Description', 'Maelezo'),
-                    border: const OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
-                  decoration: InputDecoration(
-                    labelText: _tr('Category', 'Kundi'),
-                    border: const OutlineInputBorder(),
-                  ),
-                  items: _categories.map((category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(category),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedCategory = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _currentStockController,
-                        decoration: InputDecoration(
-                          labelText: _tr('Current Stock', 'Akiba ya Sasa'),
-                          border: const OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return _tr('Required', 'Inahitajika');
-                          }
-                          return null;
-                        },
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.black12,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _reorderPointController,
-                        decoration: InputDecoration(
-                          labelText: _tr('Reorder Point', 'Pointi ya Upya'),
-                          border: const OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return _tr('Required', 'Inahitajika');
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _unitPriceController,
-                        decoration: InputDecoration(
-                          labelText: _tr('Unit Price', 'Bei ya Kimoja'),
-                          border: const OutlineInputBorder(),
-                          prefixText: 'TZS ',
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return _tr('Required', 'Inahitajika');
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedUnit,
-                        decoration: InputDecoration(
-                          labelText: _tr('Unit', 'Kimoja'),
-                          border: const OutlineInputBorder(),
-                        ),
-                        items: _units.map((unit) {
-                          return DropdownMenuItem(
-                            value: unit,
-                            child: Text(unit),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedUnit = value!;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _skuController,
-                  decoration: InputDecoration(
-                    labelText: _tr('SKU (Optional)', 'SKU (Hiari)'),
-                    border: const OutlineInputBorder(),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _supplierController,
-                  decoration: InputDecoration(
-                    labelText: _tr('Supplier (Optional)', 'Mtoaji (Hiari)'),
-                    border: const OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  Text(
+                    _tr('Add New Item', 'Ongeza Bidhaa Mpya'),
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: _tr('Item Name', 'Jina la Bidhaa'),
+                      border: const OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return _tr(
+                          'Please enter item name',
+                          'Tafadhali weka jina la bidhaa',
+                        );
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: InputDecoration(
+                      labelText: _tr('Description', 'Maelezo'),
+                      border: const OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedCategory,
+                    decoration: InputDecoration(
+                      labelText: _tr('Category', 'Kundi'),
+                      border: const OutlineInputBorder(),
+                    ),
+                    items: _categories.map((category) {
+                      return DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _currentStockController,
+                          decoration: InputDecoration(
+                            labelText: _tr('Current Stock', 'Akiba ya Sasa'),
+                            border: const OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return _tr('Required', 'Inahitajika');
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _reorderPointController,
+                          decoration: InputDecoration(
+                            labelText: _tr('Reorder Point', 'Pointi ya Upya'),
+                            border: const OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return _tr('Required', 'Inahitajika');
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _unitPriceController,
+                          decoration: InputDecoration(
+                            labelText: _tr('Unit Price', 'Bei ya Kimoja'),
+                            border: const OutlineInputBorder(),
+                            prefixText: 'TZS ',
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return _tr('Required', 'Inahitajika');
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _selectedUnit,
+                          decoration: InputDecoration(
+                            labelText: _tr('Unit', 'Kimoja'),
+                            border: const OutlineInputBorder(),
+                          ),
+                          items: _units.map((unit) {
+                            return DropdownMenuItem(
+                              value: unit,
+                              child: Text(unit),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedUnit = value!;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _skuController,
+                    decoration: InputDecoration(
+                      labelText: _tr('SKU (Optional)', 'SKU (Hiari)'),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _supplierController,
+                    decoration: InputDecoration(
+                      labelText: _tr('Supplier (Optional)', 'Mtoaji (Hiari)'),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.pop(context),
+                          child: Text(_tr('Cancel', 'Ghairi')),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _addItem,
+                          child: _isLoading
+                              ? const ShimmerBox(
+                                  width: 88,
+                                  height: 14,
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(999),
+                                  ),
+                                )
+                              : Text(_tr('Add Item', 'Ongeza Bidhaa')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: Text(_tr('Cancel', 'Ghairi')),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _addItem,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(_tr('Add Item', 'Ongeza Bidhaa')),
-        ),
-      ],
     );
   }
 
@@ -643,12 +703,16 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
 
       try {
         // TODO: Implement inventory item addition using the existing pattern
-        // For now, just close the dialog and show success message
-        Navigator.pop(context);
         if (mounted) {
+          Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(_tr('Item added successfully', 'Bidhaa imeongezwa kwa mafanikio')),
+              content: Text(
+                _tr(
+                  'Item added successfully',
+                  'Bidhaa imeongezwa kwa mafanikio',
+                ),
+              ),
               backgroundColor: Colors.green,
             ),
           );
