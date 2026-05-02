@@ -105,27 +105,33 @@ service cloud.firestore {
     // TENANT-SCOPED BUSINESSES (for multi-tenant support)
     // ============================================
     match /tenants/{tenantId} {
-      // Only the tenant can access their businesses
       allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
-      
+
+      // Direct subcollections when no businessId is resolved
+      match /{collection}/{docId} {
+        allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+      }
+
       match /businesses/{businessId} {
         allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
-        
-        // Tenant-scoped sales invoices
-        match /sales_invoices/{invoiceId} {
+
+        // All subcollections: sales_invoices, customers, inventory_items,
+        // expenses, cash_accounts, debts, suppliers, staff, settings, etc.
+        match /{collection}/{docId} {
           allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
         }
       }
     }
-    
+
     // ============================================
     // PERSONAL ACCOUNTS (for users operating outside business context)
     // ============================================
     match /personal_accounts/{userId} {
       allow read, create, update, delete: if isSignedIn() && isOwner(userId);
-      
-      // Personal-account sales invoices
-      match /sales_invoices/{invoiceId} {
+
+      // All subcollections: sales_invoices, expenses, cash_accounts,
+      // customers, debts, inventory_items, etc.
+      match /{collection}/{docId} {
         allow read, create, update, delete: if isSignedIn() && isOwner(userId);
       }
     }

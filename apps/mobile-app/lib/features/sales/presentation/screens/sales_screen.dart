@@ -37,7 +37,7 @@ class SalesScreen extends ConsumerWidget {
         foregroundColor: AppColors.secondary,
         icon: const Icon(Icons.add_rounded),
         label: Text(
-          _tr('Record Sale', 'Rekodi Mauzo'),
+          _tr('Sale', 'Uza'),
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         elevation: 4,
@@ -68,19 +68,23 @@ class SalesScreen extends ConsumerWidget {
               ),
               data: (items) {
                 final paid = items
-                    .where((i) =>
-                        readInvoiceStatus(i).toLowerCase() == 'paid')
+                    .where((i) => readInvoiceStatus(i).toLowerCase() == 'paid')
                     .toList();
                 final pending = items
-                    .where((i) =>
-                        readInvoiceStatus(i).toLowerCase() != 'paid')
+                    .where((i) => readInvoiceStatus(i).toLowerCase() != 'paid')
                     .toList();
                 final totalSales = items.fold<double>(
-                    0, (s, i) => s + parseNumericAmount(i['amount']));
+                  0,
+                  (s, i) => s + parseNumericAmount(i['amount']),
+                );
                 final paidSales = paid.fold<double>(
-                    0, (s, i) => s + parseNumericAmount(i['amount']));
+                  0,
+                  (s, i) => s + parseNumericAmount(i['amount']),
+                );
                 final pendingSales = pending.fold<double>(
-                    0, (s, i) => s + parseNumericAmount(i['amount']));
+                  0,
+                  (s, i) => s + parseNumericAmount(i['amount']),
+                );
 
                 return Column(
                   children: [
@@ -120,32 +124,37 @@ class SalesScreen extends ConsumerWidget {
                           ? const _EmptySalesState()
                           : ListView.separated(
                               padding: const EdgeInsets.fromLTRB(
-                                  24, 8, 24, 104),
+                                24,
+                                8,
+                                24,
+                                104,
+                              ),
                               itemCount: items.length,
                               separatorBuilder: (_, _) =>
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final item = items[index];
                                 final status = readInvoiceStatus(item);
-                                final amount =
-                                    parseNumericAmount(item['amount']);
+                                final amount = parseNumericAmount(
+                                  item['amount'],
+                                );
                                 final id =
-                                    (item['invoiceNumber'] ??
-                                            item['id'] ??
-                                            '')
+                                    (item['invoiceNumber'] ?? item['id'] ?? '')
                                         .toString();
-                                final customer = (item['customerName'] ??
-                                        item['customer'] ??
-                                        item['partyName'] ??
-                                        _tr('Unknown customer',
-                                            'Mteja hajulikani'))
-                                    .toString();
+                                final customer =
+                                    (item['customerName'] ??
+                                            item['customer'] ??
+                                            item['partyName'] ??
+                                            _tr(
+                                              'Unknown customer',
+                                              'Mteja hajulikani',
+                                            ))
+                                        .toString();
                                 final date = readTimestamp(
-                                    item['createdAt'] ?? item['date']);
+                                  item['createdAt'] ?? item['date'],
+                                );
                                 return _InvoiceListItem(
-                                  id: id.isEmpty
-                                      ? '#${index + 1}'
-                                      : '#$id',
+                                  id: id.isEmpty ? '#${index + 1}' : '#$id',
                                   customer: customer,
                                   amount: _fmtAmount(amount),
                                   status: status,
@@ -217,10 +226,7 @@ class _EmptySalesState extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            _tr(
-              'Tap + Record Sale to get started',
-              'Bonyeza + Rekodi Mauzo kuanza',
-            ),
+            _tr('Tap + Sale to get started', 'Bonyeza + Rekodi Mauzo kuanza'),
             style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
           ),
         ],
@@ -254,8 +260,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
   bool _showSuggestions = false;
 
   double get _unitPrice {
-    final text =
-        _priceController.text.replaceAll(RegExp(r'[^0-9.]'), '');
+    final text = _priceController.text.replaceAll(RegExp(r'[^0-9.]'), '');
     return double.tryParse(text) ?? 0;
   }
 
@@ -282,9 +287,9 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
 
     // Deselect inventory item if user changed the name
     if (_selectedItem != null) {
-      final itemName = ((_selectedItem!['name'] ??
-              _selectedItem!['productName'] ??
-              '') as String);
+      final itemName =
+          ((_selectedItem!['name'] ?? _selectedItem!['productName'] ?? '')
+              as String);
       if (query.toLowerCase() != itemName.toLowerCase()) {
         _selectedItem = null;
       }
@@ -300,8 +305,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
 
     final matched = widget.inventory
         .where((item) {
-          final name = ((item['name'] ?? item['productName'] ?? '')
-                  as String)
+          final name = ((item['name'] ?? item['productName'] ?? '') as String)
               .toLowerCase();
           return name.contains(query.toLowerCase());
         })
@@ -315,16 +319,15 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
   }
 
   void _selectInventoryItem(Map<String, dynamic> item) {
-    final name =
-        (item['name'] ?? item['productName'] ?? '') as String;
+    final name = (item['name'] ?? item['productName'] ?? '') as String;
     final price = parseUnitPrice(
-        item['unitPrice'] ?? item['price'] ?? item['unit_price']);
+      item['unitPrice'] ?? item['price'] ?? item['unit_price'],
+    );
     _productFocus.unfocus();
     setState(() {
       _selectedItem = item;
       _productController.text = name;
-      _priceController.text =
-          price > 0 ? price.toStringAsFixed(0) : '';
+      _priceController.text = price > 0 ? price.toStringAsFixed(0) : '';
       _suggestions = [];
       _showSuggestions = false;
     });
@@ -333,17 +336,19 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
   Future<void> _save() async {
     final productName = _productController.text.trim();
     if (productName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            _tr('Enter a product name.', 'Ingiza jina la bidhaa.')),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_tr('Enter a product name.', 'Ingiza jina la bidhaa.')),
+        ),
+      );
       return;
     }
     if (_unitPrice <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            _tr('Enter a valid price.', 'Ingiza bei sahihi.')),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_tr('Enter a valid price.', 'Ingiza bei sahihi.')),
+        ),
+      );
       return;
     }
 
@@ -384,17 +389,15 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
             'unitPrice': _unitPrice,
             'total': _total,
             if (_selectedItem != null)
-              'inventoryItemId':
-                  (_selectedItem!['id'] as String?) ?? '',
-          }
+              'inventoryItemId': (_selectedItem!['id'] as String?) ?? '',
+          },
         ],
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       // Decrement stock if sale was for an inventory item
       if (_selectedItem != null) {
-        final itemId =
-            (_selectedItem!['id'] as String?)?.trim() ?? '';
+        final itemId = (_selectedItem!['id'] as String?)?.trim() ?? '';
         if (itemId.isNotEmpty) {
           final inventoryRef = repository.scopeCollection(
             uid: user.uid,
@@ -413,20 +416,26 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
       }
 
       navigator.pop();
-      messenger.showSnackBar(SnackBar(
-        content: Text(_tr('Sale recorded!', 'Mauzo yamerekodiwa!')),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(_tr('Sale recorded!', 'Mauzo yamerekodiwa!')),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      messenger.showSnackBar(SnackBar(
-        content: Text(_tr(
-          'Failed to save. Try again.',
-          'Imeshindikana kuhifadhi. Jaribu tena.',
-        )),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'Failed to save. Try again.',
+              'Imeshindikana kuhifadhi. Jaribu tena.',
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -434,7 +443,8 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
   Widget build(BuildContext context) {
     return Container(
       constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.92),
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -479,7 +489,9 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 5),
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: _isCash
                         ? AppColors.success.withValues(alpha: 0.1)
@@ -489,12 +501,9 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                   child: Text(
                     _isCash
                         ? _tr('Cash · Paid', 'Taslimu · Imelipwa')
-                        : _tr('Credit · Pending',
-                            'Mkopo · Inasubiri'),
+                        : _tr('Credit · Pending', 'Mkopo · Inasubiri'),
                     style: TextStyle(
-                      color: _isCash
-                          ? AppColors.success
-                          : AppColors.warning,
+                      color: _isCash ? AppColors.success : AppColors.warning,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -511,48 +520,52 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
               autofocus: true,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText:
-                    _tr('Product / Item *', 'Bidhaa / Kitu *'),
+                labelText: _tr('Product / Item *', 'Bidhaa / Kitu *'),
                 hintText: _tr(
                   'Search inventory or type new...',
                   'Tafuta hisa au andika mpya...',
                 ),
-                prefixIcon: const Icon(
-                    Icons.inventory_2_outlined,
-                    size: 20),
+                prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20),
                 suffixIcon: _selectedItem != null
-                    ? const Icon(Icons.check_circle_rounded,
-                        color: AppColors.success, size: 20)
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.success,
+                        size: 20,
+                      )
                     : (_productController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(
-                                Icons.clear_rounded,
-                                size: 18),
-                            onPressed: () {
-                              _productController.clear();
-                              setState(() {
-                                _selectedItem = null;
-                                _suggestions = [];
-                                _showSuggestions = false;
-                              });
-                            },
-                          )
-                        : null),
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              onPressed: () {
+                                _productController.clear();
+                                setState(() {
+                                  _selectedItem = null;
+                                  _suggestions = [];
+                                  _showSuggestions = false;
+                                });
+                              },
+                            )
+                          : null),
                 filled: true,
                 fillColor: AppColors.surface,
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
                 enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide:
-                        const BorderSide(color: AppColors.border)),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
                 focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                        color: AppColors.primary, width: 2)),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 2,
+                  ),
+                ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
 
@@ -574,48 +587,40 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                 ),
                 child: Column(
                   children: _suggestions.asMap().entries.map((e) {
-                    final isLast =
-                        e.key == _suggestions.length - 1;
+                    final isLast = e.key == _suggestions.length - 1;
                     final item = e.value;
-                    final name = (item['name'] ??
-                            item['productName'] ??
-                            '') as String;
+                    final name =
+                        (item['name'] ?? item['productName'] ?? '') as String;
                     final price = parseUnitPrice(
-                        item['unitPrice'] ??
-                            item['price'] ??
-                            item['unit_price']);
+                      item['unitPrice'] ?? item['price'] ?? item['unit_price'],
+                    );
                     final stock = parseStock(
-                        item['currentStock'] ??
-                            item['stock'] ??
-                            item['quantity']);
+                      item['currentStock'] ?? item['stock'] ?? item['quantity'],
+                    );
 
                     return Column(
                       children: [
                         InkWell(
-                          onTap: () =>
-                              _selectInventoryItem(item),
-                          borderRadius:
-                              BorderRadius.circular(14),
+                          onTap: () => _selectInventoryItem(item),
+                          borderRadius: BorderRadius.circular(14),
                           child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 11),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 11,
+                            ),
                             child: Row(
                               children: [
                                 Container(
                                   width: 36,
                                   height: 36,
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary
-                                        .withValues(alpha: 0.08),
-                                    borderRadius:
-                                        BorderRadius.circular(
-                                            10),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.08,
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: const Icon(
-                                    Icons
-                                        .inventory_2_rounded,
+                                    Icons.inventory_2_rounded,
                                     size: 18,
                                     color: AppColors.primary,
                                   ),
@@ -624,47 +629,43 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment
-                                            .start,
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         name,
-                                        style:
-                                            const TextStyle(
-                                          fontWeight:
-                                              FontWeight.w700,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
                                           fontSize: 14,
-                                          color: AppColors
-                                              .secondary,
+                                          color: AppColors.secondary,
                                         ),
                                       ),
                                       Text(
                                         'TSh ${price.toStringAsFixed(0)} · '
                                         '$stock ${_tr('in stock', 'stokuni')}',
-                                        style:
-                                            const TextStyle(
+                                        style: const TextStyle(
                                           fontSize: 12,
-                                          color: AppColors
-                                              .textMuted,
+                                          color: AppColors.textMuted,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                                 const Icon(
-                                    Icons.north_west_rounded,
-                                    size: 14,
-                                    color: AppColors.textMuted),
+                                  Icons.north_west_rounded,
+                                  size: 14,
+                                  color: AppColors.textMuted,
+                                ),
                               ],
                             ),
                           ),
                         ),
                         if (!isLast)
                           const Divider(
-                              height: 1,
-                              indent: 14,
-                              endIndent: 14,
-                              color: AppColors.border),
+                            height: 1,
+                            indent: 14,
+                            endIndent: 14,
+                            color: AppColors.border,
+                          ),
                       ],
                     );
                   }).toList(),
@@ -681,41 +682,37 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                 Expanded(
                   child: TextField(
                     controller: _priceController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(
-                            decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                          RegExp(r'[0-9.]'))
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                     ],
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
-                      labelText: _tr(
-                          'Unit Price (TSh) *',
-                          'Bei ya Kitengo *'),
-                      prefixIcon: const Icon(
-                          Icons.payments_outlined,
-                          size: 20),
+                      labelText: _tr('Unit Price (TSh) *', 'Bei ya Kitengo *'),
+                      prefixIcon: const Icon(Icons.payments_outlined, size: 20),
                       filled: true,
                       fillColor: AppColors.surface,
                       border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(14),
-                          borderSide: BorderSide.none),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
                       enabledBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                              color: AppColors.border)),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
                       focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                              color: AppColors.primary,
-                              width: 2)),
-                      contentPadding:
-                          const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 14),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -735,8 +732,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(14),
-                        border:
-                            Border.all(color: AppColors.border),
+                        border: Border.all(color: AppColors.border),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -744,8 +740,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                           _QtyButton(
                             icon: Icons.remove_rounded,
                             onTap: _qty > 1
-                                ? () =>
-                                    setState(() => _qty--)
+                                ? () => setState(() => _qty--)
                                 : null,
                           ),
                           SizedBox(
@@ -762,8 +757,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                           ),
                           _QtyButton(
                             icon: Icons.add_rounded,
-                            onTap: () =>
-                                setState(() => _qty++),
+                            onTap: () => setState(() => _qty++),
                           ),
                         ],
                       ),
@@ -780,26 +774,29 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
               controller: _customerController,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: _tr(
-                    'Customer (optional)', 'Mteja (si lazima)'),
-                prefixIcon: const Icon(
-                    Icons.person_outline_rounded,
-                    size: 20),
+                labelText: _tr('Customer (optional)', 'Mteja (si lazima)'),
+                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
                 filled: true,
                 fillColor: AppColors.surface,
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
                 enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide:
-                        const BorderSide(color: AppColors.border)),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
                 focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                        color: AppColors.primary, width: 2)),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 2,
+                  ),
+                ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
 
@@ -817,23 +814,18 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () =>
-                          setState(() => _isCash = true),
+                      onTap: () => setState(() => _isCash = true),
                       child: AnimatedContainer(
-                        duration:
-                            const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 11),
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
                         decoration: BoxDecoration(
                           color: _isCash
                               ? AppColors.success
                               : Colors.transparent,
-                          borderRadius:
-                              BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.payments_rounded,
@@ -844,8 +836,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              _tr('Cash  ·  Paid',
-                                  'Taslimu · Imelipwa'),
+                              _tr('Cash  ·  Paid', 'Taslimu · Imelipwa'),
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 13,
@@ -861,23 +852,18 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                   ),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () =>
-                          setState(() => _isCash = false),
+                      onTap: () => setState(() => _isCash = false),
                       child: AnimatedContainer(
-                        duration:
-                            const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 11),
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
                         decoration: BoxDecoration(
                           color: !_isCash
                               ? AppColors.warning
                               : Colors.transparent,
-                          borderRadius:
-                              BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.schedule_rounded,
@@ -888,8 +874,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              _tr('Credit  ·  Pending',
-                                  'Mkopo · Inasubiri'),
+                              _tr('Credit  ·  Pending', 'Mkopo · Inasubiri'),
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 13,
@@ -914,8 +899,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
               children: [
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         _tr('Total', 'Jumla'),
@@ -946,13 +930,13 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.secondary,
-                      disabledBackgroundColor:
-                          AppColors.primary.withValues(alpha: 0.5),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 28),
+                      disabledBackgroundColor: AppColors.primary.withValues(
+                        alpha: 0.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
                       shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       elevation: 0,
                     ),
                     child: _isSaving
@@ -1013,8 +997,7 @@ class _QtyButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 18,
-            color:
-                onTap != null ? AppColors.secondary : AppColors.border,
+            color: onTap != null ? AppColors.secondary : AppColors.border,
           ),
         ),
       ),
@@ -1043,18 +1026,18 @@ class _OverviewStat extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textMuted,
-                fontSize: 12,
-              ),
+            color: AppColors.textMuted,
+            fontSize: 12,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: color,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
@@ -1082,16 +1065,15 @@ class _InvoiceListItem extends StatelessWidget {
     final statusColor = statusLower == 'paid'
         ? AppColors.success
         : statusLower == 'pending'
-            ? AppColors.warning
-            : AppColors.error;
+        ? AppColors.warning
+        : AppColors.error;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: AppColors.secondary.withValues(alpha: 0.05)),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -1101,8 +1083,7 @@ class _InvoiceListItem extends StatelessWidget {
               color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(Icons.article_outlined,
-                color: statusColor, size: 24),
+            child: Icon(Icons.article_outlined, color: statusColor, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1110,75 +1091,58 @@ class _InvoiceListItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       id,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                            color: AppColors.textMuted,
-                            fontSize: 12,
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
                     ),
                     Text(
                       date,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                            color: AppColors.textMuted,
-                            fontSize: 12,
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   customer,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(
-                        color: AppColors.secondary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   amount,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               status.toUpperCase(),
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(
-                    color: statusColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: statusColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

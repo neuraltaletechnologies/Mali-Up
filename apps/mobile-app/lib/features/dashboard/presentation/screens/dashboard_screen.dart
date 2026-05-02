@@ -891,10 +891,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
 
                     const SizedBox(height: 16),
 
-                    // Stats bar — full width, clips with outer ClipRRect
+                    // Stats bar
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      margin: const EdgeInsets.symmetric(horizontal: -22),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.22),
                         border: Border(
