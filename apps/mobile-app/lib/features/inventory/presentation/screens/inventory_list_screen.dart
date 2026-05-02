@@ -131,7 +131,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
     if (isLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 24),
-        child: SkeletonList(itemCount: 5),
+        child: SkeletonList(),
       );
     }
 

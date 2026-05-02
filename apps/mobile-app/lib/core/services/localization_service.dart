@@ -40,6 +40,8 @@ class LocalizationService {
   static const String _languageSelectedKey = 'language_selected';
   static final ValueNotifier<AppLanguage> languageNotifier =
       ValueNotifier<AppLanguage>(AppLanguage.english);
+  static final ValueNotifier<bool> languageSelectedNotifier =
+      ValueNotifier<bool>(false);
 
   static Future<void> initialize() async {
     languageNotifier.value = await getLanguage();
@@ -47,6 +49,8 @@ class LocalizationService {
 
   static Future<void> initializeWithPrefs(SharedPreferences prefs) async {
     final languageCode = prefs.getString(_languageKey) ?? 'en';
+    languageSelectedNotifier.value =
+        prefs.getBool(_languageSelectedKey) ?? false;
 
     switch (languageCode) {
       case 'sw':
@@ -69,6 +73,9 @@ class LocalizationService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_languageKey, language.code);
     await prefs.setBool(_languageSelectedKey, true);
+    if (!languageSelectedNotifier.value) {
+      languageSelectedNotifier.value = true;
+    }
 
     if (languageNotifier.value != language) {
       languageNotifier.value = language;
@@ -97,6 +104,10 @@ class LocalizationService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_languageKey);
     await prefs.remove(_languageSelectedKey);
+
+    if (languageSelectedNotifier.value) {
+      languageSelectedNotifier.value = false;
+    }
 
     if (languageNotifier.value != AppLanguage.english) {
       languageNotifier.value = AppLanguage.english;

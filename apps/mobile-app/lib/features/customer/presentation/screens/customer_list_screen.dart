@@ -8,8 +8,9 @@ import '../widgets/add_customer_dialog.dart';
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 String _fmtCustomerBalance(double amount) {
-  if (amount >= 1_000_000)
+  if (amount >= 1_000_000) {
     return 'TSh ${(amount / 1_000_000).toStringAsFixed(1)}M';
+  }
   if (amount >= 1_000) return 'TSh ${(amount / 1_000).toStringAsFixed(0)}K';
   return 'TSh ${amount.toStringAsFixed(0)}';
 }

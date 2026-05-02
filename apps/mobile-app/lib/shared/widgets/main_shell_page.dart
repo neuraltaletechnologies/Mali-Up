@@ -87,16 +87,13 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
 
     final businesses = _businessesFromProfile(profile);
     final selectedBusinessId = _selectedBusinessId(profile);
-    final defaultAccountType = (profile?['defaultAccountType'] as String?)?.toLowerCase();
-    if (defaultAccountType == 'business') {
-      final businessId = selectedBusinessId ?? (businesses.isNotEmpty ? businesses.first['id'] as String : null);
-      if (businessId != null && businessId.isNotEmpty) {
-        return 'business:$businessId';
-      }
-      return 'business';
+    
+    // Default to business context
+    final businessId = selectedBusinessId ?? (businesses.isNotEmpty ? businesses.first['id'] as String : null);
+    if (businessId != null && businessId.isNotEmpty) {
+      return 'business:$businessId';
     }
-
-    return 'personal';
+    return 'business';
   }
 
   bool _canSwitchFinanceContext(Map<String, dynamic>? profile) {
@@ -437,31 +434,6 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             selected: _isSelected(location, AppRouter.cashFlowPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
                           ),
-                        ] else ...[
-                          _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
-                          _DrawerItemLight(
-                            icon: Icons.payments_outlined,
-                            label: _tr('Gharama zangu', 'Gharama zangu'),
-                            semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
-                            selected: _isSelected(location, AppRouter.expensesPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
-                          ),
-                          const SizedBox(height: 2),
-                          _DrawerItemLight(
-                            icon: Icons.account_balance_rounded,
-                            label: _tr('Madeni', 'Madeni'),
-                            semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
-                            selected: _isSelected(location, AppRouter.debtPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
-                          ),
-                          const SizedBox(height: 2),
-                          _DrawerItemLight(
-                            icon: Icons.account_balance_wallet_outlined,
-                            label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
-                            semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
-                            selected: _isSelected(location, AppRouter.cashFlowPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
-                          ),
                         ],
                         _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
                         _DrawerItemLight(
@@ -480,12 +452,6 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
                         ),
                         const SizedBox(height: 2),
-                        _DrawerItemLight(
-                          icon: Icons.headset_mic_rounded,
-                          label: _tr('Msaada', 'Msaada'),
-                          semanticsLabel: _tr('Help and support', 'Msaada na usaidizi'),
-                          onTap: () => Navigator.of(dialogContext).pop(),
-                        ),
                       ],
                     ),
                   ),
@@ -541,17 +507,6 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Mali App v1.0.0',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],
@@ -593,35 +548,6 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
         label: _tr('Clients', 'Wateja'),
         icon: Icons.people_outline_rounded,
         activeIcon: Icons.people_rounded,
-      ),
-    ];
-  }
-
-  List<_NavDestination> _personalNavDestinations() {
-    return [
-      _NavDestination(
-        route: AppRouter.dashboardPath,
-        label: _tr('Home', 'Nyumbani'),
-        icon: Icons.grid_view_outlined,
-        activeIcon: Icons.grid_view_rounded,
-      ),
-      _NavDestination(
-        route: AppRouter.expensesPath,
-        label: _tr('Expenses', 'Matumizi'),
-        icon: Icons.payments_outlined,
-        activeIcon: Icons.payments_rounded,
-      ),
-      _NavDestination(
-        route: AppRouter.debtPath,
-        label: _tr('Debt', 'Madeni'),
-        icon: Icons.account_balance_outlined,
-        activeIcon: Icons.account_balance_rounded,
-      ),
-      _NavDestination(
-        route: AppRouter.cashFlowPath,
-        label: _tr('Fedha', 'Fedha'),
-        icon: Icons.account_balance_wallet_outlined,
-        activeIcon: Icons.account_balance_wallet_rounded,
       ),
     ];
   }
@@ -709,13 +635,10 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
             _defaultContextFromProfile(profileData).toLowerCase().startsWith('business');
         final selectedContext = _defaultContextFromProfile(profileData);
         final canSwitch = _canSwitchFinanceContext(profileData);
-        final destinations = isBusinessContext
-            ? _businessNavDestinations()
-            : _personalNavDestinations();
+        final destinations = _businessNavDestinations();
         final currentIndex = _calculateIndex(location, destinations);
 
         return Scaffold(
-          extendBody: false,
           extendBodyBehindAppBar: true, // Allow body to flow under the glass app bar
           drawerScrimColor: Colors.transparent,
           appBar: PreferredSize(
@@ -961,12 +884,10 @@ class _FinanceContextSwitcher extends StatelessWidget {
         }
       }
     }
-    final label = _isBusiness
-        ? (selectedBusiness?['name'] as String?)?.trim().isNotEmpty == true
-            ? (selectedBusiness!['name'] as String).trim()
-            : tr('Business', 'Biashara')
-        : tr('Personal', 'Binafsi');
-    final icon = _isBusiness ? Icons.business_center_rounded : Icons.person_rounded;
+    final label = (selectedBusiness?['name'] as String?)?.trim().isNotEmpty == true
+        ? (selectedBusiness!['name'] as String).trim()
+        : tr('Business', 'Biashara');
+    final icon = Icons.business_center_rounded;
 
     return PopupMenuButton<String>(
       enabled: canSwitch,
@@ -985,23 +906,6 @@ class _FinanceContextSwitcher extends StatelessWidget {
       },
       itemBuilder: (context) {
         return <PopupMenuEntry<String>>[
-          PopupMenuItem<String>(
-            value: 'personal',
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.person_rounded, size: 20, color: AppColors.primary),
-                ),
-                const SizedBox(width: 12),
-                Text(tr('Personal Context', 'Muktadha wa Kibinafsi'), style: const TextStyle(fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
           if (businesses.isNotEmpty) const PopupMenuDivider(),
           ...businesses.map(
             (business) => PopupMenuItem<String>(
