@@ -101,20 +101,6 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                             ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        _tr(
-                          'You can change this later in Settings.',
-                          'Unaweza kubadilisha baadaye kwenye Mipangilio.',
-                        ),
-                        textAlign: TextAlign.start,
-                        softWrap: true,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.96),
-                              height: 1.5,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                      ),
                     ],
                   ),
                 ),

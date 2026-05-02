@@ -4,10 +4,14 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/invoice_provider.dart';
 import '../../domain/models/invoice.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/constants/app_strings.dart';
 
-// Provider declaration
-final invoiceProvider = ChangeNotifierProvider<InvoiceProvider>((ref) {
-  return InvoiceProvider();
+// Global invoice provider instance
+final _invoiceProviderInstance = InvoiceProvider();
+
+// Wrapper provider that exposes the notifier
+final invoiceChangeNotifierProvider = Provider<InvoiceProvider>((ref) {
+  return _invoiceProviderInstance;
 });
 
 class InvoiceListScreen extends ConsumerStatefulWidget {
@@ -25,7 +29,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(invoiceProvider.notifier).fetchInvoices();
+      ref.read(invoiceChangeNotifierProvider).fetchInvoices();
     });
   }
 
@@ -37,7 +41,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final invoiceProvider = ref.watch(invoiceProvider);
+    final invoiceProvider = ref.watch(invoiceChangeNotifierProvider);
     final invoices = invoiceProvider.invoices;
     final isLoading = invoiceProvider.isLoading;
     final error = invoiceProvider.error;
@@ -65,7 +69,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(invoiceProvider.notifier).refresh(),
+              onPressed: () => ref.read(invoiceChangeNotifierProvider).refresh(),
           ),
         ],
       ),
@@ -223,7 +227,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => ref.read(invoiceProvider.notifier).refresh(),
+              onPressed: () => ref.read(invoiceChangeNotifierProvider).refresh(),
               child: const Text('Retry'),
             ),
           ],
@@ -244,7 +248,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(invoiceProvider.notifier).refresh(),
+      onRefresh: () => ref.read(invoiceChangeNotifierProvider).refresh(),
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: invoices.length,
@@ -506,7 +510,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
   }
 
   void _shareInvoice(Invoice invoice) async {
-    final whatsappText = ref.read(invoiceProvider.notifier).generateWhatsAppReceipt(invoice.id);
+    final whatsappText = ref.read(invoiceChangeNotifierProvider).generateWhatsAppReceipt(invoice.id);
     final whatsappUrl = 'https://wa.me/?text=${Uri.encodeComponent(whatsappText)}';
     
     try {
@@ -543,7 +547,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
     );
 
     if (confirmed == true) {
-      final success = await ref.read(invoiceProvider.notifier).markAsPaid(invoice.id);
+      final success = await ref.read(invoiceChangeNotifierProvider).markAsPaid(invoice.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -553,5 +557,94 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
         );
       }
     }
+  }
+}
+
+// --- Placeholder widgets to satisfy analyzer until shared widgets are available ---
+class LoadingSkeleton extends StatelessWidget {
+  const LoadingSkeleton({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 6,
+      itemBuilder: (context, index) => Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        height: 64,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+}
+
+class EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String actionText;
+  final VoidCallback onAction;
+
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.actionText,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 12),
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
+          const SizedBox(height: 12),
+          ElevatedButton(onPressed: onAction, child: Text(actionText)),
+        ],
+      ),
+    );
+  }
+}
+
+class InvoiceCard extends StatelessWidget {
+  final Invoice invoice;
+  final VoidCallback onTap;
+  final VoidCallback? onShare;
+  final VoidCallback? onMarkPaid;
+
+  const InvoiceCard({
+    super.key,
+    required this.invoice,
+    required this.onTap,
+    this.onShare,
+    this.onMarkPaid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        title: Text(invoice.invoiceNumber),
+        subtitle: Text(invoice.customerName),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (onShare != null) IconButton(icon: const Icon(Icons.share), onPressed: onShare),
+            if (onMarkPaid != null) IconButton(icon: const Icon(Icons.check), onPressed: onMarkPaid),
+          ],
+        ),
+        onTap: onTap,
+      ),
+    );
   }
 }

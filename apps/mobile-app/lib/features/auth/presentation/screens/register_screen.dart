@@ -77,25 +77,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _placeOfBusinessController =
       TextEditingController();
   String _selectedBusinessType = 'Retail';
-  final List<String> _businessTypes = [
-    'Retail',
-    'Wholesale',
-    'Service',
-    'Manufacturing',
-    'Food & Beverage',
-    'Agriculture',
-    'Transport',
-    'Construction',
-    'Healthcare',
-    'Education',
-    'Technology',
-    'Hospitality',
-    'Beauty & Wellness',
-    'Entertainment',
-    'Real Estate',
-    'Financial Services',
-    'Professional Services',
-    'Other'
+  final List<Map<String, dynamic>> _businessTypes = [
+    {'value': 'Retail', 'en': 'Retail', 'sw': 'Uuzaji', 'icon': Icons.store},
+    {'value': 'Wholesale', 'en': 'Wholesale', 'sw': 'Uuzaji wa Jumla', 'icon': Icons.store_mall_directory},
+    {'value': 'Service', 'en': 'Service', 'sw': 'Huduma', 'icon': Icons.room_service},
+    {'value': 'Manufacturing', 'en': 'Manufacturing', 'sw': 'Uzalishaji', 'icon': Icons.build},
+    {'value': 'Food & Beverage', 'en': 'Food & Beverage', 'sw': 'Chakula na Vinywaji', 'icon': Icons.restaurant},
+    {'value': 'Agriculture', 'en': 'Agriculture', 'sw': 'Kilimo', 'icon': Icons.agriculture},
+    {'value': 'Transport', 'en': 'Transport', 'sw': 'Usafiri', 'icon': Icons.local_shipping},
+    {'value': 'Construction', 'en': 'Construction', 'sw': 'Ujenzi', 'icon': Icons.construction},
+    {'value': 'Healthcare', 'en': 'Healthcare', 'sw': 'Afya', 'icon': Icons.local_hospital},
+    {'value': 'Education', 'en': 'Education', 'sw': 'Elimu', 'icon': Icons.school},
+    {'value': 'Technology', 'en': 'Technology', 'sw': 'Teknolojia', 'icon': Icons.computer},
+    {'value': 'Hospitality', 'en': 'Hospitality', 'sw': 'Ukarimu', 'icon': Icons.hotel},
+    {'value': 'Beauty & Wellness', 'en': 'Beauty & Wellness', 'sw': 'Uzuri na Afya', 'icon': Icons.spa},
+    {'value': 'Entertainment', 'en': 'Entertainment', 'sw': 'Burudani', 'icon': Icons.theater_comedy},
+    {'value': 'Real Estate', 'en': 'Real Estate', 'sw': 'Mali Isiyohamishika', 'icon': Icons.apartment},
+    {'value': 'Financial Services', 'en': 'Financial Services', 'sw': 'Huduma za Kifedha', 'icon': Icons.account_balance},
+    {'value': 'Professional Services', 'en': 'Professional Services', 'sw': 'Huduma za Kitaalam', 'icon': Icons.business_center},
+    {'value': 'Other', 'en': 'Other', 'sw': 'Nyingine', 'icon': Icons.category},
   ];
 
   // Tanzania cities/regions for place of business
@@ -898,15 +898,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 12),
                         // Business type dropdown
                         DropdownButtonFormField<String>(
-                          initialValue: _selectedBusinessType,
+                          value: _selectedBusinessType,
                           decoration: fieldDecoration(
                             hint: _tr('Business Type', 'Aina ya Biashara'),
                             suffix: Icons.category_rounded,
                           ),
                           items: _businessTypes.map((type) {
-                            return DropdownMenuItem(
-                              value: type,
-                              child: Text(type),
+                            final value = type['value'] as String;
+                            final label = _language == AppLanguage.swahili 
+                                ? type['sw'] as String 
+                                : type['en'] as String;
+                            final icon = type['icon'] as IconData;
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Row(
+                                children: [
+                                  Icon(icon, size: 20, color: AppColors.primary),
+                                  const SizedBox(width: 8),
+                                  Text(label),
+                                ],
+                              ),
                             );
                           }).toList(),
                           onChanged: (value) {
@@ -927,8 +938,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             final label = _language == AppLanguage.swahili 
                                 ? city['sw']! 
                                 : city['en']!;
-                            return DropdownMenuItem(
-                              value: city['en'],
+                            return DropdownMenuItem<String>(
+                              value: city['en']!,
                               child: Text(label),
                             );
                           }).toList(),
@@ -1025,7 +1036,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                 ),
-              );
+              ),
+            );
             },
           ),
           if (_isLoading)

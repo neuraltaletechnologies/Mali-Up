@@ -877,6 +877,8 @@ class _DrawerItem extends StatefulWidget {
     required this.label,
     required this.onTap,
     required this.semanticsLabel,
+    this.trailingBadge,
+    this.selected = false,
   });
 
   @override
