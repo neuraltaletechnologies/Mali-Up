@@ -583,8 +583,6 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 220),
-      margin: const EdgeInsets.symmetric(horizontal: 20),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -782,7 +780,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
             ),
           ),
         ],
-      ),
+        ),
     );
   }
 
@@ -796,8 +794,6 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 220),
-      margin: const EdgeInsets.symmetric(horizontal: 20),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -890,7 +886,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
             ),
           ),
         ],
-      ),
+        ),
     );
   }
 }
