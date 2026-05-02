@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../data/finance_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -28,8 +30,12 @@ class CashFlowScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _tr('Understand your money flow', 'Elewa mtiririko wa pesa yako'),
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          _tr(
+                            'Understand your money flow',
+                            'Elewa mtiririko wa pesa yako',
+                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
                                 color: AppColors.secondary,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -40,9 +46,8 @@ class CashFlowScreen extends ConsumerWidget {
                             'Compare inflow and outflow to make better daily cash decisions.',
                             'Linganisha mapato na matumizi ili ufanye maamuzi bora ya pesa kila siku.',
                           ),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
                         ),
                       ],
                     ),
@@ -75,26 +80,33 @@ class CashFlowScreen extends ConsumerWidget {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   itemCount: accounts.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 16),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 16),
                   itemBuilder: (context, index) {
                     final account = accounts[index];
                     return _AccountCard(account: account);
                   },
                 ),
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: SkeletonList(itemCount: 3),
+                ),
                 error: (_, _) => Center(
                   child: Text(
-                    _tr('Unable to load accounts right now.', 'Imeshindikana kupakia akaunti kwa sasa.'),
+                    _tr(
+                      'Unable to load accounts right now.',
+                      'Imeshindikana kupakia akaunti kwa sasa.',
+                    ),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textMuted,
-                        ),
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Inflow/Outflow Comparison Board
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -108,7 +120,10 @@ class CashFlowScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     Text(
-                      _tr('Monthly Flow Summary', 'Muhtasari wa Mtiririko wa Mwezi'),
+                      _tr(
+                        'Monthly Flow Summary',
+                        'Muhtasari wa Mtiririko wa Mwezi',
+                      ),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                         fontSize: 13,
@@ -117,18 +132,32 @@ class CashFlowScreen extends ConsumerWidget {
                     const SizedBox(height: 20),
                     Row(
                       children: [
-                        _FlowStat(label: _tr('Inflow', 'Mapato'), value: '4.8M', color: AppColors.success, icon: Icons.south_west_rounded),
-                        Container(width: 1, height: 40, color: AppColors.glassBorder),
-                        _FlowStat(label: _tr('Outflow', 'Matumizi'), value: '1.2M', color: AppColors.error, icon: Icons.north_east_rounded),
+                        _FlowStat(
+                          label: _tr('Inflow', 'Mapato'),
+                          value: '4.8M',
+                          color: AppColors.success,
+                          icon: Icons.south_west_rounded,
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: AppColors.glassBorder,
+                        ),
+                        _FlowStat(
+                          label: _tr('Outflow', 'Matumizi'),
+                          value: '1.2M',
+                          color: AppColors.error,
+                          icon: Icons.north_east_rounded,
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Recent Money Movements
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -181,7 +210,10 @@ class _AccountCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.surface, const Color(0xFF334155).withValues(alpha: 0.4)],
+          colors: [
+            AppColors.surface,
+            const Color(0xFF334155).withValues(alpha: 0.4),
+          ],
         ),
       ),
       child: Column(
@@ -192,9 +224,16 @@ class _AccountCard extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: Icon(
-                  account.type == 'Cash' ? Icons.payments_outlined : (account.type == 'Bank' ? Icons.account_balance_outlined : Icons.smartphone_outlined),
+                  account.type == 'Cash'
+                      ? Icons.payments_outlined
+                      : (account.type == 'Bank'
+                            ? Icons.account_balance_outlined
+                            : Icons.smartphone_outlined),
                   color: AppColors.textSecondary,
                   size: 20,
                 ),
@@ -238,7 +277,12 @@ class _FlowStat extends StatelessWidget {
   final Color color;
   final IconData icon;
 
-  const _FlowStat({required this.label, required this.value, required this.color, required this.icon});
+  const _FlowStat({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -294,7 +338,9 @@ class _MovementListItem extends StatelessWidget {
           color: isInflow ? AppColors.success : AppColors.error,
         ),
         title: Text(
-          isInflow ? _tr('Deposit: Cash Sale', 'Amana: Mauzo ya Fedha Taslimu') : _tr('Withdraw: Petty Cash', 'Toa: Pesa Taslimu Ndogo'),
+          isInflow
+              ? _tr('Deposit: Cash Sale', 'Amana: Mauzo ya Fedha Taslimu')
+              : _tr('Withdraw: Petty Cash', 'Toa: Pesa Taslimu Ndogo'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppColors.secondary,
             fontWeight: FontWeight.w600,
@@ -302,7 +348,10 @@ class _MovementListItem extends StatelessWidget {
           ),
         ),
         subtitle: Text(
-          _tr('To Business M-Pesa • Today, 2:30 PM', 'Kwa M-Pesa ya Biashara • Leo, 2:30 PM'),
+          _tr(
+            'To Business M-Pesa • Today, 2:30 PM',
+            'Kwa M-Pesa ya Biashara • Leo, 2:30 PM',
+          ),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: AppColors.textMuted,
             fontSize: 12,

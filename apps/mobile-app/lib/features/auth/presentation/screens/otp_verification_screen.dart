@@ -3,12 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:timer_count_down/timer_count_down.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/phone_auth_service.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/logo.dart';
-import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../config/routing.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
@@ -30,15 +29,14 @@ class OTPVerificationScreen extends StatefulWidget {
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   final TextEditingController _otpController = TextEditingController();
   final FocusNode _otpFocusNode = FocusNode();
-  
+
   bool _isLoading = false;
   bool _isResending = false;
   bool _canResend = false;
   String? _errorMessage;
   String? _successMessage;
   int _resendCountdown = 60;
-  String? _verificationId;
-  
+
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
 
@@ -52,7 +50,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       }
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
-    
+
     // Start OTP sending process
     _sendOTP();
   }
@@ -70,9 +68,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
     final result = await PhoneAuthService.sendOTP(
       phoneNumber: widget.phoneNumber,
-      onCodeSent: (verificationId) {
+      onCodeSent: (_) {
         setState(() {
-          _verificationId = verificationId;
           _isLoading = false;
           _successMessage = _tr(
             'OTP sent to +${widget.phoneNumber}',
@@ -105,14 +102,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
     final result = await PhoneAuthService.sendOTP(
       phoneNumber: widget.phoneNumber,
-      onCodeSent: (verificationId) {
+      onCodeSent: (_) {
         setState(() {
-          _verificationId = verificationId;
           _isResending = false;
-          _successMessage = _tr(
-            'OTP resent successfully',
-            'OTP imetumwa upya',
-          );
+          _successMessage = _tr('OTP resent successfully', 'OTP imetumwa upya');
           _canResend = false;
           _resendCountdown = 60;
         });
@@ -165,7 +158,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             'Uthibitisho umefanikiwa!',
           );
         });
-        
+
         // Navigate to dashboard after a short delay
         await Future.delayed(const Duration(milliseconds: 1500));
         if (mounted) {
@@ -236,37 +229,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     final mediaQuery = MediaQuery.of(context);
     final topHeight = mediaQuery.size.height * 0.25;
 
-    InputDecoration fieldDecoration({
-      required String hint,
-      required IconData suffix,
-      Widget? prefix,
-    }) {
-      return InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: textSecondary),
-        filled: true,
-        fillColor: fieldBg,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
-        ),
-        prefixIcon: prefix,
-        suffixIcon: Icon(suffix, color: textSecondary),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
-      );
-    }
-
     const headingStyle = TextStyle(
       fontSize: 30,
       color: textPrimary,
@@ -291,37 +253,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             right: 0,
             top: 0,
             height: topHeight,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Container(
-                  color: AppColors.primary,
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
-                      child: Lottie.asset(
-                        'assets/lottie/auth_verify.json',
-                        fit: BoxFit.contain,
-                        repeat: true,
-                        animate: true,
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.18),
-                        Colors.black.withValues(alpha: 0.38),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: const SizedBox.expand(),
           ),
           SafeArea(
             child: Padding(
@@ -384,7 +316,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 ),
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 80),
+                  padding: EdgeInsets.fromLTRB(
+                    24,
+                    20,
+                    24,
+                    MediaQuery.of(context).viewInsets.bottom + 80,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -449,11 +386,17 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                           decoration: BoxDecoration(
                             color: Colors.red.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -473,11 +416,17 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                           decoration: BoxDecoration(
                             color: Colors.green.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: Colors.green.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
+                              const Icon(
+                                Icons.check_circle_outline,
+                                color: Colors.green,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -542,20 +491,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                           ),
                           onPressed: _isLoading ? null : _verifyOTP,
                           child: _isLoading
-                              ? Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(_tr('Verifying...', 'Inathibitisha...')),
-                                  ],
+                              ? const ShimmerBox(
+                                  width: 120,
+                                  height: 16,
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(999),
+                                  ),
                                 )
                               : Text(_tr('Verify Code', 'Thibitisha Nambari')),
                         ),
@@ -565,20 +506,27 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         child: Column(
                           children: [
                             Text(
-                              _tr('Didn\'t receive the code?', 'Hujapokea nambari?'),
+                              _tr(
+                                'Didn\'t receive the code?',
+                                'Hujapokea nambari?',
+                              ),
                               style: const TextStyle(color: textSecondary),
                             ),
                             const SizedBox(height: 8),
                             if (_resendCountdown > 0)
                               Countdown(
                                 seconds: _resendCountdown,
-                                build: (BuildContext context, double time) => Text(
-                                  _tr('Resend in ${time.toInt()}s', 'Tuma upya ${time.toInt()}s'),
-                                  style: const TextStyle(
-                                    color: textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                                build: (BuildContext context, double time) =>
+                                    Text(
+                                      _tr(
+                                        'Resend in ${time.toInt()}s',
+                                        'Tuma upya ${time.toInt()}s',
+                                      ),
+                                      style: const TextStyle(
+                                        color: textSecondary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                 onFinished: () {
                                   setState(() {
                                     _canResend = true;
@@ -587,22 +535,16 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                               )
                             else
                               TextButton(
-                                onPressed: (_isResending || !_canResend) ? null : _resendOTP,
+                                onPressed: (_isResending || !_canResend)
+                                    ? null
+                                    : _resendOTP,
                                 child: _isResending
-                                    ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(_tr('Sending...', 'Inatumika...')),
-                                        ],
+                                    ? const ShimmerBox(
+                                        width: 96,
+                                        height: 14,
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(999),
+                                        ),
                                       )
                                     : Text(
                                         _tr('Resend Code', 'Tuma Nambari Upya'),

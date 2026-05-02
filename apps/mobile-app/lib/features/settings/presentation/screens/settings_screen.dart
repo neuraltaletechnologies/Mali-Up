@@ -4,6 +4,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
+import '../../../../shared/widgets/mali_components.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -61,7 +62,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          _tr('Language changed to ${language.label}', 'Lugha imebadilishwa kuwa ${language.label}'),
+          _tr(
+            'Language changed to ${language.label}',
+            'Lugha imebadilishwa kuwa ${language.label}',
+          ),
         ),
         duration: const Duration(seconds: 2),
       ),
@@ -99,11 +103,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _tr('Tune your workspace', 'Boresha mazingira yako ya kazi'),
+                        _tr(
+                          'Tune your workspace',
+                          'Boresha mazingira yako ya kazi',
+                        ),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.secondary,
-                            ),
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.secondary,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -112,8 +119,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           'Binafsisha lugha na mwendo kwa matumizi yaliyo laini zaidi.',
                         ),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -130,9 +137,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(
               _tr('Language', 'Lugha'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.secondary,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondary,
+              ),
             ),
             const SizedBox(height: 16),
             Container(
@@ -144,7 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: _isLoadingLanguage
                   ? const Padding(
                       padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
+                      child: SkeletonList(itemCount: 2),
                     )
                   : Column(
                       children: AppLanguage.values.map((language) {
@@ -161,9 +168,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(
               _tr('Accessibility', 'Ufikiaji'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.secondary,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondary,
+              ),
             ),
             const SizedBox(height: 16),
             Container(
@@ -214,9 +221,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(
               _tr('About', 'Kuhusu'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.secondary,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondary,
+              ),
             ),
             const SizedBox(height: 16),
             Container(
@@ -311,8 +318,8 @@ class _LanguageSettingTileState extends State<_LanguageSettingTile> {
           color: _isHovered && widget.isSelected
               ? AppColors.primary.withValues(alpha: 0.15)
               : _isHovered
-                  ? AppColors.primary.withValues(alpha: 0.08)
-                  : Colors.transparent,
+              ? AppColors.primary.withValues(alpha: 0.08)
+              : Colors.transparent,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
@@ -326,7 +333,9 @@ class _LanguageSettingTileState extends State<_LanguageSettingTile> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: widget.isSelected ? AppColors.primary : AppColors.secondary,
+                          color: widget.isSelected
+                              ? AppColors.primary
+                              : AppColors.secondary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -352,10 +361,7 @@ class _LanguageSettingTileState extends State<_LanguageSettingTile> {
                     height: 24,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.border,
-                        width: 2,
-                      ),
+                      border: Border.all(color: AppColors.border, width: 2),
                     ),
                   ),
               ],

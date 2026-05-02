@@ -243,54 +243,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                         ],
                       ),
-                    const SizedBox(height: 32),
-                    if (_showHeavyContent)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _KPICard(
-                              title: isBusinessContext
-                                  ? _tr('Today Revenue', 'Mapato ya Leo')
-                                  : _tr('MBudget Health', 'Afya ya Bajeti ya Mwezi'),
-                              value: isBusinessContext ? _fmtCompactAmount(totalCash) : '${budgetHealth.round()}%',
-                              icon: isBusinessContext
-                                  ? Icons.trending_up
-                                  : Icons.favorite_outline,
-                              color: isBusinessContext
-                                  ? AppColors.success
-                                  : AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _KPICard(
-                              title: isBusinessContext
-                                ? _tr('Active Clients', 'Wateja Hai')
-                                : _tr('Tracked Expenses', 'Matumizi Yanayofuatiliwa'),
-                              value: isBusinessContext
-                                  ? '$customerCount'
-                                  : '${expenseItems.length}',
-                              icon: isBusinessContext
-                                  ? Icons.people_outline
-                                  : Icons.receipt_long_outlined,
-                              color: isBusinessContext
-                                  ? AppColors.primary
-                                  : AppColors.warning,
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      const _DashboardLoadingStrip(),
                     const SizedBox(height: 24),
                     if (_showHeavyContent)
                       if (isBusinessContext)
-                        _DebtQuickView(debts: debtItems)
+                        _BusinessHeroCard(
+                          totalCash: totalCash,
+                          totalExpenses: totalExpenses,
+                          customerCount: customerCount,
+                        )
                       else
-                        const _PersonalFinanceQuickView()
+                        _PersonalHeroCard(
+                          totalCash: totalCash,
+                          totalExpenses: totalExpenses,
+                          budgetHealth: budgetHealth.toDouble(),
+                        )
                     else
-                      const _DashboardLoadingCard(),
-                    const SizedBox(height: 32),
+                      const _DashboardHeroSkeleton(),
+                    const SizedBox(height: 20),
+                    if (isBusinessContext) ...[
+                      _ModuleGrid(showHeavyContent: _showHeavyContent),
+                      const SizedBox(height: 28),
+                    ] else
+                      const SizedBox(height: 8),
                     Text(
                       isBusinessContext
                           ? _tr('Sales Performance', 'Utendaji wa Mauzo')
@@ -406,49 +380,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-class _DashboardLoadingStrip extends StatelessWidget {
-  const _DashboardLoadingStrip();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        Expanded(
-          child: _DashboardLoadingCard(),
-        ),
-        SizedBox(width: 16),
-        Expanded(
-          child: _DashboardLoadingCard(),
-        ),
-      ],
-    );
-  }
-}
-
-class _DashboardLoadingCard extends StatelessWidget {
-  const _DashboardLoadingCard();
+class _DashboardHeroSkeleton extends StatelessWidget {
+  const _DashboardHeroSkeleton();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 122,
-      padding: const EdgeInsets.all(16),
+      height: 160,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
-      child: const Align(
-        alignment: Alignment.centerLeft,
-        child: ShimmerBox(
-          width: 120,
-          height: 12,
-          borderRadius: BorderRadius.all(Radius.circular(999)),
-        ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ShimmerBox(width: 100, height: 12, borderRadius: BorderRadius.all(Radius.circular(999))),
+          SizedBox(height: 12),
+          ShimmerBox(width: 180, height: 28, borderRadius: BorderRadius.all(Radius.circular(8))),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              ShimmerBox(width: 80, height: 10, borderRadius: BorderRadius.all(Radius.circular(999))),
+              SizedBox(width: 24),
+              ShimmerBox(width: 80, height: 10, borderRadius: BorderRadius.all(Radius.circular(999))),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
+
 
 class _DashboardLoadingPillRow extends StatelessWidget {
   const _DashboardLoadingPillRow();
@@ -580,133 +544,231 @@ class _DashboardHeaderSkeleton extends StatelessWidget {
   }
 }
 
-class _DebtQuickView extends StatelessWidget {
-  final List<dynamic> debts;
-  const _DebtQuickView({required this.debts});
+class _BusinessHeroCard extends StatelessWidget {
+  final double totalCash;
+  final double totalExpenses;
+  final int customerCount;
+
+  const _BusinessHeroCard({
+    required this.totalCash,
+    required this.totalExpenses,
+    required this.customerCount,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push(AppRouter.debtPath),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppColors.surface, AppColors.error.withValues(alpha: 0.05)],
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.navyPrimary, AppColors.navySecondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navyPrimary.withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-        ),
-        child: Row(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tr('Debt Exposure', 'Mzigo wa Madeni'),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(
-                      _fmtCompactAmount(debts.fold<double>(0, (total, debt) => total + _numericValue(debt.amount))),
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: AppColors.error,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _tr('PAYABLE', 'DENI LA KULIPA'),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.error,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.04),
+              ),
             ),
-            const Spacer(),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: AppColors.textMuted,
-              size: 16,
+          ),
+          Positioned(
+            right: 20,
+            bottom: -30,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.yellowBrand.withValues(alpha: 0.08),
+              ),
             ),
-          ],
-        ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _tr('Total Cash Balance', 'Jumla ya Fedha'),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.65),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _fmtCompactAmount(totalCash),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _HeroStat(
+                    icon: Icons.people_rounded,
+                    label: _tr('Clients', 'Wateja'),
+                    value: '$customerCount',
+                  ),
+                  const SizedBox(width: 24),
+                  _HeroStat(
+                    icon: Icons.payments_rounded,
+                    label: _tr('Expenses', 'Gharama'),
+                    value: _fmtCompactAmount(totalExpenses),
+                    valueColor: totalExpenses > 0 ? AppColors.warning : Colors.white,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _PersonalFinanceQuickView extends StatelessWidget {
-  const _PersonalFinanceQuickView();
+class _HeroStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const _HeroStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.5)),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                color: valueColor ?? Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PersonalHeroCard extends StatelessWidget {
+  final double totalCash;
+  final double totalExpenses;
+  final double budgetHealth;
+
+  const _PersonalHeroCard({
+    required this.totalCash,
+    required this.totalExpenses,
+    required this.budgetHealth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final healthColor = budgetHealth >= 60
+        ? AppColors.success
+        : budgetHealth >= 30
+            ? AppColors.warning
+            : AppColors.error;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _tr('Personal Focus', 'Kipaumbele Binafsi'),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.secondary,
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _tr('Budget Health', 'Afya ya Bajeti'),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${budgetHealth.round()}%',
+                      style: TextStyle(
+                        color: healthColor,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              _QuickRouteCard(
+                icon: Icons.payments_outlined,
+                title: _tr('Expenses', 'Matumizi'),
+                subtitle: _fmtCompactAmount(totalExpenses),
+                route: AppRouter.expensesPath,
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            _tr('Quickly jump into your personal priorities.', 'Nenda haraka kwenye vipaumbele vyako binafsi.'),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: budgetHealth / 100,
+              minHeight: 6,
+              backgroundColor: AppColors.border,
+              valueColor: AlwaysStoppedAnimation<Color>(healthColor),
+            ),
           ),
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: _QuickRouteCard(
-                  icon: Icons.payments_outlined,
-                  title: _tr('Expenses', 'Matumizi'),
-                  subtitle: _tr('Track spending', 'Fuatilia matumizi'),
-                  route: AppRouter.expensesPath,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _QuickRouteCard(
                   icon: Icons.account_balance_rounded,
                   title: _tr('Debt', 'Madeni'),
-                  subtitle: _tr('Obligations', 'Simamia majukumu'),
+                  subtitle: _tr('View all', 'Angalia yote'),
                   route: AppRouter.debtPath,
                 ),
               ),
@@ -714,8 +776,8 @@ class _PersonalFinanceQuickView extends StatelessWidget {
               Expanded(
                 child: _QuickRouteCard(
                   icon: Icons.account_balance_wallet_outlined,
-                  title: _tr('Cash Flow', 'Mtiririko wa Fedha'),
-                  subtitle: _tr('Plan this week', 'Panga wiki hii'),
+                  title: _tr('Cash Flow', 'Fedha'),
+                  subtitle: _fmtCompactAmount(totalCash),
                   route: AppRouter.cashFlowPath,
                 ),
               ),
@@ -744,34 +806,33 @@ class _QuickRouteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () => context.push(route),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(14),
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 18, color: AppColors.secondary),
-            const SizedBox(height: 8),
+            Icon(icon, size: 17, color: AppColors.secondary),
+            const SizedBox(height: 6),
             Text(
               title,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
             ),
-            const SizedBox(height: 2),
             Text(
               subtitle,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textMuted,
-                    fontSize: 10,
-                  ),
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 10,
+              ),
             ),
           ],
         ),
@@ -780,58 +841,92 @@ class _QuickRouteCard extends StatelessWidget {
   }
 }
 
-class _KPICard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
+class _ModuleGrid extends StatelessWidget {
+  final bool showHeavyContent;
 
-  const _KPICard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
+  const _ModuleGrid({required this.showHeavyContent});
+
+  static const _modules = [
+    (icon: Icons.receipt_long_rounded, labelEn: 'Tuma ankara', labelSw: 'Tuma ankara', color: Color(0xFF0D1B3E), route: AppRouter.salesPath),
+    (icon: Icons.inventory_2_rounded, labelEn: 'Hisa zangu', labelSw: 'Hisa zangu', color: Color(0xFF1A6E8A), route: AppRouter.inventoryPath),
+    (icon: Icons.people_alt_rounded, labelEn: 'Wateja wangu', labelSw: 'Wateja wangu', color: Color(0xFF059669), route: AppRouter.crmPath),
+    (icon: Icons.payments_rounded, labelEn: 'Gharama zangu', labelSw: 'Gharama zangu', color: Color(0xFFD97706), route: AppRouter.expensesPath),
+    (icon: Icons.account_balance_rounded, labelEn: 'Madeni', labelSw: 'Madeni', color: Color(0xFFDC2626), route: AppRouter.debtPath),
+    (icon: Icons.account_balance_wallet_rounded, labelEn: 'Mtiririko wa Fedha', labelSw: 'Mtiririko wa Fedha', color: Color(0xFF7C3AED), route: AppRouter.cashFlowPath),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.05)),
+    if (!showHeavyContent) {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 1.05,
+        ),
+        itemCount: 6,
+        itemBuilder: (context, i) => const ShimmerBox(
+          height: 90,
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.05,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
+      itemCount: _modules.length,
+      itemBuilder: (context, index) {
+        final module = _modules[index];
+        final label = _tr(module.labelEn, module.labelSw);
+        return InkWell(
+          onTap: () => context.go(module.route),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
             ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: module.color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(module.icon, size: 18, color: module.color),
                 ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppColors.secondary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
                 ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

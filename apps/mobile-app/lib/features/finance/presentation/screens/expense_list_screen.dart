@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../data/finance_providers.dart';
 import '../widgets/add_expense_dialog.dart';
 
@@ -27,11 +28,14 @@ class ExpenseListScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _tr('Stay in control of spending', 'Dhibiti matumizi yako'),
+                        _tr(
+                          'Stay in control of spending',
+                          'Dhibiti matumizi yako',
+                        ),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.secondary,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          color: AppColors.secondary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -40,8 +44,8 @@ class ExpenseListScreen extends ConsumerWidget {
                           'Fuatilia matumizi kwa makundi na dhibitisha gharama za kila mwezi.',
                         ),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -90,35 +94,48 @@ class ExpenseListScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     _FilterTab(label: _tr('Rent', 'Kodi'), isSelected: false),
                     const SizedBox(width: 12),
-                    _FilterTab(label: _tr('Tax', 'Kodi ya Serikali'), isSelected: false),
+                    _FilterTab(
+                      label: _tr('Tax', 'Kodi ya Serikali'),
+                      isSelected: false,
+                    ),
                     const SizedBox(width: 12),
-                    _FilterTab(label: _tr('Salaries', 'Mishahara'), isSelected: false),
+                    _FilterTab(
+                      label: _tr('Salaries', 'Mishahara'),
+                      isSelected: false,
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           Expanded(
             child: expensesAsync.when(
               data: (expenses) => ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 itemCount: expenses.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final expense = expenses[index];
                   return _ExpenseCard(expense: expense);
                 },
               ),
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: SkeletonList(itemCount: 5),
+              ),
               error: (_, _) => Center(
                 child: Text(
-                  _tr('Unable to load expenses right now.', 'Imeshindikana kupakia matumizi kwa sasa.'),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
+                  _tr(
+                    'Unable to load expenses right now.',
+                    'Imeshindikana kupakia matumizi kwa sasa.',
+                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
                 ),
               ),
             ),
@@ -128,7 +145,10 @@ class ExpenseListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddExpenseDialog(context),
         backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.receipt_long_rounded, color: AppColors.secondary),
+        icon: const Icon(
+          Icons.receipt_long_rounded,
+          color: AppColors.secondary,
+        ),
         label: Text(
           _tr('Add Expense', 'Ongeza Matumizi'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -141,8 +161,11 @@ class ExpenseListScreen extends ConsumerWidget {
   }
 
   void _showAddExpenseDialog(BuildContext context) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => const AddExpenseDialog(),
     );
   }
@@ -158,9 +181,13 @@ class _FilterTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+        color: isSelected
+            ? AppColors.primary.withValues(alpha: 0.1)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isSelected ? AppColors.primary : AppColors.glassBorder),
+        border: Border.all(
+          color: isSelected ? AppColors.primary : AppColors.glassBorder,
+        ),
       ),
       child: Text(
         label,
@@ -194,7 +221,11 @@ class _ExpenseCard extends StatelessWidget {
               color: const Color(0xFF334155),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.outbound_rounded, color: AppColors.error, size: 24),
+            child: const Icon(
+              Icons.outbound_rounded,
+              color: AppColors.error,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
