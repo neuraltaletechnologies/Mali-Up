@@ -8,6 +8,7 @@ import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
+import 'mali_components.dart';
 
 
 class MainShellPage extends StatefulWidget {
@@ -314,8 +315,8 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                       children: [
                         _DrawerItemLight(
                           icon: Icons.grid_view_rounded,
-                          label: 'Dashboard',
-                          semanticsLabel: _tr('Dashboard, main app section', 'Dashboard, sehemu kuu ya biashara'),
+                          label: _tr('Hali ya biashara', 'Hali ya biashara'),
+                          semanticsLabel: _tr('Dashboard, business overview', 'Hali ya biashara, muhtasari wa biashara'),
                           selected: isDashboard,
                           onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
                         ),
@@ -323,25 +324,24 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                         if (isBusinessContext) ...[
                           _DrawerItemLight(
                             icon: Icons.receipt_long_rounded,
-                            label: _tr('Sales & Invoices', 'Mauzo na Ankara'),
-                            semanticsLabel: _tr('Sales and invoices', 'Mauzo na Ankara, sales and invoices'),
+                            label: _tr('Tuma ankara', 'Tuma ankara'),
+                            semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
                             selected: _isSelected(location, AppRouter.salesPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
-                            trailingBadge: '3',
                           ),
                           const SizedBox(height: 4),
                           _DrawerItemLight(
                             icon: Icons.inventory_2_rounded,
-                            label: _tr('Inventory', 'Bidhaa / Inventory'),
-                            semanticsLabel: _tr('Inventory management', 'Bidhaa, inventory management'),
+                            label: _tr('Hisa zangu', 'Hisa zangu'),
+                            semanticsLabel: _tr('My stock and inventory', 'Hisa zangu, usimamizi wa bidhaa'),
                             selected: _isSelected(location, AppRouter.inventoryPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
                           ),
                           const SizedBox(height: 4),
                           _DrawerItemLight(
                             icon: Icons.people_alt_rounded,
-                            label: _tr('Customers', 'Wateja / Customers'),
-                            semanticsLabel: _tr('Customer relationship management', 'Wateja, customer relationship management'),
+                            label: _tr('Wateja wangu', 'Wateja wangu'),
+                            semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
                             selected: _isSelected(location, AppRouter.crmPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
                           ),
@@ -353,48 +353,48 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           const SizedBox(height: 8),
                           _DrawerItemLight(
                             icon: Icons.account_balance_rounded,
-                            label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
-                            semanticsLabel: _tr('Debt tracking', 'Madeni, debt tracking'),
+                            label: _tr('Madeni', 'Madeni'),
+                            semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
                             selected: _isSelected(location, AppRouter.debtPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
                           ),
                           const SizedBox(height: 4),
                           _DrawerItemLight(
                             icon: Icons.payments_outlined,
-                            label: _tr('Expenses', 'Matumizi / Expenses'),
-                            semanticsLabel: _tr('Expense management', 'Matumizi, expense management'),
+                            label: _tr('Gharama zangu', 'Gharama zangu'),
+                            semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
                             selected: _isSelected(location, AppRouter.expensesPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
                           ),
                           const SizedBox(height: 4),
                           _DrawerItemLight(
                             icon: Icons.account_balance_wallet_outlined,
-                            label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
-                            semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha, cash flow and accounts'),
+                            label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
+                            semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
                             selected: _isSelected(location, AppRouter.cashFlowPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
                           ),
                         ] else ...[
                           _DrawerItemLight(
                             icon: Icons.payments_outlined,
-                            label: _tr('Expenses', 'Matumizi / Expenses'),
-                            semanticsLabel: _tr('Expense management', 'Matumizi, expense management'),
+                            label: _tr('Gharama zangu', 'Gharama zangu'),
+                            semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
                             selected: _isSelected(location, AppRouter.expensesPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
                           ),
                           const SizedBox(height: 4),
                           _DrawerItemLight(
                             icon: Icons.account_balance_rounded,
-                            label: _tr('Debt Tracking', 'Madeni / Debt Tracking'),
-                            semanticsLabel: _tr('Debt tracking', 'Madeni, debt tracking'),
+                            label: _tr('Madeni', 'Madeni'),
+                            semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
                             selected: _isSelected(location, AppRouter.debtPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
                           ),
                           const SizedBox(height: 4),
                           _DrawerItemLight(
                             icon: Icons.account_balance_wallet_outlined,
-                            label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
-                            semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha, cash flow and accounts'),
+                            label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
+                            semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
                             selected: _isSelected(location, AppRouter.cashFlowPath),
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
                           ),
@@ -402,7 +402,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                         const SizedBox(height: 4),
                         _DrawerItemLight(
                           icon: Icons.storefront_rounded,
-                          label: _tr('Manage Businesses', 'Simamia Biashara'),
+                          label: _tr('Simamia Biashara', 'Simamia Biashara'),
                           semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
                           selected: _isSelected(location, AppRouter.businessesPath),
                           onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
@@ -415,16 +415,16 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                         const SizedBox(height: 8),
                         _DrawerItemLight(
                           icon: Icons.settings_rounded,
-                          label: _tr('Settings', 'Mipangilio / Settings'),
-                          semanticsLabel: _tr('App settings', 'Mipangilio, app settings'),
+                          label: _tr('Mipangilio', 'Mipangilio'),
+                          semanticsLabel: _tr('App settings', 'Mipangilio ya programu'),
                           selected: _isSelected(location, AppRouter.settingsPath),
                           onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
                         ),
                         const SizedBox(height: 4),
                         _DrawerItemLight(
                           icon: Icons.headset_mic_rounded,
-                          label: _tr('Help & Support', 'Msaada / Help & Support'),
-                          semanticsLabel: _tr('Help and support', 'Msaada na support'),
+                          label: _tr('Msaada', 'Msaada'),
+                          semanticsLabel: _tr('Help and support', 'Msaada na usaidizi'),
                           onTap: () => Navigator.of(dialogContext).pop(),
                         ),
                       ],
@@ -506,74 +506,74 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
     return index >= 0 ? index : 0;
   }
 
-  static List<_NavDestination> _businessNavDestinations() {
-    return const [
+  List<_NavDestination> _businessNavDestinations() {
+    return [
       _NavDestination(
         route: AppRouter.dashboardPath,
-        label: 'Home',
+        label: _tr('Home', 'Nyumbani'),
         icon: Icons.grid_view_outlined,
         activeIcon: Icons.grid_view_rounded,
       ),
       _NavDestination(
         route: AppRouter.salesPath,
-        label: 'Sales',
+        label: _tr('Invoices', 'Ankara'),
         icon: Icons.receipt_outlined,
         activeIcon: Icons.receipt_rounded,
       ),
       _NavDestination(
         route: AppRouter.inventoryPath,
-        label: 'Stock',
+        label: _tr('Stock', 'Hisa'),
         icon: Icons.inventory_2_outlined,
         activeIcon: Icons.inventory_2_rounded,
       ),
       _NavDestination(
         route: AppRouter.crmPath,
-        label: 'Customers',
+        label: _tr('Clients', 'Wateja'),
         icon: Icons.people_outline_rounded,
         activeIcon: Icons.people_rounded,
       ),
     ];
   }
 
-  static List<_NavDestination> _personalNavDestinations() {
-    return const [
+  List<_NavDestination> _personalNavDestinations() {
+    return [
       _NavDestination(
         route: AppRouter.dashboardPath,
-        label: 'Home',
+        label: _tr('Home', 'Nyumbani'),
         icon: Icons.grid_view_outlined,
         activeIcon: Icons.grid_view_rounded,
       ),
       _NavDestination(
         route: AppRouter.expensesPath,
-        label: 'Expenses',
+        label: _tr('Expenses', 'Matumizi'),
         icon: Icons.payments_outlined,
         activeIcon: Icons.payments_rounded,
       ),
       _NavDestination(
         route: AppRouter.debtPath,
-        label: 'Debt',
+        label: _tr('Debt', 'Madeni'),
         icon: Icons.account_balance_outlined,
         activeIcon: Icons.account_balance_rounded,
       ),
       _NavDestination(
         route: AppRouter.cashFlowPath,
-        label: 'Cash Flow',
+        label: _tr('Fedha', 'Fedha'),
         icon: Icons.account_balance_wallet_outlined,
         activeIcon: Icons.account_balance_wallet_rounded,
       ),
     ];
   }
 
-  static String _pageTitle(String location) {
-    if (location.startsWith(AppRouter.salesPath)) return 'Sales & Invoices';
-    if (location.startsWith(AppRouter.inventoryPath)) return 'Inventory';
-    if (location.startsWith(AppRouter.crmPath)) return 'Customers';
-    if (location.startsWith(AppRouter.debtPath)) return 'Debt & Payables';
-    if (location.startsWith(AppRouter.expensesPath)) return 'Expenses';
-    if (location.startsWith(AppRouter.cashFlowPath)) return 'Cash Flow';
-    if (location.startsWith(AppRouter.settingsPath)) return 'Settings';
-    if (location.startsWith(AppRouter.businessesPath)) return 'Manage Businesses';
-    return 'Dashboard';
+  String _pageTitle(String location) {
+    if (location.startsWith(AppRouter.salesPath)) return _tr('Tuma ankara', 'Tuma ankara');
+    if (location.startsWith(AppRouter.inventoryPath)) return _tr('Hisa zangu', 'Hisa zangu');
+    if (location.startsWith(AppRouter.crmPath)) return _tr('Wateja wangu', 'Wateja wangu');
+    if (location.startsWith(AppRouter.debtPath)) return _tr('Madeni', 'Madeni');
+    if (location.startsWith(AppRouter.expensesPath)) return _tr('Gharama zangu', 'Gharama zangu');
+    if (location.startsWith(AppRouter.cashFlowPath)) return _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha');
+    if (location.startsWith(AppRouter.settingsPath)) return _tr('Settings', 'Mipangilio');
+    if (location.startsWith(AppRouter.businessesPath)) return _tr('Manage Businesses', 'Simamia Biashara');
+    return _tr('Hali ya biashara', 'Hali ya biashara');
   }
 
   static bool _isSelected(String location, String route) {
@@ -637,10 +637,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
       future: _profileFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done && snapshot.data == null) {
-          return const Scaffold(
-            backgroundColor: AppColors.background,
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const SkeletonScreen(hasHeader: false, listItems: 6);
         }
 
         final profileData = snapshot.data;
