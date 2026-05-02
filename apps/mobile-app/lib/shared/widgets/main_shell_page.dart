@@ -507,6 +507,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             ),
                           ),
                         ),
+                      ],
                     ),
                   ),
                 ],

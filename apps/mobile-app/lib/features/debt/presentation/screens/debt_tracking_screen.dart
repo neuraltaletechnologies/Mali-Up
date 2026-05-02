@@ -7,13 +7,41 @@ import '../../data/debt_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-class DebtTrackingScreen extends ConsumerWidget {
+class DebtTrackingScreen extends ConsumerStatefulWidget {
   const DebtTrackingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DebtTrackingScreen> createState() => _DebtTrackingScreenState();
+}
+
+class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen> {
+  late TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final debts = ref.watch(debtListProvider);
-    final debtItems = debts.maybeWhen(data: (items) => items, orElse: () => const []);
+    final allDebtItems = debts.maybeWhen(data: (items) => items, orElse: () => const []);
+
+    // Filter debts based on search
+    final filteredDebtItems = _searchController.text.isEmpty
+        ? allDebtItems
+        : allDebtItems
+            .where((debt) =>
+                debt.partyName.toLowerCase().contains(_searchController.text.toLowerCase()) ||
+                debt.status.toLowerCase().contains(_searchController.text.toLowerCase()))
+            .toList();
 
     return Scaffold(
       body: CustomScrollView(
@@ -63,9 +91,40 @@ class DebtTrackingScreen extends ConsumerWidget {
               child: _DebtOverviewBoard(),
             ),
           ),
+
+          // Search bar
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: _tr('Search by party name or status...', 'Tafuta kwa jina au hali...'),
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  filled: true,
+                  fillColor: AppColors.card,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onChanged: (value) => setState(() {}),
+              ),
+            ),
+          ),
           
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             sliver: SliverToBoxAdapter(
               child: Text(
                 _tr('Recent Debt Movements', 'Mienendo ya Madeni ya Karibuni'),
@@ -78,20 +137,46 @@ class DebtTrackingScreen extends ConsumerWidget {
             ),
           ),
           
-          SliverPadding(
-            padding: const EdgeInsets.all(24),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final debt = debtItems[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _DebtCard(debt: debt),
-                  );
-                },
-                childCount: debtItems.length,
+          if (filteredDebtItems.isEmpty)
+            SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 64),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.receipt_outlined, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        _tr('No debts found', 'Hakuna madeni yaliofumanwa'),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final debt = filteredDebtItems[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _DebtCard(debt: debt),
+                    );
+                  },
+                  childCount: filteredDebtItems.length,
+                ),
               ),
             ),
+          
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 24),
           ),
         ],
       ),
