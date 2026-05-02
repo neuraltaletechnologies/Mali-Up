@@ -1,13 +1,16 @@
-# MaliUp Purchase Service
+# Mali Up Purchase Service
 
-Microservice managing the procurement lifecycle from supplier management to purchase orders.
+Future backend contract for procurement and supplier workflows.
 
-## 🚀 Responsibilities
-- Supplier profile and performance tracking.
-- Purchase Order (PO) creation and workflows.
-- Goods Received Note (GRN) matching.
-- Supplier payment recording.
-- Reorder suggestions based on lead times.
+## Status
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+- Not part of the Phase 1 MVP.
+- Planned for later business expansion after invoicing and inventory are validated.
+
+## Future Responsibilities
+
+- Supplier records.
+- Purchase orders and receiving.
+- Purchase costing and payment tracking.
+
+Part of the [Mali Up](../../README.md) suite.

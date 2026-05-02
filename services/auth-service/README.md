@@ -1,26 +1,18 @@
-# MaliUp Auth Service
+# Mali Up Auth Service
 
-Microservice responsible for high-security authentication and authorization across the MaliUp ecosystem.
+Future backend contract for authentication and identity workflows.
 
-## 🚀 Responsibilities
-- User registration and login flow.
-- JWT Access and Refresh token management (RS256).
-- Two-Factor Authentication (2FA) via TOTP.
-- Session invalidation and security audits.
-- Password/OTP verification logic.
+## Status
 
-## 🛠 Tech Stack
-- **Runtime:** Node.js 20
-- **Framework:** Fastify + TypeScript
-- **ORM:** Prisma
-- **Auth:** Argon2 (Password hashing), Passport.js/Fastify-Auth
-- **Communication:** REST API, RabbitMQ
+- Not part of the Phase 1 mobile MVP implementation.
+- The current app uses Firebase Auth directly.
+- This service will later own auth orchestration, role claims, and session policy.
 
-## 📊 Endpoints
-- `POST /auth/login`
-- `POST /auth/register`
-- `POST /auth/refresh`
-- `POST /auth/2fa/verify`
+## Future Responsibilities
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+- OTP and sign-in orchestration.
+- Session and token policy.
+- Role and claim enforcement.
+- Staff and admin authentication flows.
+
+Part of the [Mali Up](../../README.md) suite.

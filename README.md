@@ -1,102 +1,77 @@
-# MaliUp — SaaS Business Management Suite
+# Mali Up - Business Edition
 
-![Neuraltale](https://img.shields.io/badge/Neuraltale-MaliUp-6366f1?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-1.0-blue?style=for-the-badge)
-![Stack](https://img.shields.io/badge/Flutter-Fastify-informational?style=for-the-badge)
+![Neuraltale](https://img.shields.io/badge/Neuraltale-Mali%20Up-0D1B3E?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-B%201.0-1A6E8A?style=for-the-badge)
+![Stack](https://img.shields.io/badge/Flutter-Firebase-Riverpod-059669?style=for-the-badge)
 
-MaliUp is a cloud-native, multi-tenant SaaS mobile application designed and engineered by **Neuraltale** to empower small and medium-sized businesses (SMBs) across Africa and emerging markets. Built on a microservice architecture, MaliUp delivers a full-stack business management suite inside a single, elegant mobile application.
+Mali Up B v1.0 is the current business-only MVP for Tanzanian small business owners. It is a premium fintech-style Flutter app backed by Firebase, Riverpod, and a feature-first architecture that is ready to grow into a microservice-based platform later.
 
----
+## Current Scope
 
-## 🏗 System Architecture
+The MVP ships only five core modules:
 
-MaliUp uses a **Multi-Tenant Microservice Architecture**.
+- Hali ya biashara
+- Tuma ankara
+- Wateja wangu
+- Gharama zangu
+- Hisa zangu
 
-- **Frontend:** Flutter (Mobile) & Next.js (Web Dashboard).
-- **Backend:** Node.js (Fastify + TypeScript) Microservices.
-- **Data Layer:** PostgreSQL (Relational) + MongoDB (Document) + Redis (Cache).
-- **Isolation Strategy:** Schema-per-Tenant in PostgreSQL for complete data isolation.
+All personal finance modules and advanced business modules are deferred to later phases and preserved in the architecture document.
 
-### Technology Stack
-- **Mobile:** Flutter 3.x, BLoC/Riverpod, Drift (SQLite) for offline-first.
-- **Backend:** Node.js 20 LTS, Fastify, Prisma ORM, Zod validation.
-- **Infrastructure:** Docker, Kubernetes, RabbitMQ (Message Broker).
+## Architecture
 
----
+| Area | Current Decision |
+| --- | --- |
+| Mobile app | Flutter 3.x |
+| State management | Riverpod from day one |
+| Data access | Repository interfaces over Firestore |
+| Backend direction | Microservice-ready, Cloud Functions later |
+| UI style | Premium Fintech White |
+| Language | Swahili-first, English fallback |
 
-## 📂 Project Structure
+## Repository Layout
 
 ```text
-MaliUp/
+Mali-Up/
 ├── apps/
-│   ├── mobile-app/          # Flutter Mobile Application
-│   └── web-app/             # Next.js Admin/Owner Dashboard
-├── services/
-│   ├── auth-service/        # JWT Authentication & 2FA
-│   ├── user-service/        # RBAC & User Management
-│   ├── tenant-service/      # Tenant Onboarding & Billing
-│   ├── sales-service/       # Invoicing & POS Logic
-│   ├── customer-service/    # CRM & Client Management
-│   ├── inventory-service/   # Stock & Warehouse Management
-│   ├── purchase-service/    # Procurement & Supplier Management
-│   ├── finance-service/     # Cash Flow & Expense Tracking
-│   ├── debt-service/        # Receivables & Payables
-│   ├── analytics-service/   # Business Intelligence & Reports
-│   ├── notification-service/ # Push, SMS & Email
-│   ├── file-service/        # Document & Image Management
-│   └── Payment-service/     # Payment Gateway Integration
-└── docker-compose.yml       # Local Development Infrastructure
+│   ├── mobile-app/   # Current MVP app
+│   └── web-app/      # Product site / future web shell
+├── services/         # Future backend service contracts
+├── docs/             # Source-of-truth architecture docs
+└── docker-compose.yml
 ```
 
----
+## Getting Started
 
-## 🚀 Getting Started
+### Mobile App
 
-### Prerequisites
-- [Flutter SDK](https://docs.flutter.dev/get-started/install)
-- [Node.js 20+](https://nodejs.org/)
-- [Docker](https://www.docker.com/) & Docker Compose
-
-### Local Infrastructure
-Start the core services (PostgreSQL, MongoDB, Redis, RabbitMQ):
 ```bash
-docker-compose up -d
+cd apps/mobile-app
+flutter pub get
+flutter run
 ```
 
-### Development
-1.  **Backend Services:** Each service in `/services` is a standalone Node.js application. Navigate to a service folder and run:
-    ```bash
-    npm install
-    npm run dev
-    ```
-2.  **Mobile App:**
-    ```bash
-    cd apps/mobile-app
-    flutter pub get
-    flutter run
-    ```
+### Web App
 
----
+```bash
+cd apps/web-app
+pnpm install
+pnpm dev
+```
 
-## 📈 Roadmap (7 Phases)
+## Roadmap
 
-| Phase | Milestone | Deliverables | Status |
-| :--- | :--- | :--- | :--- |
-| **Phase 1** | **Foundation** | Project Setup, Auth & Tenant Services | 🏁 *Current* |
-| **Phase 2** | **Core Modules** | Sales, CRM, Inventory, Procurement | ⏳ |
-| **Phase 3** | **Finance** | Expenses, Cash Flow, Debt Tracking | ⏳ |
-| **Phase 4** | **Intelligence** | Analytics, Reports, Dashboard | ⏳ |
-| **Phase 5** | **Polish** | Offline Sync, UI/UX, Notifications | ⏳ |
-| **Phase 6** | **Launch** | Beta testing, Beta release | ⏳ |
-| **Phase 7** | **Post-Launch** | Scaling, Multi-language (Swahili) | ⏳ |
+| Phase | Timeline | Focus |
+| --- | --- | --- |
+| Phase 1 | Weeks 1-8 | Business MVP: auth, dashboard, invoices, customers, expenses, inventory |
+| Phase 2 | Weeks 9-12 | M-Pesa integration, subscription paywall, push notifications, Play Store launch |
+| Phase 3 | v1.5 | Personal finance modules, Drift offline support, GoRouter |
+| Phase 4 | v2.0 | Context engine, multi-business, full business suite, staff roles, iOS launch |
 
----
+## Documentation
 
-## 📜 Documentation
-Full Technical Architecture and Module Specifications can be found in the Internal Design Docs.
-
----
+The current blueprint lives in [docs/MaliUp_v3.0.md](docs/MaliUp_v3.0.md).
 
 ### Internal Use Only
-Built with ❤ by **Neuraltale Engineering**
-© 2026 Neuraltale Technologies. Confidential — Internal Use Only.
+
+Built by Neuraltale Engineering for internal product development.

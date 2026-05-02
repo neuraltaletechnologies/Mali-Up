@@ -1,14 +1,18 @@
-# MaliUp Finance Service
+# Mali Up Finance Service
 
-Microservice providing real-time visibility into the business's cash position and expense management.
+Future backend contract for business expenses and cash flow workflows.
 
-## 🚀 Responsibilities
-- Multi-account tracking (Cash drawer, Mobile Money, Bank).
-- Deposit and withdrawal recording.
-- Inter-account transfers.
-- Expense categorization and receipt capture.
-- Budget vs. Actual comparison.
-- Daily cash reconciliation.
+## Status
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+- Not part of the Phase 1 MVP backend.
+- Expense records are currently handled by the mobile app and Firestore.
+- This service becomes relevant when cash flow and deeper finance rules move to backend services.
+
+## Future Responsibilities
+
+- Expense capture and categorization.
+- Cash movement and reconciliation.
+- Account balances and transfers.
+- Budget comparison and finance summaries.
+
+Part of the [Mali Up](../../README.md) suite.

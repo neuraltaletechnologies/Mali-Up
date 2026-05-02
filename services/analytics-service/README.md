@@ -1,14 +1,16 @@
-# MaliUp Analytics Service
+# Mali Up Analytics Service
 
-Microservice responsible for aggregating data and generating actionable business intelligence.
+Future backend contract for reporting and dashboard analytics.
 
-## 🚀 Responsibilities
-- Real-time Dashboard KPI calculations.
-- Financial report generation (P&L, Balance Sheet, Cash Flow).
-- Sales trend analysis and top product rankings.
-- Inventory valuation reporting.
-- Tax summary reports for compliance.
-- PDF and Excel export logic.
+## Status
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+- Not part of the Phase 1 backend scope.
+- Basic dashboard metrics are currently expected from repository aggregation methods.
+
+## Future Responsibilities
+
+- Revenue and expense summaries.
+- Trends and comparative charts.
+- Business performance reports.
+
+Part of the [Mali Up](../../README.md) suite.

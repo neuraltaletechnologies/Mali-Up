@@ -1,12 +1,17 @@
-# MaliUp Payment Service
+# Mali Up Payment Service
 
-Microservice responsible for processing online payments and mobile money integrations.
+Future backend contract for premium billing and payment orchestration.
 
-## 🚀 Responsibilities
-- M-Pesa, Tigo Pesa, and Airtel Money integration.
-- Transaction status tracking and webhook handling.
-- Escrow and commission calculations (if applicable).
-- Payment reconciliation.
+## Status
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+- Not part of the Phase 1 MVP.
+- Initial payment verification is manual in the current product plan.
+- This service becomes relevant for M-Pesa automation and subscription billing later.
+
+## Future Responsibilities
+
+- Premium subscription billing.
+- M-Pesa payment verification.
+- Payment status tracking and receipts.
+
+Part of the [Mali Up](../../README.md) suite.

@@ -1,16 +1,18 @@
-# MaliUp Notification Service
+# Mali Up Notification Service
 
-Centralized service for handling all outgoing communications with users and customers.
+Future backend contract for alerts and customer communication.
 
-## 🚀 Responsibilities
-- Push notifications via Firebase Cloud Messaging (FCM).
-- SMS alerts for payment reminders and receipts.
-- Email reporting and invoice delivery.
-- In-app alerts and announcements.
+## Status
 
-## 🛠 Tech Stack
-- **Runtime:** Node.js 20
-- **Providers:** Firebase, Twilio/SMS-Gateway, SendGrid/Nodemailer
+- Not part of the Phase 1 backend implementation.
+- The mobile app can still consume Firebase notifications directly for MVP needs.
+- This service will later own scheduled and business-critical notification workflows.
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+## Future Responsibilities
+
+- Push notifications.
+- Payment and invoice reminders.
+- Email and SMS delivery.
+- Scheduled alerts and announcements.
+
+Part of the [Mali Up](../../README.md) suite.

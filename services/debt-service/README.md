@@ -1,14 +1,16 @@
-# MaliUp Debt Service
+# Mali Up Debt Service
 
-Microservice dedicated to tracking receivables and payables to ensure healthy cash flow.
+Future backend contract for receivables and payables workflows.
 
-## 🚀 Responsibilities
-- Tracking outstanding invoices (Receivables).
-- Tracking supplier bills (Payables).
-- Automated payment reminders via SMS/Push.
-- Partial payment management.
-- Debt aging reporting (0-30, 31-60, 61-90+ days).
-- Bad debt write-off workflows.
+## Status
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+- Not part of the Phase 1 MVP.
+- This domain is reserved for later cash-flow and reporting expansion.
+
+## Future Responsibilities
+
+- Customer balances and overdue items.
+- Supplier payables.
+- Debt aging and write-off workflows.
+
+Part of the [Mali Up](../../README.md) suite.

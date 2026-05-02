@@ -1,20 +1,16 @@
-# MaliUp Tenant Service
+# Mali Up Tenant Service
 
-Microservice managing the multi-tenant infrastructure, onboarding, and SaaS subscriptions.
+Future backend contract for multi-business and account lifecycle management.
 
-## 🚀 Responsibilities
-- Tenant registration and schema provisioning.
-- Subscription plan management (Pricing tiers).
-- Tenant-specific application settings.
-- Billing integration for SaaS fees.
-- Logic for logical isolation of business data.
+## Status
 
-## 🛠 Tech Stack
-- **Runtime:** Node.js 20
-- **Framework:** Fastify + TypeScript
-- **ORM:** Prisma
-- **Database:** PostgreSQL (Public Schema)
-- **Messaging:** RabbitMQ (Publishes `tenant.created` events)
+- Not part of the Phase 1 business MVP.
+- Multi-business support is preserved for the v2.0 future roadmap.
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+## Future Responsibilities
+
+- Business workspace lifecycle.
+- Subscription and plan metadata.
+- Multi-business switching support.
+
+Part of the [Mali Up](../../README.md) suite.
