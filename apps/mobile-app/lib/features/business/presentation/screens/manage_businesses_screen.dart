@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -41,6 +42,105 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   }
 
   String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+  String _normalizeBucketName(String bucket) {
+    var value = bucket.trim();
+    if (value.startsWith('gs://')) {
+      value = value.substring(5);
+    }
+    if (value.endsWith('/')) {
+      value = value.substring(0, value.length - 1);
+    }
+    return value;
+  }
+
+  String _fileExtension(String path) {
+    final dot = path.lastIndexOf('.');
+    if (dot <= -1 || dot >= path.length - 1) return '.jpg';
+    final ext = path.substring(dot).toLowerCase();
+    if (ext == '.jpg' || ext == '.jpeg' || ext == '.png' || ext == '.webp') {
+      return ext;
+    }
+    return '.jpg';
+  }
+
+  String _contentTypeFromExtension(String ext) {
+    switch (ext) {
+      case '.png':
+        return 'image/png';
+      case '.webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  bool _isBucketResolutionError(FirebaseException e) {
+    return e.code == 'object-not-found' ||
+        e.code == 'bucket-not-found' ||
+        e.code == 'unknown';
+  }
+
+  Future<String> _uploadBusinessLogo({
+    required String userId,
+    required String businessId,
+    required File file,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final ext = _fileExtension(file.path);
+    final objectPath = 'businesses/$userId/$businessId/logo_$now$ext';
+    final metadata = SettableMetadata(
+      contentType: _contentTypeFromExtension(ext),
+      cacheControl: 'public,max-age=3600',
+    );
+
+    final attempts = <MapEntry<String, FirebaseStorage>>[
+      MapEntry('default', FirebaseStorage.instance),
+    ];
+
+    final configuredBucket = _normalizeBucketName(
+      Firebase.app().options.storageBucket ?? '',
+    );
+    final projectId = Firebase.app().options.projectId.trim();
+
+    final fallbackBuckets = <String>{
+      if (configuredBucket.isNotEmpty) configuredBucket,
+      if (projectId.isNotEmpty) '$projectId.appspot.com',
+      if (projectId.isNotEmpty) '$projectId.firebasestorage.app',
+    };
+
+    for (final bucket in fallbackBuckets) {
+      attempts.add(
+        MapEntry(
+          bucket,
+          FirebaseStorage.instanceFor(bucket: 'gs://$bucket'),
+        ),
+      );
+    }
+
+    FirebaseException? lastFirebaseError;
+
+    for (final attempt in attempts) {
+      try {
+        final ref = attempt.value.ref().child(objectPath);
+        await ref.putFile(file, metadata);
+        return await ref.getDownloadURL();
+      } on FirebaseException catch (e) {
+        lastFirebaseError = e;
+        debugPrint(
+          'Logo upload failed on ${attempt.key}: code=${e.code}, message=${e.message}',
+        );
+        if (!_isBucketResolutionError(e)) rethrow;
+      }
+    }
+
+    throw lastFirebaseError ??
+        FirebaseException(
+          plugin: 'firebase_storage',
+          code: 'unknown',
+          message: 'Logo upload failed for all configured storage buckets.',
+        );
+  }
 
   Future<Map<String, dynamic>?> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -249,12 +349,25 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                           String? newLogoUrl = existingLogoUrl;
                           if (pickedLogoFile != null) {
                             try {
-                              final ref = FirebaseStorage.instance
-                                  .ref('businesses/${user.uid}/$businessId/logo.jpg');
-                              await ref.putFile(pickedLogoFile!);
-                              newLogoUrl = await ref.getDownloadURL();
-                            } catch (e) {
-                              debugPrint('Logo upload failed: $e');
+                              newLogoUrl = await _uploadBusinessLogo(
+                                userId: user.uid,
+                                businessId: businessId,
+                                file: pickedLogoFile!,
+                              );
+                            } on FirebaseException catch (e) {
+                              debugPrint('Logo upload failed: ${e.code} ${e.message}');
+                              if (mounted) {
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      _tr(
+                                        'Logo upload failed. Business details were saved without changing logo.',
+                                        'Kupakia nembo kumeshindikana. Taarifa za biashara zimehifadhiwa bila kubadilisha nembo.',
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
                             }
                           }
 
