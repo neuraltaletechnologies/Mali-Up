@@ -15,18 +15,47 @@ String _fmtCustomerBalance(double amount) {
   return 'TSh ${amount.toStringAsFixed(0)}';
 }
 
-class CustomerListScreen extends ConsumerWidget {
+class CustomerListScreen extends ConsumerStatefulWidget {
   const CustomerListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CustomerListScreen> createState() => _CustomerListScreenState();
+}
+
+class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
+  late TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final customers = ref.watch(customerListProvider);
-    final customerItems = customers.maybeWhen(
+    final allCustomers = customers.maybeWhen(
       data: (items) => items,
       orElse: () => const [],
     );
-    final totalBalance = customerItems.fold<double>(
+
+    // Filter customers based on search
+    final filteredCustomers = _searchController.text.isEmpty
+        ? allCustomers
+        : allCustomers
+            .where((customer) =>
+                customer.name.toLowerCase().contains(_searchController.text.toLowerCase()) ||
+                customer.phone.toLowerCase().contains(_searchController.text.toLowerCase()))
+            .toList();
+
+    final totalBalance = filteredCustomers.fold<double>(
       0,
       (sum, c) => sum + (double.tryParse(c.balance) ?? 0),
     );
@@ -50,6 +79,35 @@ class CustomerListScreen extends ConsumerWidget {
             ),
           ),
 
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: _tr('Search by name or phone...', 'Tafuta kwa jina au simu...'),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                filled: true,
+                fillColor: AppColors.card,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (value) => setState(() {}),
+            ),
+          ),
+
           // CRM Summary Header - Compact card style
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -64,7 +122,7 @@ class CustomerListScreen extends ConsumerWidget {
               children: [
                 _CompactStat(
                   label: _tr('Clients', 'Wateja'),
-                  value: '${customerItems.length}',
+                  value: '${filteredCustomers.length}',
                   icon: Icons.people_alt_outlined,
                 ),
                 Container(width: 1, height: 20, color: AppColors.border),
@@ -80,15 +138,31 @@ class CustomerListScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              itemCount: customerItems.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final customer = customerItems[index];
-                return _CustomerCard(customer: customer);
-              },
-            ),
+            child: filteredCustomers.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.person_off_outlined, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          _tr('No customers found', 'Hakuna wateja waliofumanwa'),
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    itemCount: filteredCustomers.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final customer = filteredCustomers[index];
+                      return _CustomerCard(customer: customer);
+                    },
+                  ),
           ),
         ],
       ),

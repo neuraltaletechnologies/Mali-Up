@@ -9,12 +9,44 @@ import '../widgets/add_expense_dialog.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-class ExpenseListScreen extends ConsumerWidget {
+class ExpenseListScreen extends ConsumerStatefulWidget {
   const ExpenseListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ExpenseListScreen> createState() => _ExpenseListScreenState();
+}
+
+class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
+  late TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final expensesAsync = ref.watch(expenseListProvider);
+    final allExpenses = expensesAsync.maybeWhen(
+      data: (expenses) => expenses,
+      orElse: () => [],
+    );
+
+    // Filter expenses based on search
+    final filteredExpenses = _searchController.text.isEmpty
+        ? allExpenses
+        : allExpenses
+            .where((expense) =>
+                expense.category.toLowerCase().contains(_searchController.text.toLowerCase()) ||
+                expense.note.toLowerCase().contains(_searchController.text.toLowerCase()))
+            .toList();
 
     return Scaffold(
       body: Column(
@@ -109,20 +141,67 @@ class ExpenseListScreen extends ConsumerWidget {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: _tr('Search by category or note...', 'Tafuta kwa kategoria au muhtasari...'),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                filled: true,
+                fillColor: AppColors.card,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (value) => setState(() {}),
+            ),
+          ),
+
+          const SizedBox(height: 8),
 
           Expanded(
             child: expensesAsync.when(
-              data: (expenses) => ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: expenses.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final expense = expenses[index];
-                  return _ExpenseCard(expense: expense);
-                },
-              ),
+              data: (expenses) => filteredExpenses.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            _tr('No expenses found', 'Hakuna matumizi yaliofumanwa'),
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      itemCount: filteredExpenses.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final expense = filteredExpenses[index];
+                        return _ExpenseCard(expense: expense);
+                      },
+                    ),
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24),
                 child: SkeletonList(),

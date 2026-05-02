@@ -17,6 +17,7 @@ import '../../../customer/domain/models/customer.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../debt/domain/models/debt.dart';
 import '../../../debt/data/debt_providers.dart';
+import '../../../debt/presentation/screens/debt_tracking_screen.dart';
 import '../../../finance/data/finance_providers.dart';
 import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/models/expense.dart';
@@ -1121,7 +1122,13 @@ class _ModuleGrid extends StatelessWidget {
         final module = _modules[index];
         final label = _tr(module.labelEn, module.labelSw);
         return InkWell(
-          onTap: () => context.go(module.route),
+          onTap: () {
+            if (module.route == AppRouter.debtPath) {
+              _openDebtPanel(context);
+              return;
+            }
+            context.go(module.route);
+          },
           borderRadius: BorderRadius.circular(14),
           child: Container(
             decoration: BoxDecoration(
@@ -1155,6 +1162,26 @@ class _ModuleGrid extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openDebtPanel(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return const FractionallySizedBox(
+          heightFactor: 0.92,
+          child: ClipRRect(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            child: Material(
+              color: AppColors.background,
+              child: DebtTrackingScreen(),
             ),
           ),
         );

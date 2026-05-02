@@ -17,6 +17,20 @@ class InventoryListScreen extends ConsumerStatefulWidget {
 }
 
 class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
+  late TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   int _getLowStockCount(List<Map<String, dynamic>> items) {
     return items.where((item) {
       final currentStock = parseStock(item['currentStock']);
@@ -36,11 +50,27 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final inventoryAsync = ref.watch(inventoryItemListProvider);
-    final items = inventoryAsync.maybeWhen(
+    final allItems = inventoryAsync.maybeWhen(
       data: (items) =>
           items.map((item) => Map<String, dynamic>.from(item)).toList(),
       orElse: () => <Map<String, dynamic>>[],
     );
+
+    // Filter items based on search
+    final filteredItems = _searchController.text.isEmpty
+        ? allItems
+        : allItems
+            .where((item) {
+              final name = item['name']?.toString().toLowerCase() ?? '';
+              final category = item['category']?.toString().toLowerCase() ?? '';
+              final sku = item['sku']?.toString().toLowerCase() ?? '';
+              final searchText = _searchController.text.toLowerCase();
+              return name.contains(searchText) ||
+                  category.contains(searchText) ||
+                  sku.contains(searchText);
+            })
+            .toList();
+
     final isLoading = inventoryAsync.isLoading;
     final error = inventoryAsync.error;
 
@@ -63,6 +93,35 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
             ),
           ),
 
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: _tr('Search by name, category or SKU...', 'Tafuta kwa jina, kategoria au SKU...'),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                filled: true,
+                fillColor: AppColors.card,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (value) => setState(() {}),
+            ),
+          ),
+
           // Inventory Summary - Compact card style
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -77,20 +136,20 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
               children: [
                 _CompactStat(
                   label: _tr('Total', 'Jumla'),
-                  value: '${items.length}',
+                  value: '${filteredItems.length}',
                   icon: Icons.inventory_2_outlined,
                 ),
                 Container(width: 1, height: 20, color: AppColors.border),
                 _CompactStat(
                   label: _tr('Low Stock', 'Ndogo'),
-                  value: '${_getLowStockCount(items)}',
+                  value: '${_getLowStockCount(filteredItems)}',
                   icon: Icons.warning_amber_outlined,
                   color: AppColors.warning,
                 ),
                 Container(width: 1, height: 20, color: AppColors.border),
                 _CompactStat(
                   label: _tr('Out', 'Hakuna'),
-                  value: '${_getOutOfStockCount(items)}',
+                  value: '${_getOutOfStockCount(filteredItems)}',
                   icon: Icons.error_outline_outlined,
                   color: AppColors.error,
                 ),
@@ -101,7 +160,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
           const SizedBox(height: 24),
 
           Expanded(
-            child: _buildInventoryList(items, isLoading, error?.toString()),
+            child: _buildInventoryList(filteredItems, isLoading, error?.toString()),
           ),
         ],
       ),
@@ -172,23 +231,29 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
             Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              _tr('No inventory items', 'Hakuna bidhaa za akiba'),
+              _searchController.text.isNotEmpty
+                  ? _tr('No items found', 'Hakuna bidhaa zilizopatikana')
+                  : _tr('No inventory items', 'Hakuna bidhaa za akiba'),
               style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             ),
             const SizedBox(height: 8),
             Text(
-              _tr(
-                'Add your first inventory item to get started',
-                'Ongeza bidhaa yako ya kwanza ya akiba kuanza',
-              ),
+              _searchController.text.isNotEmpty
+                  ? _tr('Try different search terms', 'Jaribu masharti mengine ya utafutaji')
+                  : _tr(
+                      'Add your first inventory item to get started',
+                      'Ongeza bidhaa yako ya kwanza ya akiba kuanza',
+                    ),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[500]),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _showAddItemDialog(context),
-              child: const Text('Add Item'),
-            ),
+            if (_searchController.text.isEmpty) ...[
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => _showAddItemDialog(context),
+                child: const Text('Add Item'),
+              ),
+            ],
           ],
         ),
       );

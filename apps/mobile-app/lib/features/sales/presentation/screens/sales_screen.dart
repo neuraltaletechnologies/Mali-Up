@@ -351,6 +351,30 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
     });
   }
 
+  void _showAddProductSheet(BuildContext context) {
+    final productName = _productController.text.trim();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddProductSheet(
+        initialProductName: productName,
+        onProductAdded: (product) {
+          setState(() {
+            _selectedItem = product;
+            _productController.text =
+                (product['name'] ?? product['productName'] ?? '') as String;
+            _priceController.text =
+                parseUnitPrice(product['unitPrice'] ?? product['price'] ?? 0)
+                    .toStringAsFixed(0);
+            _suggestions = [];
+            _showSuggestions = false;
+          });
+        },
+      ),
+    );
+  }
+
   Future<void> _save() async {
     final productName = _productController.text.trim();
     if (productName.isEmpty) {
@@ -480,83 +504,74 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-            // Drag handle
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 20),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(99),
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 20),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ),
               ),
-            ),
-
-            // Title + status pill
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _tr('Record a Sale', 'Rekodi Mauzo'),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.secondary,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _tr('Record a Sale', 'Rekodi Mauzo'),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.secondary,
+                      ),
                     ),
                   ),
-                ),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _isCash
-                        ? AppColors.success.withValues(alpha: 0.1)
-                        : AppColors.warning.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    _isCash
-                        ? _tr('Cash · Paid', 'Taslimu · Imelipwa')
-                        : _tr('Credit · Pending', 'Mkopo · Inasubiri'),
-                    style: TextStyle(
-                      color: _isCash ? AppColors.success : AppColors.warning,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _isCash
+                          ? AppColors.success.withValues(alpha: 0.1)
+                          : AppColors.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _isCash
+                          ? _tr('Cash · Paid', 'Taslimu · Imelipwa')
+                          : _tr('Credit · Pending', 'Mkopo · Inasubiri'),
+                      style: TextStyle(
+                        color: _isCash ? AppColors.success : AppColors.warning,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // ── Product search ──────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              child: TextField(
+                ],
+              ),
+              const SizedBox(height: 20),
+              TextField(
                 controller: _productController,
                 focusNode: _productFocus,
                 autofocus: true,
                 textCapitalization: TextCapitalization.words,
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: _tr('Product / Item *', 'Bidhaa / Kitu *'),
                   hintText: _tr(
                     'Search inventory or type new...',
                     'Tafuta hisa au andika mpya...',
-                ),
-                prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20),
-                suffixIcon: _selectedItem != null
-                    ? const Icon(
-                        Icons.check_circle_rounded,
-                        color: AppColors.success,
-                        size: 20,
-                      )
-                    : (_productController.text.isNotEmpty
+                  ),
+                  prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20),
+                  suffixIcon: _selectedItem != null
+                      ? const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.success,
+                          size: 20,
+                        )
+                      : (_productController.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear_rounded, size: 18),
                               onPressed: () {
@@ -569,308 +584,162 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                               },
                             )
                           : null),
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: AppColors.primary,
-                    width: 2,
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
                   ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
               ),
-            ),
-
-            // Inventory suggestions
-            if (_showSuggestions && _suggestions.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.07),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: _suggestions.asMap().entries.map((e) {
-                    final isLast = e.key == _suggestions.length - 1;
-                    final item = e.value;
-                    final name =
-                        (item['name'] ?? item['productName'] ?? '') as String;
-                    final price = parseUnitPrice(
-                      item['unitPrice'] ?? item['price'] ?? item['unit_price'],
-                    );
-                    final stock = parseStock(
-                      item['currentStock'] ?? item['stock'] ?? item['quantity'],
-                    );
-
-                    return Column(
-                      children: [
-                        InkWell(
-                          onTap: () => _selectInventoryItem(item),
-                          borderRadius: BorderRadius.circular(14),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 11,
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(
-                                      alpha: 0.08,
-                                    ),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(
-                                    Icons.inventory_2_rounded,
-                                    size: 18,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
-                                          color: AppColors.secondary,
-                                        ),
-                                      ),
-                                      Text(
-                                        'TSh ${price.toStringAsFixed(0)} · '
-                                        '$stock ${_tr('in stock', 'stokuni')}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.textMuted,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.north_west_rounded,
-                                  size: 14,
-                                  color: AppColors.textMuted,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (!isLast)
-                          const Divider(
-                            height: 1,
-                            indent: 14,
-                            endIndent: 14,
-                            color: AppColors.border,
-                          ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 14),
-
-            // ── Price + Qty ─────────────────────────────────────────
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: TextField(
-                      controller: _priceController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+              if (_showSuggestions && _suggestions.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.07),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
                       ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                     ],
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: _tr('Unit Price (TSh) *', 'Bei ya Kitengo *'),
-                      prefixIcon: const Icon(Icons.payments_outlined, size: 20),
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  children: [
-                    Text(
-                      _tr('Qty', 'Idadi'),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                  child: Column(
+                    children: _suggestions.asMap().entries.map((entry) {
+                      final isLast = entry.key == _suggestions.length - 1;
+                      final item = entry.value;
+                      final name = (item['name'] ?? item['productName'] ?? '') as String;
+                      final price = parseUnitPrice(
+                        item['unitPrice'] ?? item['price'] ?? item['unit_price'],
+                      );
+                      final stock = parseStock(
+                        item['currentStock'] ?? item['stock'] ?? item['quantity'],
+                      );
+
+                      return Column(
                         children: [
-                          _QtyButton(
-                            icon: Icons.remove_rounded,
-                            onTap: _qty > 1
-                                ? () => setState(() => _qty--)
-                                : null,
-                          ),
-                          SizedBox(
-                            width: 36,
-                            child: Text(
-                              '$_qty',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.secondary,
+                          InkWell(
+                            onTap: () => _selectInventoryItem(item),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.inventory_2_rounded,
+                                      size: 18,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            color: AppColors.secondary,
+                                          ),
+                                        ),
+                                        Text(
+                                          'TSh ${price.toStringAsFixed(0)} · $stock ${_tr('in stock', 'stokuni')}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.north_west_rounded,
+                                    size: 14,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                          _QtyButton(
-                            icon: Icons.add_rounded,
-                            onTap: () => setState(() => _qty++),
-                          ),
+                          if (!isLast)
+                            const Divider(
+                              height: 1,
+                              indent: 14,
+                              endIndent: 14,
+                              color: AppColors.border,
+                            ),
                         ],
-                      ),
-                    ),
-                  ],
+                      );
+                    }).toList(),
+                  ),
                 ),
               ],
-            ),
-
-            const SizedBox(height: 14),
-
-            // ── Customer (optional) ─────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              child: TextField(
-                controller: _customerController,
-                textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: _tr('Customer (optional)', 'Mteja (si lazima)'),
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: AppColors.primary,
-                    width: 2,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // ── Payment toggle ──────────────────────────────────────
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-              ),
-              padding: const EdgeInsets.all(4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _isCash = true),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(vertical: 11),
+              const SizedBox(height: 8),
+              if (_productController.text.isNotEmpty && _selectedItem == null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _showAddProductSheet(context),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: _isCash
-                              ? AppColors.success
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                          ),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.payments_rounded,
-                              size: 15,
-                              color: _isCash
-                                  ? Colors.white
-                                  : AppColors.textMuted,
+                              Icons.add_circle_outline_rounded,
+                              size: 18,
+                              color: AppColors.primary,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _tr('Cash  ·  Paid', 'Taslimu · Imelipwa'),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                                color: _isCash
-                                    ? Colors.white
-                                    : AppColors.textMuted,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _tr(
+                                  'Add "${_productController.text}"',
+                                  'Ongeza "${_productController.text}"',
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ],
@@ -878,117 +747,261 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _isCash = false),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(vertical: 11),
+                    child: TextField(
+                      controller: _priceController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        labelText: _tr('Unit Price (TSh) *', 'Bei ya Kitengo *'),
+                        prefixIcon: const Icon(Icons.payments_outlined, size: 20),
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    children: [
+                      Text(
+                        _tr('Qty', 'Idadi'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
                         decoration: BoxDecoration(
-                          color: !_isCash
-                              ? AppColors.warning
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.schedule_rounded,
-                              size: 15,
-                              color: !_isCash
-                                  ? Colors.white
-                                  : AppColors.textMuted,
+                            _QtyButton(
+                              icon: Icons.remove_rounded,
+                              onTap: _qty > 1 ? () => setState(() => _qty--) : null,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _tr('Credit  ·  Pending', 'Mkopo · Inasubiri'),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                                color: !_isCash
-                                    ? Colors.white
-                                    : AppColors.textMuted,
+                            SizedBox(
+                              width: 36,
+                              child: Text(
+                                '$_qty',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.secondary,
+                                ),
                               ),
+                            ),
+                            _QtyButton(
+                              icon: Icons.add_rounded,
+                              onTap: () => setState(() => _qty++),
                             ),
                           ],
                         ),
                       ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _customerController,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: _tr('Customer (optional)', 'Mteja (si lazima)'),
+                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isCash = true),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          decoration: BoxDecoration(
+                            color: _isCash ? AppColors.success : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.payments_rounded,
+                                size: 15,
+                                color: _isCash ? Colors.white : AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _tr('Cash  ·  Paid', 'Taslimu · Imelipwa'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: _isCash ? Colors.white : AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isCash = false),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          decoration: BoxDecoration(
+                            color: !_isCash ? AppColors.warning : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.schedule_rounded,
+                                size: 15,
+                                color: !_isCash ? Colors.white : AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _tr('Credit  ·  Pending', 'Mkopo · Inasubiri'),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: !_isCash ? Colors.white : AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _tr('Total', 'Jumla'),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        Text(
+                          _fmtTotal(_total),
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.secondary,
+                            letterSpacing: -0.5,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.secondary,
+                        disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: AppColors.secondary,
+                              ),
+                            )
+                          : Text(
+                              _tr('Save Sale', 'Hifadhi Mauzo'),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                     ),
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // ── Total + Save button ─────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _tr('Total', 'Jumla'),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                      Text(
-                        _fmtTotal(_total),
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.secondary,
-                          letterSpacing: -0.5,
-                          height: 1.1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.secondary,
-                      disabledBackgroundColor: AppColors.primary.withValues(
-                        alpha: 0.5,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: AppColors.secondary,
-                            ),
-                          )
-                        : Text(
-                            _tr('Save Sale', 'Hifadhi Mauzo'),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1201,6 +1214,423 @@ class _InvoiceListItem extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Add Product Bottom Sheet ─────────────────────────────────────────────────
+
+class _AddProductSheet extends ConsumerStatefulWidget {
+  final String initialProductName;
+  final Function(Map<String, dynamic>) onProductAdded;
+
+  const _AddProductSheet({
+    required this.initialProductName,
+    required this.onProductAdded,
+  });
+
+  @override
+  ConsumerState<_AddProductSheet> createState() => _AddProductSheetState();
+}
+
+class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _priceController;
+  late final TextEditingController _categoryController;
+  late final TextEditingController _stockController;
+  late final TextEditingController _skuController;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialProductName);
+    _priceController = TextEditingController();
+    _categoryController = TextEditingController();
+    _stockController = TextEditingController(text: '1');
+    _skuController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _priceController.dispose();
+    _categoryController.dispose();
+    _stockController.dispose();
+    _skuController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProduct() async {
+    final name = _nameController.text.trim();
+    final priceText =
+        _priceController.text.replaceAll(RegExp(r'[^0-9.]'), '');
+    final price = double.tryParse(priceText) ?? 0;
+    final category = _categoryController.text.trim();
+    final stockText = _stockController.text.trim();
+    final stock = int.tryParse(stockText) ?? 1;
+    final sku = _skuController.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_tr('Enter product name', 'Ingiza jina la bidhaa')),
+        ),
+      );
+      return;
+    }
+
+    if (price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_tr('Enter a valid price', 'Ingiza bei sahihi')),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('Not logged in');
+
+      final repository = ref.read(contextFirestoreRepositoryProvider);
+      final ctx = await repository.resolveContextForUser(user.uid);
+
+      final inventoryRef = repository.scopeCollection(
+        uid: user.uid,
+        context: ctx,
+        childCollection: 'inventory_items',
+      );
+
+      final docRef = await inventoryRef.add({
+        'name': name,
+        'productName': name,
+        'unitPrice': price,
+        'price': price,
+        'category': category.isNotEmpty ? category : 'General',
+        'currentStock': stock,
+        'stock': stock,
+        'quantity': stock,
+        if (sku.isNotEmpty) 'sku': sku,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final newProduct = {
+        'id': docRef.id,
+        'name': name,
+        'productName': name,
+        'unitPrice': price,
+        'price': price,
+        'category': category.isNotEmpty ? category : 'General',
+        'currentStock': stock,
+        'stock': stock,
+        'quantity': stock,
+        if (sku.isNotEmpty) 'sku': sku,
+      };
+
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onProductAdded(newProduct);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _tr('Product added!', 'Bidhaa imeongezwa!'),
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr('Failed to add product', 'Imeshindikana kuongeza bidhaa'),
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          0,
+          24,
+          MediaQuery.of(context).viewInsets.bottom + 28,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: MediaQuery.of(context).size.width - 48,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 20),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+
+              // Title
+              Text(
+                _tr('Add New Product', 'Ongeza Bidhaa Mpya'),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.secondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Product Name
+              TextField(
+                controller: _nameController,
+                autofocus: true,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: _tr('Product Name *', 'Jina la Bidhaa *'),
+                  hintText: _tr('Enter product name', 'Ingiza jina la bidhaa'),
+                  prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Unit Price
+              TextField(
+                controller: _priceController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                decoration: InputDecoration(
+                  labelText: _tr('Unit Price (TSh) *', 'Bei Kwa Kitengo (TSh) *'),
+                  hintText: _tr('Enter unit price', 'Ingiza bei kwa kitengo'),
+                  prefixIcon: const Icon(Icons.sell_outlined, size: 20),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Category & Stock (Row)
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _categoryController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        labelText:
+                            _tr('Category', 'Kategoria'),
+                        hintText: _tr('e.g. Electronics', 'v.g. Elektroniki'),
+                        prefixIcon: const Icon(
+                          Icons.category_outlined,
+                          size: 20,
+                        ),
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _stockController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      decoration: InputDecoration(
+                        labelText: _tr('Stock', 'Stoku'),
+                        hintText: '1',
+                        prefixIcon:
+                            const Icon(Icons.inventory_outlined, size: 20),
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // SKU (Optional)
+              TextField(
+                controller: _skuController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: _tr('SKU (Optional)', 'SKU (Hiari)'),
+                  hintText: _tr('e.g. PROD-001', 'v.g. PROD-001'),
+                  prefixIcon: const Icon(Icons.tag_outlined, size: 20),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Save Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveProduct,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    disabledBackgroundColor:
+                        AppColors.primary.withValues(alpha: 0.5),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.secondary,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          _tr('Add Product', 'Ongeza Bidhaa'),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
