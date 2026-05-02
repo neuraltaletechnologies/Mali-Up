@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../data/inventory_providers.dart';
@@ -49,88 +48,51 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
             child: Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _tr(
-                          'Manage your inventory efficiently',
-                          'Dhibiti akiba yako kwa ufanisi',
-                        ),
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _tr(
-                          'Track stock levels, get alerts for low items, and manage reordering.',
-                          'Fuatilia viwango vya akiba, pata tahadhari kwa bidhaa chache, na dhibiti upya upatikaji.',
-                        ),
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
+                  child: Text(
+                    _tr('Inventory', 'Akiba'),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                const EmotionalLottieSpot(
-                  scene: EmotionalLottieScene.dashboard,
-                  size: 62,
                 ),
               ],
             ),
           ),
 
-          // Inventory Summary - Premium card style
+          // Inventory Summary - Compact card style
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: AppColors.card,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.border),
-              boxShadow: const [
-                BoxShadow(
-                  color: AppColors.shadowCard,
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
             ),
-            child: Column(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Text(
-                  _tr('Inventory Summary', 'Muhtasari wa Akiba'),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                _CompactStat(
+                  label: _tr('Total', 'Jumla'),
+                  value: '${items.length}',
+                  icon: Icons.inventory_2_outlined,
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _SummaryStat(
-                      label: _tr('Total Items', 'Jumla ya Bidhaa'),
-                      value: '${items.length}',
-                      icon: Icons.inventory_2_outlined,
-                    ),
-                    _SummaryStat(
-                      label: _tr('Low Stock', 'Akiba Ndogo'),
-                      value: '${_getLowStockCount(items)}',
-                      icon: Icons.warning_amber_outlined,
-                      color: AppColors.warning,
-                    ),
-                    _SummaryStat(
-                      label: _tr('Out of Stock', 'Imekuwa Hakuna'),
-                      value: '${_getOutOfStockCount(items)}',
-                      icon: Icons.error_outline_outlined,
-                      color: AppColors.error,
-                    ),
-                  ],
+                Container(width: 1, height: 20, color: AppColors.border),
+                _CompactStat(
+                  label: _tr('Low Stock', 'Ndogo'),
+                  value: '${_getLowStockCount(items)}',
+                  icon: Icons.warning_amber_outlined,
+                  color: AppColors.warning,
+                ),
+                Container(width: 1, height: 20, color: AppColors.border),
+                _CompactStat(
+                  label: _tr('Out', 'Hakuna'),
+                  value: '${_getOutOfStockCount(items)}',
+                  icon: Icons.error_outline_outlined,
+                  color: AppColors.error,
                 ),
               ],
             ),
@@ -259,13 +221,13 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
   }
 }
 
-class _SummaryStat extends StatelessWidget {
+class _CompactStat extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
   final Color? color;
 
-  const _SummaryStat({
+  const _CompactStat({
     required this.label,
     required this.value,
     required this.icon,
@@ -276,33 +238,32 @@ class _SummaryStat extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final statColor = color ?? AppColors.primary;
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: statColor.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: statColor),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: statColor,
+            ),
           ),
-          child: Icon(icon, color: statColor, size: 24),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: theme.textTheme.displaySmall?.copyWith(
-            fontWeight: FontWeight.w800,
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppColors.textMuted,
+              fontSize: 11,
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: AppColors.textMuted,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
+
 
 class _InventoryCard extends StatelessWidget {
   final Map<String, dynamic> item;

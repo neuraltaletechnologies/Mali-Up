@@ -612,219 +612,139 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final netText = _detailsVisible ? _fmtCompactAmount(net) : '••••';
     final netColor =
         net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
-    final now = DateTime.now();
-    final validThru =
-        '${now.month.toString().padLeft(2, '0')}/${(now.year + 3).toString().substring(2)}';
 
-    return DecoratedBox(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [
+            AppColors.navyPrimary,
+            Color(0xFF1a3a52),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.5),
-            blurRadius: 32,
-            offset: const Offset(0, 14),
-          ),
-          BoxShadow(
-            color: AppColors.navySecondary.withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: AppColors.navyPrimary.withValues(alpha: 0.3),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.navyPrimary,
-                Color(0xFF142B5E),
-                AppColors.navySecondary,
-              ],
-              stops: [0.0, 0.52, 1.0],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      child: Stack(
+        children: [
+          // Decorative background elements
+          Positioned(
+            right: -40, top: -40,
+            child: Container(
+              width: 180, height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
             ),
           ),
-          child: Stack(
-            children: [
-              // ── Decorative background ──────────────────────────────
-              Positioned(
-                right: -50, top: -50,
-                child: Container(
-                  width: 200, height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.04),
-                  ),
-                ),
+          Positioned(
+            left: -30, bottom: -20,
+            child: Container(
+              width: 120, height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.yellowBrand.withValues(alpha: 0.08),
               ),
-              Positioned(
-                left: -30, bottom: -35,
-                child: Container(
-                  width: 130, height: 130,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.yellowBrand.withValues(alpha: 0.06),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: 55, bottom: -18,
-                child: Container(
-                  width: 80, height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.tealAccent.withValues(alpha: 0.1),
-                  ),
-                ),
-              ),
-              // Top-edge shine line
-              Positioned(
-                left: 0, right: 0, top: 0,
-                child: Container(
-                  height: 1,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        Colors.white.withValues(alpha: 0.18),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── Card content ───────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+          ),
+          // Main content
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header row: Chip, Brand, Logo
+                Row(
                   children: [
-                    // Row 1: chip + brand label + logo
-                    Row(
-                      children: [
-                        const _CardChip(),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
+                    const _CardChip(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
                             'MALI UP',
                             style: TextStyle(
-                              color:
-                                  AppColors.yellowBrand.withValues(alpha: 0.9),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 2.8,
+                              color: AppColors.yellowBrand.withValues(alpha: 0.95),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2.0,
                             ),
                           ),
-                        ),
-                        // Logo — rounded square
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: SizedBox(
-                            width: 42,
-                            height: 42,
-                            child: widget.logoUrl != null &&
-                                    widget.logoUrl!.isNotEmpty
-                                ? Image.network(
-                                    widget.logoUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) =>
-                                        _BusinessLogoFallback(
-                                            initial: initial),
-                                  )
-                                : _BusinessLogoFallback(initial: initial),
+                          Text(
+                            _tr('Business Account', 'Akaunti ya Biashara'),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 9,
+                              letterSpacing: 0.5,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // Masked card number dots
-                    Text(
-                      '••••  ••••  ••••  ••••',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        fontSize: 13,
-                        letterSpacing: 2.5,
-                        fontWeight: FontWeight.w500,
-                        height: 1,
+                        ],
                       ),
                     ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: widget.logoUrl != null &&
+                                widget.logoUrl!.isNotEmpty
+                            ? Image.network(
+                                widget.logoUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    _BusinessLogoFallback(initial: initial),
+                              )
+                            : _BusinessLogoFallback(initial: initial),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
 
-                    const SizedBox(height: 16),
-
-                    // Balance label + show/hide toggle
+                // Main balance section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           _tr('TOTAL BALANCE', 'JUMLA YA FEDHA'),
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.45),
-                            fontSize: 9,
-                            letterSpacing: 1.6,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 10,
                             fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
                           ),
                         ),
-                        const Spacer(),
                         GestureDetector(
                           onTap: () => setState(
                               () => _detailsVisible = !_detailsVisible),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: _detailsVisible
-                                  ? Colors.white.withValues(alpha: 0.12)
-                                  : AppColors.yellowBrand
-                                      .withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: _detailsVisible
-                                    ? Colors.white.withValues(alpha: 0.18)
-                                    : AppColors.yellowBrand
-                                        .withValues(alpha: 0.45),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _detailsVisible
-                                      ? Icons.visibility_rounded
-                                      : Icons.visibility_off_rounded,
-                                  size: 13,
-                                  color: _detailsVisible
-                                      ? Colors.white.withValues(alpha: 0.8)
-                                      : AppColors.yellowBrand,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  _detailsVisible
-                                      ? _tr('Hide', 'Ficha')
-                                      : _tr('Show', 'Onyesha'),
-                                  style: TextStyle(
-                                    color: _detailsVisible
-                                        ? Colors.white.withValues(alpha: 0.8)
-                                        : AppColors.yellowBrand,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
+                          child: AnimatedOpacity(
+                            opacity: _detailsVisible ? 1.0 : 0.7,
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              _detailsVisible
+                                  ? Icons.visibility_rounded
+                                  : Icons.visibility_off_rounded,
+                              size: 16,
+                              color: Colors.white.withValues(alpha: 0.7),
                             ),
                           ),
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 5),
-
-                    // Balance amount
+                    const SizedBox(height: 8),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       transitionBuilder: (child, anim) => FadeTransition(
@@ -836,110 +756,61 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                         key: ValueKey(_detailsVisible),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1.0,
                           height: 1.0,
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // Footer: business name + valid thru
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name.toUpperCase(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'VALID THRU',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.38),
-                                fontSize: 7,
-                                letterSpacing: 1.2,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              validThru,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.72),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Stats bar
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.22),
-                        border: Border(
-                          top: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.08)),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          _CardStat(
-                            label: _tr('Clients', 'Wateja'),
-                            value: clientsText,
-                          ),
-                          Container(
-                            width: 1,
-                            height: 26,
-                            color: Colors.white.withValues(alpha: 0.12),
-                          ),
-                          _CardStat(
-                            label: _tr('Expenses', 'Gharama'),
-                            value: expText,
-                            valueColor:
-                                _detailsVisible && widget.totalExpenses > 0
-                                    ? const Color(0xFFF87171)
-                                    : null,
-                          ),
-                          Container(
-                            width: 1,
-                            height: 26,
-                            color: Colors.white.withValues(alpha: 0.12),
-                          ),
-                          _CardStat(
-                            label: _tr('Net', 'Faida'),
-                            value: netText,
-                            valueColor:
-                                _detailsVisible ? netColor : null,
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 28),
+
+                // Stats footer
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _CardStatItem(
+                        label: _tr('Clients', 'Wateja'),
+                        value: clientsText,
+                      ),
+                      Container(
+                        width: 1,
+                        height: 24,
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                      _CardStatItem(
+                        label: _tr('Expenses', 'Gharama'),
+                        value: expText,
+                        color: expText == '••••' ? null : const Color(0xFFF87171),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 24,
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                      _CardStatItem(
+                        label: _tr('Net', 'Faida'),
+                        value: netText,
+                        color: netText == '••••' ? null : netColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1072,44 +943,7 @@ class _BusinessLogoFallback extends StatelessWidget {
   }
 }
 
-class _CardStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
 
-  const _CardStat({
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor ?? Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
-              fontSize: 10,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ── EMV chip widget ────────────────────────────────────────────────────────────
 class _CardChip extends StatelessWidget {
@@ -1203,6 +1037,45 @@ class _StatChip extends StatelessWidget {
             label,
             style: const TextStyle(
               color: AppColors.textMuted,
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardStatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? color;
+
+  const _CardStatItem({
+    required this.label,
+    required this.value,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: color ?? Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.6),
               fontSize: 10,
             ),
           ),
