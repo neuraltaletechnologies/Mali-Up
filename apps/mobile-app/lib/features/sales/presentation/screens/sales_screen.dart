@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
-import '../../../../shared/widgets/page_intro_header.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../data/sales_providers.dart';
@@ -24,14 +23,24 @@ class SalesScreen extends ConsumerWidget {
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          final inventory =
-              ref.read(inventoryItemListProvider).value ?? const [];
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => _QuickSaleSheet(inventory: inventory),
-          );
+          try {
+            final inventory =
+                ref.read(inventoryItemListProvider).value ?? const [];
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => _QuickSaleSheet(inventory: inventory),
+            ).catchError((error) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: ${error.toString()}')),
+              );
+            });
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error opening sales form: ${e.toString()}')),
+            );
+          }
         },
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.secondary,
@@ -44,13 +53,20 @@ class SalesScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          PageIntroHeader(
-            title: _tr('Track sales momentum', 'Fuatilia kasi ya mauzo'),
-            subtitle: _tr(
-              'Monitor invoices, pending collections, and paid revenue in one place.',
-              'Fuatilia ankara, makusanyo yanayosubiri, na mapato yaliyolipwa sehemu moja.',
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _tr('Sales', 'Mauzo'),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+              ],
             ),
-            scene: EmotionalLottieScene.dashboard,
           ),
           Expanded(
             child: salesAsync.when(
@@ -89,36 +105,39 @@ class SalesScreen extends ConsumerWidget {
                 return Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       decoration: const BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(24),
-                          bottomRight: Radius.circular(24),
+                          bottomLeft: Radius.circular(0),
+                          bottomRight: Radius.circular(0),
                         ),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           _OverviewStat(
-                            label: _tr('Total Sales', 'Jumla ya Mauzo'),
+                            label: _tr('Total', 'Jumla'),
                             value: _fmtAmount(totalSales),
                             color: AppColors.primaryLight,
+                            compact: true,
                           ),
                           _OverviewStat(
                             label: _tr('Pending', 'Inasubiri'),
                             value: _fmtAmount(pendingSales),
                             color: AppColors.secondary,
+                            compact: true,
                           ),
                           _OverviewStat(
                             label: _tr('Paid', 'Imelipwa'),
                             value: _fmtAmount(paidSales),
                             color: AppColors.success,
+                            compact: true,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Expanded(
                       child: items.isEmpty
                           ? const _EmptySalesState()
@@ -1011,15 +1030,41 @@ class _OverviewStat extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final bool compact;
 
   const _OverviewStat({
     required this.label,
     required this.value,
     required this.color,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return Expanded(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppColors.textMuted,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

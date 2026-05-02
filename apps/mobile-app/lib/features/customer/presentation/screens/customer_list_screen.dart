@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/emotional_design.dart';
 import '../../data/customer_providers.dart';
 import '../widgets/add_customer_dialog.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 String _fmtCustomerBalance(double amount) {
-  if (amount >= 1_000_000) return 'TSh ${(amount / 1_000_000).toStringAsFixed(1)}M';
+  if (amount >= 1_000_000)
+    return 'TSh ${(amount / 1_000_000).toStringAsFixed(1)}M';
   if (amount >= 1_000) return 'TSh ${(amount / 1_000).toStringAsFixed(0)}K';
   return 'TSh ${amount.toStringAsFixed(0)}';
 }
@@ -34,68 +34,41 @@ class CustomerListScreen extends ConsumerWidget {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
             child: Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _tr(
-                          'Build stronger customer trust',
-                          'Jenga uaminifu mkubwa wa wateja',
-                        ),
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _tr(
-                          'Follow balances, tags, and recent activity for every customer.',
-                          'Fuatilia salio, lebo, na shughuli za hivi karibuni kwa kila mteja.',
-                        ),
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
+                  child: Text(
+                    _tr('Active Customers', 'Wateja Hai'),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                const EmotionalLottieSpot(
-                  scene: EmotionalLottieScene.authVerify,
-                  size: 62,
                 ),
               ],
             ),
           ),
 
-          // CRM Summary Header - Premium card style
+          // CRM Summary Header - Compact card style
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: AppColors.card,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.border),
-              boxShadow: const [
-                BoxShadow(
-                  color: AppColors.shadowCard,
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _SummaryStat(
-                  label: _tr('Active Clients', 'Wateja Hai'),
+                _CompactStat(
+                  label: _tr('Clients', 'Wateja'),
                   value: '${customerItems.length}',
                   icon: Icons.people_alt_outlined,
                 ),
-                _SummaryStat(
-                  label: _tr('Total Balances', 'Jumla ya Salio'),
+                Container(width: 1, height: 20, color: AppColors.border),
+                _CompactStat(
+                  label: _tr('Balance', 'Salio'),
                   value: _fmtBalance(totalBalance),
                   icon: Icons.account_balance_wallet_outlined,
                 ),
@@ -150,12 +123,12 @@ class CustomerListScreen extends ConsumerWidget {
   }
 }
 
-class _SummaryStat extends StatelessWidget {
+class _CompactStat extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
 
-  const _SummaryStat({
+  const _CompactStat({
     required this.label,
     required this.value,
     required this.icon,
@@ -164,33 +137,31 @@ class _SummaryStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          child: Icon(icon, color: AppColors.primaryDark, size: 24),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: theme.textTheme.displaySmall?.copyWith(
-            fontWeight: FontWeight.w800,
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppColors.textMuted,
+              fontSize: 11,
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: AppColors.textMuted,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
+
 
 class _CustomerCard extends StatelessWidget {
   final dynamic customer; // Type to be specific in real use
