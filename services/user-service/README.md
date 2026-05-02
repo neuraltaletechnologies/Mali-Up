@@ -1,19 +1,16 @@
-# MaliUp User Service
+# Mali Up User Service
 
-Microservice responsible for Role-Based Access Control (RBAC) and user profile management.
+Future backend contract for profiles, preferences, and role-adjacent user data.
 
-## 🚀 Responsibilities
-- User profile management (Name, phone, email).
-- Role definitions (Owner, Manager, Cashier, Accountant).
-- Granular permission assignment.
-- Team member invitations and onboarding.
-- User activity logs.
+## Status
 
-## 🛠 Tech Stack
-- **Framework:** Fastify + TypeScript
-- **Validation:** Zod
-- **Database:** PostgreSQL (Tenant Schema)
-- **Messaging:** RabbitMQ
+- Not part of the Phase 1 mobile MVP.
+- Current profile data should stay behind repository abstractions in the app.
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+## Future Responsibilities
+
+- User profile management.
+- Display preferences.
+- Access metadata for future staff and role workflows.
+
+Part of the [Mali Up](../../README.md) suite.

@@ -1,12 +1,16 @@
-# MaliUp File Service
+# Mali Up File Service
 
-Microservice managing centralized file storage for the MaliUp ecosystem.
+Future backend contract for uploads and document storage.
 
-## 🚀 Responsibilities
-- Uploading and serving receipt photos and invoice attachments.
-- Secure storage integration with AWS S3 / Cloudflare R2.
-- Handling image compression and resizing.
-- Temporary link generation for private documents.
+## Status
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+- Not part of the Phase 1 backend implementation.
+- Receipt and attachment storage should stay abstracted in the app now.
+
+## Future Responsibilities
+
+- Receipt uploads.
+- Invoice PDFs.
+- Media and document access control.
+
+Part of the [Mali Up](../../README.md) suite.

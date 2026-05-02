@@ -1,32 +1,64 @@
-# Mali Up Mobile — Flutter App
+# Mali Up Mobile
 
-The flagship mobile application for the Mali Up SaaS ecosystem. Built with Flutter to provide a premium, offline-first experience for business owners and staff.
+The current Mali Up B v1.0 app is a business-only Flutter product for Tanzanian small business owners. It uses a premium fintech white UI, Swahili-first labels, and Riverpod from day one.
 
-## 🛠 Tech Stack
-- **Framework:** Flutter 3.x
-- **State Management:** BLoC + Riverpod
-- **Local Database:** Drift (SQLite) for offline persistence
-- **HTTP Client:** Dio with interceptors and retry logic
-- **Navigation:** GoRouter
-- **Charts:** fl_chart for business analytics
+## Current MVP Modules
 
-## 🏛 Clean Architecture
-The app follows a strict Clean Architecture pattern:
-- **Presentation Layer:** Flutter Widgets, Cubits/BLoCs
-- **Domain Layer:** Business Entities, Use Cases, Repository Interfaces
-- **Data Layer:** API Clients, DTOs, Repository Implementations, Local SQLite
+- Hali ya biashara
+- Tuma ankara
+- Wateja wangu
+- Gharama zangu
+- Hisa zangu
 
-## 📦 Getting Started
-1. Ensure Flutter is installed.
-2. Run `flutter pub get` to fetch dependencies.
-3. Run `flutter gen-l10n` for localization.
-4. Run `flutter run`.
+## Architecture
 
-## 🔄 Offline Strategy
-- All frequently accessed data (Sales, Inventory, Customers) is cached locally.
-- Optimistic UI updates ensure a snappy experience without network lag.
-- Automatic background synchronization when connectivity is restored.
-- Persistence queue to ensure data integrity during intermittent connectivity.
+| Layer | Responsibility |
+| --- | --- |
+| Presentation | Screens, widgets, forms, and view state |
+| Domain | Models, repository interfaces, and use cases |
+| Data | FirestoreService, AuthService, and repository implementations |
 
----
-Part of the [Mali Up](../../README.md) suite by **Neuraltale**.
+The data layer is repository-driven so the app can move to Cloud Functions or service-backed APIs later without rewriting the UI.
+
+## State Management
+
+Riverpod is the primary state system.
+
+- `authStateProvider`
+- `currentUserIdProvider`
+- `isLoggedInProvider`
+- `userProfileProvider`
+- `dashboardDataProvider`
+- `invoicesProvider`
+- `customerProvider`
+- `expenseProvider`
+- `inventoryProvider`
+
+Form state should use small `StateNotifier` classes, while simple and live state should use `StateProvider` and `StreamProvider`.
+
+## UI Direction
+
+The app uses the Premium Fintech White system:
+
+- `navyPrimary` `#0D1B3E`
+- `tealAccent` `#1A6E8A`
+- `yellowBrand` `#FFC107`
+- `surfaceLight` `#F8F9FC`
+- `cardWhite` `#FFFFFF`
+
+Core components include `MaliCard`, `PrimaryButton`, `SecondaryButton`, `GhostButton`, `AmountDisplay`, `StatusChip`, `EmptyState`, and `HeroCard`.
+
+## Getting Started
+
+```bash
+flutter pub get
+flutter run
+```
+
+Localization should stay Swahili-first with English as fallback.
+
+## Note
+
+Personal finance features, context switching, and advanced business modules are intentionally out of scope for the current MVP and are planned for later phases.
+
+Part of the [Mali Up](../../README.md) suite.

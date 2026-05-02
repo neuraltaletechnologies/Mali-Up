@@ -1,23 +1,18 @@
-# MaliUp Sales Service
+# Mali Up Sales Service
 
-The core revenue-generating microservice for MaliUp, managing the entire sales and invoicing lifecycle.
+Future backend contract for invoicing and sales workflows.
 
-## 🚀 Responsibilities
-- Point of Sale (POS) transaction processing.
-- Invoice generation (PDF) and status tracking (Draft, Paid, Overdue).
-- Sales return and credit note management.
-- Multi-currency support and tax calculations.
-- Receipt printing support (Bluetooth thermal).
+## Status
 
-## 📊 Core Entities
-- Invoices
-- Invoice Items
-- Sales Orders
+- Not part of the Phase 1 direct-Firestore MVP.
+- Current invoice flows live in the Flutter app through repository abstractions.
+- This service can later host invoice creation, PDF generation, and sales orchestration.
 
-## 🔄 Integration
-- **Inventory Service:** Validates stock availability before sales.
-- **Finance Service:** Updates cash flow upon payment recording.
-- **Notification Service:** Sends invoices to customers via WhatsApp/Email.
+## Future Responsibilities
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+- Invoice creation and status management.
+- POS and sales transaction orchestration.
+- Invoice totals, tax, and discount rules.
+- PDF generation and sharing hooks.
+
+Part of the [Mali Up](../../README.md) suite.

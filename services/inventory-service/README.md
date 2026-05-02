@@ -1,18 +1,18 @@
-# MaliUp Inventory Service
+# Mali Up Inventory Service
 
-Microservice providing full inventory control, tracking stock levels, movements, and valuations.
+Future backend contract for product and stock management.
 
-## 🚀 Responsibilities
-- Product catalog management (SKUs, Barcodes, Categories).
-- Real-time stock levels tracking across multiple locations.
-- Stock adjustments with audit trails.
-- Low stock reorder alerts.
-- FIFO/Weighted average stock valuation.
-- Batch and expiry date tracking.
+## Status
 
-## 🔄 Integration
-- **Sales Service:** Reserves stock upon order creation.
-- **Purchase Service:** Updates stock upon Goods Received (GRN).
+- Not part of the Phase 1 mobile MVP implementation.
+- Current inventory data is handled through Firestore repository access from the app.
+- This service becomes relevant when stock operations move to backend services.
 
----
-Part of the [MaliUp](../../README.md) suite by **Neuraltale**.
+## Future Responsibilities
+
+- Product catalog and SKU management.
+- Stock counts, adjustments, and audit trails.
+- Low stock alerts and reorder logic.
+- Batch and expiry tracking.
+
+Part of the [Mali Up](../../README.md) suite.
