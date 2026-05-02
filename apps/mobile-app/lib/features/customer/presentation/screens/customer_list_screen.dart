@@ -8,6 +8,12 @@ import '../widgets/add_customer_dialog.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
+String _fmtCustomerBalance(double amount) {
+  if (amount >= 1_000_000) return 'TSh ${(amount / 1_000_000).toStringAsFixed(1)}M';
+  if (amount >= 1_000) return 'TSh ${(amount / 1_000).toStringAsFixed(0)}K';
+  return 'TSh ${amount.toStringAsFixed(0)}';
+}
+
 class CustomerListScreen extends ConsumerWidget {
   const CustomerListScreen({super.key});
 
@@ -18,6 +24,10 @@ class CustomerListScreen extends ConsumerWidget {
     final customerItems = customers.maybeWhen(
       data: (items) => items,
       orElse: () => const [],
+    );
+    final totalBalance = customerItems.fold<double>(
+      0,
+      (sum, c) => sum + (double.tryParse(c.balance) ?? 0),
     );
 
     return Scaffold(
@@ -86,7 +96,7 @@ class CustomerListScreen extends ConsumerWidget {
                 ),
                 _SummaryStat(
                   label: _tr('Total Balances', 'Jumla ya Salio'),
-                  value: 'TSh 3.4M',
+                  value: _fmtBalance(totalBalance),
                   icon: Icons.account_balance_wallet_outlined,
                 ),
               ],
@@ -117,6 +127,16 @@ class CustomerListScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  static String _fmtBalance(double amount) {
+    if (amount >= 1_000_000) {
+      return 'TSh ${(amount / 1_000_000).toStringAsFixed(1)}M';
+    }
+    if (amount >= 1_000) {
+      return 'TSh ${(amount / 1_000).toStringAsFixed(0)}K';
+    }
+    return 'TSh ${amount.toStringAsFixed(0)}';
   }
 
   void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
@@ -179,7 +199,8 @@ class _CustomerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasBalance = customer.balance != 'TSh 0';
+    final rawBalance = double.tryParse(customer.balance) ?? 0;
+    final hasBalance = rawBalance > 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -234,7 +255,7 @@ class _CustomerCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    customer.balance,
+                    _fmtCustomerBalance(rawBalance),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: hasBalance ? AppColors.error : AppColors.textMuted,
                       fontWeight: FontWeight.w800,
