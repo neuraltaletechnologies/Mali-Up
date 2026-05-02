@@ -164,7 +164,7 @@ class ExpenseProvider extends ChangeNotifier {
   // Get month expenses
   List<Expense> getMonthExpenses() {
     final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
+    final startOfMonth = DateTime(now.year, now.month);
     final endOfMonth = DateTime(now.year, now.month + 1, 0);
     
     return getExpensesByDateRange(startOfMonth, endOfMonth);

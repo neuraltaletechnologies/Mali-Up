@@ -69,7 +69,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
             children: [
               // Category dropdown
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: InputDecoration(
                   labelText: LocalizationService.tr(
                     en: 'Category',

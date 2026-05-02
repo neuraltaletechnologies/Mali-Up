@@ -58,7 +58,7 @@ class CashFlowScreen extends ConsumerWidget {
 
             // Accounts Horizontal Scroll
             Padding(
-              padding: EdgeInsets.fromLTRB(24, 24, 24, 16),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
               child: Text(
                 _tr('My Accounts', 'Akaunti Zangu'),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -131,7 +131,7 @@ class CashFlowScreen extends ConsumerWidget {
             
             // Recent Money Movements
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
                 _tr('Money Movements', 'Mienendo ya Pesa'),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -280,7 +280,7 @@ class _MovementListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isInflow = index % 2 == 0;
+    final bool isInflow = index % 2 == 0;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(

@@ -49,7 +49,6 @@ class _NotificationHelper {
           ],
         ),
         backgroundColor: color,
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -300,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       debugPrint('FIREBASE AUTH ERROR: ${e.code} - ${e.message}');
       setState(() => _isLoading = false);
-      String message = switch (e.code) {
+      final String message = switch (e.code) {
         'wrong-password' || 'invalid-credential' => _tr(
           'Incorrect PIN. Please try again.',
           'PIN si sahihi. Jaribu tena.',
@@ -368,9 +367,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textPrimary = AppColors.textPrimary;
-    final textSecondary = AppColors.textSecondary;
-    final fieldBg = AppColors.surface;
+    const textPrimary = AppColors.textPrimary;
+    const textSecondary = AppColors.textSecondary;
+    const fieldBg = AppColors.surface;
     final mediaQuery = MediaQuery.of(context);
     final topHeight = mediaQuery.size.height * 0.35;
     final bottomInset = mediaQuery.viewInsets.bottom;
@@ -392,7 +391,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border, width: 1),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -452,7 +451,7 @@ class _LoginScreenState extends State<LoginScreen> {
             top: 0,
             height: topHeight,
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -563,7 +562,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: Colors.white.withValues(alpha: 0.3),
-                                width: 1,
                               ),
                             ),
                             child: Row(
@@ -600,6 +598,7 @@ class _LoginScreenState extends State<LoginScreen> {
             maxChildSize: 0.96,
             builder: (context, scrollController) {
               return Container(
+                clipBehavior: Clip.hardEdge,
                 decoration: const BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -611,10 +610,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-                  child: Column(
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    physics: const ClampingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Handle bar
@@ -882,7 +887,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: () {
                               setState(() {
                                 _showPinEntry = false;
-                                for (var c in _pinControllers) {
+                                for (final c in _pinControllers) {
                                   c.clear();
                                 }
                               });

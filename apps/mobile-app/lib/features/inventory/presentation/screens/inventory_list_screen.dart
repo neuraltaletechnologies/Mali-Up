@@ -85,12 +85,12 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border, width: 1),
-              boxShadow: [
+              border: Border.all(color: AppColors.border),
+              boxShadow: const [
                 BoxShadow(
                   color: AppColors.shadowCard,
                   blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  offset: Offset(0, 2),
                 ),
               ],
             ),
@@ -295,12 +295,12 @@ class _InventoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 1),
-        boxShadow: [
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadowCard,
             blurRadius: 6,
-            offset: const Offset(0, 1),
+            offset: Offset(0, 1),
           ),
         ],
       ),
@@ -367,7 +367,6 @@ class _InventoryCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: stockColor.withValues(alpha: 0.3),
-                    width: 1,
                   ),
                 ),
                 child: Text(
@@ -500,7 +499,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: InputDecoration(
                     labelText: _tr('Category', 'Kundi'),
                     border: const OutlineInputBorder(),
@@ -578,7 +577,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedUnit,
+                        initialValue: _selectedUnit,
                         decoration: InputDecoration(
                           labelText: _tr('Unit', 'Kimoja'),
                           border: const OutlineInputBorder(),

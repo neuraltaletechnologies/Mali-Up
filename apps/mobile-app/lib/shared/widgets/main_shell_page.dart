@@ -178,7 +178,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
     final snapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
-        .get(const GetOptions(source: Source.serverAndCache));
+        .get(const GetOptions());
     return snapshot.data();
   }
 
@@ -242,13 +242,13 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                   // Profile Header - Light theme
                   Container(
                     padding: const EdgeInsets.fromLTRB(24, 24, 20, 20),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: const BorderRadius.only(
+                      borderRadius: BorderRadius.only(
                         topRight: Radius.circular(24),
                       ),
                       border: Border(
-                        bottom: BorderSide(color: AppColors.border, width: 1),
+                        bottom: BorderSide(color: AppColors.border),
                       ),
                     ),
                     child: Row(
@@ -346,8 +346,8 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
                           ),
                           const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
                             child: Divider(color: AppColors.border, height: 1),
                           ),
                           const SizedBox(height: 8),
@@ -408,8 +408,8 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
                         ),
                         const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
                           child: Divider(color: AppColors.border, height: 1),
                         ),
                         const SizedBox(height: 8),
@@ -425,7 +425,6 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           icon: Icons.headset_mic_rounded,
                           label: _tr('Help & Support', 'Msaada / Help & Support'),
                           semanticsLabel: _tr('Help and support', 'Msaada na support'),
-                          selected: false,
                           onTap: () => Navigator.of(dialogContext).pop(),
                         ),
                       ],
@@ -435,13 +434,13 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: const BorderRadius.only(
+                      borderRadius: BorderRadius.only(
                         bottomRight: Radius.circular(24),
                       ),
                       border: Border(
-                        top: BorderSide(color: AppColors.border, width: 1),
+                        top: BorderSide(color: AppColors.border),
                       ),
                     ),
                     child: Column(
@@ -458,7 +457,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                                 decoration: BoxDecoration(
                                   color: AppColors.error.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.error.withValues(alpha: 0.2), width: 1),
+                                  border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
                                 ),
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Row(
@@ -481,7 +480,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text(
+                        const Text(
                           'Mali App v1.0.0',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -638,9 +637,9 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
       future: _profileFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done && snapshot.data == null) {
-          return Scaffold(
+          return const Scaffold(
             backgroundColor: AppColors.background,
-            body: const Center(child: CircularProgressIndicator()),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
@@ -677,7 +676,6 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                         borderRadius: BorderRadius.circular(32),
                         border: Border.all(
                           color: AppColors.primary.withValues(alpha: 0.15),
-                          width: 1,
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -879,8 +877,6 @@ class _DrawerItem extends StatefulWidget {
     required this.label,
     required this.onTap,
     required this.semanticsLabel,
-    this.trailingBadge,
-    this.selected = false,
   });
 
   @override
@@ -906,7 +902,7 @@ class _DrawerItemState extends State<_DrawerItem> with SingleTickerProviderState
 
   @override
   Widget build(BuildContext context) {
-    final active = AppColors.primary;
+    const active = AppColors.primary;
     final labelColor = Colors.white.withValues(alpha: 0.9);
     final chevronColor = Colors.white.withValues(alpha: 0.5);
 
@@ -928,7 +924,7 @@ class _DrawerItemState extends State<_DrawerItem> with SingleTickerProviderState
             decoration: BoxDecoration(
               color: widget.selected ? active.withValues(alpha: 0.15) : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
-              border: widget.selected ? Border.all(color: active.withValues(alpha: 0.3), width: 1) : null,
+              border: widget.selected ? Border.all(color: active.withValues(alpha: 0.3)) : null,
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
@@ -1201,7 +1197,7 @@ class _DrawerItemLightState extends State<_DrawerItemLight> with SingleTickerPro
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final active = AppColors.primary;
+    const active = AppColors.primary;
 
     return Semantics(
       button: true,
@@ -1221,7 +1217,7 @@ class _DrawerItemLightState extends State<_DrawerItemLight> with SingleTickerPro
             decoration: BoxDecoration(
               color: widget.selected ? active.withValues(alpha: 0.08) : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
-              border: widget.selected ? Border.all(color: active.withValues(alpha: 0.15), width: 1) : null,
+              border: widget.selected ? Border.all(color: active.withValues(alpha: 0.15)) : null,
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(

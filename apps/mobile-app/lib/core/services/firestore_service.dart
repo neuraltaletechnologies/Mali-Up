@@ -369,7 +369,7 @@ class FirestoreService {
         if (context == null) throw Exception('User not authenticated');
 
         final today = DateTime.now();
-        final startOfMonth = DateTime(today.year, today.month, 1);
+        final startOfMonth = DateTime(today.year, today.month);
         final endOfMonth = DateTime(today.year, today.month + 1, 0, 23, 59, 59);
 
         // Get today's sales (from invoices)
@@ -431,22 +431,22 @@ class FirestoreService {
         double totalDebts = 0;
 
         for (final doc in todayInvoices.docs) {
-          final data = doc.data() as Map<String, dynamic>;
+          final data = doc.data();
           todaySales += (data['total'] as num?)?.toDouble() ?? 0;
         }
 
         for (final doc in monthInvoices.docs) {
-          final data = doc.data() as Map<String, dynamic>;
+          final data = doc.data();
           monthSales += (data['total'] as num?)?.toDouble() ?? 0;
         }
 
         for (final doc in monthExpenses.docs) {
-          final data = doc.data() as Map<String, dynamic>;
+          final data = doc.data();
           totalExpenses += (data['amount'] as num?)?.toDouble() ?? 0;
         }
 
         for (final doc in outstandingDebts.docs) {
-          final data = doc.data() as Map<String, dynamic>;
+          final data = doc.data();
           totalDebts += (data['amount'] as num?)?.toDouble() ?? 0;
         }
 
@@ -457,7 +457,7 @@ class FirestoreService {
           'totalDebts': totalDebts,
           'lowStockCount': lowStockItems.docs.length,
           'lowStockItems': lowStockItems.docs.map((doc) => 
-              InventoryItem.fromFirestore(doc.data() as Map<String, dynamic>, doc.id)
+              InventoryItem.fromFirestore(doc.data(), doc.id)
           ).toList(),
         };
       },

@@ -32,7 +32,7 @@ class ContextFirestoreRepository {
       final snapshot = await _firestore
           .collection('users')
           .doc(uid)
-          .get(const GetOptions(source: Source.serverAndCache));
+          .get(const GetOptions());
       final data = snapshot.data();
 
       final defaultContext = (data?['defaultContext'] as String?)?.toLowerCase();

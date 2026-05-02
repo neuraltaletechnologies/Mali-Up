@@ -65,7 +65,7 @@ class DebtTrackingScreen extends ConsumerWidget {
           ),
           
           SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             sliver: SliverToBoxAdapter(
               child: Text(
                 _tr('Recent Debt Movements', 'Mienendo ya Madeni ya Karibuni'),
@@ -204,8 +204,8 @@ class _DebtCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isPayable = debt.type == 'Payable';
-    Color statusColor = debt.status == 'Overdue' ? AppColors.error : AppColors.secondary;
+    final bool isPayable = debt.type == 'Payable';
+    final Color statusColor = debt.status == 'Overdue' ? AppColors.error : AppColors.secondary;
 
     return Container(
       padding: const EdgeInsets.all(16),
