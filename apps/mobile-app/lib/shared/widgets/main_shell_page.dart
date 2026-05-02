@@ -492,7 +492,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                   // Sign Out Button
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+                    padding: EdgeInsets.fromLTRB(12, 12, 12, MediaQuery.of(dialogContext).padding.bottom + 16),
                     decoration: const BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.only(
@@ -509,30 +509,33 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           label: _tr('Sign out from Mali App', 'Toka, logout from Mali App'),
                           child: SizedBox(
                             height: 48,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      _tr('Sign Out', 'Toka'),
-                                      style: const TextStyle(
-                                        color: AppColors.error,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
+                            child: Material(
+                              type: MaterialType.transparency,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        _tr('Sign Out', 'Toka'),
+                                        style: const TextStyle(
+                                          color: AppColors.error,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -712,7 +715,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
         final currentIndex = _calculateIndex(location, destinations);
 
         return Scaffold(
-          extendBody: true, // Allow body content to flow under the floating bottom bar
+          extendBody: false,
           extendBodyBehindAppBar: true, // Allow body to flow under the glass app bar
           drawerScrimColor: Colors.transparent,
           appBar: PreferredSize(

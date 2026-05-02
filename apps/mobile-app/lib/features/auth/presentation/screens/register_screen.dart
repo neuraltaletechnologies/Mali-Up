@@ -317,41 +317,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: hasValue
-                ? AppColors.primary.withValues(alpha: 0.5)
-                : AppColors.border,
+      child: InputDecorator(
+        isEmpty: !hasValue,
+        decoration: InputDecoration(
+          hintText: placeholder,
+          hintStyle: const TextStyle(color: AppColors.textMuted),
+          filled: true,
+          fillColor: AppColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
           ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            Icon(
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Icon(
               icon,
               size: 20,
               color: hasValue ? AppColors.primary : AppColors.textSecondary,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                hasValue ? displayValue : placeholder,
-                style: GoogleFonts.dmSans(
-                  color: hasValue ? AppColors.textPrimary : AppColors.textMuted,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-            const Icon(
-              Icons.expand_more_rounded,
-              size: 20,
-              color: AppColors.textMuted,
-            ),
-          ],
+          ),
+          suffixIcon: const Icon(
+            Icons.expand_more_rounded,
+            size: 20,
+            color: AppColors.textMuted,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
+        child: hasValue
+            ? Text(
+                displayValue,
+                style: GoogleFonts.poppins(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                ),
+              )
+            : null,
       ),
     );
   }
@@ -765,7 +776,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: AppColors.primaryDark,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
           // Premium gradient header
@@ -878,8 +889,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           // Main content sheet — "bottom content panel"
           DraggableScrollableSheet(
-            initialChildSize: 0.65,
-            minChildSize: 0.55,
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
             maxChildSize: 0.96,
             builder: (context, scrollController) {
               return Container(
@@ -1165,7 +1176,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: List.generate(
                             4,
-                            (i) => PinDigitBox(controller: _pinControllers[i]),
+                            (i) => PinDigitBox(
+                              controller: _pinControllers[i],
+                              isLast: i == 3,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
