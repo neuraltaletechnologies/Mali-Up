@@ -125,7 +125,7 @@ class ExpenseListScreen extends ConsumerWidget {
               ),
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24),
-                child: SkeletonList(itemCount: 5),
+                child: SkeletonList(),
               ),
               error: (_, _) => Center(
                 child: Text(

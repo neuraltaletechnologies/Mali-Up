@@ -92,12 +92,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
   }
 
-  Future<void> _persistChartVisibilityPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_showIncomeSeriesKey, _showPersonalIncome);
-    await prefs.setBool(_showExpenseSeriesKey, _showPersonalExpense);
-  }
-
   Future<void> _showFirstEntryRewardIfNeeded() async {
     final prefs = await SharedPreferences.getInstance();
     final seen = prefs.getBool(_firstRewardSeenKey) ?? false;
@@ -240,15 +234,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       ),
                                 ),
                                 Text(
-                                  isBusinessContext
-                                      ? _tr(
-                                          "Here's what's happening in your business today",
-                                          'Haya ndiyo yanayoendelea kwenye biashara yako leo',
-                                        )
-                                      : _tr(
-                                          "Here's your personal money pulse for today",
-                                          'Huu ndio mwendo wa fedha zako binafsi leo',
-                                        ),
+                                  _tr(
+                                      "Here's what's happening in your business today",
+                                      'Haya ndiyo yanayoendelea kwenye biashara yako leo',
+                                    ),
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodyMedium
@@ -281,15 +270,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     else
                       const _DashboardHeroSkeleton(),
                     const SizedBox(height: 20),
-                    if (isBusinessContext) ...[
-                      _ModuleGrid(showHeavyContent: _showHeavyContent),
-                      const SizedBox(height: 28),
-                    ] else
-                      const SizedBox(height: 8),
+                    const SizedBox(height: 8),
+                    _ModuleGrid(showHeavyContent: _showHeavyContent),
+                    const SizedBox(height: 28),
                     Text(
-                      isBusinessContext
-                          ? _tr('Sales Performance', 'Utendaji wa Mauzo')
-                          : _tr('Mwenendo wa Pesa Binafsi', 'Mwenendo wa Pesa Binafsi'),
+                      _tr('Sales Performance', 'Utendaji wa Mauzo'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -301,9 +286,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            isBusinessContext
-                              ? _tr('Last 7 days revenue trend with peak and average markers.', 'Mwenendo wa mapato ya siku 7 zilizopita na alama za kilele na wastani.')
-                              : _tr('Weekly flow of income and spending, including upcoming pressure points.', 'Mtiririko wa wiki wa mapato na matumizi, ukiwemo msukumo wa gharama unaokuja.'),
+                            _tr('Last 7 days revenue trend with peak and average markers.', 'Mwenendo wa mapato ya siku 7 zilizopita na alama za kilele na wastani.'),
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: AppColors.textSecondary,
@@ -336,25 +319,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     const SizedBox(height: 12),
                     if (_showHeavyContent)
                       _ChartLegendRow(
-                        isBusinessContext: isBusinessContext,
+                        isBusinessContext: true,
                         showPersonalIncome: _showPersonalIncome,
                         showPersonalExpense: _showPersonalExpense,
-                        onToggleIncome: isBusinessContext
-                            ? null
-                            : () {
-                                setState(() {
-                                  _showPersonalIncome = !_showPersonalIncome;
-                                });
-                                unawaited(_persistChartVisibilityPrefs());
-                              },
-                        onToggleExpense: isBusinessContext
-                            ? null
-                            : () {
-                                setState(() {
-                                  _showPersonalExpense = !_showPersonalExpense;
-                                });
-                                unawaited(_persistChartVisibilityPrefs());
-                              },
+                        onToggleIncome: null,
+                        onToggleExpense: null,
                       )
                     else
                       const _DashboardLoadingPillRow(),
@@ -363,7 +332,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       height: 240,
                       child: _showHeavyContent
                           ? _SalesLineChart(
-                              isBusinessContext: isBusinessContext,
+                              isBusinessContext: true,
                               showPersonalIncome: _showPersonalIncome,
                               showPersonalExpense: _showPersonalExpense,
                               expenses: expenseItems,
@@ -374,9 +343,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     const SizedBox(height: 32),
                     _showHeavyContent
                         ? _RecentTransactionsList(
-                            title: isBusinessContext
-                                ? _tr('Recent Transactions', 'Miamala ya Karibuni')
-                                : _tr('Recent Personal Activity', 'Shughuli za Kibinafsi za Karibuni'),
+                            title: _tr('Recent Transactions', 'Miamala ya Karibuni'),
                             expenses: expenseItems,
                             debts: debtItems,
                           )
@@ -589,7 +556,7 @@ class _UnifiedHeroCard extends StatefulWidget {
 }
 
 class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
-  bool _detailsVisible = true;
+  bool _detailsVisible = false;
 
   @override
   Widget build(BuildContext context) {
@@ -614,7 +581,10 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
         net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
 
     return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 220),
       margin: const EdgeInsets.symmetric(horizontal: 20),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
@@ -824,6 +794,10 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
             : AppColors.error;
 
     return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 220),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),

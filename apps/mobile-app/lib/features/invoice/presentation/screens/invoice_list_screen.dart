@@ -61,7 +61,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
       appBar: AppBar(
         title: Text(
           LocalizationService.tr(
-            en: AppStrings.get('invoices', isSwahili: false),
+            en: AppStrings.get('invoices'),
             sw: AppStrings.get('invoices', isSwahili: true),
           ),
         ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../data/customer_providers.dart';
@@ -15,7 +15,6 @@ class AddCustomerDialog extends ConsumerStatefulWidget {
 }
 
 class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
-  final _contactPicker = FlutterNativeContactPicker();
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -361,44 +360,57 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     setState(() => _isImportingContact = true);
 
     try {
-      final contact = await _contactPicker.selectPhoneNumber();
-      if (contact == null) return;
-
-      final name = (contact.fullName ?? '').trim();
-      final phone =
-          (contact.selectedPhoneNumber ??
-                  contact.phoneNumbers?.firstOrNull ??
-                  '')
-              .trim();
-
-      if (name.isEmpty || phone.isEmpty) {
+      final granted = await FlutterContacts.requestPermission();
+      if (!granted) {
         _showSnackBar(
           LocalizationService.tr(
-            en: 'Selected contact needs a name and phone number.',
-            sw: 'Mawasiliano yaliyochaguliwa yanahitaji jina na namba ya simu.',
+            en: 'Contacts permission is required to import customers.',
+            sw: 'Ruhusa ya mawasiliano inahitajika kuingiza wateja.',
           ),
           Colors.red,
         );
         return;
       }
 
-      await _saveCustomer(
-        name: name,
-        phone: phone,
-        email: '',
-        balance: '0',
-        tags: const ['Contact'],
-      );
+      final contacts = await FlutterContacts.getContacts(withProperties: true);
+      if (!mounted) return;
+
+      final selectedContacts = await _showContactPickerDialog(contacts);
+      if (selectedContacts == null || selectedContacts.isEmpty) return;
+
+      var importedCount = 0;
+      for (final contact in selectedContacts) {
+        final name = contact.displayName.trim();
+        final phone = contact.phones.isNotEmpty
+            ? contact.phones.first.number.trim()
+            : '';
+
+        if (name.isEmpty || phone.isEmpty) {
+          continue;
+        }
+
+        await _saveCustomer(
+          name: name,
+          phone: phone,
+          email: '',
+          balance: '0',
+          tags: const ['Contact'],
+        );
+        importedCount++;
+      }
 
       if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             LocalizationService.tr(
-              en: 'Customer added from contacts',
-              sw: 'Mteja ameongezwa kutoka mawasiliano',
+              en: importedCount == 1
+                  ? 'Customer added from contacts'
+                  : '$importedCount customers added from contacts',
+              sw: importedCount == 1
+                  ? 'Mteja ameongezwa kutoka mawasiliano'
+                  : '$importedCount wateja wameongezwa kutoka mawasiliano',
             ),
           ),
           backgroundColor: Colors.green,
@@ -454,14 +466,212 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     );
   }
 
+  Future<List<Contact>?> _showContactPickerDialog(List<Contact> contacts) async {
+    final searchController = TextEditingController();
+    final selectedContactIds = <String>{};
+
+    Future<void> closeDialog(BuildContext dialogContext, List<Contact>? result) async {
+      Navigator.of(dialogContext).pop(result);
+    }
+
+    final result = await showDialog<List<Contact>>(
+      context: context,
+      builder: (dialogContext) {
+        var filteredContacts = contacts;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            void applyFilter(String query) {
+              final normalizedQuery = query.trim().toLowerCase();
+              setDialogState(() {
+                filteredContacts = normalizedQuery.isEmpty
+                    ? contacts
+                    : contacts.where((contact) {
+                        final name = contact.displayName.toLowerCase();
+                        final phone = contact.phones
+                            .map((phone) => phone.number.toLowerCase())
+                            .join(' ');
+                        return name.contains(normalizedQuery) ||
+                            phone.contains(normalizedQuery);
+                      }).toList();
+              });
+            }
+
+            return Dialog(
+              insetPadding: const EdgeInsets.all(16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(dialogContext).size.height * 0.78,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              LocalizationService.tr(
+                                en: 'Select contacts',
+                                sw: 'Chagua mawasiliano',
+                              ),
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setDialogState(() {
+                                if (selectedContactIds.length == contacts.length) {
+                                  selectedContactIds.clear();
+                                } else {
+                                  selectedContactIds
+                                    ..clear()
+                                    ..addAll(contacts.map((contact) => contact.id));
+                                }
+                              });
+                            },
+                            child: Text(
+                              LocalizationService.tr(
+                                en: 'Select all',
+                                sw: 'Chagua yote',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: TextField(
+                        controller: searchController,
+                        onChanged: applyFilter,
+                        decoration: InputDecoration(
+                          hintText: LocalizationService.tr(
+                            en: 'Search contacts',
+                            sw: 'Tafuta mawasiliano',
+                          ),
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          LocalizationService.tr(
+                            en: '${selectedContactIds.length} selected',
+                            sw: '${selectedContactIds.length} imechaguliwa',
+                          ),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: filteredContacts.isEmpty
+                          ? Center(
+                              child: Text(
+                                LocalizationService.tr(
+                                  en: 'No contacts found',
+                                  sw: 'Hakuna mawasiliano yaliyopatikana',
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: filteredContacts.length,
+                                separatorBuilder: (context, separatorIndex) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final contact = filteredContacts[index];
+                                final phone = contact.phones.isNotEmpty
+                                    ? contact.phones.first.number
+                                    : '';
+                                final isSelected = selectedContactIds.contains(contact.id);
+
+                                return CheckboxListTile(
+                                  value: isSelected,
+                                  onChanged: (_) {
+                                    setDialogState(() {
+                                      if (isSelected) {
+                                        selectedContactIds.remove(contact.id);
+                                      } else {
+                                        selectedContactIds.add(contact.id);
+                                      }
+                                    });
+                                  },
+                                  title: Text(
+                                    contact.displayName.isEmpty
+                                        ? LocalizationService.tr(
+                                            en: 'Unnamed contact',
+                                            sw: 'Mawasiliano bila jina',
+                                          )
+                                        : contact.displayName,
+                                  ),
+                                  subtitle: phone.isEmpty ? null : Text(phone),
+                                );
+                              },
+                            ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => closeDialog(dialogContext, null),
+                              child: Text(
+                                LocalizationService.tr(
+                                  en: 'Cancel',
+                                  sw: 'Ghairi',
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: selectedContactIds.isEmpty
+                                  ? null
+                                  : () {
+                                      final selected = contacts
+                                          .where((contact) =>
+                                              selectedContactIds.contains(contact.id))
+                                          .toList();
+                                      closeDialog(dialogContext, selected);
+                                    },
+                              child: Text(
+                                LocalizationService.tr(
+                                  en: 'Import selected',
+                                  sw: 'Ingiza zilizo chaguliwa',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    searchController.dispose();
+    return result;
+  }
+
   void _showSnackBar(String message, Color backgroundColor) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: backgroundColor),
     );
   }
-}
-
-extension _FirstOrNull<T> on List<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }

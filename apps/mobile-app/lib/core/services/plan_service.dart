@@ -70,7 +70,7 @@ class PlanService {
       int invoiceCount = 0;
       if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
         final now = DateTime.now();
-        final monthStart = DateTime(now.year, now.month, 1);
+        final monthStart = DateTime(now.year, now.month);
         final invoiceSnap = await _firestore
             .collection('businesses')
             .doc(selectedBusinessId)
@@ -171,7 +171,7 @@ class PlanUpgradeCard extends StatelessWidget {
                 Text(
                   atLimit
                       ? 'Umefika kikomo cha ankara'
-                      : 'Karibu kukamilisha ankara ${status.invoicesUsedThisMonth}/${kFreeInvoiceMonthlyLimit}',
+                      : 'Karibu kukamilisha ankara ${status.invoicesUsedThisMonth}/$kFreeInvoiceMonthlyLimit',
                   style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -274,9 +274,9 @@ class PlanInfoCard extends StatelessWidget {
               style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
-            _FeatureRow(text: 'Ankara hadi $kFreeInvoiceMonthlyLimit / mwezi', available: true),
-            _FeatureRow(text: 'Ankara zisizo na kikomo', available: false),
-            _FeatureRow(text: 'Kuingiza data ya M-Pesa (mwongozo)', available: false),
+            const _FeatureRow(text: 'Ankara hadi $kFreeInvoiceMonthlyLimit / mwezi', available: true),
+            const _FeatureRow(text: 'Ankara zisizo na kikomo', available: false),
+            const _FeatureRow(text: 'Kuingiza data ya M-Pesa (mwongozo)', available: false),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -302,9 +302,9 @@ class PlanInfoCard extends StatelessWidget {
               style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
             ),
           ] else ...[
-            _FeatureRow(text: 'Ankara zisizo na kikomo', available: true, light: true),
-            _FeatureRow(text: 'Kuingiza data ya M-Pesa', available: true, light: true),
-            _FeatureRow(text: 'Msaada wa kipaumbele', available: true, light: true),
+            const _FeatureRow(text: 'Ankara zisizo na kikomo', available: true, light: true),
+            const _FeatureRow(text: 'Kuingiza data ya M-Pesa', available: true, light: true),
+            const _FeatureRow(text: 'Msaada wa kipaumbele', available: true, light: true),
             if (status.premiumExpiresAt != null) ...[
               const SizedBox(height: 12),
               Text(

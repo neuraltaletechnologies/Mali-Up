@@ -31,7 +31,7 @@ class InventoryScreen extends ConsumerWidget {
             child: inventoryAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24),
-                child: SkeletonList(itemCount: 5),
+                child: SkeletonList(),
               ),
               error: (error, _) => Center(
                 child: Text(
@@ -167,8 +167,9 @@ class InventoryScreen extends ConsumerWidget {
   }
 
   static String _fmtAmount(double amount) {
-    if (amount >= 1000000)
+    if (amount >= 1000000) {
       return 'TSh ${(amount / 1000000).toStringAsFixed(1)}M';
+    }
     if (amount >= 1000) return 'TSh ${(amount / 1000).toStringAsFixed(0)}K';
     return 'TSh ${amount.toStringAsFixed(0)}';
   }

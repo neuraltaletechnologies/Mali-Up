@@ -158,6 +158,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                 imageQuality: 85,
                               );
                               if (picked == null) return;
+                              if (!dialogContext.mounted) return;
                               setDialogState(() => pickedLogoFile = File(picked.path));
                             },
                       child: Stack(

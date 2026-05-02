@@ -74,28 +74,34 @@ class MaliUpApp extends StatelessWidget {
       valueListenable: LocalizationService.languageNotifier,
       builder: (context, language, _) {
         return ValueListenableBuilder<bool>(
-          valueListenable: MotionService.reducedMotionNotifier,
-          builder: (context, reducedMotion, child) {
-            return MaterialApp.router(
-              title: 'Mali Up',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              locale: Locale(language.code),
-              supportedLocales: const [
-                Locale('en'),
-                Locale('sw'),
-              ],
-              localizationsDelegates: const [
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              routerConfig: AppRouter.createRouter(
-                showLanguageSelection: !hasSelectedLanguage,
-                showOnboarding: !hasCompletedOnboarding && hasSelectedLanguage,
-                hasActiveSession: hasActiveSession,
-                authenticatedInitialPath: initialAuthenticatedPath,
-              ),
+          valueListenable: LocalizationService.languageSelectedNotifier,
+          builder: (context, hasSelectedLanguageNow, child) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: MotionService.reducedMotionNotifier,
+              builder: (context, reducedMotion, child) {
+                return MaterialApp.router(
+                  title: 'Mali Up',
+                  debugShowCheckedModeBanner: false,
+                  theme: AppTheme.lightTheme,
+                  locale: Locale(language.code),
+                  supportedLocales: const [
+                    Locale('en'),
+                    Locale('sw'),
+                  ],
+                  localizationsDelegates: const [
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  routerConfig: AppRouter.createRouter(
+                    showLanguageSelection: !hasSelectedLanguageNow,
+                    showOnboarding:
+                        !hasCompletedOnboarding && hasSelectedLanguageNow,
+                    hasActiveSession: hasActiveSession,
+                    authenticatedInitialPath: initialAuthenticatedPath,
+                  ),
+                );
+              },
             );
           },
         );

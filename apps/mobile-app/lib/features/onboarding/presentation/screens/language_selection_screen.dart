@@ -29,14 +29,14 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     if (_isContinuing) return;
     setState(() => _isContinuing = true);
     try {
-      // Navigate first so the router transition is clean, then persist.
-      // Reversing the order caused MaliUpApp to rebuild (via languageNotifier)
-      // before navigation completed, making the screen appear to "reload".
-      widget.onLanguageSelected();
       await LocalizationService.setLanguage(_language);
+      if (mounted) {
+        widget.onLanguageSelected();
+      }
     } finally {
-      if (!mounted) return;
-      setState(() => _isContinuing = false);
+      if (mounted) {
+        setState(() => _isContinuing = false);
+      }
     }
   }
 

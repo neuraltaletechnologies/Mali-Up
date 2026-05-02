@@ -714,7 +714,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (!_showPinEntry) ...[
                         Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.person_outline_rounded,
                               size: 18,
                               color: textPrimary,
@@ -814,7 +814,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         // PIN entry section
                         Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.lock_outline_rounded,
                               size: 18,
                               color: textPrimary,

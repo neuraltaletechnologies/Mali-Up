@@ -22,17 +22,15 @@ import 'package:google_fonts/google_fonts.dart';
 
 // Removed legacy PhoneAuth classes.
 
-enum AccountManagementType { personal, business, both }
+enum AccountManagementType { business, personal }
 
 extension AccountManagementTypeX on AccountManagementType {
   String label(bool isSwahili) {
     switch (this) {
-      case AccountManagementType.personal:
-        return isSwahili ? 'Usimamizi wa Kibinafsi' : 'Personal Management';
       case AccountManagementType.business:
         return isSwahili ? 'Usimamizi wa Biashara' : 'Business Management';
-      case AccountManagementType.both:
-        return isSwahili ? 'Kibinafsi na Biashara' : 'Personal & Business';
+      case AccountManagementType.personal:
+        return isSwahili ? 'Usimamizi wa Kibinafsi' : 'Personal Management';
     }
   }
 }
@@ -60,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
-  AccountManagementType _selectedAccountType = AccountManagementType.personal;
+  AccountManagementType _selectedAccountType = AccountManagementType.business;
 
   bool _isLoading = false;
   String? _feedbackText;
@@ -211,12 +209,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final String _businessCategoryKey = 'retail';
 
   bool get _includesBusiness =>
-      _selectedAccountType == AccountManagementType.business ||
-      _selectedAccountType == AccountManagementType.both;
+      _selectedAccountType == AccountManagementType.business;
 
   bool get _includesPersonal =>
-      _selectedAccountType == AccountManagementType.personal ||
-      _selectedAccountType == AccountManagementType.both;
+      _selectedAccountType == AccountManagementType.personal;
 
   List<String> get _selectedAccountValues {
     switch (_selectedAccountType) {
@@ -224,19 +220,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return ['personal'];
       case AccountManagementType.business:
         return ['business'];
-      case AccountManagementType.both:
-        return ['personal', 'business'];
-    }
-  }
-
-  String get _usagePreference {
-    switch (_selectedAccountType) {
-      case AccountManagementType.personal:
-        return 'personal';
-      case AccountManagementType.business:
-        return 'business';
-      case AccountManagementType.both:
-        return 'both';
     }
   }
 
@@ -596,7 +579,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         final selectedAccountTypes = _selectedAccountValues;
         final defaultAccountType = selectedAccountTypes.first;
-        final usagePreference = _usagePreference;
+        final usagePreference = _selectedAccountType.name;
         final defaultContext = _includesBusiness
             ? 'business:$businessId'
             : 'personal';
@@ -1006,7 +989,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         // Personal Details section
                         Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.person_outline_rounded,
                               size: 18,
                               color: textPrimary,
@@ -1091,7 +1074,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         if (_includesBusiness) ...[
                           Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.storefront_rounded,
                                 size: 18,
                                 color: textPrimary,
@@ -1155,7 +1138,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         // PIN section
                         Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.lock_outline_rounded,
                               size: 18,
                               color: textPrimary,

@@ -109,7 +109,6 @@ class SalesScreen extends ConsumerWidget {
                       decoration: const BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(0),
                           bottomRight: Radius.circular(0),
                         ),
                       ),
@@ -475,10 +474,14 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
           24,
           MediaQuery.of(context).viewInsets.bottom + 28,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: MediaQuery.of(context).size.width - 48,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Drag handle
             Center(
               child: Container(
@@ -533,16 +536,18 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
             const SizedBox(height: 20),
 
             // ── Product search ──────────────────────────────────────
-            TextField(
-              controller: _productController,
-              focusNode: _productFocus,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: _tr('Product / Item *', 'Bidhaa / Kitu *'),
-                hintText: _tr(
-                  'Search inventory or type new...',
-                  'Tafuta hisa au andika mpya...',
+            SizedBox(
+              width: double.infinity,
+              child: TextField(
+                controller: _productController,
+                focusNode: _productFocus,
+                autofocus: true,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: _tr('Product / Item *', 'Bidhaa / Kitu *'),
+                  hintText: _tr(
+                    'Search inventory or type new...',
+                    'Tafuta hisa au andika mpya...',
                 ),
                 prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20),
                 suffixIcon: _selectedItem != null
@@ -699,11 +704,13 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _priceController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: TextField(
+                      controller: _priceController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                     ],
@@ -789,9 +796,11 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
             const SizedBox(height: 14),
 
             // ── Customer (optional) ─────────────────────────────────
-            TextField(
-              controller: _customerController,
-              textCapitalization: TextCapitalization.words,
+            SizedBox(
+              width: double.infinity,
+              child: TextField(
+                controller: _customerController,
+                textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
                 labelText: _tr('Customer (optional)', 'Mteja (si lazima)'),
                 prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
@@ -869,6 +878,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: GestureDetector(
                       onTap: () => setState(() => _isCash = false),
