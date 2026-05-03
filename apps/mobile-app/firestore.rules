@@ -16,6 +16,22 @@ service cloud.firestore {
     function isBusinessOwner(ownerId) {
       return isSignedIn() && isOwner(ownerId);
     }
+
+    // Helper function for importing customer/contact records from phone.
+    // Allows required customer identity fields and optional metadata fields.
+    function isValidImportedCustomer(data) {
+      return data.keys().hasAll(['name', 'phone']) &&
+        data.name is string &&
+        data.phone is string &&
+        data.name.size() > 0 &&
+        data.phone.size() > 0 &&
+        data.name.size() <= 120 &&
+        data.phone.size() <= 32 &&
+        (!data.keys().hasAny(['email']) || data.email is string) &&
+        (!data.keys().hasAny(['balance']) || data.balance is string || data.balance is number) &&
+        (!data.keys().hasAny(['lastTransactionDate']) || data.lastTransactionDate is string) &&
+        (!data.keys().hasAny(['tags']) || data.tags is list);
+    }
     
     // ============================================
     // USER PROFILES
@@ -60,8 +76,9 @@ service cloud.firestore {
       
       // CUSTOMERS
       match /customers/{customerId} {
-        allow read, write: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId);
+        allow read, update, delete: if isBusinessOwner(ownerId);
+        // Explicitly allow bulk contact imports from phone.
+        allow create: if isBusinessOwner(ownerId) && isValidImportedCustomer(request.resource.data);
       }
       
       // EXPENSES
@@ -107,6 +124,13 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
 
+      // Direct customers subcollection when no businessId is resolved.
+      // Supports importing multiple contacts/customers from phone.
+      match /customers/{customerId} {
+        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
+        allow create: if isSignedIn() && isOwner(tenantId) && isValidImportedCustomer(request.resource.data);
+      }
+
       // Direct subcollections when no businessId is resolved
       match /{collection}/{docId} {
         allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
@@ -114,6 +138,13 @@ service cloud.firestore {
 
       match /businesses/{businessId} {
         allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+
+        // Customer subcollection for business context.
+        // Supports importing multiple contacts/customers from phone.
+        match /customers/{customerId} {
+          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
+          allow create: if isSignedIn() && isOwner(tenantId) && isValidImportedCustomer(request.resource.data);
+        }
 
         // All subcollections: sales_invoices, customers, inventory_items,
         // expenses, cash_accounts, debts, suppliers, staff, settings, etc.
@@ -128,6 +159,12 @@ service cloud.firestore {
     // ============================================
     match /personal_accounts/{userId} {
       allow read, create, update, delete: if isSignedIn() && isOwner(userId);
+
+      // Personal-context customers import.
+      match /customers/{customerId} {
+        allow read, update, delete: if isSignedIn() && isOwner(userId);
+        allow create: if isSignedIn() && isOwner(userId) && isValidImportedCustomer(request.resource.data);
+      }
 
       // All subcollections: sales_invoices, expenses, cash_accounts,
       // customers, debts, inventory_items, etc.

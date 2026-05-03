@@ -446,10 +446,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                           length: 6,
                           animationType: AnimationType.fade,
                           pinTheme: PinTheme(
-                            shape: PinCodeFieldShape.box,
-                            borderRadius: BorderRadius.circular(12),
-                            fieldHeight: 50,
-                            fieldWidth: 45,
+                            shape: PinCodeFieldShape.circle,
+                            fieldHeight: 52,
+                            fieldWidth: 52,
                             activeFillColor: fieldBg,
                             selectedFillColor: fieldBg,
                             inactiveFillColor: fieldBg,

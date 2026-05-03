@@ -60,10 +60,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
               child: SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 22),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Text(
                         _tr('Choose your language', 'Chagua lugha'),

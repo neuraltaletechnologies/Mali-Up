@@ -205,6 +205,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     4,
     (_) => TextEditingController(),
   );
+  final List<FocusNode> _pinFocusNodes = List.generate(
+    4,
+    (_) => FocusNode(),
+  );
 
   final String _businessCategoryKey = 'retail';
 
@@ -520,12 +524,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
     final phone = _phoneController.text.trim();
     final normalizedPhone = _normalizeLocalPhone(phone);
-    final email = '$normalizedPhone@mali.up';
+    final normalizedRecoveryEmail = recoveryEmail.toLowerCase();
+    final authEmail = normalizedRecoveryEmail.isNotEmpty
+        ? normalizedRecoveryEmail
+        : '$normalizedPhone@mali.up';
     final authPassword = buildAuthPasswordFromPin(pin);
 
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
+        email: authEmail,
         password: authPassword,
       );
       try {
@@ -570,6 +577,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final normalizedPhone = _normalizeLocalPhone(
           _phoneController.text.trim(),
         );
+        final authEmail = recoveryEmail.isNotEmpty
+            ? recoveryEmail
+            : '$normalizedPhone@mali.up';
         final businessId = _firestore
             .collection('tenants')
             .doc(user.uid)
@@ -602,6 +612,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'pin': pin, // Stored for lookup if needed, though Auth handles login
           'name': displayName,
           'displayName': displayName,
+          'authEmail': authEmail,
           if (recoveryEmail.isNotEmpty) 'email': recoveryEmail,
           if (_includesBusiness)
             'businessName': _businessNameController.text.trim(),
@@ -695,6 +706,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     for (final controller in _pinControllers) {
       controller.dispose();
     }
+    for (final node in _pinFocusNodes) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -779,16 +793,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Subtle pattern overlay
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: 0.03,
-                      child: Image.asset(
-                        'assets/images/pattern.png',
-                        repeat: ImageRepeat.repeat,
-                      ),
-                    ),
-                  ),
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 64, 24, 24),
@@ -1161,6 +1165,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             4,
                             (i) => PinDigitBox(
                               controller: _pinControllers[i],
+                              previousController:
+                                  i > 0 ? _pinControllers[i - 1] : null,
+                              focusNode: _pinFocusNodes[i],
+                              previousFocusNode:
+                                  i > 0 ? _pinFocusNodes[i - 1] : null,
+                              nextFocusNode:
+                                  i < 3 ? _pinFocusNodes[i + 1] : null,
+                              autoFocus: i == 0,
                               isLast: i == 3,
                             ),
                           ),

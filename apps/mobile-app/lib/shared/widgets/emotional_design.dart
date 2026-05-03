@@ -202,12 +202,12 @@ class EmotionalLottieSpot extends StatelessWidget {
   String _fallbackAssetForScene(EmotionalLottieScene scene) {
     switch (scene) {
       case EmotionalLottieScene.celebrate:
-        return 'assets/lottie/fallback_celebrate.json';
+        return 'assets/lottie/DATA.json';
       case EmotionalLottieScene.onboarding:
       case EmotionalLottieScene.authWelcome:
       case EmotionalLottieScene.authVerify:
       case EmotionalLottieScene.dashboard:
-        return 'assets/lottie/fallback_minimal.json';
+        return 'assets/lottie/Revenue.json';
     }
   }
 
