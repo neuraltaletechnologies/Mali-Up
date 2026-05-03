@@ -76,6 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
       false; // Flag to switch between phone and PIN entry views
   bool _isLoading = false;
   String? _normalizedPhone;
+  String? _authEmailForSignIn;
+  String? _recoveryEmail;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
@@ -85,6 +87,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final List<TextEditingController> _pinControllers = List.generate(
     4,
     (i) => TextEditingController(),
+  );
+  final List<FocusNode> _pinFocusNodes = List.generate(
+    4,
+    (_) => FocusNode(),
   );
   final FocusNode _phoneFocusNode = FocusNode();
 
@@ -97,6 +103,11 @@ class _LoginScreenState extends State<LoginScreen> {
       return digits.substring(1);
     }
     return digits;
+  }
+
+  bool _isValidEmail(String value) {
+    final normalized = value.trim();
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(normalized);
   }
 
   @override
@@ -216,9 +227,20 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      final profile = userSnapshot.docs.first.data();
+      final recoveryEmail =
+          ((profile['recoveryEmail'] ?? profile['email']) as String?)
+              ?.trim()
+              .toLowerCase();
+      final authEmail =
+          (profile['authEmail'] as String?)?.trim().toLowerCase();
+
       setState(() {
         _showPinEntry = true;
         _isLoading = false;
+        _recoveryEmail = recoveryEmail;
+        _authEmailForSignIn =
+            authEmail ?? '${_normalizedPhone ?? localPhone}@mali.up';
       });
       _setFeedback(
         _tr(
@@ -269,7 +291,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _isLoading = true);
-    final email = '$_normalizedPhone@mali.up';
+    final email =
+        _authEmailForSignIn ?? '${_normalizedPhone ?? ''}@mali.up';
     final authPassword = buildAuthPasswordFromPin(pin);
 
     try {
@@ -326,31 +349,109 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleForgotPIN() async {
-    await showDialog(
+    final emailController = TextEditingController(text: _recoveryEmail ?? '');
+
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_tr('Forgot PIN?', 'Umesahau PIN?')),
-        content: Text(
-          _tr(
-            'Please contact support at +255 653 520 829 to reset your PIN.',
-            'Tafadhali wasiliana na huduma kwa wateja +255 653 520 829 ili kuweka PIN mpya.',
-          ),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_tr('Recover PIN', 'Rejesha PIN')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _tr(
+                'Enter your recovery email to receive a PIN reset email.',
+                'Weka barua pepe ya urejeshaji ili upokee barua pepe ya kurejesha PIN.',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: _tr('you@example.com', 'wewe@example.com'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(_tr('Close', 'Funga')),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(_tr('Cancel', 'Ghairi')),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _openWhatsAppHelpDesk();
+            onPressed: () async {
+              final enteredEmail = emailController.text.trim().toLowerCase();
+              if (!_isValidEmail(enteredEmail)) {
+                await _NotificationHelper.showError(
+                  dialogContext,
+                  _tr(
+                    'Please enter a valid email address.',
+                    'Tafadhali weka barua pepe sahihi.',
+                  ),
+                );
+                return;
+              }
+
+              try {
+                await _auth.sendPasswordResetEmail(email: enteredEmail);
+                if (!mounted || !dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        _tr(
+                          'Recovery email sent. Check your inbox.',
+                          'Barua pepe ya urejeshaji imetumwa. Angalia kikasha chako.',
+                        ),
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } on FirebaseAuthException catch (e) {
+                final message = switch (e.code) {
+                  'user-not-found' => _tr(
+                      'No account found for that email.',
+                      'Hakuna akaunti iliyo na barua pepe hiyo.',
+                    ),
+                  'invalid-email' => _tr(
+                      'Invalid email address.',
+                      'Barua pepe si sahihi.',
+                    ),
+                  _ => _tr(
+                      'Could not send recovery email right now.',
+                      'Imeshindikana kutuma barua pepe ya urejeshaji kwa sasa.',
+                    ),
+                };
+                if (dialogContext.mounted) {
+                  await _NotificationHelper.showError(dialogContext, message);
+                }
+              } catch (_) {
+                if (dialogContext.mounted) {
+                  await _NotificationHelper.showError(
+                    dialogContext,
+                    _tr(
+                      'Could not send recovery email right now.',
+                      'Imeshindikana kutuma barua pepe ya urejeshaji kwa sasa.',
+                    ),
+                  );
+                }
+              }
             },
-            child: Text(_tr('WhatsApp Support', 'Msaada wa WhatsApp')),
+            child: Text(_tr('Send Email', 'Tuma Barua Pepe')),
           ),
         ],
       ),
     );
+
+    emailController.dispose();
   }
 
   @override
@@ -361,18 +462,19 @@ class _LoginScreenState extends State<LoginScreen> {
     for (final controller in _pinControllers) {
       controller.dispose();
     }
+    for (final node in _pinFocusNodes) {
+      node.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     const textPrimary = AppColors.textPrimary;
     const textSecondary = AppColors.textSecondary;
     const fieldBg = AppColors.surface;
     final mediaQuery = MediaQuery.of(context);
     final topHeight = mediaQuery.size.height * 0.35;
-    final bottomInset = mediaQuery.viewInsets.bottom;
 
     InputDecoration fieldDecoration({
       required String hint,
@@ -465,16 +567,6 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Subtle pattern overlay
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: 0.03,
-                      child: Image.asset(
-                        'assets/images/pattern.png',
-                        repeat: ImageRepeat.repeat,
-                      ),
-                    ),
-                  ),
                   Center(
                     child: ValueListenableBuilder<bool>(
                       valueListenable: MotionService.reducedMotionNotifier,
@@ -834,6 +926,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             4,
                             (i) => PinDigitBox(
                               controller: _pinControllers[i],
+                              previousController:
+                                  i > 0 ? _pinControllers[i - 1] : null,
+                              focusNode: _pinFocusNodes[i],
+                              previousFocusNode:
+                                  i > 0 ? _pinFocusNodes[i - 1] : null,
+                              nextFocusNode:
+                                  i < 3 ? _pinFocusNodes[i + 1] : null,
+                              autoFocus: i == 0,
                               isLast: i == 3,
                             ),
                           ),
@@ -918,7 +1018,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: IgnorePointer(
                 child: Center(
                   child: Lottie.asset(
-                    'assets/lottie/success_burst.json',
+                    'assets/lottie/DATA.json',
                     repeat: false,
                     onLoaded: (composition) {},
                   ),

@@ -581,28 +581,30 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final netColor =
         net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
 
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [
-            AppColors.navyPrimary,
-            Color(0xFF1a3a52),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.3),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+    return AspectRatio(
+      aspectRatio: 1.46,
+      child: Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            colors: [
+              AppColors.navyPrimary,
+              Color(0xFF1a3a52),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ],
-      ),
-      child: Stack(
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.navyPrimary.withValues(alpha: 0.3),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Stack(
         children: [
           // Decorative background elements
           Positioned(
@@ -627,7 +629,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
           ),
           // Main content
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -663,8 +665,8 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: SizedBox(
-                        width: 48,
-                        height: 48,
+                        width: 38,
+                        height: 38,
                         child: widget.logoUrl != null &&
                                 widget.logoUrl!.isNotEmpty
                             ? Image.network(
@@ -678,7 +680,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 14),
 
                 // Main balance section
                 Column(
@@ -691,9 +693,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                           _tr('TOTAL BALANCE', 'JUMLA YA FEDHA'),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
+                            letterSpacing: 0.9,
                           ),
                         ),
                         GestureDetector(
@@ -706,14 +708,14 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                               _detailsVisible
                                   ? Icons.visibility_rounded
                                   : Icons.visibility_off_rounded,
-                              size: 16,
+                              size: 15,
                               color: Colors.white.withValues(alpha: 0.7),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       transitionBuilder: (child, anim) => FadeTransition(
@@ -725,20 +727,20 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                         key: ValueKey(_detailsVisible),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 36,
+                          fontSize: 28,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: -1.0,
+                          letterSpacing: -0.6,
                           height: 1.0,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 14),
 
                 // Stats footer
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
                     border: Border(
                       top: BorderSide(
@@ -755,7 +757,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                       ),
                       Container(
                         width: 1,
-                        height: 24,
+                        height: 18,
                         color: Colors.white.withValues(alpha: 0.1),
                       ),
                       _CardStatItem(
@@ -765,7 +767,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                       ),
                       Container(
                         width: 1,
-                        height: 24,
+                        height: 18,
                         color: Colors.white.withValues(alpha: 0.1),
                       ),
                       _CardStatItem(
@@ -781,6 +783,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
           ),
         ],
         ),
+      ),
     );
   }
 
@@ -792,22 +795,24 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
             ? AppColors.warning
             : AppColors.error;
 
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
+    return AspectRatio(
+      aspectRatio: 1.46,
+      child: Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
@@ -887,6 +892,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
           ),
         ],
         ),
+      ),
     );
   }
 }

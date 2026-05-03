@@ -26,16 +26,11 @@ class SalesScreen extends ConsumerWidget {
           try {
             final inventory =
                 ref.read(inventoryItemListProvider).value ?? const [];
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (_) => _QuickSaleSheet(inventory: inventory),
-            ).catchError((error) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: ${error.toString()}')),
-              );
-            });
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => _QuickSalePage(inventory: inventory),
+              ),
+            );
           } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Error opening sales form: ${e.toString()}')),
@@ -44,11 +39,8 @@ class SalesScreen extends ConsumerWidget {
         },
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.secondary,
-        icon: const Icon(Icons.add_rounded),
-        label: Text(
-          _tr('Sale', 'Uza'),
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
+        icon: const Icon(Icons.sell_outlined),
+        label: Text(_tr('', '')),
         elevation: 4,
       ),
       body: Column(
@@ -115,23 +107,29 @@ class SalesScreen extends ConsumerWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _OverviewStat(
-                            label: _tr('Total', 'Jumla'),
-                            value: _fmtAmount(totalSales),
-                            color: AppColors.primaryLight,
-                            compact: true,
+                          Expanded(
+                            child: _OverviewStat(
+                              label: _tr('Total', 'Jumla'),
+                              value: _fmtAmount(totalSales),
+                              color: AppColors.primaryLight,
+                              compact: true,
+                            ),
                           ),
-                          _OverviewStat(
-                            label: _tr('Pending', 'Inasubiri'),
-                            value: _fmtAmount(pendingSales),
-                            color: AppColors.secondary,
-                            compact: true,
+                          Expanded(
+                            child: _OverviewStat(
+                              label: _tr('Pending', 'Inasubiri'),
+                              value: _fmtAmount(pendingSales),
+                              color: AppColors.secondary,
+                              compact: true,
+                            ),
                           ),
-                          _OverviewStat(
-                            label: _tr('Paid', 'Imelipwa'),
-                            value: _fmtAmount(paidSales),
-                            color: AppColors.success,
-                            compact: true,
+                          Expanded(
+                            child: _OverviewStat(
+                              label: _tr('Paid', 'Imelipwa'),
+                              value: _fmtAmount(paidSales),
+                              color: AppColors.success,
+                              compact: true,
+                            ),
                           ),
                         ],
                       ),
@@ -257,8 +255,12 @@ class _EmptySalesState extends StatelessWidget {
 
 class _QuickSaleSheet extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> inventory;
+  final bool asModal;
 
-  const _QuickSaleSheet({required this.inventory});
+  const _QuickSaleSheet({
+    required this.inventory,
+    this.asModal = true,
+  });
 
   @override
   ConsumerState<_QuickSaleSheet> createState() => _QuickSaleSheetState();
@@ -353,24 +355,23 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
 
   void _showAddProductSheet(BuildContext context) {
     final productName = _productController.text.trim();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _AddProductSheet(
-        initialProductName: productName,
-        onProductAdded: (product) {
-          setState(() {
-            _selectedItem = product;
-            _productController.text =
-                (product['name'] ?? product['productName'] ?? '') as String;
-            _priceController.text =
-                parseUnitPrice(product['unitPrice'] ?? product['price'] ?? 0)
-                    .toStringAsFixed(0);
-            _suggestions = [];
-            _showSuggestions = false;
-          });
-        },
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _AddProductPage(
+          initialProductName: productName,
+          onProductAdded: (product) {
+            setState(() {
+              _selectedItem = product;
+              _productController.text =
+                  (product['name'] ?? product['productName'] ?? '') as String;
+              _priceController.text =
+                  parseUnitPrice(product['unitPrice'] ?? product['price'] ?? 0)
+                      .toStringAsFixed(0);
+              _suggestions = [];
+              _showSuggestions = false;
+            });
+          },
+        ),
       ),
     );
   }
@@ -483,14 +484,9 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.92,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final content = SizedBox(
+      width: screenWidth,
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           24,
@@ -499,7 +495,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
           MediaQuery.of(context).viewInsets.bottom + 28,
         ),
         child: SizedBox(
-          width: double.infinity,
+          width: (screenWidth - 48).clamp(0, screenWidth),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1003,6 +999,19 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
         ),
       ),
     );
+
+    if (!widget.asModal) return content;
+
+    return FractionallySizedBox(
+      widthFactor: 1,
+      heightFactor: 0.92,
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: content,
+      ),
+    );
   }
 
   String _fmtTotal(double amount) {
@@ -1063,27 +1072,25 @@ class _OverviewStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (compact) {
-      return Expanded(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textMuted,
-                fontSize: 11,
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.textMuted,
+              fontSize: 11,
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
     return Column(
@@ -1222,10 +1229,12 @@ class _InvoiceListItem extends StatelessWidget {
 class _AddProductSheet extends ConsumerStatefulWidget {
   final String initialProductName;
   final Function(Map<String, dynamic>) onProductAdded;
+  final bool asModal;
 
   const _AddProductSheet({
     required this.initialProductName,
     required this.onProductAdded,
+    this.asModal = true,
   });
 
   @override
@@ -1358,14 +1367,9 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.92,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final content = SizedBox(
+      width: screenWidth,
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           24,
@@ -1374,7 +1378,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
           MediaQuery.of(context).viewInsets.bottom + 28,
         ),
         child: SizedBox(
-          width: double.infinity,
+          width: (screenWidth - 48).clamp(0, screenWidth),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1626,6 +1630,66 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+
+    if (!widget.asModal) return content;
+
+    return FractionallySizedBox(
+      widthFactor: 1,
+      heightFactor: 0.92,
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: content,
+      ),
+    );
+  }
+}
+
+class _QuickSalePage extends StatelessWidget {
+  final List<Map<String, dynamic>> inventory;
+
+  const _QuickSalePage({required this.inventory});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_tr('Record a Sale', 'Rekodi Mauzo')),
+      ),
+      body: SafeArea(
+        child: _QuickSaleSheet(
+          inventory: inventory,
+          asModal: false,
+        ),
+      ),
+    );
+  }
+}
+
+class _AddProductPage extends StatelessWidget {
+  final String initialProductName;
+  final Function(Map<String, dynamic>) onProductAdded;
+
+  const _AddProductPage({
+    required this.initialProductName,
+    required this.onProductAdded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_tr('Add New Product', 'Ongeza Bidhaa Mpya')),
+      ),
+      body: SafeArea(
+        child: _AddProductSheet(
+          initialProductName: initialProductName,
+          onProductAdded: onProductAdded,
+          asModal: false,
         ),
       ),
     );

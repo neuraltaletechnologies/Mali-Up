@@ -5,6 +5,10 @@ import '../../core/theme/app_colors.dart';
 
 class PinDigitBox extends StatefulWidget {
   final TextEditingController controller;
+  final TextEditingController? previousController;
+  final FocusNode? focusNode;
+  final FocusNode? previousFocusNode;
+  final FocusNode? nextFocusNode;
   final bool obscureText;
   final double size;
   final bool autoFocus;
@@ -14,6 +18,10 @@ class PinDigitBox extends StatefulWidget {
   const PinDigitBox({
     super.key,
     required this.controller,
+    this.previousController,
+    this.focusNode,
+    this.previousFocusNode,
+    this.nextFocusNode,
     this.obscureText = true,
     this.size = 56,
     this.autoFocus = false,
@@ -27,13 +35,14 @@ class PinDigitBox extends StatefulWidget {
 
 class _PinDigitBoxState extends State<PinDigitBox> {
   late FocusNode _focusNode;
+  late bool _ownsFocusNode;
   bool _isFocused = false;
-  bool _handledEmptyBackspace = false;
 
   @override
   void initState() {
     super.initState();
-    _focusNode = FocusNode();
+    _ownsFocusNode = widget.focusNode == null;
+    _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(() {
       setState(() => _isFocused = _focusNode.hasFocus);
     });
@@ -47,7 +56,9 @@ class _PinDigitBoxState extends State<PinDigitBox> {
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    if (_ownsFocusNode) {
+      _focusNode.dispose();
+    }
     super.dispose();
   }
 
@@ -89,18 +100,23 @@ class _PinDigitBoxState extends State<PinDigitBox> {
           onKeyEvent: (node, event) {
             if (event.logicalKey != LogicalKeyboardKey.backspace &&
                 event.logicalKey != LogicalKeyboardKey.delete) {
-              _handledEmptyBackspace = false;
               return KeyEventResult.ignored;
             }
 
-            if (event is KeyUpEvent) {
-              _handledEmptyBackspace = false;
+            if (event is! KeyDownEvent) {
               return KeyEventResult.ignored;
             }
 
-            if (widget.controller.text.isEmpty && !_handledEmptyBackspace) {
-              _handledEmptyBackspace = true;
-              FocusScope.of(context).previousFocus();
+            if (widget.controller.text.isEmpty) {
+              if (widget.previousController != null &&
+                  widget.previousController!.text.isNotEmpty) {
+                widget.previousController!.clear();
+              }
+              if (widget.previousFocusNode != null) {
+                widget.previousFocusNode!.requestFocus();
+              } else {
+                FocusScope.of(context).previousFocus();
+              }
               return KeyEventResult.handled;
             }
 
@@ -120,12 +136,14 @@ class _PinDigitBoxState extends State<PinDigitBox> {
             ],
             onChanged: (value) {
               if (value.isNotEmpty) {
-                if (!widget.isLast) {
+                if (widget.nextFocusNode != null) {
+                  widget.nextFocusNode!.requestFocus();
+                } else if (!widget.isLast) {
                   FocusScope.of(context).nextFocus();
                 }
-                widget.onComplete?.call();
-              } else {
-                FocusScope.of(context).previousFocus();
+                if (widget.isLast) {
+                  widget.onComplete?.call();
+                }
               }
             },
             style: GoogleFonts.poppins(
