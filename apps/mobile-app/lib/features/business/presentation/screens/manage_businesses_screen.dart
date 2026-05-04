@@ -122,15 +122,39 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
     for (final attempt in attempts) {
       try {
+        debugPrint('Attempting upload using bucket: ${attempt.key}');
+        debugPrint('Configured storageBucket: ${Firebase.app().options.storageBucket}');
         final ref = attempt.value.ref().child(objectPath);
-        await ref.putFile(file, metadata);
-        return await ref.getDownloadURL();
+
+        final uploadTask = ref.putFile(file, metadata);
+
+        // Await task completion and get the snapshot to ensure the server accepted it
+        final snapshot = await uploadTask.whenComplete(() {});
+
+        if (snapshot.state == TaskState.success) {
+          final url = await snapshot.ref.getDownloadURL();
+          return url;
+        } else {
+          throw FirebaseException(
+            plugin: 'firebase_storage',
+            code: 'upload-failed',
+            message: 'Upload did not complete successfully (state: ${snapshot.state})',
+          );
+        }
       } on FirebaseException catch (e) {
         lastFirebaseError = e;
         debugPrint(
           'Logo upload failed on ${attempt.key}: code=${e.code}, message=${e.message}',
         );
         if (!_isBucketResolutionError(e)) rethrow;
+      } catch (e, st) {
+        debugPrint('Unexpected upload error on ${attempt.key}: $e');
+        debugPrint('$st');
+        lastFirebaseError = FirebaseException(
+          plugin: 'firebase_storage',
+          code: 'unknown',
+          message: e.toString(),
+        );
       }
     }
 

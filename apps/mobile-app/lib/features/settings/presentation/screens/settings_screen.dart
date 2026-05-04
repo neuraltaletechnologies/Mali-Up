@@ -52,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _changeLanguage(AppLanguage language) async {
     setState(() => _isLoadingLanguage = true);
-    await LocalizationService.setLanguage(language);
+    await LocalizationService.changeLanguage(language);
     if (!mounted) return;
     setState(() {
       _selectedLanguage = language;
@@ -163,59 +163,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       }).toList(),
                     ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              _tr('Accessibility', 'Ufikiaji'),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.secondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _tr('Reduced Motion', 'Punguza Mwendo'),
-                          style: const TextStyle(
-                            color: AppColors.secondary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _tr(
-                            'Simplify animations, reduce motion, and keep the interface calm.',
-                            'Rahisisha uhuishaji, punguza mwendo, na weka kiolesura tulivu.',
-                          ),
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 13,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch.adaptive(
-                    value: _reducedMotionEnabled,
-                    onChanged: _toggleReducedMotion,
-                    activeThumbColor: AppColors.primary,
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 32),
             Text(
