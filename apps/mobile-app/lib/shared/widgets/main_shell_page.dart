@@ -888,7 +888,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
     final label = (selectedBusiness?['name'] as String?)?.trim().isNotEmpty == true
         ? (selectedBusiness!['name'] as String).trim()
         : tr('Business', 'Biashara');
-    final icon = Icons.business_center_rounded;
+    const icon = Icons.business_center_rounded;
 
     return PopupMenuButton<String>(
       enabled: canSwitch,
