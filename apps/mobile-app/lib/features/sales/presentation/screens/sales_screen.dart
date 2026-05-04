@@ -101,7 +101,7 @@ class SalesScreen extends ConsumerWidget {
                       decoration: const BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.only(
-                          bottomRight: Radius.circular(0),
+                          
                         ),
                       ),
                       child: Row(
@@ -715,7 +715,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                         ),
                         child: Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.add_circle_outline_rounded,
                               size: 18,
                               color: AppColors.primary,
