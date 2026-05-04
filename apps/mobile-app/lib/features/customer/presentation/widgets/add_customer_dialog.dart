@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../data/customer_providers.dart';
@@ -290,8 +291,8 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                                 )
                               : Text(
                                   LocalizationService.tr(
-                                    en: 'Add Customer',
-                                    sw: 'Ongeza Mteja',
+                                    en: 'Add',
+                                    sw: 'Ongeza',
                                   ),
                                 ),
                         ),
@@ -360,8 +361,8 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     setState(() => _isImportingContact = true);
 
     try {
-      final granted = await FlutterContacts.requestPermission();
-      if (!granted) {
+      final status = await Permission.contacts.request();
+      if (status.isDenied) {
         _showSnackBar(
           LocalizationService.tr(
             en: 'Contacts permission is required to import customers.',
@@ -369,6 +370,40 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
           ),
           Colors.red,
         );
+        return;
+      }
+
+      if (status.isPermanentlyDenied) {
+        // Prompt user to open app settings so they can enable permission
+        final open = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(LocalizationService.tr(
+              en: 'Contacts permission required',
+              sw: 'Ruhusa ya mawasiliano inahitajika',
+            )),
+            content: Text(LocalizationService.tr(
+              en:
+                  'Please enable contacts permission in app settings to import customers.',
+              sw:
+                  'Tafadhali weka ruhusa ya mawasiliano katika mipangilio ya programu ili kuingiza wateja.',
+            )),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(LocalizationService.tr(en: 'Cancel', sw: 'Ghairi')),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(LocalizationService.tr(en: 'Open Settings', sw: 'Fungua Mipangilio')),
+              ),
+            ],
+          ),
+        );
+
+        if (open == true) {
+          openAppSettings();
+        }
         return;
       }
 

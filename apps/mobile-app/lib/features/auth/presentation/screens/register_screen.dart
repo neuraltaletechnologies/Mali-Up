@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../shared/widgets/shimmer.dart';
@@ -454,6 +455,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  Future<bool> _hasInternetConnection() async {
+    final result = await Connectivity().checkConnectivity();
+    return result != ConnectivityResult.none;
+  }
+
   Future<void> _handleRegistration() async {
     // Validate owner details
     if (_ownerNameController.text.isEmpty) {
@@ -517,6 +523,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'Barua pepe hiyo inaonekana si sahihi. Tafadhali ihakiki.',
         ),
         EmotionalStatusTone.warning,
+      );
+      return;
+    }
+
+    // Check internet connection before attempting registration
+    final hasInternet = await _hasInternetConnection();
+    if (!hasInternet) {
+      _setFeedback(
+        _registrationNetworkErrorMessage(),
+        EmotionalStatusTone.error,
       );
       return;
     }
