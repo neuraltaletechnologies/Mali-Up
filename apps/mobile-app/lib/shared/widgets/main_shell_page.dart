@@ -703,38 +703,9 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
             // We use padding so that the content isn't completely hidden behind the AppBar
             // However, scroll views inside the children will automatically adjust for extendBody: true.
             // If the child is not a scroll view, it will need padding.
-            padding: EdgeInsets.only(top: isDashboard ? 0 : kToolbarHeight + 24 + MediaQuery.of(context).padding.top),
+            padding: EdgeInsets.only(top: isDashboard ? 0 : kToolbarHeight + 8 + MediaQuery.of(context).padding.top),
             child: Column(
               children: [
-                if (!isDashboard)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      border: Border(
-                        bottom: BorderSide(
-                          color: AppColors.secondary.withValues(alpha: 0.06),
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.secondary,
-                                  letterSpacing: 0.2,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 Expanded(child: widget.child),
               ],
             ),
