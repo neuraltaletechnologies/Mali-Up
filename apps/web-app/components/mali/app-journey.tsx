@@ -1,7 +1,6 @@
 "use client"
 
-import { useRef } from "react"
-import { motion, useScroll, useTransform } from "framer-motion"
+import { useRef, useEffect, useState } from "react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
 import { Wallet, Building2, TrendingUp, PieChart } from "lucide-react"
 
@@ -47,38 +46,25 @@ const journeySteps = [
 function JourneyStep({
   step,
   index,
-  progress,
+  isActive,
 }: {
   step: (typeof journeySteps)[0]
   index: number
-  progress: ReturnType<typeof useTransform>
+  isActive: boolean
 }) {
   const Icon = step.icon
-  const stepStart = index / journeySteps.length
-  const stepEnd = (index + 1) / journeySteps.length
-  
-  const opacity = useTransform(
-    progress,
-    [stepStart - 0.1, stepStart, stepEnd - 0.1, stepEnd],
-    [0, 1, 1, 0]
-  )
-  
-  const y = useTransform(
-    progress,
-    [stepStart - 0.1, stepStart, stepEnd - 0.1, stepEnd],
-    [50, 0, 0, -50]
-  )
 
   return (
-    <motion.div
-      className="absolute inset-0 flex items-center justify-center"
-      style={{ opacity, y }}
+    <div
+      className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ease-out ${
+        isActive ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-12 scale-95 pointer-events-none"
+      }`}
     >
       <div className="grid lg:grid-cols-2 gap-12 lg:gap-24 items-center max-w-6xl mx-auto px-6 w-full">
         {/* Text Content */}
         <div className="flex flex-col gap-6 text-center lg:text-left order-2 lg:order-1">
           <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto lg:mx-0"
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto lg:mx-0 transition-transform duration-500"
             style={{ backgroundColor: `${step.color}20` }}
           >
             <Icon className="w-8 h-8" style={{ color: step.color }} />
@@ -112,7 +98,7 @@ function JourneyStep({
         <div className="flex justify-center order-1 lg:order-2">
           <div className="relative">
             <div
-              className="absolute inset-0 blur-3xl opacity-30 rounded-full"
+              className="absolute inset-0 blur-3xl opacity-30 rounded-full transition-opacity duration-700"
               style={{
                 background: `radial-gradient(circle, ${step.color}40 0%, transparent 60%)`,
                 transform: "scale(1.5)",
@@ -128,75 +114,92 @@ function JourneyStep({
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
 export function AppJourney() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"],
-  })
+  const [activeStep, setActiveStep] = useState(0)
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!containerRef.current) return
+      
+      const rect = containerRef.current.getBoundingClientRect()
+      const containerTop = rect.top
+      const containerHeight = rect.height
+      const windowHeight = window.innerHeight
+      
+      // Calculate scroll progress through the container
+      const scrolled = -containerTop
+      const scrollableHeight = containerHeight - windowHeight
+      const scrollProgress = Math.max(0, Math.min(1, scrolled / scrollableHeight))
+      
+      setProgress(scrollProgress)
+      
+      // Determine active step based on scroll progress
+      const stepIndex = Math.min(
+        Math.floor(scrollProgress * journeySteps.length),
+        journeySteps.length - 1
+      )
+      setActiveStep(stepIndex)
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    handleScroll() // Initial check
+    
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
   return (
     <section
       ref={containerRef}
       className="relative bg-background"
-      style={{ height: `${(journeySteps.length + 1) * 100}vh`, position: "relative" }}
+      style={{ height: `${(journeySteps.length + 1) * 100}vh` }}
       aria-label="App features journey"
     >
-      {/* Section Header - Sticky */}
-      <div className="sticky top-0 h-screen flex flex-col">
+      {/* Sticky container */}
+      <div className="sticky top-0 h-screen flex flex-col overflow-hidden">
         {/* Progress bar */}
-        <motion.div
-          className="absolute top-0 left-0 h-1 bg-accent z-50"
-          style={{ scaleX: scrollYProgress, transformOrigin: "left" }}
-        />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-muted z-50">
+          <div
+            className="h-full bg-accent transition-transform duration-150 origin-left"
+            style={{ transform: `scaleX(${progress})` }}
+          />
+        </div>
 
         {/* Step indicators */}
         <div className="hidden lg:flex absolute right-8 top-1/2 -translate-y-1/2 flex-col gap-4 z-40">
-          {journeySteps.map((step, i) => {
-            const stepProgress = useTransform(
-              scrollYProgress,
-              [i / journeySteps.length, (i + 0.5) / journeySteps.length],
-              [0, 1]
-            )
-            return (
-              <motion.div
-                key={step.id}
-                className="flex items-center gap-3"
+          {journeySteps.map((step, i) => (
+            <div key={step.id} className="flex items-center gap-3">
+              <div
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  i === activeStep ? "scale-150" : "scale-75 opacity-40"
+                }`}
+                style={{ backgroundColor: step.color }}
+              />
+              <span
+                className={`text-xs font-medium transition-all duration-300 ${
+                  i === activeStep ? "opacity-100" : "opacity-0"
+                }`}
+                style={{ color: step.color }}
               >
-                <motion.div
-                  className="w-2 h-2 rounded-full"
-                  style={{
-                    backgroundColor: step.color,
-                    scale: useTransform(stepProgress, [0, 1], [0.6, 1.2]),
-                    opacity: useTransform(stepProgress, [0, 0.5, 1], [0.3, 1, 1]),
-                  }}
-                />
-                <motion.span
-                  className="text-xs font-medium"
-                  style={{
-                    color: step.color,
-                    opacity: useTransform(stepProgress, [0, 0.5, 1], [0, 1, 1]),
-                  }}
-                >
-                  {step.title}
-                </motion.span>
-              </motion.div>
-            )
-          })}
+                {step.title}
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* Content area */}
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative">
           {journeySteps.map((step, i) => (
             <JourneyStep
               key={step.id}
               step={step}
               index={i}
-              progress={scrollYProgress}
+              isActive={i === activeStep}
             />
           ))}
         </div>
