@@ -1,24 +1,22 @@
 import { Nav } from "@/components/mali/nav"
 import { Hero } from "@/components/mali/hero"
-import { Features } from "@/components/mali/features"
-import { Audience } from "@/components/mali/audience"
-import { HowItWorks } from "@/components/mali/how-it-works"
-import { AppGallery } from "@/components/mali/app-gallery"
-import { Stats } from "@/components/mali/stats"
-import { Waitlist } from "@/components/mali/waitlist"
+import { AppJourney } from "@/components/mali/app-journey"
+import { FeaturesShowcase } from "@/components/mali/features-showcase"
+import { DownloadCTA } from "@/components/mali/download-cta"
 import { Footer } from "@/components/mali/footer"
 
 export default function MaliUpPage() {
   return (
-    <main style={{ backgroundColor: "#FFFFFF" }}>
+    <main className="bg-background">
       <Nav />
       <Hero />
-      <Features />
-      <Audience />
-      <HowItWorks />
-      <AppGallery />
-      <Stats />
-      <Waitlist />
+      <section id="journey">
+        <AppJourney />
+      </section>
+      <section id="features">
+        <FeaturesShowcase />
+      </section>
+      <DownloadCTA />
       <Footer />
     </main>
   )
