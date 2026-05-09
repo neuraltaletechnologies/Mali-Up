@@ -1,293 +1,174 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { ArrowRight, Wallet, Landmark, BarChart2, ChevronRight } from "lucide-react"
+import { useEffect, useRef } from "react"
+import { motion, useScroll, useTransform, useSpring } from "framer-motion"
+import { ArrowDown } from "lucide-react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
-import NextImage from "next/image"
-
-/* Floating metric card that pulses in on mount */
-function FloatCard({
-  side,
-  top,
-  bottom,
-  color,
-  icon,
-  value,
-  label,
-  delay = "0s",
-}: {
-  side: "left" | "right"
-  top?: string
-  bottom?: string
-  color: string
-  icon: React.ReactNode
-  value: string
-  label: string
-  delay?: string
-}) {
-  const [visible, setVisible] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 900)
-    return () => clearTimeout(t)
-  }, [])
-
-  return (
-    <div
-      className="absolute glass rounded-2xl px-3 py-2.5 flex items-center gap-2.5 shadow-2xl"
-      style={{
-        [side]: side === "left" ? "-72px" : "-72px",
-        top,
-        bottom,
-        border: `1px solid ${color}28`,
-        transform: visible ? "translateY(0) scale(1)" : "translateY(12px) scale(0.9)",
-        opacity: visible ? 1 : 0,
-        transition: `all 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay}`,
-        zIndex: 20,
-        minWidth: 110,
-      }}
-    >
-      <div
-        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${color}18` }}
-      >
-        {icon}
-      </div>
-      <div>
-        <p className="text-[#0C1B2E] text-xs font-bold leading-none mb-0.5">{value}</p>
-        <p className="text-[#0C1B2E]/55 text-[10px]">{label}</p>
-      </div>
-    </div>
-  )
-}
-
-/* Static floating cards — one for money flow, one for assets */
-const heroCards = [
-  { side: "left"  as const, top: "55px",    color: "#22C55E", icon: <Wallet   size={14} style={{ color: "#22C55E" }} />, value: "TSh 1.2M",  label: "Cash in this month", delay: "1.1s" },
-  { side: "right" as const, bottom: "85px", color: "#F5A623", icon: <Landmark size={14} style={{ color: "#F5A623" }} />, value: "TSh 48M",   label: "Total net worth",    delay: "1.4s" },
-]
-
-const tickerItems = [
-  "Money Flow Tracking", "Land & Property", "Net Worth Dashboard", "Stocks & Shares",
-  "Vehicle Registry", "Bills Tracker", "Savings Goals", "Business Tools",
-  "Works on 3G", "Africa-First",
-]
 
 export function Hero() {
-  const heroRef = useRef<HTMLDivElement>(null)
-  const [cursorPos, setCursorPos] = useState({ x: 0.5, y: 0.5 })
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"],
+  })
 
-  /* Staggered text entrance */
-  useEffect(() => {
-    const els = heroRef.current?.querySelectorAll<HTMLElement>("[data-hero-item]")
-    els?.forEach((el, i) => {
-      el.style.opacity = "0"
-      el.style.transform = "translateY(28px)"
-      el.style.transition = `opacity 0.75s cubic-bezier(0.22,1,0.36,1) ${i * 0.12}s, transform 0.75s cubic-bezier(0.22,1,0.36,1) ${i * 0.12}s`
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          el.style.opacity = "1"
-          el.style.transform = "translateY(0)"
-        })
-      )
-    })
-  }, [])
-
-  /* Subtle parallax on cursor */
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      setCursorPos({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight })
-    }
-    window.addEventListener("mousemove", onMove, { passive: true })
-    return () => window.removeEventListener("mousemove", onMove)
-  }, [])
+  const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30 })
+  const y = useTransform(smoothProgress, [0, 1], [0, 200])
+  const opacity = useTransform(smoothProgress, [0, 0.5], [1, 0])
+  const scale = useTransform(smoothProgress, [0, 0.5], [1, 0.9])
+  const phoneY = useTransform(smoothProgress, [0, 1], [0, -100])
+  const phoneRotate = useTransform(smoothProgress, [0, 1], [0, -5])
 
   return (
     <section
-      className="relative min-h-screen flex flex-col justify-center overflow-hidden"
-      style={{ backgroundColor: "#FFFFFF" }}
+      ref={containerRef}
+      className="relative min-h-[200vh] bg-background"
       aria-labelledby="hero-heading"
     >
-      {/* Dynamic background orbs that follow cursor */}
-      <div
-        className="absolute top-1/4 right-0 rounded-full pointer-events-none"
-        style={{
-          width: "600px",
-          height: "600px",
-          background: "radial-gradient(circle, rgba(245,166,35,0.10) 0%, transparent 65%)",
-          transform: `translate(${(cursorPos.x - 0.5) * -30}px, ${(cursorPos.y - 0.5) * -20}px)`,
-          transition: "transform 1.2s cubic-bezier(0.22,1,0.36,1)",
-        }}
-        aria-hidden="true"
-      />
-      <div
-        className="absolute bottom-0 left-0 rounded-full pointer-events-none"
-        style={{
-          width: "400px",
-          height: "400px",
-          background: "radial-gradient(circle, rgba(34,197,94,0.07) 0%, transparent 65%)",
-          transform: `translate(${(cursorPos.x - 0.5) * 20}px, ${(cursorPos.y - 0.5) * 20}px)`,
-          transition: "transform 1.8s cubic-bezier(0.22,1,0.36,1)",
-        }}
-        aria-hidden="true"
-      />
+      {/* Sticky container for the hero content */}
+      <div className="sticky top-0 h-screen flex items-center justify-center overflow-hidden">
+        {/* Background decorative elements */}
+        <div className="absolute inset-0 pointer-events-none">
+          <motion.div
+            className="absolute top-1/4 right-1/4 w-96 h-96 rounded-full opacity-30"
+            style={{
+              background: "radial-gradient(circle, rgba(212, 165, 116, 0.15) 0%, transparent 70%)",
+              y,
+            }}
+          />
+          <motion.div
+            className="absolute bottom-1/4 left-1/4 w-72 h-72 rounded-full opacity-20"
+            style={{
+              background: "radial-gradient(circle, rgba(124, 183, 152, 0.15) 0%, transparent 70%)",
+              y: useTransform(smoothProgress, [0, 1], [0, 150]),
+            }}
+          />
+        </div>
 
-      {/* Subtle Africa-inspired grid */}
-      <div
-        className="absolute inset-0 opacity-[0.028]"
-        style={{
-          backgroundImage: "linear-gradient(#F5A623 1px, transparent 1px), linear-gradient(90deg, #F5A623 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Spinning decorative rings */}
-      <div className="absolute right-16 top-24 w-56 h-56 rounded-full border border-dashed border-[#0C1B2E]/8 animate-spin-slow hidden lg:block" aria-hidden="true" />
-      <div className="absolute right-24 top-32 w-40 h-40 rounded-full border border-dashed border-[#22C55E]/15 animate-spin-slow hidden lg:block" style={{ animationDirection: "reverse", animationDuration: "30s" }} aria-hidden="true" />
-
-      <div className="max-w-6xl mx-auto px-6 pt-28 pb-16 w-full" ref={heroRef}>
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-
-          {/* Left: text */}
-          <div className="flex flex-col gap-6">
-
-            {/* Logo + badge */}
-            <div data-hero-item className="inline-flex items-center gap-3 self-start">
-              <NextImage
-                src="/maliup-logo.png"
-                alt="Mali Up logo"
-                width={36}
-                height={36}
-                className="rounded-xl shadow-lg shrink-0"
-                priority
-              />
-              <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">
-                Launching Soon · Africa-First
-              </span>
-            </div>
-
-            {/* Headline */}
-            <h1
-              id="hero-heading"
-              data-hero-item
-              className="font-heading font-bold text-[#0C1B2E] leading-[1.08] text-balance"
-              style={{ fontSize: "clamp(2.4rem, 5vw, 3.8rem)" }}
+        <div className="max-w-7xl mx-auto px-6 w-full">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            {/* Left: Typography */}
+            <motion.div
+              className="flex flex-col gap-8 text-center lg:text-left"
+              style={{ y, opacity, scale }}
             >
-              Your Entire Wealth.
-              <span
-                className="shimmer-btn bg-clip-text inline-block"
-                style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
               >
-                Your Full Picture.
-              </span>
-            </h1>
-
-            {/* Sub */}
-            <p data-hero-item className="text-[#0C1B2E]/70 leading-relaxed text-lg max-w-md">
-              Mali Up is a financial management app for everyone. Track your money flow — income, expenses, savings, and bills. Register your wealth — land, property, vehicles, and stocks. Run your business. All in one place, regardless of who you are or how you earn.
-            </p>
-
-            {/* 3 pillar mini-tags */}
-            <div data-hero-item className="flex flex-wrap gap-2">
-              {[
-                { label: "Money Flow",     color: "#22C55E", icon: <Wallet    size={11} /> },
-                { label: "Assets & Wealth", color: "#F5A623", icon: <Landmark size={11} /> },
-                { label: "Business Tools", color: "#0EA5E9", icon: <BarChart2 size={11} /> },
-              ].map(({ label, color, icon }) => (
-                <span
-                  key={label}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full"
-                  style={{ backgroundColor: `${color}12`, color, border: `1px solid ${color}25` }}
-                >
-                  {icon}
-                  {label}
+                <span className="text-muted-foreground text-sm font-medium tracking-widest uppercase">
+                  Financial Management for Africa
                 </span>
-              ))}
-            </div>
+              </motion.div>
 
-            {/* Built by */}
-            <p data-hero-item className="text-[#0C1B2E]/40 text-xs tracking-widest uppercase">
-              Built by <span className="text-[#F5A623]/70 font-semibold">Neuraltale Technology</span>
-            </p>
-
-            {/* CTAs */}
-            <div data-hero-item className="flex flex-wrap gap-4 items-center">
-              <a
-                href="#waitlist"
-                className="shimmer-btn text-[#0C1B2E] font-bold px-7 py-3.5 rounded-2xl text-base shadow-2xl flex items-center gap-2 group transition-all duration-200 hover:scale-105 hover:shadow-[0_8px_32px_rgba(245,166,35,0.4)] active:scale-[0.97]"
+              <motion.h1
+                id="hero-heading"
+                className="font-heading text-hero text-foreground text-balance"
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
               >
-                Get Early Access
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
-              </a>
-              <a
-                href="#features"
-                className="flex items-center gap-1.5 text-[#0C1B2E]/55 hover:text-[#0C1B2E] transition-all duration-200 font-medium text-sm"
+                Your entire
+                <br />
+                <span className="text-accent">financial life</span>
+                <br />
+                in one place
+              </motion.h1>
+
+              <motion.p
+                className="text-muted-foreground text-lg leading-relaxed max-w-md mx-auto lg:mx-0"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.6 }}
               >
-                Explore modules
-                <ChevronRight size={14} className="opacity-60" />
-              </a>
-            </div>
+                Track money flow, register assets, manage your business. All in one beautiful app built for the way Africa works.
+              </motion.p>
 
-            {/* Social proof */}
-            <div data-hero-item className="flex items-center gap-5 pt-1">
-              <div className="flex -space-x-2.5">
-                {["#F5A623", "#22C55E", "#3B82F6", "#EF4444"].map((c, i) => (
-                  <div
-                    key={i}
-                    className="w-8 h-8 rounded-full border-2 border-white"
-                    style={{ background: `linear-gradient(135deg, ${c}cc, ${c}88)` }}
-                    aria-hidden="true"
-                  />
-                ))}
-              </div>
-              <p className="text-[#0C1B2E]/55 text-sm">
-                <span className="text-[#0C1B2E] font-semibold">2,400+</span> early users joined
-              </p>
-            </div>
-          </div>
+              <motion.div
+                className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.8 }}
+              >
+                <a
+                  href="#app-store"
+                  className="store-btn magnetic-btn group"
+                >
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                  </svg>
+                  <div className="text-left">
+                    <div className="text-[10px] opacity-70">Download on the</div>
+                    <div className="text-sm font-semibold -mt-0.5">App Store</div>
+                  </div>
+                </a>
+                <a
+                  href="#play-store"
+                  className="store-btn magnetic-btn group"
+                >
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 20.5V3.5C3 2.91 3.34 2.39 3.84 2.15L13.69 12L3.84 21.85C3.34 21.6 3 21.09 3 20.5ZM16.81 15.12L6.05 21.34L14.54 12.85L16.81 15.12ZM20.16 10.81C20.5 11.08 20.75 11.5 20.75 12C20.75 12.5 20.5 12.92 20.16 13.19L17.89 14.5L15.39 12L17.89 9.5L20.16 10.81ZM6.05 2.66L16.81 8.88L14.54 11.15L6.05 2.66Z"/>
+                  </svg>
+                  <div className="text-left">
+                    <div className="text-[10px] opacity-70">Get it on</div>
+                    <div className="text-sm font-semibold -mt-0.5">Google Play</div>
+                  </div>
+                </a>
+              </motion.div>
+            </motion.div>
 
-          {/* Right: floating iPhone */}
-          <div className="relative flex justify-center items-center" aria-hidden="true">
-            <div
-              className="absolute w-80 h-80 rounded-full animate-pulse-ring pointer-events-none"
-              style={{ background: "radial-gradient(circle, rgba(245,166,35,0.14) 0%, transparent 70%)" }}
-            />
-
-            <div
-              className="relative animate-float-phone z-10"
-              style={{ filter: "drop-shadow(0 48px 64px rgba(0,0,0,0.50))" }}
+            {/* Right: Phone with parallax */}
+            <motion.div
+              className="relative flex justify-center phone-showcase"
+              style={{ y: phoneY }}
             >
-              <IPhoneMockup
-                src="/app-dashboard.jpg"
-                alt="Mali Up app showing money flow and asset net worth"
-                width={230}
-                accentColor="#F5A623"
-                animate
-              />
-
-              {/* Floating metric cards — money flow + net worth */}
-              {heroCards.map((card, i) => (
-                <FloatCard key={i} {...card} />
-              ))}
-            </div>
+              <motion.div
+                className="phone-float relative"
+                style={{ rotateX: phoneRotate }}
+                initial={{ opacity: 0, scale: 0.8, y: 60 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {/* Glow effect behind phone */}
+                <div
+                  className="absolute inset-0 blur-3xl opacity-40 rounded-full"
+                  style={{
+                    background: "radial-gradient(circle, rgba(212, 165, 116, 0.4) 0%, transparent 60%)",
+                    transform: "scale(1.5) translateY(20%)",
+                  }}
+                />
+                
+                <IPhoneMockup
+                  src="/app-dashboard.jpg"
+                  alt="Mali Up dashboard showing financial overview"
+                  width={280}
+                  accentColor="#D4A574"
+                  animate
+                />
+              </motion.div>
+            </motion.div>
           </div>
         </div>
-      </div>
 
-      {/* Ticker */}
-      <div
-        className="relative w-full overflow-hidden border-t border-b border-[#0C1B2E]/6 py-3.5"
-        style={{ backgroundColor: "rgba(12,27,46,0.02)" }}
-        aria-hidden="true"
-      >
-        <div className="animate-ticker flex gap-0 whitespace-nowrap select-none">
-          {[...tickerItems, ...tickerItems].map((item, i) => (
-            <span key={i} className="inline-flex items-center gap-3 px-6 text-xs text-[#0C1B2E]/40 uppercase tracking-widest font-semibold">
-              <span className="w-1 h-1 rounded-full bg-[#F5A623] inline-block" />
-              {item}
-            </span>
-          ))}
-        </div>
+        {/* Scroll indicator */}
+        <motion.div
+          className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2 }}
+          style={{ opacity }}
+        >
+          <span className="text-muted-foreground text-xs tracking-widest uppercase">
+            Scroll to explore
+          </span>
+          <motion.div
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <ArrowDown className="w-5 h-5 text-muted-foreground" />
+          </motion.div>
+        </motion.div>
       </div>
     </section>
   )
