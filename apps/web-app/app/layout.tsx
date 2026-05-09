@@ -16,8 +16,8 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://maliup.neuraltale.com/'),
-  title: 'Mali Up — Pocket ERP for African SMBs',
-  description: 'Mali Up is a multi-tenant SaaS platform that lets African businesses manage sales, invoicing, inventory, finance, CRM, and analytics from one mobile app.',
+  title: 'Mali Up — Your Complete Financial Life in One App',
+  description: 'Track your money flow, register your assets, manage your business. One beautiful app built for the way Africa works.',
   generator: 'v0.app',
   alternates: {
     canonical: '/',
@@ -33,8 +33,8 @@ export const metadata: Metadata = {
   openGraph: {
     url: '/',
     siteName: 'Mali Up',
-    title: 'Mali Up — Pocket ERP for African SMBs',
-    description: 'Mali Up is a multi-tenant SaaS platform that lets African businesses manage sales, invoicing, inventory, finance, CRM, and analytics from one mobile app.',
+    title: 'Mali Up — Your Complete Financial Life in One App',
+    description: 'Track your money flow, register your assets, manage your business. One beautiful app built for the way Africa works.',
     type: 'website',
   },
   icons: {
@@ -61,7 +61,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="bg-background">
       <body className={`${plusJakarta.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
