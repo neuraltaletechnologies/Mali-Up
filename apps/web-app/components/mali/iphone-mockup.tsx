@@ -74,7 +74,8 @@ export function IPhoneMockup({
         fill
         sizes={`${width}px`}
         className="pointer-events-none select-none"
-        priority={false}
+        priority
+        loading="eager"
       />
     </div>
   )
