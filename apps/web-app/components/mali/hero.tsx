@@ -4,6 +4,13 @@ import { useRef } from "react"
 import { motion, useScroll, useTransform, useSpring } from "framer-motion"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
 
+const markets = [
+  { flag: "🇹🇿", label: "Tanzania", active: true },
+  { flag: "🇰🇪", label: "Kenya", active: false },
+  { flag: "🇺🇬", label: "Uganda", active: false },
+  { flag: "🇷🇼", label: "Rwanda", active: false },
+]
+
 export function Hero() {
   const containerRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
@@ -34,40 +41,84 @@ export function Hero() {
 
         <div className="max-w-7xl mx-auto px-6 w-full relative z-10">
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-center">
+
             {/* Text */}
             <motion.div
-              className="flex flex-col gap-7 text-center lg:text-left"
+              className="flex flex-col gap-6 text-center lg:text-left"
               style={{ y: textY, opacity: contentOpacity }}
             >
-              <motion.p
-                className="text-muted-foreground text-[11px] font-medium tracking-[0.22em] uppercase"
+              {/* Market rollout indicator */}
+              <motion.div
+                className="flex flex-wrap items-center gap-2 justify-center lg:justify-start"
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
               >
-                Financial Management · Africa
-              </motion.p>
+                {markets.map((m, i) => (
+                  <span
+                    key={m.label}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition-colors"
+                    style={
+                      m.active
+                        ? {
+                            backgroundColor: "rgba(212,165,116,0.12)",
+                            borderColor: "rgba(212,165,116,0.4)",
+                            color: "#8B5E2A",
+                          }
+                        : {
+                            backgroundColor: "transparent",
+                            borderColor: "rgba(0,0,0,0.08)",
+                            color: "rgba(0,0,0,0.3)",
+                          }
+                    }
+                  >
+                    <span>{m.flag}</span>
+                    <span>{m.label}</span>
+                    {m.active && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: "#D4A574" }}
+                      />
+                    )}
+                    {i < markets.length - 1 && !m.active && (
+                      <span className="text-[8px] opacity-30 ml-0.5">→</span>
+                    )}
+                  </span>
+                ))}
+              </motion.div>
 
+              {/* Swahili catchphrase */}
               <motion.h1
                 id="hero-heading"
-                className="font-heading font-bold text-foreground leading-[0.88] tracking-tight"
-                style={{ fontSize: "clamp(3.5rem, 9vw, 7.5rem)" }}
+                className="font-heading font-bold text-foreground leading-[0.9] tracking-tight"
+                style={{ fontSize: "clamp(2.8rem, 7.5vw, 6.5rem)" }}
                 initial={{ opacity: 0, y: 32 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
               >
-                Your money.
+                Mali ya biashara,
                 <br />
-                <span className="text-accent">Elevated.</span>
+                <span className="text-accent">mkononi mwako.</span>
               </motion.h1>
 
+              {/* English translation */}
+              <motion.p
+                className="text-muted-foreground text-base font-medium tracking-wide"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.45 }}
+              >
+                "Business wealth, in your hand."
+              </motion.p>
+
+              {/* Business feature chips */}
               <motion.div
                 className="flex flex-wrap gap-2 justify-center lg:justify-start"
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
               >
-                {["Track Income", "Register Assets", "Run Business", "See Insights"].map((tag) => (
+                {["Invoices", "Sales", "Inventory", "Analytics", "Finance"].map((tag) => (
                   <span
                     key={tag}
                     className="px-3 py-1.5 text-[11px] font-medium rounded-full text-muted-foreground border border-border"
@@ -77,11 +128,12 @@ export function Hero() {
                 ))}
               </motion.div>
 
+              {/* Store buttons */}
               <motion.div
                 className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start"
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.7 }}
+                transition={{ duration: 0.6, delay: 0.75 }}
               >
                 <a href="#app-store" className="store-btn magnetic-btn">
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -123,14 +175,15 @@ export function Hero() {
               />
               <div className="phone-float">
                 <IPhoneMockup
-                  src="/app-dashboard.jpg"
-                  alt="Mali Up financial dashboard"
+                  src="/app-invoice.jpg"
+                  alt="Mali Up business management"
                   width={310}
                   accentColor="#D4A574"
                   animate
                 />
               </div>
             </motion.div>
+
           </div>
         </div>
 

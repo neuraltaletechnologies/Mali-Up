@@ -52,10 +52,10 @@ export function DownloadCTA() {
                 }}
               />
               <IPhoneMockup
-                src="/app-dashboard.jpg"
-                alt="Mali Up app"
+                src="/app-invoice.jpg"
+                alt="Mali Up business management"
                 width={300}
-                accentColor="#D4A574"
+                accentColor="#C8847B"
                 animate
               />
             </div>
@@ -70,16 +70,16 @@ export function DownloadCTA() {
           >
             <div>
               <span className="text-primary-foreground/50 text-[11px] font-medium tracking-[0.22em] uppercase mb-4 block">
-                Available Now
+                🇹🇿 Available in Tanzania
               </span>
               <h2
                 id="download-heading"
                 className="font-heading font-bold text-balance"
                 style={{ fontSize: "clamp(2.2rem, 5vw, 3.5rem)", lineHeight: 1.05, letterSpacing: "-0.02em" }}
               >
-                Start your financial
+                Endesha biashara yako.
                 <br />
-                journey today
+                <span style={{ color: "#D4A574", fontSize: "0.75em" }}>Run your business today.</span>
               </h2>
             </div>
 
