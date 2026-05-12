@@ -413,6 +413,12 @@
   width: 100%;
 }
 
+/* Shimmer sweep for phone screen highlight */
+@keyframes shimmer-btn {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Hero big typography animation */
 @keyframes text-reveal {
   from {

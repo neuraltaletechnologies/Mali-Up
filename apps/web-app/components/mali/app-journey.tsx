@@ -2,121 +2,41 @@
 
 import { useRef, useEffect, useState } from "react"
 import { IPhoneMockup } from "@/components/mali/iphone-mockup"
-import { Wallet, Building2, TrendingUp, PieChart } from "lucide-react"
 
-const journeySteps = [
+const steps = [
   {
     id: "track",
+    number: "01",
     title: "Track",
     subtitle: "Every shilling, accounted for",
-    description: "Log income from any source. Categorize expenses automatically. Watch your savings grow.",
-    icon: Wallet,
     color: "#7CB798",
     screen: "/app-dashboard.jpg",
   },
   {
     id: "register",
+    number: "02",
     title: "Register",
     subtitle: "Your assets, your wealth",
-    description: "Land, property, vehicles, stocks. Everything you own in one secure place.",
-    icon: Building2,
     color: "#D4A574",
     screen: "/app-inventory.jpg",
   },
   {
     id: "manage",
+    number: "03",
     title: "Manage",
     subtitle: "Your business, simplified",
-    description: "Sales, invoicing, inventory, customers. Run your business from your pocket.",
-    icon: TrendingUp,
     color: "#C8847B",
     screen: "/app-invoice.jpg",
   },
   {
     id: "grow",
+    number: "04",
     title: "Grow",
-    subtitle: "See your full picture",
-    description: "Net worth dashboard, insights, goals. Make smarter financial decisions.",
-    icon: PieChart,
+    subtitle: "See the complete picture",
     color: "#8B7355",
     screen: "/app-analytics.jpg",
   },
 ]
-
-function JourneyStep({
-  step,
-  index,
-  isActive,
-}: {
-  step: (typeof journeySteps)[0]
-  index: number
-  isActive: boolean
-}) {
-  const Icon = step.icon
-
-  return (
-    <div
-      className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ease-out ${
-        isActive ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-12 scale-95 pointer-events-none"
-      }`}
-    >
-      <div className="grid lg:grid-cols-2 gap-12 lg:gap-24 items-center max-w-6xl mx-auto px-6 w-full">
-        {/* Text Content */}
-        <div className="flex flex-col gap-6 text-center lg:text-left order-2 lg:order-1">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto lg:mx-0 transition-transform duration-500"
-            style={{ backgroundColor: `${step.color}20` }}
-          >
-            <Icon className="w-8 h-8" style={{ color: step.color }} />
-          </div>
-          
-          <div>
-            <span
-              className="text-7xl lg:text-9xl font-heading font-bold opacity-10 block"
-              style={{ color: step.color }}
-            >
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <h3
-              className="font-heading text-5xl lg:text-7xl font-medium -mt-8 lg:-mt-14"
-              style={{ color: step.color }}
-            >
-              {step.title}
-            </h3>
-          </div>
-          
-          <p className="text-foreground text-xl lg:text-2xl font-medium">
-            {step.subtitle}
-          </p>
-          
-          <p className="text-muted-foreground text-lg leading-relaxed max-w-md mx-auto lg:mx-0">
-            {step.description}
-          </p>
-        </div>
-
-        {/* Phone Mockup */}
-        <div className="flex justify-center order-1 lg:order-2">
-          <div className="relative">
-            <div
-              className="absolute inset-0 blur-3xl opacity-30 rounded-full transition-opacity duration-700"
-              style={{
-                background: `radial-gradient(circle, ${step.color}40 0%, transparent 60%)`,
-                transform: "scale(1.5)",
-              }}
-            />
-            <IPhoneMockup
-              src={step.screen}
-              alt={`Mali Up ${step.title} feature`}
-              width={260}
-              accentColor={step.color}
-              animate
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export function AppJourney() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -126,82 +46,156 @@ export function AppJourney() {
   useEffect(() => {
     const handleScroll = () => {
       if (!containerRef.current) return
-      
       const rect = containerRef.current.getBoundingClientRect()
-      const containerTop = rect.top
-      const containerHeight = rect.height
-      const windowHeight = window.innerHeight
-      
-      // Calculate scroll progress through the container
-      const scrolled = -containerTop
-      const scrollableHeight = containerHeight - windowHeight
-      const scrollProgress = Math.max(0, Math.min(1, scrolled / scrollableHeight))
-      
-      setProgress(scrollProgress)
-      
-      // Determine active step based on scroll progress
-      const stepIndex = Math.min(
-        Math.floor(scrollProgress * journeySteps.length),
-        journeySteps.length - 1
-      )
-      setActiveStep(stepIndex)
+      const scrolled = -rect.top
+      const scrollable = rect.height - window.innerHeight
+      const p = Math.max(0, Math.min(1, scrolled / scrollable))
+      setProgress(p)
+      setActiveStep(Math.min(Math.floor(p * steps.length), steps.length - 1))
     }
-
     window.addEventListener("scroll", handleScroll, { passive: true })
-    handleScroll() // Initial check
-    
+    handleScroll()
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  const step = steps[activeStep]
 
   return (
     <section
       ref={containerRef}
       className="relative bg-background"
-      style={{ height: `${(journeySteps.length + 1) * 100}vh` }}
-      aria-label="App features journey"
+      style={{ height: `${(steps.length + 1) * 100}vh` }}
+      aria-label="How Mali Up works"
     >
-      {/* Sticky container */}
-      <div className="sticky top-0 h-screen flex flex-col overflow-hidden">
-        {/* Progress bar */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-muted z-50">
+      <div className="sticky top-0 h-screen overflow-hidden">
+        {/* Progress line */}
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-muted z-50">
           <div
-            className="h-full bg-accent transition-transform duration-150 origin-left"
-            style={{ transform: `scaleX(${progress})` }}
+            className="h-full origin-left transition-transform duration-200"
+            style={{
+              transform: `scaleX(${progress})`,
+              backgroundColor: step.color,
+            }}
           />
         </div>
 
-        {/* Step indicators */}
-        <div className="hidden lg:flex absolute right-8 top-1/2 -translate-y-1/2 flex-col gap-4 z-40">
-          {journeySteps.map((step, i) => (
-            <div key={step.id} className="flex items-center gap-3">
-              <div
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  i === activeStep ? "scale-150" : "scale-75 opacity-40"
-                }`}
-                style={{ backgroundColor: step.color }}
-              />
+        {/* Step dots — right side */}
+        <div className="hidden lg:flex absolute right-8 top-1/2 -translate-y-1/2 flex-col gap-5 z-40">
+          {steps.map((s, i) => (
+            <div key={s.id} className="flex items-center gap-3 justify-end">
               <span
-                className={`text-xs font-medium transition-all duration-300 ${
-                  i === activeStep ? "opacity-100" : "opacity-0"
-                }`}
-                style={{ color: step.color }}
+                className="text-xs font-medium transition-all duration-300"
+                style={{
+                  color: s.color,
+                  opacity: i === activeStep ? 1 : 0,
+                }}
               >
-                {step.title}
+                {s.title}
               </span>
+              <div
+                className="rounded-full transition-all duration-300"
+                style={{
+                  width: i === activeStep ? 10 : 6,
+                  height: i === activeStep ? 10 : 6,
+                  backgroundColor:
+                    i === activeStep ? s.color : "rgba(26,26,26,0.15)",
+                }}
+              />
             </div>
           ))}
         </div>
 
-        {/* Content area */}
-        <div className="flex-1 relative">
-          {journeySteps.map((step, i) => (
-            <JourneyStep
-              key={step.id}
-              step={step}
-              index={i}
-              isActive={i === activeStep}
-            />
-          ))}
+        {/* Main content */}
+        <div className="h-full flex items-center px-6">
+          <div className="w-full max-w-5xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+
+              {/* Text — left */}
+              <div className="relative order-2 lg:order-1 text-center lg:text-left">
+                {steps.map((s, i) => (
+                  <div
+                    key={s.id}
+                    className="transition-all duration-700 ease-out"
+                    style={{
+                      opacity: i === activeStep ? 1 : 0,
+                      transform:
+                        i === activeStep
+                          ? "translateY(0)"
+                          : i < activeStep
+                          ? "translateY(-36px)"
+                          : "translateY(36px)",
+                      position: i === activeStep ? "relative" : "absolute",
+                      inset: i === activeStep ? "auto" : 0,
+                      pointerEvents: i === activeStep ? "auto" : "none",
+                    }}
+                  >
+                    {/* Big faded number */}
+                    <span
+                      className="font-heading font-bold block leading-none select-none"
+                      style={{
+                        fontSize: "clamp(5rem, 15vw, 11rem)",
+                        color: s.color,
+                        opacity: 0.08,
+                      }}
+                    >
+                      {s.number}
+                    </span>
+                    {/* Title */}
+                    <h2
+                      className="font-heading font-bold leading-none -mt-[0.45em]"
+                      style={{
+                        fontSize: "clamp(3rem, 8vw, 6rem)",
+                        color: s.color,
+                      }}
+                    >
+                      {s.title}
+                    </h2>
+                    {/* One-line subtitle */}
+                    <p className="text-foreground text-xl font-medium mt-5">
+                      {s.subtitle}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Phone — right */}
+              <div className="flex justify-center order-1 lg:order-2">
+                <div className="relative">
+                  {/* Colour glow */}
+                  <div
+                    className="absolute inset-0 rounded-full blur-[70px] opacity-25 pointer-events-none transition-all duration-700"
+                    style={{
+                      background: `radial-gradient(circle, ${step.color}55 0%, transparent 65%)`,
+                      transform: "scale(1.6)",
+                    }}
+                  />
+
+                  {steps.map((s, i) => (
+                    <div
+                      key={s.id}
+                      className="transition-all duration-500 ease-out"
+                      style={{
+                        opacity: i === activeStep ? 1 : 0,
+                        transform: i === activeStep ? "scale(1)" : "scale(0.94)",
+                        position: i === activeStep ? "relative" : "absolute",
+                        inset: i === activeStep ? "auto" : 0,
+                        pointerEvents: i === activeStep ? "auto" : "none",
+                      }}
+                    >
+                      <IPhoneMockup
+                        src={s.screen}
+                        alt={`Mali Up — ${s.title}`}
+                        width={300}
+                        accentColor={s.color}
+                        animate
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
       </div>
     </section>
