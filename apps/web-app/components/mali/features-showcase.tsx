@@ -6,24 +6,24 @@ import { motion, useInView } from "framer-motion"
 
 const topScreens = [
   {
+    src: "/app-invoice.jpg",
+    label: "Invoices & Sales",
+    tag: "Biashara",
+    color: "#C8847B",
+    className: "lg:col-span-2 lg:row-span-2",
+  },
+  {
     src: "/app-dashboard.jpg",
     label: "Financial Overview",
-    tag: "Track",
+    tag: "Fedha",
     color: "#7CB798",
-    className: "lg:col-span-2 lg:row-span-2",
+    className: "lg:col-span-1 lg:row-span-1",
   },
   {
     src: "/app-inventory.jpg",
     label: "Asset Registry",
-    tag: "Register",
+    tag: "Mali",
     color: "#D4A574",
-    className: "lg:col-span-1 lg:row-span-1",
-  },
-  {
-    src: "/app-invoice.jpg",
-    label: "Business Tools",
-    tag: "Manage",
-    color: "#C8847B",
     className: "lg:col-span-1 lg:row-span-1",
   },
 ]
@@ -47,7 +47,7 @@ export function FeaturesShowcase() {
           transition={{ duration: 0.6 }}
         >
           <span className="text-muted-foreground text-[11px] font-medium tracking-[0.22em] uppercase block mb-4">
-            Inside the App
+            Ndani ya App — Inside the App
           </span>
           <h2
             id="features-heading"
@@ -58,7 +58,9 @@ export function FeaturesShowcase() {
               letterSpacing: "-0.02em",
             }}
           >
-            Everything in one place
+            Built for business.
+            <br />
+            <span className="text-accent text-[0.75em]">Powered by Mali Up.</span>
           </h2>
         </motion.div>
 
