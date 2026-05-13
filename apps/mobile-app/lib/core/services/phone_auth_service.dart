@@ -280,19 +280,6 @@ class PhoneAuthService {
           });
     }
 
-    // Create personal account if personal is selected
-    if (userData['includesPersonal'] == true) {
-      await _firestore.collection('personal_accounts').doc(user.uid).set({
-        'fullName': userData['name'] ?? '',
-        'phone': normalizedPhone,
-        'ownerUid': user.uid,
-        'accountType': 'personal',
-        'recoveryEmail': userData['recoveryEmail']?.toLowerCase(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'isActive': true,
-      });
-    }
   }
 
   static void _startResendCountdown() {

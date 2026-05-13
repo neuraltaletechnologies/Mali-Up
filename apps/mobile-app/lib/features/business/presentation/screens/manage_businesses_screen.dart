@@ -615,8 +615,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     );
 
     nameController.dispose();
-    placeController.dispose();
-    categoryController.dispose();
 
     if (result == true && mounted) {
       setState(() {
