@@ -1,9 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+  xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml"
+>
+
+  <!-- ─── Homepage ─── -->
   <url>
     <loc>https://maliup.neuraltale.com/</loc>
-    <lastmod>2026-04-13</lastmod>
+    <lastmod>2026-05-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <mobile:mobile/>
+
+    <!-- App screenshots indexed by Google Images -->
+    <image:image>
+      <image:loc>https://maliup.neuraltale.com/app-invoice.jpg</image:loc>
+      <image:title>Mali Up — Invoices &amp; Sales Management</image:title>
+      <image:caption>Create and track business invoices and sales records with Mali Up, the financial app built for East African businesses.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://maliup.neuraltale.com/app-dashboard.jpg</image:loc>
+      <image:title>Mali Up — Financial Overview Dashboard</image:title>
+      <image:caption>Get a complete financial overview of your business income, expenses, and cash flow in one beautiful dashboard.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://maliup.neuraltale.com/app-inventory.jpg</image:loc>
+      <image:title>Mali Up — Asset &amp; Inventory Registry</image:title>
+      <image:caption>Register and track your business assets, stock, and inventory with Mali Up's smart asset registry.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://maliup.neuraltale.com/app-analytics.jpg</image:loc>
+      <image:title>Mali Up — Business Growth Analytics</image:title>
+      <image:caption>Visualise your business growth trends, sales performance, and financial analytics with Mali Up.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://maliup.neuraltale.com/maliup-dashboard.jpg</image:loc>
+      <image:title>Mali Up — Business Management App for Africa</image:title>
+      <image:caption>Mali Up is the complete business management and financial tracking app built for Tanzania, Kenya, Uganda, and Rwanda.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://maliup.neuraltale.com/maliup-invoice.jpg</image:loc>
+      <image:title>Mali Up — Digital Invoicing for African Businesses</image:title>
+      <image:caption>Send professional digital invoices and manage payments for your business with Mali Up.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://maliup.neuraltale.com/maliup-analytics.jpg</image:loc>
+      <image:title>Mali Up — Sales &amp; Revenue Analytics</image:title>
+      <image:caption>Track your sales, revenue, and expenses with detailed analytics designed for growing African businesses.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://maliup.neuraltale.com/maliup-logo.png</image:loc>
+      <image:title>Mali Up Logo</image:title>
+      <image:caption>Mali Up — Your Complete Financial Life in One App. Built for the way Africa works.</image:caption>
+    </image:image>
   </url>
+
 </urlset>
