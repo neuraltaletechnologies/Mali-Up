@@ -176,6 +176,18 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
 
           Expanded(
             child: expensesAsync.when(
+              loading: () => const ExpensePageSkeleton(),
+              error: (_, _) => Center(
+                child: Text(
+                  _tr(
+                    'Unable to load expenses right now.',
+                    'Imeshindikana kupakia matumizi kwa sasa.',
+                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
               data: (expenses) => filteredExpenses.isEmpty
                   ? Center(
                       child: Column(
@@ -202,21 +214,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                         return _ExpenseCard(expense: expense);
                       },
                     ),
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: SkeletonList(),
-              ),
-              error: (_, _) => Center(
-                child: Text(
-                  _tr(
-                    'Unable to load expenses right now.',
-                    'Imeshindikana kupakia matumizi kwa sasa.',
-                  ),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
-                ),
-              ),
             ),
           ),
         ],

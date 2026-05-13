@@ -12,9 +12,6 @@ class DefaultContextRoutingService {
     if (normalized.startsWith('business')) {
       return AppRouter.salesPath;
     }
-    if (normalized.startsWith('personal')) {
-      return AppRouter.dashboardPath;
-    }
 
     return AppRouter.dashboardPath;
   }

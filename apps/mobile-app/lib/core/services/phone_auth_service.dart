@@ -213,9 +213,9 @@ class PhoneAuthService {
         ? _firestore.collection('tenants').doc(user.uid).collection('businesses').doc().id
         : null;
 
-    final defaultContext = userData['includesBusiness'] == true && businessId != null
+    final defaultContext = businessId != null
         ? 'business:$businessId'
-        : 'personal';
+        : 'business';
 
     final userProfile = {
       'uid': user.uid,
@@ -224,9 +224,9 @@ class PhoneAuthService {
       'displayName': userData['name'] ?? '',
       'email': userData['email']?.toLowerCase(),
       'businessName': userData['businessName'],
-      'defaultAccountType': userData['defaultAccountType'] ?? 'personal',
-      'accountTypes': userData['accountTypes'] ?? ['personal'],
-      'usagePreference': userData['usagePreference'] ?? 'personal',
+      'defaultAccountType': userData['defaultAccountType'] ?? 'business',
+      'accountTypes': userData['accountTypes'] ?? ['business'],
+      'usagePreference': userData['usagePreference'] ?? 'business',
       'defaultContext': defaultContext,
       'selectedBusinessId': businessId,
       'businesses': userData['includesBusiness'] == true && businessId != null

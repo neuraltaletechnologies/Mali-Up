@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 
 class ManageBusinessesScreen extends StatefulWidget {
   const ManageBusinessesScreen({super.key});
@@ -22,10 +23,54 @@ class ManageBusinessesScreen extends StatefulWidget {
 class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _businessNameController = TextEditingController();
-  final TextEditingController _placeOfBusinessController = TextEditingController();
-  final TextEditingController _categoryController = TextEditingController(text: 'retail');
   late Future<Map<String, dynamic>?> _profileFuture;
   bool _isSaving = false;
+
+  String _selectedBusinessType = 'Retail';
+  String? _selectedCity;
+
+  static const List<Map<String, dynamic>> _businessTypes = [
+    {'value': 'Retail', 'en': 'Retail', 'sw': 'Uuzaji', 'icon': Icons.store},
+    {'value': 'Wholesale', 'en': 'Wholesale', 'sw': 'Uuzaji wa Jumla', 'icon': Icons.store_mall_directory},
+    {'value': 'Service', 'en': 'Service', 'sw': 'Huduma', 'icon': Icons.room_service},
+    {'value': 'Manufacturing', 'en': 'Manufacturing', 'sw': 'Uzalishaji', 'icon': Icons.build},
+    {'value': 'Food & Beverage', 'en': 'Food & Beverage', 'sw': 'Chakula na Vinywaji', 'icon': Icons.restaurant},
+    {'value': 'Agriculture', 'en': 'Agriculture', 'sw': 'Kilimo', 'icon': Icons.agriculture},
+    {'value': 'Transport', 'en': 'Transport', 'sw': 'Usafiri', 'icon': Icons.local_shipping},
+    {'value': 'Construction', 'en': 'Construction', 'sw': 'Ujenzi', 'icon': Icons.construction},
+    {'value': 'Healthcare', 'en': 'Healthcare', 'sw': 'Afya', 'icon': Icons.local_hospital},
+    {'value': 'Education', 'en': 'Education', 'sw': 'Elimu', 'icon': Icons.school},
+    {'value': 'Technology', 'en': 'Technology', 'sw': 'Teknolojia', 'icon': Icons.computer},
+    {'value': 'Hospitality', 'en': 'Hospitality', 'sw': 'Ukarimu', 'icon': Icons.hotel},
+    {'value': 'Beauty & Wellness', 'en': 'Beauty & Wellness', 'sw': 'Uzuri na Afya', 'icon': Icons.spa},
+    {'value': 'Entertainment', 'en': 'Entertainment', 'sw': 'Burudani', 'icon': Icons.theater_comedy},
+    {'value': 'Real Estate', 'en': 'Real Estate', 'sw': 'Mali Isiyohamishika', 'icon': Icons.apartment},
+    {'value': 'Financial Services', 'en': 'Financial Services', 'sw': 'Huduma za Kifedha', 'icon': Icons.account_balance},
+    {'value': 'Professional Services', 'en': 'Professional Services', 'sw': 'Huduma za Kitaalam', 'icon': Icons.business_center},
+    {'value': 'Other', 'en': 'Other', 'sw': 'Nyingine', 'icon': Icons.category},
+  ];
+
+  static const List<Map<String, String>> _tanzaniaCities = [
+    {'en': 'Dar es Salaam', 'sw': 'Dar es Salaam'},
+    {'en': 'Dodoma', 'sw': 'Dodoma'},
+    {'en': 'Mwanza', 'sw': 'Mwanza'},
+    {'en': 'Arusha', 'sw': 'Arusha'},
+    {'en': 'Mbeya', 'sw': 'Mbeya'},
+    {'en': 'Morogoro', 'sw': 'Morogoro'},
+    {'en': 'Tanga', 'sw': 'Tanga'},
+    {'en': 'Zanzibar', 'sw': 'Zanzibar'},
+    {'en': 'Kigoma', 'sw': 'Kigoma'},
+    {'en': 'Mtwara', 'sw': 'Mtwara'},
+    {'en': 'Tabora', 'sw': 'Tabora'},
+    {'en': 'Iringa', 'sw': 'Iringa'},
+    {'en': 'Singida', 'sw': 'Singida'},
+    {'en': 'Shinyanga', 'sw': 'Shinyanga'},
+    {'en': 'Musoma', 'sw': 'Musoma'},
+    {'en': 'Bukoba', 'sw': 'Bukoba'},
+    {'en': 'Sumbawanga', 'sw': 'Sumbawanga'},
+    {'en': 'Njombe', 'sw': 'Njombe'},
+    {'en': 'Other', 'sw': 'Nyingine'},
+  ];
 
   @override
   void initState() {
@@ -36,9 +81,60 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   @override
   void dispose() {
     _businessNameController.dispose();
-    _placeOfBusinessController.dispose();
-    _categoryController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showAddBusinessTypeSheet() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MaliSelectSheet<String>(
+        title: _tr('Business Type', 'Aina ya Biashara'),
+        items: _businessTypes.map((t) => t['value'] as String).toList(),
+        selectedValue: _selectedBusinessType,
+        labelBuilder: (value) {
+          final type = _businessTypes.firstWhere(
+            (t) => t['value'] == value,
+            orElse: () => _businessTypes.first,
+          );
+          return _tr(type['en'] as String, type['sw'] as String);
+        },
+        iconBuilder: (value) {
+          final type = _businessTypes.firstWhere(
+            (t) => t['value'] == value,
+            orElse: () => _businessTypes.first,
+          );
+          return type['icon'] as IconData;
+        },
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedBusinessType = selected);
+    }
+  }
+
+  Future<void> _showAddCitySheet() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MaliSelectSheet<String>(
+        title: _tr('City / Region', 'Mji / Mkoa'),
+        items: _tanzaniaCities.map((c) => c['en']!).toList(),
+        selectedValue: _selectedCity,
+        labelBuilder: (value) {
+          final city = _tanzaniaCities.firstWhere(
+            (c) => c['en'] == value,
+            orElse: () => _tanzaniaCities.first,
+          );
+          return _tr(city['en']!, city['sw']!);
+        },
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedCity = selected);
+    }
   }
 
   String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -203,20 +299,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     required String userId,
     required List<Map<String, dynamic>> businesses,
     String? selectedBusinessId,
-    bool? defaultToPersonal,
   }) async {
     final data = <String, dynamic>{
       'businesses': businesses,
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    if (defaultToPersonal == true) {
-      data.addAll({
-        'defaultContext': 'personal',
-        'defaultAccountType': 'personal',
-        'selectedBusinessId': FieldValue.delete(),
-      });
-    } else if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
+    if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
       data.addAll({
         'defaultContext': 'business:$selectedBusinessId',
         'defaultAccountType': 'business',
@@ -249,8 +338,14 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
     final businessId = business['id'] as String;
     final nameController = TextEditingController(text: (business['name'] as String?) ?? '');
-    final placeController = TextEditingController(text: (business['placeOfBusiness'] as String?) ?? '');
-    final categoryController = TextEditingController(text: (business['category'] as String?) ?? 'retail');
+    String editBusinessType = () {
+      final stored = (business['category'] as String?) ?? '';
+      return _businessTypes.any((t) => t['value'] == stored) ? stored : 'Retail';
+    }();
+    String? editCity = (business['placeOfBusiness'] as String?)?.trim();
+    if (editCity != null && !_tanzaniaCities.any((c) => c['en'] == editCity)) {
+      editCity = null;
+    }
     bool isSaving = false;
     File? pickedLogoFile;
     final existingLogoUrl = (business['logoUrl'] as String?)?.trim();
@@ -326,17 +421,88 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                     const SizedBox(height: 16),
                     TextField(
                       controller: nameController,
-                      decoration: InputDecoration(labelText: _tr('Business name', 'Jina la biashara')),
+                      decoration: InputDecoration(
+                        labelText: _tr('Business name', 'Jina la biashara'),
+                        border: const OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: placeController,
-                      decoration: InputDecoration(labelText: _tr('Place of business', 'Mahali pa biashara')),
+                    MaliSelectField(
+                      placeholder: _tr('Business Type', 'Aina ya Biashara'),
+                      displayValue: () {
+                        final type = _businessTypes.firstWhere(
+                          (t) => t['value'] == editBusinessType,
+                          orElse: () => _businessTypes.first,
+                        );
+                        return _tr(type['en'] as String, type['sw'] as String);
+                      }(),
+                      hasValue: true,
+                      onTap: () async {
+                        final selected = await showModalBottomSheet<String>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => MaliSelectSheet<String>(
+                            title: _tr('Business Type', 'Aina ya Biashara'),
+                            items: _businessTypes.map((t) => t['value'] as String).toList(),
+                            selectedValue: editBusinessType,
+                            labelBuilder: (v) {
+                              final t = _businessTypes.firstWhere(
+                                (t) => t['value'] == v,
+                                orElse: () => _businessTypes.first,
+                              );
+                              return _tr(t['en'] as String, t['sw'] as String);
+                            },
+                            iconBuilder: (v) {
+                              final t = _businessTypes.firstWhere(
+                                (t) => t['value'] == v,
+                                orElse: () => _businessTypes.first,
+                              );
+                              return t['icon'] as IconData;
+                            },
+                          ),
+                        );
+                        if (selected != null) {
+                          setDialogState(() => editBusinessType = selected);
+                        }
+                      },
+                      icon: Icons.category_rounded,
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: categoryController,
-                      decoration: InputDecoration(labelText: _tr('Category', 'Aina')),
+                    MaliSelectField(
+                      placeholder: _tr('City / Region', 'Mji / Mkoa'),
+                      displayValue: () {
+                        if (editCity == null) return '';
+                        final city = _tanzaniaCities.firstWhere(
+                          (c) => c['en'] == editCity,
+                          orElse: () => _tanzaniaCities.first,
+                        );
+                        return _tr(city['en']!, city['sw']!);
+                      }(),
+                      hasValue: editCity != null,
+                      onTap: () async {
+                        final selected = await showModalBottomSheet<String>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => MaliSelectSheet<String>(
+                            title: _tr('City / Region', 'Mji / Mkoa'),
+                            items: _tanzaniaCities.map((c) => c['en']!).toList(),
+                            selectedValue: editCity,
+                            labelBuilder: (v) {
+                              final c = _tanzaniaCities.firstWhere(
+                                (c) => c['en'] == v,
+                                orElse: () => _tanzaniaCities.first,
+                              );
+                              return _tr(c['en']!, c['sw']!);
+                            },
+                          ),
+                        );
+                        if (selected != null) {
+                          setDialogState(() => editCity = selected);
+                        }
+                      },
+                      icon: Icons.location_on_outlined,
                     ),
                   ],
                 ),
@@ -351,10 +517,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                       ? null
                       : () async {
                           final name = nameController.text.trim();
-                          final place = placeController.text.trim();
-                          final category = categoryController.text.trim().isEmpty
-                              ? 'retail'
-                              : categoryController.text.trim();
+                          final place = editCity ?? '';
+                          final category = editBusinessType;
                           if (name.isEmpty || place.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -501,12 +665,11 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     await _persistBusinesses(
       userId: user.uid,
       businesses: remainingBusinesses,
-      selectedBusinessId: shouldFallbackToPersonal
-          ? null
-          : (activeBusinessId == businessId
+      selectedBusinessId: remainingBusinesses.isNotEmpty
+          ? (activeBusinessId == businessId
               ? remainingBusinesses.first['id'] as String
-              : activeBusinessId),
-      defaultToPersonal: shouldFallbackToPersonal,
+              : activeBusinessId)
+          : null,
     );
 
     await _firestore
@@ -536,17 +699,14 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     if (user == null) return;
 
     final businessName = _businessNameController.text.trim();
-    final placeOfBusiness = _placeOfBusinessController.text.trim();
-    final category = _categoryController.text.trim().isEmpty
-        ? 'retail'
-        : _categoryController.text.trim();
+    final placeOfBusiness = _selectedCity ?? '';
 
     if (businessName.isEmpty || placeOfBusiness.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_tr(
-            'Please fill business name and location.',
-            'Tafadhali jaza jina la biashara na mahali.',
+            'Please fill business name and select a location.',
+            'Tafadhali jaza jina la biashara na chagua mahali.',
           )),
         ),
       );
@@ -566,7 +726,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
       {
         'id': businessId,
         'name': businessName,
-        'category': category,
+        'category': _selectedBusinessType,
         'placeOfBusiness': placeOfBusiness,
         'createdAt': FieldValue.serverTimestamp(),
       },
@@ -588,7 +748,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
         .set({
       'id': businessId,
       'businessName': businessName,
-      'businessCategory': category,
+      'businessCategory': _selectedBusinessType,
       'placeOfBusiness': placeOfBusiness,
       'ownerUid': user.uid,
       'ownerName': profile?['displayName'] ?? profile?['name'] ?? user.displayName,
@@ -601,8 +761,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
       _isSaving = false;
       _profileFuture = _loadProfile();
       _businessNameController.clear();
-      _placeOfBusinessController.clear();
-      _categoryController.text = 'retail';
+      _selectedBusinessType = 'Retail';
+      _selectedCity = null;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -655,20 +815,45 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                     TextField(
                       controller: _businessNameController,
                       decoration: InputDecoration(
-                          labelText: _tr('Business name', 'Jina la biashara')),
+                        labelText: _tr('Business name', 'Jina la biashara'),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: AppColors.background,
+                      ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _placeOfBusinessController,
-                      decoration: InputDecoration(
-                          labelText:
-                              _tr('Place of business', 'Mahali pa biashara')),
+                    MaliSelectField(
+                      placeholder: _tr('Business Type', 'Aina ya Biashara'),
+                      displayValue: () {
+                        final type = _businessTypes.firstWhere(
+                          (t) => t['value'] == _selectedBusinessType,
+                          orElse: () => _businessTypes.first,
+                        );
+                        return _tr(
+                          type['en'] as String,
+                          type['sw'] as String,
+                        );
+                      }(),
+                      hasValue: true,
+                      onTap: _showAddBusinessTypeSheet,
+                      icon: Icons.category_rounded,
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _categoryController,
-                      decoration:
-                          InputDecoration(labelText: _tr('Category', 'Aina')),
+                    MaliSelectField(
+                      placeholder: _tr('City / Region', 'Mji / Mkoa'),
+                      displayValue: () {
+                        if (_selectedCity == null) return '';
+                        final city = _tanzaniaCities.firstWhere(
+                          (c) => c['en'] == _selectedCity,
+                          orElse: () => _tanzaniaCities.first,
+                        );
+                        return _tr(city['en']!, city['sw']!);
+                      }(),
+                      hasValue: _selectedCity != null,
+                      onTap: _showAddCitySheet,
+                      icon: Icons.location_on_outlined,
                     ),
                     const SizedBox(height: 16),
                     SizedBox(

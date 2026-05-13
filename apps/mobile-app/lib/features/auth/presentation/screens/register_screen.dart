@@ -12,6 +12,7 @@ import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/pin_digit_box.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
@@ -23,18 +24,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 // Removed legacy PhoneAuth classes.
 
-enum AccountManagementType { business, personal }
-
-extension AccountManagementTypeX on AccountManagementType {
-  String label(bool isSwahili) {
-    switch (this) {
-      case AccountManagementType.business:
-        return isSwahili ? 'Usimamizi wa Biashara' : 'Business Management';
-      case AccountManagementType.personal:
-        return isSwahili ? 'Usimamizi wa Kibinafsi' : 'Personal Management';
-    }
-  }
-}
 
 class RegisterScreen extends StatefulWidget {
   final String? initialFullName;
@@ -59,9 +48,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
-  AccountManagementType _selectedAccountType = AccountManagementType.business;
-
   bool _isLoading = false;
+  bool _isPersonalManagement = false;
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
@@ -213,21 +201,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final String _businessCategoryKey = 'retail';
 
-  bool get _includesBusiness =>
-      _selectedAccountType == AccountManagementType.business;
-
-  bool get _includesPersonal =>
-      _selectedAccountType == AccountManagementType.personal;
-
-  List<String> get _selectedAccountValues {
-    switch (_selectedAccountType) {
-      case AccountManagementType.personal:
-        return ['personal'];
-      case AccountManagementType.business:
-        return ['business'];
-    }
-  }
-
   Future<void> _goToPostLoginLanding() async {
     final route = await DefaultContextRoutingService.resolveUserLandingPath(
       auth: _auth,
@@ -296,90 +269,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _successBurstTrigger++);
   }
 
-  Widget _buildSelectField({
-    required String placeholder,
-    required String displayValue,
-    required bool hasValue,
-    required VoidCallback onTap,
-    required IconData icon,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: InputDecorator(
-        isEmpty: !hasValue,
-        decoration: InputDecoration(
-          hintText: placeholder,
-          hintStyle: const TextStyle(color: AppColors.textMuted),
-          filled: true,
-          fillColor: AppColors.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-          ),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Icon(
-              icon,
-              size: 20,
-              color: hasValue ? AppColors.primary : AppColors.textSecondary,
-            ),
-          ),
-          suffixIcon: const Icon(
-            Icons.expand_more_rounded,
-            size: 20,
-            color: AppColors.textMuted,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-        ),
-        child: hasValue
-            ? Text(
-                displayValue,
-                style: GoogleFonts.poppins(
-                  color: AppColors.textPrimary,
-                  fontSize: 16,
-                ),
-              )
-            : null,
-      ),
-    );
-  }
-
-  Future<void> _showAccountTypeSheet() async {
-    final isSwahili = _language == AppLanguage.swahili;
-    final selected = await showModalBottomSheet<AccountManagementType>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _SelectSheet<AccountManagementType>(
-        title: _tr('Account Usage', 'Matumizi ya Akaunti'),
-        items: AccountManagementType.values,
-        selectedValue: _selectedAccountType,
-        labelBuilder: (type) => type.label(isSwahili),
-      ),
-    );
-    if (selected != null && mounted) {
-      setState(() => _selectedAccountType = selected);
-    }
-  }
-
   Future<void> _showBusinessTypeSheet() async {
     final isSwahili = _language == AppLanguage.swahili;
     final selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _SelectSheet<String>(
+      builder: (_) => MaliSelectSheet<String>(
         title: _tr('Business Type', 'Aina ya Biashara'),
         items: _businessTypes.map((t) => t['value'] as String).toList(),
         selectedValue: _selectedBusinessType,
@@ -410,7 +306,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _SelectSheet<String>(
+      builder: (_) => MaliSelectSheet<String>(
         title: _tr('City / Region', 'Mji / Mkoa'),
         items: _tanzaniaCities.map((c) => c['en']!).toList(),
         selectedValue: _selectedCity,
@@ -490,28 +386,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // Validate business details if business is selected
-    if (_includesBusiness) {
-      if (_businessNameController.text.isEmpty) {
-        _setFeedback(
-          _tr(
-            'Please enter your business name.',
-            'Tafadhali weka jina la biashara yako.',
-          ),
-          EmotionalStatusTone.warning,
-        );
-        return;
-      }
-      if (_placeOfBusinessController.text.isEmpty) {
-        _setFeedback(
-          _tr(
-            'Please enter your place of business.',
-            'Tafadhali weka mahali pa biashara yako.',
-          ),
-          EmotionalStatusTone.warning,
-        );
-        return;
-      }
+    // Validate business details
+    if (_businessNameController.text.isEmpty) {
+      _setFeedback(
+        _tr(
+          'Please enter your business name.',
+          'Tafadhali weka jina la biashara yako.',
+        ),
+        EmotionalStatusTone.warning,
+      );
+      return;
+    }
+    if (_placeOfBusinessController.text.isEmpty) {
+      _setFeedback(
+        _tr(
+          'Please enter your place of business.',
+          'Tafadhali weka mahali pa biashara yako.',
+        ),
+        EmotionalStatusTone.warning,
+      );
+      return;
     }
 
     final recoveryEmail = _emailController.text.trim();
@@ -603,80 +497,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
             .doc()
             .id;
 
-        final selectedAccountTypes = _selectedAccountValues;
-        final defaultAccountType = selectedAccountTypes.first;
-        final usagePreference = _selectedAccountType.name;
-        final defaultContext = _includesBusiness
-            ? 'business:$businessId'
-            : 'personal';
-
-        final businesses = _includesBusiness
-            ? [
-                {
-                  'id': businessId,
-                  'name': _businessNameController.text.trim(),
-                  'type': _selectedBusinessType,
-                  'category': _businessCategoryKey,
-                  'placeOfBusiness': _placeOfBusinessController.text.trim(),
-                  'createdAt': DateTime.now().toIso8601String(),
-                },
-              ]
-            : <Map<String, dynamic>>[];
-
         await _firestore.collection('users').doc(user.uid).set({
           'phone': normalizedPhone,
-          'pin': pin, // Stored for lookup if needed, though Auth handles login
+          'pin': pin,
           'name': displayName,
           'displayName': displayName,
           'authEmail': authEmail,
           if (recoveryEmail.isNotEmpty) 'email': recoveryEmail,
-          if (_includesBusiness)
-            'businessName': _businessNameController.text.trim(),
-          'defaultAccountType': defaultAccountType,
-          'accountTypes': selectedAccountTypes,
-          'usagePreference': usagePreference,
-          'defaultContext': defaultContext,
-          'selectedBusinessId': _includesBusiness ? businessId : null,
-          'businesses': businesses,
+          'businessName': _businessNameController.text.trim(),
+          'defaultAccountType': 'business',
+          'accountTypes': ['business'],
+          'usagePreference': 'business',
+          'defaultContext': 'business:$businessId',
+          'selectedBusinessId': businessId,
+          'businesses': [
+            {
+              'id': businessId,
+              'name': _businessNameController.text.trim(),
+              'type': _selectedBusinessType,
+              'category': _businessCategoryKey,
+              'placeOfBusiness': _placeOfBusinessController.text.trim(),
+              'createdAt': DateTime.now().toIso8601String(),
+            },
+          ],
           if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
           'createdAt': DateTime.now().toIso8601String(),
           'updatedAt': DateTime.now().toIso8601String(),
         }, SetOptions(merge: true));
 
-        // Create business tenant if business is selected
-        if (_includesBusiness) {
-          await _firestore
-              .collection('tenants')
-              .doc(user.uid)
-              .collection('businesses')
-              .doc(businessId)
-              .set({
-                'id': businessId,
-                'businessName': _businessNameController.text.trim(),
-                'businessType': _selectedBusinessType,
-                'businessCategory': _businessCategoryKey,
-                'placeOfBusiness': _placeOfBusinessController.text.trim(),
-                'ownerName': displayName,
-                'ownerPhone': normalizedPhone,
-                'ownerUid': user.uid,
-                'accountType': 'business',
-                if (recoveryEmail.isNotEmpty) 'ownerEmail': recoveryEmail,
-                'createdAt': DateTime.now().toIso8601String(),
-                'plan': 'Trial',
-              }, SetOptions(merge: true));
-        }
-
-        // Create personal account if personal is selected
-        if (_includesPersonal) {
-          await _firestore.collection('personal_accounts').doc(user.uid).set({
-            'fullName': displayName,
-            'phone': normalizedPhone,
-            'ownerUid': user.uid,
-            'accountType': 'personal',
-            if (recoveryEmail.isNotEmpty) 'recoveryEmail': recoveryEmail,
-            'createdAt': DateTime.now().toIso8601String(),
-          }, SetOptions(merge: true));
-        }
+        await _firestore
+            .collection('tenants')
+            .doc(user.uid)
+            .collection('businesses')
+            .doc(businessId)
+            .set({
+              'id': businessId,
+              'businessName': _businessNameController.text.trim(),
+              'businessType': _selectedBusinessType,
+              'businessCategory': _businessCategoryKey,
+              'placeOfBusiness': _placeOfBusinessController.text.trim(),
+              'ownerName': displayName,
+              'ownerPhone': normalizedPhone,
+              'ownerUid': user.uid,
+              'accountType': 'business',
+              if (recoveryEmail.isNotEmpty) 'ownerEmail': recoveryEmail,
+              'createdAt': DateTime.now().toIso8601String(),
+              'plan': 'Trial',
+            }, SetOptions(merge: true));
 
         if (mounted) {
           _setFeedback(
@@ -996,6 +863,165 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
+                        // Account type selector
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.account_circle_outlined,
+                              size: 18,
+                              color: textPrimary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _tr('Account Type', 'Aina ya Akaunti'),
+                              style: sectionTitleStyle,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(
+                                  () => _isPersonalManagement = false,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: !_isPersonalManagement
+                                        ? AppColors.primary
+                                            .withValues(alpha: 0.08)
+                                        : AppColors.surface,
+                                    border: Border.all(
+                                      color: !_isPersonalManagement
+                                          ? AppColors.primary
+                                          : AppColors.border,
+                                      width: !_isPersonalManagement ? 2 : 1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.business_rounded,
+                                        color: !_isPersonalManagement
+                                            ? AppColors.primary
+                                            : AppColors.textMuted,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _tr('Business', 'Biashara'),
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                          color: !_isPersonalManagement
+                                              ? AppColors.primary
+                                              : AppColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(
+                                  () => _isPersonalManagement = true,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _isPersonalManagement
+                                        ? AppColors.primary
+                                            .withValues(alpha: 0.08)
+                                        : AppColors.surface,
+                                    border: Border.all(
+                                      color: _isPersonalManagement
+                                          ? AppColors.primary
+                                          : AppColors.border,
+                                      width: _isPersonalManagement ? 2 : 1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.person_rounded,
+                                        color: _isPersonalManagement
+                                            ? AppColors.primary
+                                            : AppColors.textMuted,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _tr('Personal', 'Binafsi'),
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                          color: _isPersonalManagement
+                                              ? AppColors.primary
+                                              : AppColors.textMuted,
+                                        ),
+                                      ),
+                                      Text(
+                                        _tr('Coming soon', 'Inakuja'),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 10,
+                                          color: AppColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_isPersonalManagement) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.warning
+                                    .withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time_rounded,
+                                  size: 16,
+                                  color: AppColors.warning,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _tr(
+                                      'Personal management accounts are coming soon. Please register a business account for now.',
+                                      'Akaunti za usimamizi binafsi zinakuja hivi karibuni. Tafadhali sajili akaunti ya biashara kwa sasa.',
+                                    ),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12.5,
+                                      color: AppColors.warning,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
                         // Feedback message
                         if (_feedbackText != null)
                           Padding(
@@ -1075,86 +1101,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        // Account type selector
-                        _buildSelectField(
-                          placeholder: _tr(
-                            'Account usage',
-                            'Matumizi ya akaunti',
-                          ),
-                          displayValue: _selectedAccountType.label(
-                            _language == AppLanguage.swahili,
-                          ),
-                          hasValue: true,
-                          onTap: _showAccountTypeSheet,
-                          icon: Icons.manage_accounts_rounded,
-                        ),
                         const SizedBox(height: 16),
                         // Business Details section
-                        if (_includesBusiness) ...[
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.storefront_rounded,
-                                size: 18,
-                                color: textPrimary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _tr('Business Details', 'Taarifa za Biashara'),
-                                style: sectionTitleStyle,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Business name field
-                          TextField(
-                            controller: _businessNameController,
-                            decoration: fieldDecoration(
-                              hint: _tr('Business name', 'Jina la biashara'),
-                              suffix: Icons.store_outlined,
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.storefront_rounded,
+                              size: 18,
+                              color: textPrimary,
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          // Business type selector
-                          _buildSelectField(
-                            placeholder: _tr(
-                              'Business Type',
-                              'Aina ya Biashara',
+                            const SizedBox(width: 8),
+                            Text(
+                              _tr('Business Details', 'Taarifa za Biashara'),
+                              style: sectionTitleStyle,
                             ),
-                            displayValue: () {
-                              final type = _businessTypes.firstWhere(
-                                (t) => t['value'] == _selectedBusinessType,
-                                orElse: () => _businessTypes.first,
-                              );
-                              return _language == AppLanguage.swahili
-                                  ? type['sw'] as String
-                                  : type['en'] as String;
-                            }(),
-                            hasValue: true,
-                            onTap: _showBusinessTypeSheet,
-                            icon: Icons.category_rounded,
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Business name field
+                        TextField(
+                          controller: _businessNameController,
+                          decoration: fieldDecoration(
+                            hint: _tr('Business name', 'Jina la biashara'),
+                            suffix: Icons.store_outlined,
                           ),
-                          const SizedBox(height: 12),
-                          // City/Region selector
-                          _buildSelectField(
-                            placeholder: _tr('City/Region', 'Mji/Mkoa'),
-                            displayValue: () {
-                              if (_selectedCity == null) return '';
-                              final city = _tanzaniaCities.firstWhere(
-                                (c) => c['en'] == _selectedCity,
-                                orElse: () => _tanzaniaCities.first,
-                              );
-                              return _language == AppLanguage.swahili
-                                  ? city['sw']!
-                                  : city['en']!;
-                            }(),
-                            hasValue: _selectedCity != null,
-                            onTap: _showCitySheet,
-                            icon: Icons.location_on_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        // Business type selector
+                        MaliSelectField(
+                          placeholder: _tr(
+                            'Business Type',
+                            'Aina ya Biashara',
                           ),
-                          const SizedBox(height: 20),
-                        ],
+                          displayValue: () {
+                            final type = _businessTypes.firstWhere(
+                              (t) => t['value'] == _selectedBusinessType,
+                              orElse: () => _businessTypes.first,
+                            );
+                            return _language == AppLanguage.swahili
+                                ? type['sw'] as String
+                                : type['en'] as String;
+                          }(),
+                          hasValue: true,
+                          onTap: _showBusinessTypeSheet,
+                          icon: Icons.category_rounded,
+                        ),
+                        const SizedBox(height: 12),
+                        // City/Region selector
+                        MaliSelectField(
+                          placeholder: _tr('City/Region', 'Mji/Mkoa'),
+                          displayValue: () {
+                            if (_selectedCity == null) return '';
+                            final city = _tanzaniaCities.firstWhere(
+                              (c) => c['en'] == _selectedCity,
+                              orElse: () => _tanzaniaCities.first,
+                            );
+                            return _language == AppLanguage.swahili
+                                ? city['sw']!
+                                : city['en']!;
+                          }(),
+                          hasValue: _selectedCity != null,
+                          onTap: _showCitySheet,
+                          icon: Icons.location_on_outlined,
+                        ),
+                        const SizedBox(height: 20),
                         // PIN section
                         Row(
                           children: [
@@ -1188,7 +1198,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   i > 0 ? _pinFocusNodes[i - 1] : null,
                               nextFocusNode:
                                   i < 3 ? _pinFocusNodes[i + 1] : null,
-                              autoFocus: i == 0,
+                              autoFocus: false,
                               isLast: i == 3,
                             ),
                           ),
@@ -1211,11 +1221,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: _isLoading ? null : _handleRegistration,
+                            onPressed: _isLoading || _isPersonalManagement
+                                ? null
+                                : _handleRegistration,
                             child: Text(
                               _isLoading
                                   ? _tr('Registering...', 'Inasajili...')
-                                  : _tr('Register Account', 'Sajili Akaunti'),
+                                  : _isPersonalManagement
+                                      ? _tr('Coming Soon', 'Inakuja Hivi Karibuni')
+                                      : _tr('Register Account', 'Sajili Akaunti'),
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
@@ -1289,155 +1303,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _SelectSheet<T> extends StatelessWidget {
-  final String title;
-  final List<T> items;
-  final T? selectedValue;
-  final String Function(T) labelBuilder;
-  final IconData Function(T)? iconBuilder;
-
-  const _SelectSheet({
-    super.key,
-    required this.title,
-    required this.items,
-    required this.selectedValue,
-    required this.labelBuilder,
-    this.iconBuilder,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.62,
-      ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.close_rounded,
-                        color: AppColors.textSecondary,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: AppColors.border),
-            Flexible(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shrinkWrap: true,
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  final label = labelBuilder(item);
-                  final icon = iconBuilder?.call(item);
-                  final isSelected = item == selectedValue;
-                  return InkWell(
-                    onTap: () => Navigator.of(context).pop(item),
-                    child: Container(
-                      height: 52,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      color: isSelected
-                          ? AppColors.primary.withValues(alpha: 0.06)
-                          : Colors.transparent,
-                      child: Row(
-                        children: [
-                          if (icon != null) ...[
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.primary.withValues(alpha: 0.1)
-                                    : AppColors.surface,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                icon,
-                                size: 17,
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                          ],
-                          Expanded(
-                            child: Text(
-                              label,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 15,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          if (isSelected)
-                            const Icon(
-                              Icons.check_circle_rounded,
-                              size: 20,
-                              color: AppColors.primary,
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SafeArea(top: false, child: SizedBox(height: 8)),
-          ],
-        ),
       ),
     );
   }
