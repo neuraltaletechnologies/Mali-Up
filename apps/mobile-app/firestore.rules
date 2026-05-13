@@ -1,24 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if user is authenticated
+
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    // Helper function to check if the authenticated user matches the given userId
+
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
-    // Helper function to validate business document ownership
+
     function isBusinessOwner(ownerId) {
       return isSignedIn() && isOwner(ownerId);
     }
 
-    // Helper function for importing customer/contact records from phone.
-    // Allows required customer identity fields and optional metadata fields.
+    // Validates required fields for a customer/contact imported from phone.
     function isValidImportedCustomer(data) {
       return data.keys().hasAll(['name', 'phone']) &&
         data.name is string &&
@@ -32,122 +28,131 @@ service cloud.firestore {
         (!data.keys().hasAny(['lastTransactionDate']) || data.lastTransactionDate is string) &&
         (!data.keys().hasAny(['tags']) || data.tags is list);
     }
-    
+
+    // Validates a new user profile on registration.
+    // Ensures phone + name are present and account type is a supported value.
+    function isValidUserCreate(data) {
+      return data.keys().hasAll(['phone', 'name']) &&
+        data.name is string &&
+        data.phone is string &&
+        data.name.size() > 0 &&
+        data.name.size() <= 120 &&
+        data.phone.size() > 0 &&
+        data.phone.size() <= 32 &&
+        (!data.keys().hasAny(['defaultAccountType']) ||
+          data.defaultAccountType in ['business']) &&
+        (!data.keys().hasAny(['accountTypes']) || data.accountTypes is list) &&
+        (!data.keys().hasAny(['usagePreference']) ||
+          data.usagePreference in ['business']);
+    }
+
+    // Validates a business document created under a tenant.
+    // Enforces that ownerUid matches the authenticated tenant so a user cannot
+    // create a business claiming to belong to someone else.
+    function isValidBusinessCreate(data, tenantId) {
+      return data.keys().hasAll(['id', 'businessName', 'ownerUid']) &&
+        data.ownerUid == tenantId &&
+        data.id is string &&
+        data.id.size() > 0 &&
+        data.businessName is string &&
+        data.businessName.size() > 0 &&
+        data.businessName.size() <= 200;
+    }
+
     // ============================================
     // USER PROFILES
     // ============================================
     match /users/{userId} {
-      // Users can only read and write their own profile
       allow read, update, delete: if isSignedIn() && isOwner(userId);
-      
-      // Allow creation of user profile during registration
-      allow create: if isSignedIn() && isOwner(userId);
-      
-      // Allow pre-auth phone lookup used by login/registration flows
-      // App queries this path with where('phone', ...).limit(1)
-      allow list: if isSignedIn() || (request.auth == null && request.query.limit != null && request.query.limit <= 1);
-      
-      // ============================================
-      // PERSONAL FINANCE - FUTURE IMPLEMENTATION (v1.5)
-      // ============================================
-      // Personal finance data - only accessible by the owner
-      match /personal/{document=**} {
-        allow read, write: if isSignedIn() && isOwner(userId);
-      }
+      allow create: if isSignedIn() && isOwner(userId) &&
+        isValidUserCreate(request.resource.data);
+      // Phone lookup used by login/registration flows.
+      // Unauthenticated access is limited to limit <= 1 to support pre-auth
+      // phone existence checks (phone_auth_service.dart sendOTP).
+      allow list: if isSignedIn() ||
+        (request.auth == null &&
+         request.query.limit != null &&
+         request.query.limit <= 1);
     }
-    
+
     // ============================================
-    // BUSINESS COLLECTIONS
+    // LEGACY BUSINESS COLLECTION
     // ============================================
-    // Business documents are scoped by ownerId (which equals the user's uid)
+    // Used by auth_service.dart during sign-up / profile migration.
     match /business/{ownerId} {
-      // Only the owner can access their business document
       allow read, write: if isBusinessOwner(ownerId);
-      
-      // All subcollections inherit the owner check
-      // Users can only access documents within their own business
-      
-      // INVOICES
+
       match /invoices/{invoiceId} {
         allow read, write: if isBusinessOwner(ownerId);
-        // Prevent creating invoices with mismatched ownerId
         allow create: if isBusinessOwner(ownerId) && request.resource.data.ownerId == ownerId;
       }
-      
-      // CUSTOMERS
+
       match /customers/{customerId} {
         allow read, update, delete: if isBusinessOwner(ownerId);
-        // Explicitly allow bulk contact imports from phone.
         allow create: if isBusinessOwner(ownerId) && isValidImportedCustomer(request.resource.data);
       }
-      
-      // EXPENSES
+
       match /expenses/{expenseId} {
         allow read, write: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId);
       }
-      
-      // INVENTORY
+
       match /inventory/{itemId} {
         allow read, write: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId);
       }
-      
-      // SETTINGS
+
       match /settings/{settingId} {
         allow read, write: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId);
       }
-      
-      // CASH FLOW
+
       match /cashFlow/{cashFlowId} {
         allow read, write: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId);
       }
-      
-      // SUPPLIERS
+
       match /suppliers/{supplierId} {
         allow read, write: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId);
       }
-      
-      // STAFF
+
       match /staff/{staffId} {
         allow read, write: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId);
       }
     }
-    
+
     // ============================================
-    // TENANT-SCOPED BUSINESSES (for multi-tenant support)
+    // TENANT-SCOPED BUSINESSES (primary data path)
+    // Path: tenants/{uid}/businesses/{businessId}/{collection}/{docId}
     // ============================================
     match /tenants/{tenantId} {
       allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
 
-      // Direct customers subcollection when no businessId is resolved.
-      // Supports importing multiple contacts/customers from phone.
+      // Fallback: direct customer import before a businessId is resolved
       match /customers/{customerId} {
         allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        allow create: if isSignedIn() && isOwner(tenantId) && isValidImportedCustomer(request.resource.data);
+        allow create: if isSignedIn() && isOwner(tenantId) &&
+          isValidImportedCustomer(request.resource.data);
       }
 
-      // Direct subcollections when no businessId is resolved
+      // Fallback: any direct subcollection before a businessId is resolved
       match /{collection}/{docId} {
         allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
       }
 
       match /businesses/{businessId} {
-        allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
+        // Require ownerUid to match the tenant on creation to prevent a user
+        // from forging a business document under another user's tenant path.
+        allow create: if isSignedIn() && isOwner(tenantId) &&
+          isValidBusinessCreate(request.resource.data, tenantId);
 
-        // Customer subcollection for business context.
-        // Supports importing multiple contacts/customers from phone.
+        // Customer import for a specific business
         match /customers/{customerId} {
           allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-          allow create: if isSignedIn() && isOwner(tenantId) && isValidImportedCustomer(request.resource.data);
+          allow create: if isSignedIn() && isOwner(tenantId) &&
+            isValidImportedCustomer(request.resource.data);
         }
 
-        // All subcollections: sales_invoices, customers, inventory_items,
-        // expenses, cash_accounts, debts, suppliers, staff, settings, etc.
+        // All business subcollections:
+        // sales_invoices, inventory_items, expenses, cash_accounts,
+        // debts, suppliers, staff, settings, cash_flow, etc.
         match /{collection}/{docId} {
           allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
         }
@@ -155,37 +160,16 @@ service cloud.firestore {
     }
 
     // ============================================
-    // PERSONAL ACCOUNTS (for users operating outside business context)
-    // ============================================
-    match /personal_accounts/{userId} {
-      allow read, create, update, delete: if isSignedIn() && isOwner(userId);
-
-      // Personal-context customers import.
-      match /customers/{customerId} {
-        allow read, update, delete: if isSignedIn() && isOwner(userId);
-        allow create: if isSignedIn() && isOwner(userId) && isValidImportedCustomer(request.resource.data);
-      }
-
-      // All subcollections: sales_invoices, expenses, cash_accounts,
-      // customers, debts, inventory_items, etc.
-      match /{collection}/{docId} {
-        allow read, create, update, delete: if isSignedIn() && isOwner(userId);
-      }
-    }
-    
-    // ============================================
-    // DEBT COLLECTIONS (Debt Exposure)
+    // DEBT COLLECTIONS (standalone exposure tracker)
     // ============================================
     match /debt_collections/{collectionId} {
-      // Only the owner of the business the collection belongs to can access it
       allow read, write: if isSignedIn() && resource.data.ownerId == request.auth.uid;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
     }
-    
+
     // ============================================
-    // DEFAULT DENY RULE
+    // DEFAULT DENY
     // ============================================
-    // Deny all access to any documents not covered by the rules above
     match /{document=**} {
       allow read, write: if false;
     }

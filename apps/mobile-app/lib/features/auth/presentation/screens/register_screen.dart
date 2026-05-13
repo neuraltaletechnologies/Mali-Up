@@ -1198,7 +1198,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   i > 0 ? _pinFocusNodes[i - 1] : null,
                               nextFocusNode:
                                   i < 3 ? _pinFocusNodes[i + 1] : null,
-                              autoFocus: false,
                               isLast: i == 3,
                             ),
                           ),
