@@ -26,10 +26,12 @@ class SalesScreen extends ConsumerWidget {
           try {
             final inventory =
                 ref.read(inventoryItemListProvider).value ?? const [];
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => _QuickSalePage(inventory: inventory),
-              ),
+            showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              useSafeArea: true,
+              builder: (_) => _QuickSaleSheet(inventory: inventory),
             );
           } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -62,10 +64,7 @@ class SalesScreen extends ConsumerWidget {
           ),
           Expanded(
             child: salesAsync.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: SkeletonList(),
-              ),
+              loading: () => const SalesPageSkeleton(),
               error: (_, _) => Center(
                 child: Text(
                   _tr(
@@ -255,12 +254,8 @@ class _EmptySalesState extends StatelessWidget {
 
 class _QuickSaleSheet extends ConsumerStatefulWidget {
   final List<Map<String, dynamic>> inventory;
-  final bool asModal;
 
-  const _QuickSaleSheet({
-    required this.inventory,
-    this.asModal = true,
-  });
+  const _QuickSaleSheet({required this.inventory});
 
   @override
   ConsumerState<_QuickSaleSheet> createState() => _QuickSaleSheetState();
@@ -1000,8 +995,6 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
       ),
     );
 
-    if (!widget.asModal) return content;
-
     return FractionallySizedBox(
       widthFactor: 1,
       heightFactor: 0.92,
@@ -1644,27 +1637,6 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         clipBehavior: Clip.antiAlias,
         child: content,
-      ),
-    );
-  }
-}
-
-class _QuickSalePage extends StatelessWidget {
-  final List<Map<String, dynamic>> inventory;
-
-  const _QuickSalePage({required this.inventory});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_tr('Record a Sale', 'Rekodi Mauzo')),
-      ),
-      body: SafeArea(
-        child: _QuickSaleSheet(
-          inventory: inventory,
-          asModal: false,
-        ),
       ),
     );
   }

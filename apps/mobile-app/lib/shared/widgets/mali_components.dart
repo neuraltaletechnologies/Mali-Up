@@ -547,106 +547,6 @@ class EmptyState extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ContextSwitcher — pill toggle for personal/business (future use)
-// ─────────────────────────────────────────────────────────────────────────────
-
-enum AppContext { personal, business }
-
-class ContextSwitcher extends StatelessWidget {
-  final AppContext current;
-  final ValueChanged<AppContext> onChanged;
-
-  const ContextSwitcher({
-    super.key,
-    required this.current,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _Pill(
-            label: 'Biashara',
-            icon: Icons.business_center_rounded,
-            active: current == AppContext.business,
-            activeColor: AppColors.navyPrimary,
-            onTap: () => onChanged(AppContext.business),
-          ),
-          const SizedBox(width: 4),
-          _Pill(
-            label: 'Binafsi',
-            icon: Icons.person_rounded,
-            active: current == AppContext.personal,
-            activeColor: AppColors.purpleAccent,
-            onTap: () => onChanged(AppContext.personal),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool active;
-  final Color activeColor;
-  final VoidCallback onTap;
-
-  const _Pill({
-    required this.label,
-    required this.icon,
-    required this.active,
-    required this.activeColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? activeColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: active ? AppColors.inverseText : AppColors.textMuted,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: active ? AppColors.inverseText : AppColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Skeleton loaders — screen-level skeletons using ShimmerBox
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -765,6 +665,386 @@ class SkeletonScreen extends StatelessWidget {
               SkeletonList(itemCount: listItems),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page-specific skeleton screens — each mirrors its page's real content shape
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Stats column used inside page skeletons (value + label shimmer)
+class _PageSkeletonStat extends StatelessWidget {
+  const _PageSkeletonStat();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ShimmerBox(width: 72, height: 14, borderRadius: BorderRadius.all(Radius.circular(4))),
+        SizedBox(height: 6),
+        ShimmerBox(width: 50, height: 11, borderRadius: BorderRadius.all(Radius.circular(999))),
+      ],
+    );
+  }
+}
+
+/// Sales / Invoice list page skeleton
+class SalesPageSkeleton extends StatelessWidget {
+  const SalesPageSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          color: AppColors.surface,
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _PageSkeletonStat(),
+              _PageSkeletonStat(),
+              _PageSkeletonStat(),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: SkeletonList(itemCount: 6),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Inventory / Stock page skeleton
+class InventoryPageSkeleton extends StatelessWidget {
+  const InventoryPageSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.all(24),
+          child: Row(
+            children: [
+              Expanded(child: ShimmerBox(height: 68)),
+              SizedBox(width: 16),
+              Expanded(child: ShimmerBox(height: 68)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: SkeletonList(itemCount: 6),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Customer list page skeleton
+class CustomerPageSkeleton extends StatelessWidget {
+  const CustomerPageSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: ShimmerBox(height: 46, borderRadius: BorderRadius.all(Radius.circular(12))),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(24, 0, 24, 12),
+          child: ShimmerBox(height: 46, borderRadius: BorderRadius.all(Radius.circular(12))),
+        ),
+        SizedBox(height: 4),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: SkeletonList(itemCount: 7),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Expense list page skeleton
+class ExpensePageSkeleton extends StatelessWidget {
+  const ExpensePageSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          child: ShimmerBox(height: 46, borderRadius: BorderRadius.all(Radius.circular(12))),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(24, 4, 24, 16),
+          child: Row(
+            children: [
+              Expanded(child: ShimmerBox(height: 62, borderRadius: BorderRadius.all(Radius.circular(12)))),
+              SizedBox(width: 12),
+              Expanded(child: ShimmerBox(height: 62, borderRadius: BorderRadius.all(Radius.circular(12)))),
+            ],
+          ),
+        ),
+        SizedBox(height: 8),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: SkeletonList(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PlanBadge — shows Free / Premium tier inline
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MaliSelectField — tappable input-style field that opens a picker
+// ─────────────────────────────────────────────────────────────────────────────
+
+class MaliSelectField extends StatelessWidget {
+  final String placeholder;
+  final String displayValue;
+  final bool hasValue;
+  final VoidCallback onTap;
+  final IconData icon;
+
+  const MaliSelectField({
+    super.key,
+    required this.placeholder,
+    required this.displayValue,
+    required this.hasValue,
+    required this.onTap,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: InputDecorator(
+        isEmpty: !hasValue,
+        decoration: InputDecoration(
+          hintText: placeholder,
+          hintStyle: const TextStyle(color: AppColors.textMuted),
+          filled: true,
+          fillColor: AppColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Icon(
+              icon,
+              size: 20,
+              color: hasValue ? AppColors.primary : AppColors.textSecondary,
+            ),
+          ),
+          suffixIcon: const Icon(
+            Icons.expand_more_rounded,
+            size: 20,
+            color: AppColors.textMuted,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+        ),
+        child: hasValue
+            ? Text(
+                displayValue,
+                style: GoogleFonts.poppins(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                ),
+              )
+            : null,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MaliSelectSheet<T> — modal bottom sheet list picker
+// ─────────────────────────────────────────────────────────────────────────────
+
+class MaliSelectSheet<T> extends StatelessWidget {
+  final String title;
+  final List<T> items;
+  final T? selectedValue;
+  final String Function(T) labelBuilder;
+  final IconData Function(T)? iconBuilder;
+
+  const MaliSelectSheet({
+    super.key,
+    required this.title,
+    required this.items,
+    required this.selectedValue,
+    required this.labelBuilder,
+    this.iconBuilder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.62,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: AppColors.border),
+            Flexible(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shrinkWrap: true,
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final label = labelBuilder(item);
+                  final icon = iconBuilder?.call(item);
+                  final isSelected = item == selectedValue;
+                  return InkWell(
+                    onTap: () => Navigator.of(context).pop(item),
+                    child: Container(
+                      height: 52,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      color: isSelected
+                          ? AppColors.primary.withValues(alpha: 0.06)
+                          : Colors.transparent,
+                      child: Row(
+                        children: [
+                          if (icon != null) ...[
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primary.withValues(alpha: 0.1)
+                                    : AppColors.surface,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                icon,
+                                size: 17,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                          ],
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 15,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              size: 20,
+                              color: AppColors.primary,
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SafeArea(top: false, child: SizedBox(height: 8)),
+          ],
         ),
       ),
     );

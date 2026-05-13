@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../data/customer_providers.dart';
 import '../widgets/add_customer_dialog.dart';
 
@@ -138,31 +139,33 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
           const SizedBox(height: 16),
 
           Expanded(
-            child: filteredCustomers.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.person_off_outlined, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          _tr('No customers found', 'Hakuna wateja waliofumanwa'),
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+            child: customers.isLoading
+                ? const CustomerPageSkeleton()
+                : filteredCustomers.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_off_outlined, size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            Text(
+                              _tr('No customers found', 'Hakuna wateja waliofumanwa'),
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    itemCount: filteredCustomers.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final customer = filteredCustomers[index];
-                      return _CustomerCard(customer: customer);
-                    },
-                  ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                        itemCount: filteredCustomers.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final customer = filteredCustomers[index];
+                          return _CustomerCard(customer: customer);
+                        },
+                      ),
           ),
         ],
       ),

@@ -29,10 +29,7 @@ class InventoryScreen extends ConsumerWidget {
           ),
           Expanded(
             child: inventoryAsync.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: SkeletonList(),
-              ),
+              loading: () => const InventoryPageSkeleton(),
               error: (error, _) => Center(
                 child: Text(
                   _tr(

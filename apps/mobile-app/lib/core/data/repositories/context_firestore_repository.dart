@@ -5,7 +5,7 @@ import '../../../features/debt/domain/models/debt.dart';
 import '../../../features/finance/domain/models/cash_account.dart';
 import '../../../features/finance/domain/models/expense.dart';
 
-enum FinanceContextType { business, personal }
+enum FinanceContextType { business }
 
 class ResolvedFinanceContext {
   final FinanceContextType type;
@@ -15,9 +15,6 @@ class ResolvedFinanceContext {
     required this.type,
     required this.businessId,
   });
-
-  const ResolvedFinanceContext.personal()
-    : this._(type: FinanceContextType.personal, businessId: null);
 
   const ResolvedFinanceContext.business(String businessId)
     : this._(type: FinanceContextType.business, businessId: businessId);
@@ -54,9 +51,6 @@ class ContextFirestoreRepository {
           return ResolvedFinanceContext.business(businessId);
         }
       }
-      if (defaultContext != null && defaultContext.startsWith('personal')) {
-        return const ResolvedFinanceContext.personal();
-      }
 
       final defaultAccountType = (data?['defaultAccountType'] as String?)
           ?.toLowerCase();
@@ -65,9 +59,6 @@ class ContextFirestoreRepository {
         if (businessId != null && businessId.isNotEmpty) {
           return ResolvedFinanceContext.business(businessId);
         }
-      }
-      if (defaultAccountType == 'personal') {
-        return const ResolvedFinanceContext.personal();
       }
 
       if (businesses.isNotEmpty) {
@@ -79,7 +70,7 @@ class ContextFirestoreRepository {
       // Keep a safe fallback when user profile is unavailable.
     }
 
-    return const ResolvedFinanceContext.personal();
+    return const ResolvedFinanceContext.business('');
   }
 
   Stream<List<Customer>> watchCustomers({
@@ -167,26 +158,19 @@ class ContextFirestoreRepository {
     required ResolvedFinanceContext context,
     required String childCollection,
   }) {
-    if (context.isBusiness) {
-      final businessId = context.businessId;
-      if (businessId == null || businessId.isEmpty) {
-        return _firestore
-            .collection('tenants')
-            .doc(uid)
-            .collection(childCollection);
-      }
-
+    final businessId = context.businessId;
+    if (businessId == null || businessId.isEmpty) {
       return _firestore
           .collection('tenants')
           .doc(uid)
-          .collection('businesses')
-          .doc(businessId)
           .collection(childCollection);
     }
 
     return _firestore
-        .collection('personal_accounts')
+        .collection('tenants')
         .doc(uid)
+        .collection('businesses')
+        .doc(businessId)
         .collection(childCollection);
   }
 

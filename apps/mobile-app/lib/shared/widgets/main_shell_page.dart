@@ -96,31 +96,6 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
     return 'business';
   }
 
-  bool _canSwitchFinanceContext(Map<String, dynamic>? profile) {
-    final businesses = _businessesFromProfile(profile);
-    if (businesses.isNotEmpty) {
-      return true;
-    }
-
-    final accountTypesRaw = profile?['accountTypes'];
-    if (accountTypesRaw is List) {
-      final normalized = accountTypesRaw
-          .whereType<String>()
-          .map((e) => e.toLowerCase())
-          .toSet();
-      if (normalized.contains('personal') && normalized.contains('business')) {
-        return true;
-      }
-    }
-
-    final usagePreference = (profile?['usagePreference'] as String?)?.toLowerCase();
-    if (usagePreference == 'both' || usagePreference == 'personal_and_business') {
-      return true;
-    }
-
-    return false;
-  }
-
   Future<void> _switchFinanceContext(String nextContext) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -128,22 +103,17 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
     final profile = await _profileFuture;
     final businesses = _businessesFromProfile(profile);
     final normalized = nextContext.toLowerCase();
-    final resolvedNextContext = normalized.startsWith('business')
-        ? () {
-            final requestedBusinessId = normalized.contains(':')
-                ? normalized.split(':').sublist(1).join(':').trim()
-                : null;
-            if (requestedBusinessId != null && requestedBusinessId.isNotEmpty) {
-              return 'business:$requestedBusinessId';
-            }
-            final fallbackBusinessId = _selectedBusinessId(profile) ?? (businesses.isNotEmpty ? businesses.first['id'] as String : null);
-            return fallbackBusinessId == null ? 'business' : 'business:$fallbackBusinessId';
-          }()
-        : 'personal';
 
-    final nextType = normalized.startsWith('business')
-        ? 'business'
-        : 'personal';
+    final requestedBusinessId = normalized.contains(':')
+        ? normalized.split(':').sublist(1).join(':').trim()
+        : null;
+    final fallbackBusinessId = _selectedBusinessId(profile) ??
+        (businesses.isNotEmpty ? businesses.first['id'] as String : null);
+    final resolvedNextContext = requestedBusinessId != null && requestedBusinessId.isNotEmpty
+        ? 'business:$requestedBusinessId'
+        : fallbackBusinessId != null
+            ? 'business:$fallbackBusinessId'
+            : 'business';
 
     final currentContext = _defaultContextFromProfile(profile);
     if (currentContext == resolvedNextContext) {
@@ -159,7 +129,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
 
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
       'defaultContext': resolvedNextContext,
-      'defaultAccountType': nextType,
+      'defaultAccountType': 'business',
       'selectedBusinessId': selectedBusinessId,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -195,7 +165,6 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
     required BuildContext context,
     required String location,
     required _DrawerProfileData profile,
-    required bool isBusinessContext,
   }) async {
     await showGeneralDialog<void>(
       context: context,
@@ -349,14 +318,14 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(
-                                        isBusinessContext ? Icons.business_center_rounded : Icons.person_rounded,
+                                      const Icon(
+                                        Icons.business_center_rounded,
                                         size: 12,
                                         color: Colors.white,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        isBusinessContext ? _tr('Business', 'Biashara') : _tr('Personal', 'Binafsi'),
+                                        _tr('Business', 'Biashara'),
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 11,
@@ -385,56 +354,54 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           selected: isDashboard,
                           onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
                         ),
-                        if (isBusinessContext) ...[
-                          _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
-                          _DrawerItemLight(
-                            icon: Icons.receipt_long_rounded,
-                            label: _tr('Tuma ankara', 'Tuma ankara'),
-                            semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
-                            selected: _isSelected(location, AppRouter.salesPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
-                          ),
-                          const SizedBox(height: 2),
-                          _DrawerItemLight(
-                            icon: Icons.inventory_2_rounded,
-                            label: _tr('Hisa zangu', 'Hisa zangu'),
-                            semanticsLabel: _tr('My stock and inventory', 'Hisa zangu, usimamizi wa bidhaa'),
-                            selected: _isSelected(location, AppRouter.inventoryPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
-                          ),
-                          const SizedBox(height: 2),
-                          _DrawerItemLight(
-                            icon: Icons.people_alt_rounded,
-                            label: _tr('Wateja wangu', 'Wateja wangu'),
-                            semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
-                            selected: _isSelected(location, AppRouter.crmPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
-                          ),
-                          _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
-                          _DrawerItemLight(
-                            icon: Icons.account_balance_rounded,
-                            label: _tr('Madeni', 'Madeni'),
-                            semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
-                            selected: _isSelected(location, AppRouter.debtPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
-                          ),
-                          const SizedBox(height: 2),
-                          _DrawerItemLight(
-                            icon: Icons.payments_outlined,
-                            label: _tr('Gharama zangu', 'Gharama zangu'),
-                            semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
-                            selected: _isSelected(location, AppRouter.expensesPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
-                          ),
-                          const SizedBox(height: 2),
-                          _DrawerItemLight(
-                            icon: Icons.account_balance_wallet_outlined,
-                            label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
-                            semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
-                            selected: _isSelected(location, AppRouter.cashFlowPath),
-                            onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
-                          ),
-                        ],
+                        _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
+                        _DrawerItemLight(
+                          icon: Icons.receipt_long_rounded,
+                          label: _tr('Tuma ankara', 'Tuma ankara'),
+                          semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
+                          selected: _isSelected(location, AppRouter.salesPath),
+                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
+                        ),
+                        const SizedBox(height: 2),
+                        _DrawerItemLight(
+                          icon: Icons.inventory_2_rounded,
+                          label: _tr('Hisa zangu', 'Hisa zangu'),
+                          semanticsLabel: _tr('My stock and inventory', 'Hisa zangu, usimamizi wa bidhaa'),
+                          selected: _isSelected(location, AppRouter.inventoryPath),
+                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
+                        ),
+                        const SizedBox(height: 2),
+                        _DrawerItemLight(
+                          icon: Icons.people_alt_rounded,
+                          label: _tr('Wateja wangu', 'Wateja wangu'),
+                          semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
+                          selected: _isSelected(location, AppRouter.crmPath),
+                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
+                        ),
+                        _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
+                        _DrawerItemLight(
+                          icon: Icons.account_balance_rounded,
+                          label: _tr('Madeni', 'Madeni'),
+                          semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
+                          selected: _isSelected(location, AppRouter.debtPath),
+                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
+                        ),
+                        const SizedBox(height: 2),
+                        _DrawerItemLight(
+                          icon: Icons.payments_outlined,
+                          label: _tr('Gharama zangu', 'Gharama zangu'),
+                          semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
+                          selected: _isSelected(location, AppRouter.expensesPath),
+                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
+                        ),
+                        const SizedBox(height: 2),
+                        _DrawerItemLight(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
+                          semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
+                          selected: _isSelected(location, AppRouter.cashFlowPath),
+                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
+                        ),
                         _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
                         _DrawerItemLight(
                           icon: Icons.storefront_rounded,
@@ -553,38 +520,11 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
     ];
   }
 
-  String _pageTitle(String location) {
-    if (location.startsWith(AppRouter.salesPath)) return _tr('Tuma ankara', 'Tuma ankara');
-    if (location.startsWith(AppRouter.inventoryPath)) return _tr('Hisa zangu', 'Hisa zangu');
-    if (location.startsWith(AppRouter.crmPath)) return _tr('Wateja wangu', 'Wateja wangu');
-    if (location.startsWith(AppRouter.debtPath)) return _tr('Madeni', 'Madeni');
-    if (location.startsWith(AppRouter.expensesPath)) return _tr('Gharama zangu', 'Gharama zangu');
-    if (location.startsWith(AppRouter.cashFlowPath)) return _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha');
-    if (location.startsWith(AppRouter.settingsPath)) return _tr('Settings', 'Mipangilio');
-    if (location.startsWith(AppRouter.businessesPath)) return _tr('Manage Businesses', 'Simamia Biashara');
-    return _tr('Hali ya biashara', 'Hali ya biashara');
-  }
-
   static bool _isSelected(String location, String route) {
     return location == route || location.startsWith('$route/');
   }
 
   _DrawerProfileData _buildProfileData(User? user, Map<String, dynamic>? profile) {
-    final accountTypesRaw = profile?['accountTypes'];
-    final accountTypes = accountTypesRaw is List
-        ? accountTypesRaw.whereType<String>().toList()
-        : const <String>[];
-
-    final contextValue = (profile?['defaultContext'] as String?)?.toLowerCase();
-    final accountType = (contextValue != null && contextValue.isNotEmpty)
-        ? (contextValue.startsWith('business') ? 'business' : 'personal')
-        : (profile?['defaultAccountType'] as String?) ??
-            (accountTypes.isNotEmpty ? accountTypes.first : 'personal');
-
-    final accountTypeLabel = accountType.toLowerCase() == 'business'
-      ? _tr('Business Account', 'Akaunti ya Biashara')
-      : _tr('Personal Account', 'Akaunti Binafsi');
-
     final fullName = ((profile?['displayName'] as String?)?.trim().isNotEmpty ?? false)
         ? (profile?['displayName'] as String).trim()
         : ((profile?['name'] as String?)?.trim().isNotEmpty ?? false)
@@ -611,14 +551,12 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
     return _DrawerProfileData(
       fullName: fullName,
       contactLine: contactLine,
-      accountTypeLabel: accountTypeLabel,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
-    final title = _pageTitle(location);
     final currentUser = _currentUser;
     final isDashboard = _isSelected(location, AppRouter.dashboardPath);
 
@@ -632,39 +570,37 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
         final profileData = snapshot.data;
         final profile = _buildProfileData(currentUser, profileData);
         final businesses = _businessesFromProfile(profileData);
-        final isBusinessContext =
-            _defaultContextFromProfile(profileData).toLowerCase().startsWith('business');
         final selectedContext = _defaultContextFromProfile(profileData);
-        final canSwitch = _canSwitchFinanceContext(profileData);
+        final canSwitch = businesses.length > 1;
         final destinations = _businessNavDestinations();
         final currentIndex = _calculateIndex(location, destinations);
 
         return Scaffold(
-          extendBodyBehindAppBar: true, // Allow body to flow under the glass app bar
+          extendBodyBehindAppBar: true,
           drawerScrimColor: Colors.transparent,
           appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(kToolbarHeight + 16),
+            preferredSize: const Size.fromHeight(kToolbarHeight),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(32),
+                  borderRadius: BorderRadius.circular(28),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                     child: Container(
-                      height: kToolbarHeight,
+                      height: 46,
                       padding: const EdgeInsets.symmetric(horizontal: 4.0),
                       decoration: BoxDecoration(
-                        color: AppColors.background.withValues(alpha: 0.65),
-                        borderRadius: BorderRadius.circular(32),
+                        color: AppColors.background.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(28),
                         border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.15),
+                          color: AppColors.primary.withValues(alpha: 0.12),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
                           )
                         ],
                       ),
@@ -678,7 +614,6 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                               context: context,
                               location: location,
                               profile: profile,
-                              isBusinessContext: isBusinessContext,
                             ),
                           ),
                           Padding(
@@ -700,10 +635,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
             ),
           ),
           body: Padding(
-            // We use padding so that the content isn't completely hidden behind the AppBar
-            // However, scroll views inside the children will automatically adjust for extendBody: true.
-            // If the child is not a scroll view, it will need padding.
-            padding: EdgeInsets.only(top: isDashboard ? 0 : kToolbarHeight + 8 + MediaQuery.of(context).padding.top),
+            padding: EdgeInsets.only(top: isDashboard ? 0 : 50 + MediaQuery.of(context).padding.top),
             child: Column(
               children: [
                 Expanded(child: widget.child),
@@ -968,12 +900,10 @@ class _FinanceContextSwitcher extends StatelessWidget {
 class _DrawerProfileData {
   final String fullName;
   final String contactLine;
-  final String accountTypeLabel;
 
   const _DrawerProfileData({
     required this.fullName,
     required this.contactLine,
-    required this.accountTypeLabel,
   });
 }
 
