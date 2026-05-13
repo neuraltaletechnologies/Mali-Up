@@ -77,17 +77,11 @@ export function Nav() {
             {/* Desktop CTAs */}
             <div className="hidden md:flex items-center gap-3">
               <button
-                onClick={() => setLoginOpen(true)}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-xl hover:bg-secondary"
-              >
-                Sign In
-              </button>
-              <a
-                href="#download"
+               onClick={() => setLoginOpen(true)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-foreground text-primary-foreground rounded-xl text-sm font-medium transition-all hover:scale-105 hover:shadow-lg"
               >
-                Get the App
-              </a>
+                Sign in
+              </button>
             </div>
 
             {/* Mobile menu button */}
@@ -139,12 +133,11 @@ export function Nav() {
                 ))}
 
                 <div className="h-px bg-border my-1" />
-
                 <motion.button
-                  className="text-lg font-medium text-foreground hover:text-accent transition-colors py-2 text-left"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: links.length * 0.08 }}
+                  className="mt-1 flex items-center justify-center px-5 py-3 bg-foreground text-primary-foreground rounded-xl text-base font-medium"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: (links.length + 1) * 0.08 }}
                   onClick={() => {
                     setMenuOpen(false)
                     setLoginOpen(true)
@@ -152,17 +145,6 @@ export function Nav() {
                 >
                   Sign In
                 </motion.button>
-
-                <motion.a
-                  href="#download"
-                  className="mt-1 flex items-center justify-center px-5 py-3 bg-foreground text-primary-foreground rounded-xl text-base font-medium"
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: (links.length + 1) * 0.08 }}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Get the App
-                </motion.a>
               </nav>
             </motion.div>
           </motion.div>
