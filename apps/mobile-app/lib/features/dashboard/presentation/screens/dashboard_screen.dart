@@ -558,112 +558,148 @@ class _UnifiedHeroCard extends StatefulWidget {
 class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
   bool _detailsVisible = false;
 
-  @override
-  Widget build(BuildContext context) => _buildCreditCard();
+  static const _cardGrad1 = Color(0xFF0D1B3E);
+  static const _cardGrad2 = Color(0xFF102450);
+  static const _cardGrad3 = Color(0xFF162C62);
 
-  // ── Business: premium credit card ──────────────────────────────────────────
-  Widget _buildCreditCard() {
+  @override
+  Widget build(BuildContext context) {
     final name = widget.businessName ?? _tr('My Business', 'Biashara yangu');
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
-        ? _fmtCompactAmount(widget.totalCash)
-        : '••••••••••';
+        ? 'TZS ${_fmtCompactAmount(widget.totalCash)}'
+        : 'TZS ••••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
-    final expText =
-        _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
+    final expText = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
     final net = widget.totalCash - widget.totalExpenses;
     final netText = _detailsVisible ? _fmtCompactAmount(net) : '••••';
-    final netColor =
-        net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
+    final netColor = net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
 
+    // Standard ISO credit card ratio: 85.6mm × 53.98mm
     return AspectRatio(
-      aspectRatio: 1.46,
+      aspectRatio: 1.586,
       child: Container(
         width: double.infinity,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
           gradient: const LinearGradient(
-            colors: [
-              AppColors.navyPrimary,
-              Color(0xFF1a3a52),
-            ],
+            colors: [_cardGrad1, _cardGrad2, _cardGrad3],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
+            stops: [0.0, 0.48, 1.0],
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.navyPrimary.withValues(alpha: 0.3),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
+              color: _cardGrad1.withValues(alpha: 0.50),
+              blurRadius: 32,
+              offset: const Offset(0, 14),
+              spreadRadius: -4,
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Stack(
-        children: [
-          // Decorative background elements
-          Positioned(
-            right: -40, top: -40,
-            child: Container(
-              width: 180, height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
+          children: [
+            // Large decorative circle top-right
+            Positioned(
+              right: -60, top: -60,
+              child: Container(
+                width: 220, height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.035),
+                ),
               ),
             ),
-          ),
-          Positioned(
-            left: -30, bottom: -20,
-            child: Container(
-              width: 120, height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.yellowBrand.withValues(alpha: 0.08),
+            // Small accent circle bottom-left
+            Positioned(
+              left: -35, bottom: -35,
+              child: Container(
+                width: 160, height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.yellowBrand.withValues(alpha: 0.07),
+                ),
               ),
             ),
-          ),
-          // Main content
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header row: Chip, Brand, Logo
-                Row(
-                  children: [
-                    const _CardChip(),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'MALI UP',
-                            style: TextStyle(
-                              color: AppColors.yellowBrand.withValues(alpha: 0.95),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2.0,
+            // Subtle gold shimmer line along top edge
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: Container(
+                height: 1.5,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      AppColors.yellowBrand.withValues(alpha: 0.45),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Card content
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Header: chip · brand · logo ───────────────────
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const _CardChip(),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'MALI UP',
+                              style: TextStyle(
+                                color: AppColors.yellowBrand,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 2.8,
+                              ),
                             ),
-                          ),
-                          Text(
-                            _tr('Business Account', 'Akaunti ya Biashara'),
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
-                              fontSize: 9,
-                              letterSpacing: 0.5,
+                            Text(
+                              _tr('Business Account', 'Akaunti ya Biashara'),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.48),
+                                fontSize: 8.5,
+                                letterSpacing: 0.6,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        width: 38,
-                        height: 38,
-                        child: widget.logoUrl != null &&
-                                widget.logoUrl!.isNotEmpty
+                      // Business logo — circular
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.yellowBrand,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.yellowBrand.withValues(alpha: 0.35),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: widget.logoUrl != null && widget.logoUrl!.isNotEmpty
                             ? Image.network(
                                 widget.logoUrl!,
                                 fit: BoxFit.cover,
@@ -672,116 +708,129 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                               )
                             : _BusinessLogoFallback(initial: initial),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // Main balance section
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _tr('TOTAL BALANCE', 'JUMLA YA FEDHA'),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.9,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => setState(
-                              () => _detailsVisible = !_detailsVisible),
-                          child: AnimatedOpacity(
-                            opacity: _detailsVisible ? 1.0 : 0.7,
-                            duration: const Duration(milliseconds: 200),
-                            child: Icon(
-                              _detailsVisible
-                                  ? Icons.visibility_rounded
-                                  : Icons.visibility_off_rounded,
-                              size: 15,
-                              color: Colors.white.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      transitionBuilder: (child, anim) => FadeTransition(
-                        opacity: anim,
-                        child: child,
-                      ),
-                      child: Text(
-                        amountText,
-                        key: ValueKey(_detailsVisible),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.6,
-                          height: 1.0,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // Stats footer
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
+                    ],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+
+                  const Spacer(),
+
+                  // ── Balance ───────────────────────────────────────
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _CardStatItem(
-                        label: _tr('Clients', 'Wateja'),
-                        value: clientsText,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _tr('TOTAL BALANCE', 'JUMLA YA FEDHA'),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.44),
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 260),
+                              transitionBuilder: (child, anim) =>
+                                  FadeTransition(opacity: anim, child: child),
+                              child: Text(
+                                amountText,
+                                key: ValueKey(_detailsVisible),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5,
+                                  height: 1.0,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      Container(
-                        width: 1,
-                        height: 18,
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                      _CardStatItem(
-                        label: _tr('Expenses', 'Gharama'),
-                        value: expText,
-                        color: expText == '••••' ? null : const Color(0xFFF87171),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 18,
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                      _CardStatItem(
-                        label: _tr('Net', 'Faida'),
-                        value: netText,
-                        color: netText == '••••' ? null : netColor,
+                      GestureDetector(
+                        onTap: () => setState(() => _detailsVisible = !_detailsVisible),
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: Icon(
+                            _detailsVisible
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
+                            size: 15,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 10),
+
+                  // ── Business name (cardholder position) ───────────
+                  Text(
+                    name.toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.78),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.8,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // ── Stats footer ──────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _CardStatItem(
+                          label: _tr('Clients', 'Wateja'),
+                          value: clientsText,
+                        ),
+                        Container(
+                          width: 1, height: 22,
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                        _CardStatItem(
+                          label: _tr('Expenses', 'Gharama'),
+                          value: expText,
+                          color: expText == '••••' ? null : const Color(0xFFF87171),
+                        ),
+                        Container(
+                          width: 1, height: 22,
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                        _CardStatItem(
+                          label: _tr('Net', 'Faida'),
+                          value: netText,
+                          color: netText == '••••' ? null : netColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
         ),
       ),
     );
   }
-
 }
 
 class _BusinessLogoFallback extends StatelessWidget {
@@ -790,16 +839,15 @@ class _BusinessLogoFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 42, height: 42,
+    return ColoredBox(
       color: AppColors.yellowBrand,
       child: Center(
         child: Text(
           initial,
           style: const TextStyle(
             color: AppColors.navyPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ),
@@ -807,28 +855,27 @@ class _BusinessLogoFallback extends StatelessWidget {
   }
 }
 
-
-
-// ── EMV chip widget ────────────────────────────────────────────────────────────
+// ── EMV gold chip ──────────────────────────────────────────────────────────────
 class _CardChip extends StatelessWidget {
   const _CardChip();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 38,
-      height: 28,
+      width: 42,
+      height: 32,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFD4A843), Color(0xFFF0C832), Color(0xFFB8902A)],
+          colors: [Color(0xFFCFA23A), Color(0xFFEDC84A), Color(0xFFAF8520)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          stops: [0.0, 0.5, 1.0],
         ),
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(6),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 4,
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 5,
             offset: const Offset(0, 2),
           ),
         ],
@@ -842,31 +889,27 @@ class _ChipPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF8B6010).withValues(alpha: 0.55)
-      ..strokeWidth = 0.7
+      ..color = const Color(0xFF7A5000).withValues(alpha: 0.5)
+      ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
 
     final w = size.width;
     final h = size.height;
 
-    // Outer inset rect
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(3, 3, w - 6, h - 6),
-        const Radius.circular(2),
+        Rect.fromLTWH(4, 3, w - 8, h - 6),
+        const Radius.circular(3),
       ),
       paint,
     );
-    // Vertical center line
     canvas.drawLine(Offset(w / 2, 3), Offset(w / 2, h - 3), paint);
-    // Horizontal center line
-    canvas.drawLine(Offset(3, h / 2), Offset(w - 3, h / 2), paint);
+    canvas.drawLine(Offset(4, h / 2), Offset(w - 4, h / 2), paint);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter _) => false;
 }
-
 
 class _CardStatItem extends StatelessWidget {
   final String label;
@@ -889,16 +932,17 @@ class _CardStatItem extends StatelessWidget {
             value,
             style: TextStyle(
               color: color ?? Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: 10,
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

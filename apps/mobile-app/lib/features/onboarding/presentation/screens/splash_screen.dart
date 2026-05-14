@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
-import '../../core/onboarding_colors.dart';
 import '../../../../shared/widgets/logo.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/phone_auth_service.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../config/routing.dart';
 
-/// Premium splash screen with animated gradient background
-/// Displays MaliUp branding and smooth transition to onboarding
 class SplashScreen extends StatefulWidget {
-  final VoidCallback onSplashComplete;
+  final bool showLanguageSelection;
+  final bool showOnboarding;
 
   const SplashScreen({
     super.key,
-    required this.onSplashComplete,
+    required this.showLanguageSelection,
+    required this.showOnboarding,
   });
 
   @override
@@ -23,292 +22,341 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _logoAnimation;
-  late Animation<double> _taglineAnimation;
-  late final VoidCallback _languageListener;
-  AppLanguage _language = AppLanguage.english;
-  bool _initializedAnimations = false;
-  bool _isCheckingAuth = false;
-  bool _hasCompletedAuthCheck = false;
+    with TickerProviderStateMixin {
+  late AnimationController _logoController;
+  late AnimationController _textController;
+  late AnimationController _pulseController;
+  late Animation<double> _logoScale;
+  late Animation<double> _logoOpacity;
+  late Animation<double> _textOpacity;
+  late Animation<double> _textSlide;
+  late Animation<double> _pulseAnim;
+  bool _hasNavigated = false;
+
+  static const _navyBg = Color(0xFF0D1B3E);
+  static const _navyMid = Color(0xFF102147);
+  static const _yellowBrand = Color(0xFFFFC107);
 
   @override
   void initState() {
     super.initState();
-    _language = LocalizationService.languageNotifier.value;
-    _languageListener = () {
-      if (mounted) {
-        setState(() => _language = LocalizationService.languageNotifier.value);
-      }
-    };
-    LocalizationService.languageNotifier.addListener(_languageListener);
-    _setupAnimationsIfNeeded();
+    _setupAnimations();
     _scheduleNavigation();
   }
 
-  String _tr(String en, String sw) {
-    return _language == AppLanguage.swahili ? sw : en;
-  }
-
-  void _setupAnimationsIfNeeded() {
-    if (_initializedAnimations) return;
-    _initializedAnimations = true;
-
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1600),
+  void _setupAnimations() {
+    _logoController = AnimationController(
+      duration: const Duration(milliseconds: 900),
       vsync: this,
     );
+    _textController = AnimationController(
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1800),
+      vsync: this,
+    )..repeat(reverse: true);
 
-    _logoAnimation = Tween<double>(begin: 0, end: 1).animate(
+    _logoScale = Tween<double>(begin: 0.7, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
+    );
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+        parent: _logoController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
       ),
     );
-
-    _taglineAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.4, 1.0, curve: Curves.easeInOut),
-      ),
+    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _textController, curve: Curves.easeOut),
+    );
+    _textSlide = Tween<double>(begin: 16.0, end: 0.0).animate(
+      CurvedAnimation(parent: _textController, curve: Curves.easeOut),
+    );
+    _pulseAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _animationController.forward();
+    _logoController.forward().then((_) {
+      if (mounted) _textController.forward();
+    });
   }
 
   void _scheduleNavigation() {
-    // Start auth check immediately
     _checkAuthAndNavigate();
-    
-    // Fallback navigation after 3 seconds if auth check takes too long
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (!mounted || _hasCompletedAuthCheck) return;
-      widget.onSplashComplete();
+    Future.delayed(const Duration(milliseconds: 3500), () {
+      if (mounted && !_hasNavigated) _navigate(authenticated: false);
     });
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    if (_isCheckingAuth || _hasCompletedAuthCheck) return;
-    
-    setState(() {
-      _isCheckingAuth = true;
-    });
+    await Future.delayed(const Duration(milliseconds: 1800));
+    if (!mounted || _hasNavigated) return;
 
     try {
-      // Wait a minimum of 1.5 seconds for splash animation
-      await Future.delayed(const Duration(milliseconds: 1500));
-      
-      // Check if user is logged in
       final isLoggedIn = await PhoneAuthService.isUserLoggedIn();
-      
-      if (isLoggedIn && mounted) {
-        final user = PhoneAuthService.currentUser;
-        if (user != null) {
-          // Navigate to dashboard with proper route
-          final initialPath = await DefaultContextRoutingService.resolveInitialAuthenticatedPath();
-          if (mounted) {
-            _hasCompletedAuthCheck = true;
-            context.go(initialPath ?? AppRouter.dashboardPath);
-            return;
-          }
+      if (!mounted || _hasNavigated) return;
+
+      if (isLoggedIn && PhoneAuthService.currentUser != null) {
+        final path = await DefaultContextRoutingService.resolveInitialAuthenticatedPath();
+        if (mounted && !_hasNavigated) {
+          _hasNavigated = true;
+          context.go(path ?? AppRouter.dashboardPath);
         }
+      } else {
+        _navigate(authenticated: false);
       }
-      
-      // If not logged in or auth check failed, continue with normal flow
-      if (mounted) {
-        _hasCompletedAuthCheck = true;
-        widget.onSplashComplete();
-      }
-    } catch (e) {
-      // If any error occurs, continue with normal flow
-      if (mounted) {
-        _hasCompletedAuthCheck = true;
-        widget.onSplashComplete();
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCheckingAuth = false;
-        });
-      }
+    } catch (_) {
+      if (mounted && !_hasNavigated) _navigate(authenticated: false);
+    }
+  }
+
+  void _navigate({required bool authenticated}) {
+    if (!mounted || _hasNavigated) return;
+    _hasNavigated = true;
+    if (authenticated) return;
+    if (widget.showLanguageSelection) {
+      context.go(AppRouter.languageSelectionPath);
+    } else if (widget.showOnboarding) {
+      context.go(AppRouter.onboardingPath);
+    } else {
+      context.go(AppRouter.loginPath);
     }
   }
 
   @override
   void dispose() {
-    LocalizationService.languageNotifier.removeListener(_languageListener);
-    if (_initializedAnimations) {
-      _animationController.dispose();
-    }
+    _logoController.dispose();
+    _textController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: DecoratedBox(
+      backgroundColor: _navyBg,
+      body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFFFF),
-              Color(0xFFFFFDF3),
-            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_navyBg, _navyMid, Color(0xFF0A1628)],
+            stops: [0.0, 0.55, 1.0],
           ),
         ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Main content
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Logo area with pulsing glow
-                    _buildLogoSection(),
-
-                    const SizedBox(height: 34),
-
-                    // Tagline with fade animation
-                    _buildTaglineSection(),
-                  ],
+        child: Stack(
+          children: [
+            // Decorative background glow circles
+            Positioned(
+              right: -80,
+              top: -80,
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _yellowBrand.withValues(alpha: 0.04),
                 ),
               ),
-
-              // Subtle loading cue and bottom accent
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 36),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildLoadingIndicator(),
-                      const SizedBox(height: 22),
-                      _buildBottomAccent(),
-                    ],
+            ),
+            Positioned(
+              left: -60,
+              bottom: 100,
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.02),
+                ),
+              ),
+            ),
+            // Main content
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo container with glow
+                  AnimatedBuilder(
+                    animation: Listenable.merge([_logoController, _pulseController]),
+                    builder: (context, _) {
+                      return Opacity(
+                        opacity: _logoOpacity.value,
+                        child: Transform.scale(
+                          scale: _logoScale.value,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Outer glow ring
+                              Transform.scale(
+                                scale: _pulseAnim.value,
+                                child: Container(
+                                  width: 130,
+                                  height: 130,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _yellowBrand.withValues(alpha: 0.08),
+                                  ),
+                                ),
+                              ),
+                              // Inner glow ring
+                              Container(
+                                width: 108,
+                                height: 108,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _yellowBrand.withValues(alpha: 0.12),
+                                  border: Border.all(
+                                    color: _yellowBrand.withValues(alpha: 0.25),
+                                    width: 1.5,
+                                  ),
+                                ),
+                              ),
+                              // Logo icon
+                              Container(
+                                width: 88,
+                                height: 88,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _yellowBrand,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _yellowBrand.withValues(alpha: 0.4),
+                                      blurRadius: 24,
+                                      spreadRadius: 2,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                padding: const EdgeInsets.all(18),
+                                child: const MaliUpLogo(size: 52),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildLogoSection() {
-    return AnimatedBuilder(
-      animation: _logoAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: 0.88 + (0.12 * _logoAnimation.value),
-          child: Opacity(
-            opacity: _logoAnimation.value,
-            child: Container(
-              width: 108,
-              height: 108,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(26),
-                color: OnboardingColors.white,
-                border: Border.all(
-                  color: OnboardingColors.accentGreen.withValues(alpha: 0.14),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: OnboardingColors.accentGreen.withValues(alpha: 0.10),
-                    blurRadius: 16,
-                    spreadRadius: -10,
-                    offset: const Offset(0, 6),
+                  const SizedBox(height: 36),
+
+                  // Brand text
+                  AnimatedBuilder(
+                    animation: _textController,
+                    builder: (context, _) {
+                      return Opacity(
+                        opacity: _textOpacity.value,
+                        child: Transform.translate(
+                          offset: Offset(0, _textSlide.value),
+                          child: Column(
+                            children: [
+                              Text(
+                                'MALI UP',
+                                style: TextStyle(
+                                  color: _yellowBrand,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 6,
+                                  shadows: [
+                                    Shadow(
+                                      color: _yellowBrand.withValues(alpha: 0.3),
+                                      blurRadius: 12,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                LocalizationService.tr(
+                                  en: 'Run your business with clarity',
+                                  sw: 'Endesha biashara yako kwa ufasaha',
+                                ),
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.55),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
-              child: const Center(
-                child: MaliUpLogo(size: 64),
+            ),
+
+            // Bottom loading dots
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 60),
+                child: _LoadingDots(color: _yellowBrand.withValues(alpha: 0.7)),
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTaglineSection() {
-    return AnimatedBuilder(
-      animation: _taglineAnimation,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _taglineAnimation.value,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Column(
-              children: [
-                Text(
-                  _tr('MaliUp', 'MaliUp'),
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                        color: OnboardingColors.primaryDeep,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 42,
-                        letterSpacing: 0.5,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                // Tagline
-                Text(
-                  _tr(
-                    'Run your business with clarity, every day.',
-                    'Endesha biashara yako kwa ufasaha, kila siku.',
-                  ),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: OnboardingColors.textDark.withValues(alpha: 0.82),
-                        fontSize: 16,
-                        height: 1.55,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildLoadingIndicator() {
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(100),
-          child: LinearProgressIndicator(
-            value: _animationController.value,
-            minHeight: 5,
-            backgroundColor: OnboardingColors.divider,
-            valueColor: const AlwaysStoppedAnimation<Color>(
-              OnboardingColors.accentGreen,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBottomAccent() {
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            OnboardingColors.accentGreen.withValues(alpha: 0.10),
-            OnboardingColors.white.withValues(alpha: 0),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LoadingDots extends StatefulWidget {
+  final Color color;
+  const _LoadingDots({required this.color});
+
+  @override
+  State<_LoadingDots> createState() => _LoadingDotsState();
+}
+
+class _LoadingDotsState extends State<_LoadingDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final delay = i / 3.0;
+            final animValue = ((_ctrl.value - delay) % 1.0).clamp(0.0, 1.0);
+            final opacity = (animValue < 0.5
+                    ? animValue * 2
+                    : (1.0 - animValue) * 2)
+                .clamp(0.3, 1.0);
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.color.withValues(alpha: opacity),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

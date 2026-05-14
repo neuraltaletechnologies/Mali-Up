@@ -1,11 +1,11 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import '../shared/widgets/mali_components.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/otp_verification_screen.dart' deferred as otp_verification;
 import '../features/onboarding/presentation/screens/onboarding_flow.dart' deferred as onboarding_flow;
 import '../features/onboarding/presentation/screens/language_selection_screen.dart' deferred as language_selection;
+import '../features/onboarding/presentation/screens/splash_screen.dart';
 import '../features/dashboard/presentation/screens/dashboard_screen.dart' deferred as dashboard_screen;
 import '../features/settings/presentation/screens/settings_screen.dart' deferred as settings_screen;
 import '../features/business/presentation/screens/manage_businesses_screen.dart' deferred as manage_businesses_screen;
@@ -18,6 +18,7 @@ import '../features/finance/presentation/screens/expense_list_screen.dart' defer
 import '../features/finance/presentation/screens/cash_flow_screen.dart' deferred as cashflow_screen;
 
 class AppRouter {
+  static const String splashPath = '/splash';
   static const String languageSelectionPath = '/language-selection';
   static const String onboardingPath = '/onboarding';
   static const String loginPath = '/login';
@@ -36,18 +37,19 @@ class AppRouter {
   static GoRouter createRouter({
     required bool showLanguageSelection,
     required bool showOnboarding,
-    required bool hasActiveSession,
-    String? authenticatedInitialPath,
   }) {
     return GoRouter(
-      initialLocation: hasActiveSession
-          ? (authenticatedInitialPath ?? dashboardPath)
-          : showLanguageSelection
-          ? languageSelectionPath
-          : showOnboarding
-              ? onboardingPath
-              : loginPath,
+      initialLocation: splashPath,
       routes: [
+        GoRoute(
+          path: splashPath,
+          pageBuilder: (context, state) => NoTransitionPage(
+            child: SplashScreen(
+              showLanguageSelection: showLanguageSelection,
+              showOnboarding: showOnboarding,
+            ),
+          ),
+        ),
         GoRoute(
           path: languageSelectionPath,
           pageBuilder: (context, state) => _buildAuthTransitionPage(
@@ -129,7 +131,18 @@ class AppRouter {
           },
         ),
         ShellRoute(
-          builder: (context, state, child) => MainShellPage(child: child),
+          pageBuilder: (context, state, child) => CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: MainShellPage(child: child),
+            transitionDuration: const Duration(milliseconds: 300),
+            reverseTransitionDuration: const Duration(milliseconds: 220),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                child: child,
+              );
+            },
+          ),
           routes: [
             GoRoute(
               path: dashboardPath,
@@ -207,22 +220,19 @@ class AppRouter {
     return CustomTransitionPage<void>(
       key: state.pageKey,
       child: child,
-      transitionDuration: const Duration(milliseconds: 420),
-      reverseTransitionDuration: const Duration(milliseconds: 320),
+      transitionDuration: const Duration(milliseconds: 380),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
         final fade = Tween<double>(begin: 0.0, end: 1.0).animate(curved);
         final slide = Tween<Offset>(
-          begin: const Offset(0.08, 0),
+          begin: const Offset(0.06, 0),
           end: Offset.zero,
         ).animate(curved);
 
         return FadeTransition(
           opacity: fade,
-          child: SlideTransition(
-            position: slide,
-            child: child,
-          ),
+          child: SlideTransition(position: slide, child: child),
         );
       },
     );
@@ -238,7 +248,7 @@ class AppRouter {
         if (snapshot.connectionState == ConnectionState.done) {
           return builder();
         }
-        return const SkeletonScreen();
+        return const Scaffold();
       },
     );
   }
