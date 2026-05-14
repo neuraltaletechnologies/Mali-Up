@@ -1,9 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/shimmer.dart';
+import '../../../customer/data/customer_providers.dart';
 import '../../data/inventory_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -727,35 +730,56 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
+      final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+
       try {
-        // TODO: Implement inventory item addition using the existing pattern
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) throw Exception('Not logged in');
+
+        final repo = ref.read(contextFirestoreRepositoryProvider);
+        final ctx = await repo.resolveContextForUser(user.uid);
+        final inventoryRef = repo.scopeCollection(
+          uid: user.uid,
+          context: ctx,
+          childCollection: 'inventory_items',
+        );
+
+        await inventoryRef.add({
+          'name': _nameController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'category': _selectedCategory,
+          'currentStock': double.tryParse(_currentStockController.text) ?? 0,
+          'reorderPoint': double.tryParse(_reorderPointController.text) ?? 0,
+          'unitPrice': double.tryParse(_unitPriceController.text) ?? 0,
+          'unit': _selectedUnit,
+          'sku': _skuController.text.trim(),
+          'supplier': _supplierController.text.trim(),
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
         if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
+          navigator.pop();
+          messenger.showSnackBar(
             SnackBar(
-              content: Text(
-                _tr(
-                  'Item added successfully',
-                  'Bidhaa imeongezwa kwa mafanikio',
-                ),
-              ),
-              backgroundColor: Colors.green,
+              content: Text(_tr('Item added successfully', 'Bidhaa imeongezwa kwa mafanikio')),
+              backgroundColor: AppColors.success,
             ),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
-              content: Text('Error: ${e.toString()}'),
-              backgroundColor: Colors.red,
+              content: Text('${_tr("Error", "Kosa")}: ${e.toString()}'),
+              backgroundColor: AppColors.error,
             ),
           );
         }
       } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
