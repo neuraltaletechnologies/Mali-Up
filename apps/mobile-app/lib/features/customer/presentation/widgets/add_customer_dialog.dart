@@ -681,8 +681,8 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                                     },
                               child: Text(
                                 LocalizationService.tr(
-                                  en: 'Import selected',
-                                  sw: 'Ingiza zilizo chaguliwa',
+                                  en: 'Import',
+                                  sw: 'Ingiza',
                                 ),
                               ),
                             ),
