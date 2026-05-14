@@ -227,8 +227,8 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                                 )
                               : Text(
                                   LocalizationService.tr(
-                                    en: 'Add Expense',
-                                    sw: 'Ongeza Matumizi',
+                                    en: 'Add ',
+                                    sw: 'Ongeza',
                                   ),
                                 ),
                         ),
