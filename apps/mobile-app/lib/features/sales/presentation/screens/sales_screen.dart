@@ -228,13 +228,29 @@ class SalesScreen extends ConsumerWidget {
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
-        onPressed: () => showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          useSafeArea: true,
-          builder: (_) => const _QuickSaleSheet(),
-        ),
+        onPressed: () async {
+          try {
+            await showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              useSafeArea: true,
+              builder: (_) => const _QuickSaleSheet(),
+            );
+          } catch (e) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  _tr(
+                    'Could not open sell screen. Please try again.',
+                    'Imeshindikana kufungua skrini ya mauzo. Tafadhali jaribu tena.',
+                  ),
+                ),
+              ),
+            );
+          }
+        },
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.secondary,
         elevation: 4,
@@ -860,7 +876,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
 
       await invoicesRef.add({
         'invoiceNumber': invoiceNumber,
-        'customerName': ?customerName,
+        if (customerName != null) 'customerName': customerName,
         if (_selectedCustomer != null) ...{
           'customerId': _selectedCustomer!.id,
           'customerPhone': _selectedCustomer!.phone,
