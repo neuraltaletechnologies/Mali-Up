@@ -218,19 +218,12 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddExpenseDialog(context),
         backgroundColor: AppColors.primary,
-        icon: const Icon(
+        child: const Icon(
           Icons.receipt_long_rounded,
           color: AppColors.secondary,
-        ),
-        label: Text(
-          _tr('Add Expense', 'Ongeza Matumizi'),
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.secondary,
-            fontWeight: FontWeight.w700,
-          ),
         ),
       ),
     );

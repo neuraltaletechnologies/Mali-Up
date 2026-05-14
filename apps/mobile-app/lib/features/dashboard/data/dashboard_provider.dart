@@ -108,7 +108,7 @@ class DashboardProvider extends ChangeNotifier {
 
   // Get formatted currency values
   String formatCurrency(double amount) {
-    return 'TZS ${amount.toStringAsFixed(0).replaceAllMapped(
+    return ' ${amount.toStringAsFixed(0).replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]},',
     )}';

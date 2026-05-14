@@ -49,7 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   late final VoidCallback _languageListener;
   AppLanguage _language = LocalizationService.languageNotifier.value;
   bool _isLoading = false;
-  bool _isPersonalManagement = false;
+  String _selectedAccountType = 'business';
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
@@ -200,6 +200,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   );
 
   final String _businessCategoryKey = 'retail';
+  final List<Map<String, String>> _accountTypes = const [
+    {'value': 'business', 'en': 'Business', 'sw': 'Biashara'},
+    {'value': 'personal', 'en': 'Personal (Coming soon)', 'sw': 'Binafsi (Inakuja)'},
+  ];
 
   Future<void> _goToPostLoginLanding() async {
     final route = await DefaultContextRoutingService.resolveUserLandingPath(
@@ -324,6 +328,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _selectedCity = selected;
         _placeOfBusinessController.text = selected;
       });
+    }
+  }
+
+  Future<void> _showAccountTypeSheet() async {
+    final isSwahili = _language == AppLanguage.swahili;
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MaliSelectSheet<String>(
+        title: _tr('Account Type', 'Aina ya Akaunti'),
+        items: _accountTypes.map((a) => a['value']!).toList(),
+        selectedValue: _selectedAccountType,
+        labelBuilder: (value) {
+          final accountType = _accountTypes.firstWhere(
+            (a) => a['value'] == value,
+            orElse: () => _accountTypes.first,
+          );
+          return isSwahili ? accountType['sw']! : accountType['en']!;
+        },
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedAccountType = selected);
     }
   }
 
@@ -653,6 +681,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       fontSize: 14,
       letterSpacing: 0.3,
     );
+    final isPersonalManagement = _selectedAccountType == 'personal';
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -863,164 +892,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        // Account type selector
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.account_circle_outlined,
-                              size: 18,
-                              color: textPrimary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _tr('Account Type', 'Aina ya Akaunti'),
-                              style: sectionTitleStyle,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(
-                                  () => _isPersonalManagement = false,
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                    horizontal: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: !_isPersonalManagement
-                                        ? AppColors.primary
-                                            .withValues(alpha: 0.08)
-                                        : AppColors.surface,
-                                    border: Border.all(
-                                      color: !_isPersonalManagement
-                                          ? AppColors.primary
-                                          : AppColors.border,
-                                      width: !_isPersonalManagement ? 2 : 1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.business_rounded,
-                                        color: !_isPersonalManagement
-                                            ? AppColors.primary
-                                            : AppColors.textMuted,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _tr('Business', 'Biashara'),
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: !_isPersonalManagement
-                                              ? AppColors.primary
-                                              : AppColors.textMuted,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(
-                                  () => _isPersonalManagement = true,
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                    horizontal: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _isPersonalManagement
-                                        ? AppColors.primary
-                                            .withValues(alpha: 0.08)
-                                        : AppColors.surface,
-                                    border: Border.all(
-                                      color: _isPersonalManagement
-                                          ? AppColors.primary
-                                          : AppColors.border,
-                                      width: _isPersonalManagement ? 2 : 1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.person_rounded,
-                                        color: _isPersonalManagement
-                                            ? AppColors.primary
-                                            : AppColors.textMuted,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _tr('Personal', 'Binafsi'),
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: _isPersonalManagement
-                                              ? AppColors.primary
-                                              : AppColors.textMuted,
-                                        ),
-                                      ),
-                                      Text(
-                                        _tr('Coming soon', 'Inakuja'),
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 10,
-                                          color: AppColors.textMuted,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (_isPersonalManagement) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.warningBg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppColors.warning
-                                    .withValues(alpha: 0.35),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time_rounded,
-                                  size: 16,
-                                  color: AppColors.warning,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    _tr(
-                                      'Personal management accounts are coming soon. Please register a business account for now.',
-                                      'Akaunti za usimamizi binafsi zinakuja hivi karibuni. Tafadhali sajili akaunti ya biashara kwa sasa.',
-                                    ),
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12.5,
-                                      color: AppColors.warning,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                         const SizedBox(height: 20),
                         // Feedback message
                         if (_feedbackText != null)
@@ -1101,6 +972,73 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        // Account type selector
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.account_circle_outlined,
+                              size: 18,
+                              color: textPrimary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _tr('Account Type', 'Aina ya Akaunti'),
+                              style: sectionTitleStyle,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        MaliSelectField(
+                          placeholder: _tr('Account Type', 'Aina ya Akaunti'),
+                          displayValue: () {
+                            final accountType = _accountTypes.firstWhere(
+                              (a) => a['value'] == _selectedAccountType,
+                              orElse: () => _accountTypes.first,
+                            );
+                            return _language == AppLanguage.swahili
+                                ? accountType['sw']!
+                                : accountType['en']!;
+                          }(),
+                          hasValue: true,
+                          onTap: _showAccountTypeSheet,
+                          icon: Icons.account_circle_outlined,
+                        ),
+                        if (isPersonalManagement) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.warning.withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time_rounded,
+                                  size: 16,
+                                  color: AppColors.warning,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _tr(
+                                      'Personal management accounts are coming soon. Please register a business account for now.',
+                                      'Akaunti za usimamizi binafsi zinakuja hivi karibuni. Tafadhali sajili akaunti ya biashara kwa sasa.',
+                                    ),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12.5,
+                                      color: AppColors.warning,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         // Business Details section
                         Row(
@@ -1220,13 +1158,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: _isLoading || _isPersonalManagement
+                            onPressed: _isLoading || _selectedAccountType == 'personal'
                                 ? null
                                 : _handleRegistration,
                             child: Text(
                               _isLoading
                                   ? _tr('Registering...', 'Inasajili...')
-                                  : _isPersonalManagement
+                                  : _selectedAccountType == 'personal'
                                       ? _tr('Coming Soon', 'Inakuja Hivi Karibuni')
                                       : _tr('Register Account', 'Sajili Akaunti'),
                               style: GoogleFonts.poppins(

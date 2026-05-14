@@ -26,7 +26,7 @@ class SalesScreen extends ConsumerWidget {
     final salesAsync = ref.watch(salesInvoiceListProvider);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
@@ -36,11 +36,7 @@ class SalesScreen extends ConsumerWidget {
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.secondary,
-        icon: const Icon(Icons.sell_outlined),
-        label: Text(
-          _tr('New Sale', 'Mauzo Mapya'),
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
+        child: const Icon(Icons.shopping_cart),
         elevation: 4,
       ),
       body: Column(
