@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -1020,52 +1020,57 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _profileFuture,
-      builder: (context, snapshot) {
-        final profile = snapshot.data;
-        final businesses = _businessesFromProfile(profile);
-        final selectedBusinessId = _selectedBusinessId(profile);
-
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(
-            title: Text(_tr('Manage businesses', 'Simamia biashara')),
+  Future<void> _openAddBusinessSheet(Map<String, dynamic>? profile) async {
+    _businessNameController.clear();
+    _selectedBusinessType = 'Retail';
+    _selectedCity = null;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          body: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Text(
-                _tr(
-                  'Add a new business you want to monitor.',
-                  'Ongeza biashara mpya unayotaka kufuatilia.',
-                ),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppColors.textSecondary),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 16,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.border),
-                ),
+              child: SingleChildScrollView(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _tr('Add New Business', 'Ongeza Biashara Mpya'),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: _businessNameController,
                       decoration: InputDecoration(
                         labelText: _tr('Business name', 'Jina la biashara'),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.background,
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1076,13 +1081,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                           (t) => t['value'] == _selectedBusinessType,
                           orElse: () => _businessTypes.first,
                         );
-                        return _tr(
-                          type['en'] as String,
-                          type['sw'] as String,
-                        );
+                        return _tr(type['en'] as String, type['sw'] as String);
                       }(),
                       hasValue: true,
-                      onTap: _showAddBusinessTypeSheet,
+                      onTap: () async {
+                        await _showAddBusinessTypeSheet();
+                        setSheetState(() {});
+                      },
                       icon: Icons.category_rounded,
                     ),
                     const SizedBox(height: 12),
@@ -1097,19 +1102,233 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                         return _tr(city['en']!, city['sw']!);
                       }(),
                       hasValue: _selectedCity != null,
-                      onTap: _showAddCitySheet,
+                      onTap: () async {
+                        await _showAddCitySheet();
+                        setSheetState(() {});
+                      },
                       icon: Icons.location_on_outlined,
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed:
-                            _isSaving ? null : () => _addBusiness(profile),
-                        child: Text(
+                      child: ElevatedButton.icon(
+                        onPressed: _isSaving
+                            ? null
+                            : () async {
+                                await _addBusiness(profile);
+                                if (!mounted || !sheetContext.mounted) return;
+                                Navigator.of(sheetContext).pop();
+                              },
+                        icon: const Icon(Icons.add_business_rounded),
+                        label: Text(
                           _isSaving
                               ? _tr('Saving...', 'Inahifadhi...')
                               : _tr('Add business', 'Ongeza biashara'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openBusinessActionsSheet(
+    Map<String, dynamic>? profile,
+    Map<String, dynamic> business,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                (business['name'] ?? '').toString(),
+                style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.edit_rounded, color: AppColors.primary),
+                title: Text(_tr('Edit business info', 'Hariri taarifa za biashara')),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _editBusiness(profile, business);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                title: Text(_tr('Delete business', 'Futa biashara')),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _deleteBusiness(profile, business);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openBusinessSwitcherSheet(
+    List<Map<String, dynamic>> businesses,
+    String? selectedBusinessId,
+  ) async {
+    if (businesses.isEmpty) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          itemCount: businesses.length,
+          separatorBuilder: (_, _) => const Divider(height: 1),
+          itemBuilder: (_, i) {
+            final b = businesses[i];
+            final isActive = b['id'] == selectedBusinessId;
+            return ListTile(
+              title: Text((b['name'] ?? '').toString()),
+              subtitle: Text('${b['category']} • ${b['placeOfBusiness']}'),
+              trailing:
+                  isActive ? const Icon(Icons.check_circle, color: AppColors.success) : null,
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                await _switchToBusiness(b);
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _switchToNextBusiness(
+    List<Map<String, dynamic>> businesses,
+    String? selectedBusinessId,
+  ) async {
+    if (businesses.length < 2) return;
+    final currentIndex = businesses.indexWhere((b) => b['id'] == selectedBusinessId);
+    final nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % businesses.length;
+    await _switchToBusiness(businesses[nextIndex]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _profileFuture,
+      builder: (context, snapshot) {
+        final profile = snapshot.data;
+        final businesses = _businessesFromProfile(profile);
+        final selectedBusinessId = _selectedBusinessId(profile);
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: Text(_tr('Manage businesses', 'Simamia biashara')),
+            actions: [
+              if (businesses.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: GestureDetector(
+                    onTap: () => _openBusinessSwitcherSheet(businesses, selectedBusinessId),
+                    onDoubleTap: () => _switchToNextBusiness(businesses, selectedBusinessId),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            (() {
+                              for (final b in businesses) {
+                                if (b['id'] == selectedBusinessId) {
+                                  return (b['name'] ?? '').toString();
+                                }
+                              }
+                              return (businesses.first['name'] ?? '').toString();
+                            })(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.primary, AppColors.primaryDark],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _tr(
+                        'Adding another business is important for growth',
+                        'Kuongeza biashara nyingine ni muhimu kwa ukuaji',
+                      ),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _tr(
+                        'Set up a new business profile quickly and manage each business separately.',
+                        'Tengeneza wasifu mpya wa biashara haraka na usimamie kila biashara kivyake.',
+                      ),
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.primaryDark,
+                        ),
+                        onPressed: _isSaving ? null : () => _openAddBusinessSheet(profile),
+                        icon: const Icon(Icons.add_business_rounded),
+                        child: Text(
+                          _isSaving
+                              ? _tr('Saving...', 'Inahifadhi...')
+                              : _tr('Add New Business', 'Ongeza Biashara Mpya'),
                         ),
                       ),
                     ),
@@ -1235,3 +1454,4 @@ class _LogoInitial extends StatelessWidget {
     );
   }
 }
+
