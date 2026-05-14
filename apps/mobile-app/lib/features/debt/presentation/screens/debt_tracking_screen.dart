@@ -180,17 +180,10 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: AppColors.error,
-        icon: const Icon(Icons.add_circle_outline, color: AppColors.secondary),
-        label: Text(
-          _tr('New Debt', 'Ongeza Deni'),
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.secondary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        child: const Icon(Icons.add_circle_outline, color: AppColors.secondary),
       ),
     );
   }
