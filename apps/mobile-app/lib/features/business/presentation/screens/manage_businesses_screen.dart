@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
@@ -138,6 +139,32 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   }
 
   String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+  String _normalizeOptionalUrl(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '';
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    return 'https://$trimmed';
+  }
+
+  Future<void> _openWebsiteBuildService() async {
+    final uri = Uri.parse('https://neuraltale.com/services/');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'Could not open website service link.',
+              'Imeshindikana kufungua kiungo cha huduma ya tovuti.',
+            ),
+          ),
+        ),
+      );
+    }
+  }
 
   String _normalizeBucketName(String bucket) {
     var value = bucket.trim();
@@ -284,6 +311,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             'category': (entry['category'] as String?)?.trim() ?? '',
             'placeOfBusiness': (entry['placeOfBusiness'] as String?)?.trim() ?? '',
             'logoUrl': (entry['logoUrl'] as String?)?.trim() ?? '',
+            'website': (entry['website'] as String?)?.trim() ?? '',
+            'workingHours': (entry['workingHours'] as String?)?.trim() ?? '',
+            'facebook': (entry['facebook'] as String?)?.trim() ?? '',
+            'instagram': (entry['instagram'] as String?)?.trim() ?? '',
+            'tiktok': (entry['tiktok'] as String?)?.trim() ?? '',
+            'x': (entry['x'] as String?)?.trim() ?? '',
+            'linkedin': (entry['linkedin'] as String?)?.trim() ?? '',
           },
         )
         .where((entry) => (entry['id'] as String).isNotEmpty)
@@ -338,6 +372,19 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
     final businessId = business['id'] as String;
     final nameController = TextEditingController(text: (business['name'] as String?) ?? '');
+    final websiteController = TextEditingController(text: (business['website'] as String?) ?? '');
+    final workingHoursController = TextEditingController(
+      text: (business['workingHours'] as String?) ?? '',
+    );
+    final facebookController = TextEditingController(text: (business['facebook'] as String?) ?? '');
+    final instagramController = TextEditingController(
+      text: (business['instagram'] as String?) ?? '',
+    );
+    final tiktokController = TextEditingController(text: (business['tiktok'] as String?) ?? '');
+    final xController = TextEditingController(text: (business['x'] as String?) ?? '');
+    final linkedinController = TextEditingController(
+      text: (business['linkedin'] as String?) ?? '',
+    );
     String editBusinessType = () {
       final stored = (business['category'] as String?) ?? '';
       return _businessTypes.any((t) => t['value'] == stored) ? stored : 'Retail';
@@ -350,84 +397,118 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     File? pickedLogoFile;
     final existingLogoUrl = (business['logoUrl'] as String?)?.trim();
 
-    final result = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             final currentName = nameController.text.trim();
             final initial = currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
 
-            return AlertDialog(
-              title: Text(_tr('Edit business', 'Hariri biashara')),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Logo picker
-                    GestureDetector(
-                      onTap: isSaving
-                          ? null
-                          : () async {
-                              final picker = ImagePicker();
-                              final picked = await picker.pickImage(
-                                source: ImageSource.gallery,
-                                maxWidth: 512,
-                                maxHeight: 512,
-                                imageQuality: 85,
-                              );
-                              if (picked == null) return;
-                              if (!dialogContext.mounted) return;
-                              setDialogState(() => pickedLogoFile = File(picked.path));
-                            },
-                      child: Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.yellowBrand,
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: pickedLogoFile != null
-                                ? Image.file(pickedLogoFile!, fit: BoxFit.cover)
-                                : (existingLogoUrl != null && existingLogoUrl.isNotEmpty
-                                    ? Image.network(
-                                        existingLogoUrl,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, _, _) => _LogoInitial(initial: initial),
-                                      )
-                                    : _LogoInitial(initial: initial)),
-                          ),
-                          Container(
-                            width: 26,
-                            height: 26,
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 16,
+                    bottom: MediaQuery.of(dialogContext).viewInsets.bottom + 16,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
                             decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt_rounded,
-                              size: 14,
-                              color: Colors.white,
+                              color: AppColors.border,
+                              borderRadius: BorderRadius.circular(999),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: _tr('Business name', 'Jina la biashara'),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    MaliSelectField(
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _tr('Edit business', 'Hariri biashara'),
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 16),
+                    // Logo picker
+                        GestureDetector(
+                          onTap: isSaving
+                              ? null
+                              : () async {
+                                  final picker = ImagePicker();
+                                  final picked = await picker.pickImage(
+                                    source: ImageSource.gallery,
+                                    maxWidth: 512,
+                                    maxHeight: 512,
+                                    imageQuality: 85,
+                                  );
+                                  if (picked == null) return;
+                                  if (!dialogContext.mounted) return;
+                                  setDialogState(() => pickedLogoFile = File(picked.path));
+                                },
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.yellowBrand,
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: pickedLogoFile != null
+                                    ? Image.file(pickedLogoFile!, fit: BoxFit.cover)
+                                    : (existingLogoUrl != null && existingLogoUrl.isNotEmpty
+                                        ? Image.network(
+                                            existingLogoUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) =>
+                                                _LogoInitial(initial: initial),
+                                          )
+                                        : _LogoInitial(initial: initial)),
+                              ),
+                              Container(
+                                width: 26,
+                                height: 26,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt_rounded,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            labelText: _tr('Business name', 'Jina la biashara'),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        MaliSelectField(
                       placeholder: _tr('Business Type', 'Aina ya Biashara'),
                       displayValue: () {
                         final type = _businessTypes.firstWhere(
@@ -467,9 +548,9 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                         }
                       },
                       icon: Icons.category_rounded,
-                    ),
-                    const SizedBox(height: 12),
-                    MaliSelectField(
+                        ),
+                        const SizedBox(height: 12),
+                        MaliSelectField(
                       placeholder: _tr('City / Region', 'Mji / Mkoa'),
                       displayValue: () {
                         if (editCity == null) return '';
@@ -503,22 +584,127 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                         }
                       },
                       icon: Icons.location_on_outlined,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSaving ? null : () => Navigator.of(dialogContext).pop(false),
-                  child: Text(_tr('Cancel', 'Ghairi')),
-                ),
-                ElevatedButton(
-                  onPressed: isSaving
-                      ? null
-                      : () async {
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: websiteController,
+                          keyboardType: TextInputType.url,
+                          decoration: InputDecoration(
+                            labelText: _tr('Website (optional)', 'Tovuti (hiari)'),
+                            hintText: 'https://example.com',
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        if (websiteController.text.trim().isEmpty) ...[
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: _openWebsiteBuildService,
+                              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                              label: Text(
+                                _tr(
+                                  'Need a website? Get one made for you',
+                                  'Unahitaji tovuti? Tengeneza kwa huduma hii',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: workingHoursController,
+                          decoration: InputDecoration(
+                            labelText: _tr(
+                              'Working hours (optional)',
+                              'Muda wa kazi (hiari)',
+                            ),
+                            hintText: _tr(
+                              'Mon - Sat: 8:00 AM - 6:00 PM',
+                              'Jtatu - Jumamosi: 2:00 Asubuhi - 12:00 Jioni',
+                            ),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _tr('Social media links (optional)', 'Viungo vya mitandao ya kijamii (hiari)'),
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: facebookController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'Facebook',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: instagramController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'Instagram',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: tiktokController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'TikTok',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: xController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'X (Twitter)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: linkedinController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'LinkedIn',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: isSaving
+                                    ? null
+                                    : () => Navigator.of(dialogContext).pop(false),
+                                child: Text(_tr('Cancel', 'Ghairi')),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
                           final name = nameController.text.trim();
                           final place = editCity ?? '';
                           final category = editBusinessType;
+                          final website = _normalizeOptionalUrl(websiteController.text);
+                          final workingHours = workingHoursController.text.trim();
+                          final facebook = _normalizeOptionalUrl(facebookController.text);
+                          final instagram = _normalizeOptionalUrl(instagramController.text);
+                          final tiktok = _normalizeOptionalUrl(tiktokController.text);
+                          final x = _normalizeOptionalUrl(xController.text);
+                          final linkedin = _normalizeOptionalUrl(linkedinController.text);
                           if (name.isEmpty || place.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -567,6 +753,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                   'name': name,
                                   'category': category,
                                   'placeOfBusiness': place,
+                                  'website': website,
+                                  'workingHours': workingHours,
+                                  'facebook': facebook,
+                                  'instagram': instagram,
+                                  'tiktok': tiktok,
+                                  'x': x,
+                                  'linkedin': linkedin,
                                   if (newLogoUrl != null && newLogoUrl.isNotEmpty)
                                     'logoUrl': newLogoUrl,
                                 };
@@ -593,21 +786,35 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             'ownerName': profile?['displayName'] ??
                                 profile?['name'] ??
                                 user.displayName,
+                            'website': website,
+                            'workingHours': workingHours,
+                            'facebook': facebook,
+                            'instagram': instagram,
+                            'tiktok': tiktok,
+                            'x': x,
+                            'linkedin': linkedin,
                             if (newLogoUrl != null && newLogoUrl.isNotEmpty)
                               'logoUrl': newLogoUrl,
                             'updatedAt': FieldValue.serverTimestamp(),
                           }, SetOptions(merge: true));
 
-                          if (!mounted) return;
-                          Navigator.of(this.context, rootNavigator: true).pop(true);
+                          if (!mounted || !dialogContext.mounted) return;
+                          Navigator.of(dialogContext).pop(true);
                         },
-                  child: Text(
-                    isSaving
-                        ? _tr('Saving...', 'Inahifadhi...')
-                        : _tr('Save', 'Hifadhi'),
+                                child: Text(
+                                  isSaving
+                                      ? _tr('Saving...', 'Inahifadhi...')
+                                      : _tr('Save', 'Hifadhi'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             );
           },
         );
@@ -615,6 +822,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     );
 
     nameController.dispose();
+    websiteController.dispose();
+    workingHoursController.dispose();
+    facebookController.dispose();
+    instagramController.dispose();
+    tiktokController.dispose();
+    xController.dispose();
+    linkedinController.dispose();
 
     if (result == true && mounted) {
       setState(() {
@@ -712,65 +926,98 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     }
 
     setState(() => _isSaving = true);
-    final businessId = _firestore
-        .collection('tenants')
-        .doc(user.uid)
-        .collection('businesses')
-        .doc()
-        .id;
-    final existingBusinesses = _businessesFromProfile(profile);
-    final newBusinesses = [
-      ...existingBusinesses,
-      {
+    try {
+      final businessId = _firestore
+          .collection('tenants')
+          .doc(user.uid)
+          .collection('businesses')
+          .doc()
+          .id;
+      final existingBusinesses = _businessesFromProfile(profile);
+      final createdAtIso = DateTime.now().toIso8601String();
+      final newBusinesses = [
+        ...existingBusinesses,
+        {
+          'id': businessId,
+          'name': businessName,
+          'category': _selectedBusinessType,
+          'placeOfBusiness': placeOfBusiness,
+          // FieldValue.serverTimestamp is not allowed inside arrays.
+          'createdAt': createdAtIso,
+        },
+      ];
+
+      await _firestore.collection('users').doc(user.uid).set({
+        'businesses': newBusinesses,
+        'selectedBusinessId': businessId,
+        'defaultContext': 'business:$businessId',
+        'defaultAccountType': 'business',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await _firestore
+          .collection('tenants')
+          .doc(user.uid)
+          .collection('businesses')
+          .doc(businessId)
+          .set({
         'id': businessId,
-        'name': businessName,
-        'category': _selectedBusinessType,
+        'businessName': businessName,
+        'businessCategory': _selectedBusinessType,
         'placeOfBusiness': placeOfBusiness,
+        'ownerUid': user.uid,
+        'ownerName': profile?['displayName'] ?? profile?['name'] ?? user.displayName,
         'createdAt': FieldValue.serverTimestamp(),
-      },
-    ];
+        'plan': 'Trial',
+      }, SetOptions(merge: true));
 
-    await _firestore.collection('users').doc(user.uid).set({
-      'businesses': newBusinesses,
-      'selectedBusinessId': businessId,
-      'defaultContext': 'business:$businessId',
-      'defaultAccountType': 'business',
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+      if (!mounted) return;
+      setState(() {
+        _profileFuture = _loadProfile();
+        _businessNameController.clear();
+        _selectedBusinessType = 'Retail';
+        _selectedCity = null;
+      });
 
-    await _firestore
-        .collection('tenants')
-        .doc(user.uid)
-        .collection('businesses')
-        .doc(businessId)
-        .set({
-      'id': businessId,
-      'businessName': businessName,
-      'businessCategory': _selectedBusinessType,
-      'placeOfBusiness': placeOfBusiness,
-      'ownerUid': user.uid,
-      'ownerName': profile?['displayName'] ?? profile?['name'] ?? user.displayName,
-      'createdAt': FieldValue.serverTimestamp(),
-      'plan': 'Trial',
-    }, SetOptions(merge: true));
-
-    if (!mounted) return;
-    setState(() {
-      _isSaving = false;
-      _profileFuture = _loadProfile();
-      _businessNameController.clear();
-      _selectedBusinessType = 'Retail';
-      _selectedCity = null;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_tr(
-          'Business added and set active.',
-          'Biashara imeongezwa na kuwekwa hai.',
-        )),
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_tr(
+            'Business added and set active.',
+            'Biashara imeongezwa na kuwekwa hai.',
+          )),
+        ),
+      );
+    } on FirebaseException catch (e) {
+      debugPrint('Add business failed: ${e.code} ${e.message}');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'Could not add business right now. Please try again.',
+              'Imeshindikana kuongeza biashara kwa sasa. Tafadhali jaribu tena.',
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Add business failed: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'Could not add business right now. Please try again.',
+              'Imeshindikana kuongeza biashara kwa sasa. Tafadhali jaribu tena.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
