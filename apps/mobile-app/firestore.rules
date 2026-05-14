@@ -14,23 +14,30 @@ service cloud.firestore {
       return isSignedIn() && isOwner(ownerId);
     }
 
-    // Validates required fields for a customer/contact imported from phone.
-    function isValidImportedCustomer(data) {
+    // Validates a customer document (individual or organisation).
+    // Requires name + phone; optionally allows all known fields.
+    function isValidCustomer(data) {
       return data.keys().hasAll(['name', 'phone']) &&
         data.name is string &&
         data.phone is string &&
         data.name.size() > 0 &&
-        data.phone.size() > 0 &&
-        data.name.size() <= 120 &&
+        data.name.size() <= 200 &&
         data.phone.size() <= 32 &&
-        (!data.keys().hasAny(['email']) || data.email is string) &&
-        (!data.keys().hasAny(['balance']) || data.balance is string || data.balance is number) &&
-        (!data.keys().hasAny(['lastTransactionDate']) || data.lastTransactionDate is string) &&
-        (!data.keys().hasAny(['tags']) || data.tags is list);
+        (!data.keys().hasAny(['email'])             || data.email is string) &&
+        (!data.keys().hasAny(['balance'])            || data.balance is string || data.balance is number) &&
+        (!data.keys().hasAny(['lastTransactionDate'])|| data.lastTransactionDate is string || data.lastTransactionDate is timestamp) &&
+        (!data.keys().hasAny(['tags'])               || data.tags is list) &&
+        (!data.keys().hasAny(['isOrganisation'])     || data.isOrganisation is bool) &&
+        (!data.keys().hasAny(['tinNumber'])          || data.tinNumber is string) &&
+        (!data.keys().hasAny(['address'])            || data.address is string);
+    }
+
+    // Kept as an alias so existing callers still work.
+    function isValidImportedCustomer(data) {
+      return isValidCustomer(data);
     }
 
     // Validates a new user profile on registration.
-    // Ensures phone + name are present and account type is a supported value.
     function isValidUserCreate(data) {
       return data.keys().hasAll(['phone', 'name']) &&
         data.name is string &&
@@ -41,14 +48,12 @@ service cloud.firestore {
         data.phone.size() <= 32 &&
         (!data.keys().hasAny(['defaultAccountType']) ||
           data.defaultAccountType in ['business']) &&
-        (!data.keys().hasAny(['accountTypes']) || data.accountTypes is list) &&
-        (!data.keys().hasAny(['usagePreference']) ||
+        (!data.keys().hasAny(['accountTypes'])       || data.accountTypes is list) &&
+        (!data.keys().hasAny(['usagePreference'])    ||
           data.usagePreference in ['business']);
     }
 
     // Validates a business document created under a tenant.
-    // Enforces that ownerUid matches the authenticated tenant so a user cannot
-    // create a business claiming to belong to someone else.
     function isValidBusinessCreate(data, tenantId) {
       return data.keys().hasAll(['id', 'businessName', 'ownerUid']) &&
         data.ownerUid == tenantId &&
@@ -59,6 +64,43 @@ service cloud.firestore {
         data.businessName.size() <= 200;
     }
 
+    // Validates a sale invoice document.
+    // Required: amount (number), items (list), status, createdAt.
+    // Optional: customerName, customerId, amountPaid, paymentMethod, etc.
+    function isValidSaleInvoice(data) {
+      return data.keys().hasAll(['amount', 'items', 'status']) &&
+        data.amount is number &&
+        data.amount >= 0 &&
+        data.items is list &&
+        data.status in ['Paid', 'Partial', 'Unpaid', 'Pending'] &&
+        (!data.keys().hasAny(['amountPaid'])      || data.amountPaid is number) &&
+        (!data.keys().hasAny(['customerName'])    || data.customerName is string) &&
+        (!data.keys().hasAny(['customerId'])      || data.customerId is string) &&
+        (!data.keys().hasAny(['customerPhone'])   || data.customerPhone is string) &&
+        (!data.keys().hasAny(['isOrganisation'])  || data.isOrganisation is bool) &&
+        (!data.keys().hasAny(['customerTin'])     || data.customerTin is string) &&
+        (!data.keys().hasAny(['invoiceNumber'])   || data.invoiceNumber is string) &&
+        (!data.keys().hasAny(['paymentMethod'])   || data.paymentMethod is string);
+    }
+
+    // Validates an inventory item document.
+    function isValidInventoryItem(data) {
+      return data.keys().hasAll(['name', 'unitPrice', 'currentStock']) &&
+        data.name is string &&
+        data.name.size() > 0 &&
+        data.name.size() <= 200 &&
+        data.unitPrice is number &&
+        data.unitPrice >= 0 &&
+        data.currentStock is number &&
+        (!data.keys().hasAny(['category'])      || data.category is string) &&
+        (!data.keys().hasAny(['sku'])           || data.sku is string) &&
+        (!data.keys().hasAny(['unit'])          || data.unit is string) &&
+        (!data.keys().hasAny(['supplier'])      || data.supplier is string) &&
+        (!data.keys().hasAny(['reorderPoint'])  || data.reorderPoint is number) &&
+        (!data.keys().hasAny(['description'])   || data.description is string) &&
+        (!data.keys().hasAny(['isActive'])      || data.isActive is bool);
+    }
+
     // ============================================
     // USER PROFILES
     // ============================================
@@ -66,9 +108,6 @@ service cloud.firestore {
       allow read, update, delete: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId) &&
         isValidUserCreate(request.resource.data);
-      // Phone lookup used by login/registration flows.
-      // Unauthenticated access is limited to limit <= 1 to support pre-auth
-      // phone existence checks (phone_auth_service.dart sendOTP).
       allow list: if isSignedIn() ||
         (request.auth == null &&
          request.query.limit != null &&
@@ -78,7 +117,6 @@ service cloud.firestore {
     // ============================================
     // LEGACY BUSINESS COLLECTION
     // ============================================
-    // Used by auth_service.dart during sign-up / profile migration.
     match /business/{ownerId} {
       allow read, write: if isBusinessOwner(ownerId);
 
@@ -89,7 +127,7 @@ service cloud.firestore {
 
       match /customers/{customerId} {
         allow read, update, delete: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId) && isValidImportedCustomer(request.resource.data);
+        allow create: if isBusinessOwner(ownerId) && isValidCustomer(request.resource.data);
       }
 
       match /expenses/{expenseId} {
@@ -124,11 +162,25 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
 
-      // Fallback: direct customer import before a businessId is resolved
+      // Direct customer access before a businessId is resolved
       match /customers/{customerId} {
         allow read, update, delete: if isSignedIn() && isOwner(tenantId);
         allow create: if isSignedIn() && isOwner(tenantId) &&
-          isValidImportedCustomer(request.resource.data);
+          isValidCustomer(request.resource.data);
+      }
+
+      // Direct sales_invoices access before a businessId is resolved
+      match /sales_invoices/{invoiceId} {
+        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
+        allow create: if isSignedIn() && isOwner(tenantId) &&
+          isValidSaleInvoice(request.resource.data);
+      }
+
+      // Direct inventory_items access before a businessId is resolved
+      match /inventory_items/{itemId} {
+        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
+        allow create: if isSignedIn() && isOwner(tenantId) &&
+          isValidInventoryItem(request.resource.data);
       }
 
       // Fallback: any direct subcollection before a businessId is resolved
@@ -138,21 +190,31 @@ service cloud.firestore {
 
       match /businesses/{businessId} {
         allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        // Require ownerUid to match the tenant on creation to prevent a user
-        // from forging a business document under another user's tenant path.
         allow create: if isSignedIn() && isOwner(tenantId) &&
           isValidBusinessCreate(request.resource.data, tenantId);
 
-        // Customer import for a specific business
+        // Customers for a specific business
         match /customers/{customerId} {
           allow read, update, delete: if isSignedIn() && isOwner(tenantId);
           allow create: if isSignedIn() && isOwner(tenantId) &&
-            isValidImportedCustomer(request.resource.data);
+            isValidCustomer(request.resource.data);
         }
 
-        // All business subcollections:
-        // sales_invoices, inventory_items, expenses, cash_accounts,
-        // debts, suppliers, staff, settings, cash_flow, etc.
+        // Sales invoices for a specific business
+        match /sales_invoices/{invoiceId} {
+          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
+          allow create: if isSignedIn() && isOwner(tenantId) &&
+            isValidSaleInvoice(request.resource.data);
+        }
+
+        // Inventory items for a specific business
+        match /inventory_items/{itemId} {
+          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
+          allow create: if isSignedIn() && isOwner(tenantId) &&
+            isValidInventoryItem(request.resource.data);
+        }
+
+        // All other business subcollections (expenses, cash_accounts, debts, etc.)
         match /{collection}/{docId} {
           allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
         }

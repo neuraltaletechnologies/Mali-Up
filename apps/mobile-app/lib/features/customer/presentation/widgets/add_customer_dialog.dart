@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/localization_service.dart';
-import '../../../../shared/widgets/shimmer.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../data/customer_providers.dart';
 import '../../domain/models/customer.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class AddCustomerDialog extends ConsumerStatefulWidget {
   const AddCustomerDialog({super.key});
@@ -21,10 +23,13 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _balanceController = TextEditingController(text: '0');
+  final _tinController = TextEditingController();
+  final _addressController = TextEditingController();
   final List<String> _tags = [];
   final _tagController = TextEditingController();
   bool _isLoading = false;
   bool _isImportingContact = false;
+  bool _isOrganisation = false;
 
   @override
   void dispose() {
@@ -32,6 +37,8 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     _phoneController.dispose();
     _emailController.dispose();
     _balanceController.dispose();
+    _tinController.dispose();
+    _addressController.dispose();
     _tagController.dispose();
     super.dispose();
   }
@@ -69,13 +76,106 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    LocalizationService.tr(
-                      en: 'Add New Customer',
-                      sw: 'Ongeza Mteja Mpya',
-                    ),
-                    style: Theme.of(context).textTheme.titleLarge,
+                    _tr('Add New Customer', 'Ongeza Mteja Mpya'),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.secondary,
+                        ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+
+                  // Type toggle: Individual / Organisation
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _isOrganisation = false),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: !_isOrganisation
+                                    ? AppColors.secondary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.person_outline_rounded,
+                                    size: 16,
+                                    color: !_isOrganisation
+                                        ? Colors.white
+                                        : AppColors.textMuted,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _tr('Individual', 'Mtu Binafsi'),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: !_isOrganisation
+                                          ? Colors.white
+                                          : AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _isOrganisation = true),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _isOrganisation
+                                    ? AppColors.secondary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.business_outlined,
+                                    size: 16,
+                                    color: _isOrganisation
+                                        ? Colors.white
+                                        : AppColors.textMuted,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _tr('Organisation', 'Shirika'),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: _isOrganisation
+                                          ? Colors.white
+                                          : AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -91,14 +191,8 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                           : const Icon(Icons.contacts_outlined),
                       label: Text(
                         _isImportingContact
-                            ? LocalizationService.tr(
-                                en: 'Opening contacts...',
-                                sw: 'Inafungua mawasiliano...',
-                              )
-                            : LocalizationService.tr(
-                                en: 'Add from Contacts',
-                                sw: 'Ongeza kutoka Mawasiliano',
-                              ),
+                            ? _tr('Opening contacts...', 'Inafungua mawasiliano...')
+                            : _tr('Add from Contacts', 'Ongeza kutoka Mawasiliano'),
                       ),
                     ),
                   ),
@@ -109,7 +203,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Text(
-                          LocalizationService.tr(en: 'or', sw: 'au'),
+                          _tr('or', 'au'),
                           style: Theme.of(context).textTheme.labelMedium,
                         ),
                       ),
@@ -117,182 +211,195 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
+
                   TextFormField(
                     controller: _nameController,
+                    textCapitalization: TextCapitalization.words,
                     decoration: InputDecoration(
-                      labelText: LocalizationService.tr(
-                        en: 'Customer Name',
-                        sw: 'Jina la Mteja',
+                      labelText: _isOrganisation
+                          ? _tr('Organisation Name *', 'Jina la Shirika *')
+                          : _tr('Customer Name *', 'Jina la Mteja *'),
+                      prefixIcon: Icon(
+                        _isOrganisation
+                            ? Icons.business_outlined
+                            : Icons.person_outline_rounded,
+                        size: 20,
                       ),
-                      border: const OutlineInputBorder(),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
+                      ),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return LocalizationService.tr(
-                          en: 'Please enter customer name',
-                          sw: 'Tafadhali weka jina la mteja',
-                        );
+                        return _tr('Please enter a name', 'Tafadhali weka jina');
                       }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+
                   TextFormField(
                     controller: _phoneController,
-                    decoration: InputDecoration(
-                      labelText: LocalizationService.tr(
-                        en: 'Phone Number',
-                        sw: 'Namba ya Simu',
-                      ),
-                      border: const OutlineInputBorder(),
-                    ),
                     keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: _tr('Phone Number *', 'Namba ya Simu *'),
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
+                      ),
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return LocalizationService.tr(
-                          en: 'Please enter phone number',
-                          sw: 'Tafadhali weka namba ya simu',
+                        return _tr(
+                          'Please enter phone number',
+                          'Tafadhali weka namba ya simu',
                         );
                       }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+
                   TextFormField(
                     controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: LocalizationService.tr(
-                        en: 'Email (Optional)',
-                        sw: 'Barua pepe (Hiari)',
-                      ),
-                      border: const OutlineInputBorder(),
-                    ),
                     keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _balanceController,
                     decoration: InputDecoration(
-                      labelText: LocalizationService.tr(
-                        en: 'Initial Balance',
-                        sw: 'Salio ya Kuanzia',
+                      labelText: _tr('Email (Optional)', 'Barua pepe (Hiari)'),
+                      prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      border: const OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
+                      ),
                     ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return LocalizationService.tr(
-                          en: 'Please enter initial balance',
-                          sw: 'Tafadhali weka salio la kuanzia',
-                        );
-                      }
-                      if (double.tryParse(value) == null) {
-                        return LocalizationService.tr(
-                          en: 'Please enter a valid amount',
-                          sw: 'Tafadhali weka kiasi halali',
-                        );
-                      }
-                      return null;
-                    },
                   ),
-                  const SizedBox(height: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        LocalizationService.tr(en: 'Tags', sw: 'Lebo'),
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _tagController,
-                              decoration: InputDecoration(
-                                hintText: LocalizationService.tr(
-                                  en: 'Add tag',
-                                  sw: 'Ongeza lebo',
-                                ),
-                                border: const OutlineInputBorder(),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              onFieldSubmitted: (value) {
-                                if (value.isNotEmpty) {
-                                  setState(() {
-                                    _tags.add(value);
-                                    _tagController.clear();
-                                  });
-                                }
-                              },
-                            ),
+
+                  if (_isOrganisation) ...[
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _tinController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: _tr('TIN Number (Optional)', 'Namba ya TIN (Hiari)'),
+                        hintText: 'e.g. 100-123-456',
+                        prefixIcon:
+                            const Icon(Icons.numbers_outlined, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 2,
                           ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: () {
-                              if (_tagController.text.isNotEmpty) {
-                                setState(() {
-                                  _tags.add(_tagController.text);
-                                  _tagController.clear();
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.add),
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: _tags
-                            .map(
-                              (tag) => Chip(
-                                label: Text(tag),
-                                onDeleted: () {
-                                  setState(() {
-                                    _tags.remove(tag);
-                                  });
-                                },
-                              ),
-                            )
-                            .toList(),
+                    ),
+                  ],
+
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _addressController,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      labelText: _tr('Address (Optional)', 'Anwani (Hiari)'),
+                      prefixIcon:
+                          const Icon(Icons.location_on_outlined, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    ],
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
+                      ),
+                    ),
                   ),
+
                   const SizedBox(height: 20),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () => Navigator.pop(context),
-                          child: Text(
-                            LocalizationService.tr(en: 'Cancel', sw: 'Ghairi'),
+                          onPressed:
+                              _isLoading ? null : () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
+                          child: Text(_tr('Cancel', 'Ghairi')),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _addCustomer,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.secondary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
                           child: _isLoading
-                              ? const ShimmerBox(
-                                  width: 88,
-                                  height: 14,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(999),
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppColors.secondary,
                                   ),
                                 )
                               : Text(
-                                  LocalizationService.tr(
-                                    en: 'Add',
-                                    sw: 'Ongeza',
+                                  _tr('Add Customer', 'Ongeza Mteja'),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                         ),
@@ -319,6 +426,9 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
           email: _emailController.text.trim(),
           balance: _balanceController.text.trim(),
           tags: _tags,
+          isOrganisation: _isOrganisation,
+          tinNumber: _tinController.text.trim(),
+          address: _addressController.text.trim(),
         );
         if (mounted) {
           final messenger = ScaffoldMessenger.of(context);
@@ -326,12 +436,12 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
           messenger.showSnackBar(
             SnackBar(
               content: Text(
-                LocalizationService.tr(
-                  en: 'Customer added successfully',
-                  sw: 'Mteja ameongezwa kwa mafanikio',
+                _tr(
+                  'Customer added successfully',
+                  'Mteja ameongezwa kwa mafanikio',
                 ),
               ),
-              backgroundColor: Colors.green,
+              backgroundColor: AppColors.success,
             ),
           );
         }
@@ -339,20 +449,13 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                LocalizationService.tr(
-                  en: 'Error: ${e.toString()}',
-                  sw: 'Kosa: ${e.toString()}',
-                ),
-              ),
-              backgroundColor: Colors.red,
+              content: Text('${_tr("Error", "Kosa")}: ${e.toString()}'),
+              backgroundColor: AppColors.error,
             ),
           );
         }
       } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
@@ -364,50 +467,50 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       final status = await Permission.contacts.request();
       if (status.isDenied) {
         _showSnackBar(
-          LocalizationService.tr(
-            en: 'Contacts permission is required to import customers.',
-            sw: 'Ruhusa ya mawasiliano inahitajika kuingiza wateja.',
+          _tr(
+            'Contacts permission is required to import customers.',
+            'Ruhusa ya mawasiliano inahitajika kuingiza wateja.',
           ),
-          Colors.red,
+          AppColors.error,
         );
         return;
       }
 
       if (status.isPermanentlyDenied) {
-        // Prompt user to open app settings so they can enable permission
+        if (!mounted) return;
         final open = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: Text(LocalizationService.tr(
-              en: 'Contacts permission required',
-              sw: 'Ruhusa ya mawasiliano inahitajika',
-            )),
-            content: Text(LocalizationService.tr(
-              en:
-                  'Please enable contacts permission in app settings to import customers.',
-              sw:
-                  'Tafadhali weka ruhusa ya mawasiliano katika mipangilio ya programu ili kuingiza wateja.',
-            )),
+            title: Text(
+              _tr(
+                'Contacts permission required',
+                'Ruhusa ya mawasiliano inahitajika',
+              ),
+            ),
+            content: Text(
+              _tr(
+                'Please enable contacts permission in app settings.',
+                'Tafadhali weka ruhusa ya mawasiliano katika mipangilio.',
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(LocalizationService.tr(en: 'Cancel', sw: 'Ghairi')),
+                child: Text(_tr('Cancel', 'Ghairi')),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                child: Text(LocalizationService.tr(en: 'Open Settings', sw: 'Fungua Mipangilio')),
+                child: Text(_tr('Open Settings', 'Fungua Mipangilio')),
               ),
             ],
           ),
         );
-
-        if (open == true) {
-          openAppSettings();
-        }
+        if (open == true) openAppSettings();
         return;
       }
 
-      final contacts = await FlutterContacts.getContacts(withProperties: true);
+      final contacts =
+          await FlutterContacts.getContacts(withProperties: true);
       if (!mounted) return;
 
       final selectedContacts = await _showContactPickerDialog(contacts);
@@ -419,10 +522,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         final phone = contact.phones.isNotEmpty
             ? contact.phones.first.number.trim()
             : '';
-
-        if (name.isEmpty || phone.isEmpty) {
-          continue;
-        }
+        if (name.isEmpty || phone.isEmpty) continue;
 
         await _saveCustomer(
           name: name,
@@ -430,6 +530,9 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
           email: '',
           balance: '0',
           tags: const ['Contact'],
+          isOrganisation: false,
+          tinNumber: '',
+          address: '',
         );
         importedCount++;
       }
@@ -439,30 +542,25 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            LocalizationService.tr(
-              en: importedCount == 1
+            _tr(
+              importedCount == 1
                   ? 'Customer added from contacts'
                   : '$importedCount customers added from contacts',
-              sw: importedCount == 1
+              importedCount == 1
                   ? 'Mteja ameongezwa kutoka mawasiliano'
                   : '$importedCount wateja wameongezwa kutoka mawasiliano',
             ),
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
         ),
       );
     } catch (e) {
       _showSnackBar(
-        LocalizationService.tr(
-          en: 'Error: ${e.toString()}',
-          sw: 'Kosa: ${e.toString()}',
-        ),
-        Colors.red,
+        '${_tr("Error", "Kosa")}: ${e.toString()}',
+        AppColors.error,
       );
     } finally {
-      if (mounted) {
-        setState(() => _isImportingContact = false);
-      }
+      if (mounted) setState(() => _isImportingContact = false);
     }
   }
 
@@ -472,15 +570,16 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     required String email,
     required String balance,
     required List<String> tags,
+    required bool isOrganisation,
+    required String tinNumber,
+    required String address,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      throw StateError(
-        LocalizationService.tr(
-          en: 'Please sign in before adding a customer.',
-          sw: 'Tafadhali ingia kabla ya kuongeza mteja.',
-        ),
-      );
+      throw StateError(_tr(
+        'Please sign in before adding a customer.',
+        'Tafadhali ingia kabla ya kuongeza mteja.',
+      ));
     }
 
     final repository = ref.read(contextFirestoreRepositoryProvider);
@@ -495,19 +594,19 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         phone: phone,
         email: email,
         balance: balance,
-        lastTransactionDate: LocalizationService.tr(en: 'Today', sw: 'Leo'),
+        lastTransactionDate: _tr('Today', 'Leo'),
         tags: tags,
+        isOrganisation: isOrganisation,
+        tinNumber: tinNumber,
+        address: address,
       ),
     );
   }
 
-  Future<List<Contact>?> _showContactPickerDialog(List<Contact> contacts) async {
+  Future<List<Contact>?> _showContactPickerDialog(
+      List<Contact> contacts) async {
     final searchController = TextEditingController();
     final selectedContactIds = <String>{};
-
-    Future<void> closeDialog(BuildContext dialogContext, List<Contact>? result) async {
-      Navigator.of(dialogContext).pop(result);
-    }
 
     final result = await showDialog<List<Contact>>(
       context: context,
@@ -524,7 +623,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                     : contacts.where((contact) {
                         final name = contact.displayName.toLowerCase();
                         final phone = contact.phones
-                            .map((phone) => phone.number.toLowerCase())
+                            .map((p) => p.number.toLowerCase())
                             .join(' ');
                         return name.contains(normalizedQuery) ||
                             phone.contains(normalizedQuery);
@@ -547,30 +646,26 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                         children: [
                           Expanded(
                             child: Text(
-                              LocalizationService.tr(
-                                en: 'Select contacts',
-                                sw: 'Chagua mawasiliano',
-                              ),
+                              _tr('Select contacts', 'Chagua mawasiliano'),
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                           ),
                           TextButton(
                             onPressed: () {
                               setDialogState(() {
-                                if (selectedContactIds.length == contacts.length) {
+                                if (selectedContactIds.length ==
+                                    contacts.length) {
                                   selectedContactIds.clear();
                                 } else {
                                   selectedContactIds
                                     ..clear()
-                                    ..addAll(contacts.map((contact) => contact.id));
+                                    ..addAll(
+                                        contacts.map((c) => c.id));
                                 }
                               });
                             },
                             child: Text(
-                              LocalizationService.tr(
-                                en: 'Select all',
-                                sw: 'Chagua yote',
-                              ),
+                              _tr('Select all', 'Chagua yote'),
                             ),
                           ),
                         ],
@@ -582,10 +677,8 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                         controller: searchController,
                         onChanged: applyFilter,
                         decoration: InputDecoration(
-                          hintText: LocalizationService.tr(
-                            en: 'Search contacts',
-                            sw: 'Tafuta mawasiliano',
-                          ),
+                          hintText: _tr(
+                              'Search contacts', 'Tafuta mawasiliano'),
                           prefixIcon: const Icon(Icons.search),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -598,9 +691,9 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          LocalizationService.tr(
-                            en: '${selectedContactIds.length} selected',
-                            sw: '${selectedContactIds.length} imechaguliwa',
+                          _tr(
+                            '${selectedContactIds.length} selected',
+                            '${selectedContactIds.length} imechaguliwa',
                           ),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
@@ -611,29 +704,29 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                       child: filteredContacts.isEmpty
                           ? Center(
                               child: Text(
-                                LocalizationService.tr(
-                                  en: 'No contacts found',
-                                  sw: 'Hakuna mawasiliano yaliyopatikana',
-                                ),
+                                _tr('No contacts found',
+                                    'Hakuna mawasiliano yaliyopatikana'),
                               ),
                             )
                           : ListView.separated(
                               itemCount: filteredContacts.length,
-                                separatorBuilder: (context, separatorIndex) =>
+                              separatorBuilder: (_, _) =>
                                   const Divider(height: 1),
                               itemBuilder: (context, index) {
                                 final contact = filteredContacts[index];
                                 final phone = contact.phones.isNotEmpty
                                     ? contact.phones.first.number
                                     : '';
-                                final isSelected = selectedContactIds.contains(contact.id);
+                                final isSelected = selectedContactIds
+                                    .contains(contact.id);
 
                                 return CheckboxListTile(
                                   value: isSelected,
                                   onChanged: (_) {
                                     setDialogState(() {
                                       if (isSelected) {
-                                        selectedContactIds.remove(contact.id);
+                                        selectedContactIds
+                                            .remove(contact.id);
                                       } else {
                                         selectedContactIds.add(contact.id);
                                       }
@@ -641,13 +734,12 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                                   },
                                   title: Text(
                                     contact.displayName.isEmpty
-                                        ? LocalizationService.tr(
-                                            en: 'Unnamed contact',
-                                            sw: 'Mawasiliano bila jina',
-                                          )
+                                        ? _tr('Unnamed contact',
+                                            'Mawasiliano bila jina')
                                         : contact.displayName,
                                   ),
-                                  subtitle: phone.isEmpty ? null : Text(phone),
+                                  subtitle:
+                                      phone.isEmpty ? null : Text(phone),
                                 );
                               },
                             ),
@@ -658,13 +750,9 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => closeDialog(dialogContext, null),
-                              child: Text(
-                                LocalizationService.tr(
-                                  en: 'Cancel',
-                                  sw: 'Ghairi',
-                                ),
-                              ),
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(),
+                              child: Text(_tr('Cancel', 'Ghairi')),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -674,10 +762,11 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                                   ? null
                                   : () {
                                       final selected = contacts
-                                          .where((contact) =>
-                                              selectedContactIds.contains(contact.id))
+                                          .where((c) => selectedContactIds
+                                              .contains(c.id))
                                           .toList();
-                                      closeDialog(dialogContext, selected);
+                                      Navigator.of(dialogContext)
+                                          .pop(selected);
                                     },
                               child: Text(
                                 LocalizationService.tr(
