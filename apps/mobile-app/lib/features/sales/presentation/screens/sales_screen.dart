@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -21,6 +22,206 @@ enum _PayStatus { paid, partial, unpaid }
 class SalesScreen extends ConsumerWidget {
   const SalesScreen({super.key});
 
+  static Future<Map<String, String>> _loadReceiptMeta({
+    required String uid,
+    required String? businessId,
+  }) async {
+    final firestore = FirebaseFirestore.instance;
+    String businessName = 'Business';
+    String printedBy = 'User';
+
+    try {
+      final userDoc = await firestore.collection('users').doc(uid).get(const GetOptions());
+      final userData = userDoc.data();
+      printedBy = ((userData?['displayName'] ?? userData?['name']) as String?)?.trim().isNotEmpty ==
+              true
+          ? ((userData?['displayName'] ?? userData?['name']) as String).trim()
+          : 'User';
+
+      final profileBusinesses = userData?['businesses'];
+      if (profileBusinesses is List && businessId != null && businessId.isNotEmpty) {
+        for (final raw in profileBusinesses) {
+          if (raw is Map && (raw['id']?.toString().trim() ?? '') == businessId) {
+            final fromProfile = (raw['name'] as String?)?.trim();
+            if (fromProfile != null && fromProfile.isNotEmpty) {
+              businessName = fromProfile;
+              break;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    if (businessId != null && businessId.isNotEmpty && businessName == 'Business') {
+      try {
+        final businessDoc = await firestore
+            .collection('tenants')
+            .doc(uid)
+            .collection('businesses')
+            .doc(businessId)
+            .get(const GetOptions());
+        final data = businessDoc.data();
+        final fromTenant = (data?['businessName'] as String?)?.trim();
+        if (fromTenant != null && fromTenant.isNotEmpty) {
+          businessName = fromTenant;
+        }
+      } catch (_) {}
+    }
+
+    return {
+      'businessName': businessName,
+      'printedBy': printedBy,
+    };
+  }
+
+  static String _buildReceiptText({
+    required Map<String, dynamic> sale,
+    required String businessName,
+    required String printedBy,
+  }) {
+    final invoiceNo = (sale['invoiceNumber'] ?? sale['id'] ?? '-').toString();
+    final customer = (sale['customerName'] ?? _tr('Walk-in', 'Mteja wa kawaida')).toString();
+    final createdAt = readTimestamp(sale['createdAt'] ?? sale['date']);
+    final amount = parseNumericAmount(sale['amount']);
+    final amountPaid = parseNumericAmount(sale['amountPaid']);
+    final outstanding = (amount - amountPaid).clamp(0, amount);
+    final status = readInvoiceStatus(sale);
+    final items = (sale['items'] as List?)?.whereType<Map>().toList() ?? const [];
+
+    final b = StringBuffer();
+    b.writeln('==============================');
+    b.writeln(businessName.toUpperCase());
+    b.writeln('RECEIPT / INVOICE');
+    b.writeln('No: $invoiceNo');
+    if (createdAt != null) {
+      b.writeln(
+        'Date: ${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year} '
+        '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}',
+      );
+    }
+    b.writeln('Customer: $customer');
+    b.writeln('Status: $status');
+    b.writeln('------------------------------');
+    if (items.isNotEmpty) {
+      for (final item in items) {
+        final name = (item['name'] ?? '-').toString();
+        final qty = (item['qty'] ?? item['quantity'] ?? 1).toString();
+        final unitPrice = parseNumericAmount(item['unitPrice']);
+        final total = parseNumericAmount(item['total']);
+        b.writeln(name);
+        b.writeln('  $qty x ${unitPrice.toStringAsFixed(0)} = ${total.toStringAsFixed(0)}');
+      }
+      b.writeln('------------------------------');
+    }
+    b.writeln('Total: TSh ${amount.toStringAsFixed(0)}');
+    b.writeln('Paid:  TSh ${amountPaid.toStringAsFixed(0)}');
+    b.writeln('Due:   TSh ${outstanding.toStringAsFixed(0)}');
+    b.writeln('Printed by: $printedBy');
+    b.writeln('------------------------------');
+    b.writeln('Powered by Mali Up');
+    b.writeln('[Mali Up logo]');
+    b.writeln('==============================');
+    return b.toString();
+  }
+
+  static Future<void> _openReceiptActions({
+    required BuildContext context,
+    required Map<String, dynamic> sale,
+    required WidgetRef ref,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final repo = ref.read(contextFirestoreRepositoryProvider);
+    final ctx = await repo.resolveContextForUser(user.uid);
+    final meta = await _loadReceiptMeta(uid: user.uid, businessId: ctx.businessId);
+    final receipt = _buildReceiptText(
+      sale: sale,
+      businessName: meta['businessName'] ?? 'Business',
+      printedBy: meta['printedBy'] ?? 'User',
+    );
+
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _tr('Receipt Actions', 'Vitendo vya risiti'),
+                style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.message_outlined, color: AppColors.primary),
+                title: Text(_tr('Share to WhatsApp', 'Tuma kwa WhatsApp')),
+                onTap: () async {
+                  final url = 'https://wa.me/?text=${Uri.encodeComponent(receipt)}';
+                  await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.sms_outlined, color: AppColors.primary),
+                title: Text(_tr('Share by SMS', 'Tuma kwa SMS')),
+                onTap: () async {
+                  final uri = Uri.parse('sms:?body=${Uri.encodeComponent(receipt)}');
+                  await launchUrl(uri);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.print_outlined, color: AppColors.primary),
+                title: Text(_tr('Print receipt', 'Chapisha risiti')),
+                subtitle: Text(
+                  _tr(
+                    'Opens share/copy flow for wired or wireless receipt-printer apps.',
+                    'Fungua mtiririko wa kushiriki/kunakili kwa app za printer za waya au zisizo na waya.',
+                  ),
+                ),
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: receipt));
+                  if (!sheetContext.mounted) return;
+                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        _tr(
+                          'Receipt copied. Paste into your printer app to print.',
+                          'Risiti imenakiliwa. Bandika kwenye app ya printer kuchapisha.',
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.copy_all_rounded, color: AppColors.primary),
+                title: Text(_tr('Copy receipt text', 'Nakili maandishi ya risiti')),
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: receipt));
+                  if (!sheetContext.mounted) return;
+                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                    SnackBar(content: Text(_tr('Copied.', 'Imenakiliwa.'))),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final salesAsync = ref.watch(salesInvoiceListProvider);
@@ -36,8 +237,8 @@ class SalesScreen extends ConsumerWidget {
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.secondary,
-        child: const Icon(Icons.shopping_cart),
         elevation: 4,
+        child: const Icon(Icons.shopping_cart),
       ),
       body: Column(
         children: [
@@ -114,6 +315,11 @@ class SalesScreen extends ConsumerWidget {
                                   amountPaid: amountPaid,
                                   status: status,
                                   date: _fmtDate(date),
+                                  onReceiptActions: () => _openReceiptActions(
+                                    context: context,
+                                    sale: item,
+                                    ref: ref,
+                                  ),
                                 );
                               },
                             ),
@@ -261,6 +467,7 @@ class _InvoiceCard extends StatelessWidget {
   final double amountPaid;
   final String status;
   final String date;
+  final VoidCallback onReceiptActions;
 
   const _InvoiceCard({
     required this.id,
@@ -269,6 +476,7 @@ class _InvoiceCard extends StatelessWidget {
     required this.amountPaid,
     required this.status,
     required this.date,
+    required this.onReceiptActions,
   });
 
   @override
@@ -361,18 +569,37 @@ class _InvoiceCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              statusLabel,
-              style: TextStyle(
-                  color: statusColor, fontSize: 10, fontWeight: FontWeight.w700),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                      color: statusColor, fontSize: 10, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: onReceiptActions,
+                icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                label: Text(
+                  _tr('Receipt', 'Risiti'),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
           ),
         ],
       ),
