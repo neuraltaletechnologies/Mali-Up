@@ -567,8 +567,8 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final name = widget.businessName ?? _tr('My Business', 'Biashara yangu');
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
-        ? 'TZS ${_fmtCompactAmount(widget.totalCash)}'
-        : 'TZS ••••••••';
+        ? ' ${_fmtCompactAmount(widget.totalCash)}'
+        : ' ••••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
     final expText = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
     final net = widget.totalCash - widget.totalExpenses;

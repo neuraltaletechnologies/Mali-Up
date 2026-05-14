@@ -935,6 +935,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   i < 3 ? _pinFocusNodes[i + 1] : null,
                               autoFocus: i == 0,
                               isLast: i == 3,
+                              onComplete: i == 3
+                                  ? () {
+                                      if (!_isLoading) {
+                                        _handlePINLogin();
+                                      }
+                                    }
+                                  : null,
                             ),
                           ),
                         ),
@@ -955,34 +962,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        // Login button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              elevation: 4,
-                              shadowColor: AppColors.primary.withValues(alpha: 0.3),
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: _isLoading ? null : _handlePINLogin,
+                        const SizedBox(height: 12),
+                        if (_isLoading)
+                          Center(
                             child: Text(
-                              _isLoading
-                                  ? _tr('Verifying...', 'Inathibitisha...')
-                                  : _tr('Login', 'Ingia'),
+                              _tr('Verifying...', 'Inathibitisha...'),
                               style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
+                                color: textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
-                        ),
                         const SizedBox(height: 12),
                         // Change number link
                         Center(
