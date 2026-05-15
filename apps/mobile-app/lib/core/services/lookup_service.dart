@@ -13,7 +13,12 @@ class LookupService {
         final data = doc.data();
         final items = data?['items'] as List<dynamic>?;
         if (items != null) {
-          return items.cast<Map<String, dynamic>>();
+          return items
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(
+                    item.map((key, value) => MapEntry(key.toString(), value)),
+                  ))
+              .toList();
         }
       }
     } catch (_) {}
@@ -29,7 +34,12 @@ class LookupService {
         final data = doc.data();
         final items = data?['items'] as List<dynamic>?;
         if (items != null) {
-          return items.cast<Map<String, String>>();
+          return items
+              .whereType<Map>()
+              .map((item) => Map<String, String>.from(
+                    item.map((key, value) => MapEntry(key.toString(), value?.toString() ?? '')),
+                  ))
+              .toList();
         }
       }
     } catch (_) {}
