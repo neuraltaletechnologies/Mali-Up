@@ -15,9 +15,16 @@ const String _onboardingCompletedKey = 'onboarding_completed';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (error) {
+    final message = error.toString();
+    if (!message.contains('duplicate-app')) {
+      rethrow;
+    }
+  }
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,

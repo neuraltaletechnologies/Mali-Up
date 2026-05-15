@@ -14,20 +14,20 @@
       },
       "oauth_client": [
         {
-          "client_id": "PLACEHOLDER_CLIENT_ID.apps.googleusercontent.com",
+          "client_id": "596683133951-8v7bqv0j3f7f1n0j9n2m9m6m7h2q3r6u.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "PLACEHOLDER_API_KEY"
+          "current_key": "AIzaSyChtvxfDDal92MUPeDMMJAwCWRtrNNrXJI"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "PLACEHOLDER_IOS_CLIENT_ID.apps.googleusercontent.com",
+              "client_id": "596683133951-8v7bqv0j3f7f1n0j9n2m9m6m7h2q3r6u.apps.googleusercontent.com",
               "client_type": 1
             }
           ]
