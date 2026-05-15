@@ -134,7 +134,6 @@ class AppRouter {
           pageBuilder: (context, state, child) => CustomTransitionPage<void>(
             key: state.pageKey,
             child: MainShellPage(child: child),
-            transitionDuration: const Duration(milliseconds: 300),
             reverseTransitionDuration: const Duration(milliseconds: 220),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(

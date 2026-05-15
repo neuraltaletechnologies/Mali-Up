@@ -17,6 +17,7 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../utils/pin_auth_password.dart';
+import '../../../../core/services/lookup_service.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -65,130 +66,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _placeOfBusinessController =
       TextEditingController();
   String _selectedBusinessType = 'Retail';
-  final List<Map<String, dynamic>> _businessTypes = [
-    {'value': 'Retail', 'en': 'Retail', 'sw': 'Uuzaji', 'icon': Icons.store},
-    {
-      'value': 'Wholesale',
-      'en': 'Wholesale',
-      'sw': 'Uuzaji wa Jumla',
-      'icon': Icons.store_mall_directory,
-    },
-    {
-      'value': 'Service',
-      'en': 'Service',
-      'sw': 'Huduma',
-      'icon': Icons.room_service,
-    },
-    {
-      'value': 'Manufacturing',
-      'en': 'Manufacturing',
-      'sw': 'Uzalishaji',
-      'icon': Icons.build,
-    },
-    {
-      'value': 'Food & Beverage',
-      'en': 'Food & Beverage',
-      'sw': 'Chakula na Vinywaji',
-      'icon': Icons.restaurant,
-    },
-    {
-      'value': 'Agriculture',
-      'en': 'Agriculture',
-      'sw': 'Kilimo',
-      'icon': Icons.agriculture,
-    },
-    {
-      'value': 'Transport',
-      'en': 'Transport',
-      'sw': 'Usafiri',
-      'icon': Icons.local_shipping,
-    },
-    {
-      'value': 'Construction',
-      'en': 'Construction',
-      'sw': 'Ujenzi',
-      'icon': Icons.construction,
-    },
-    {
-      'value': 'Healthcare',
-      'en': 'Healthcare',
-      'sw': 'Afya',
-      'icon': Icons.local_hospital,
-    },
-    {
-      'value': 'Education',
-      'en': 'Education',
-      'sw': 'Elimu',
-      'icon': Icons.school,
-    },
-    {
-      'value': 'Technology',
-      'en': 'Technology',
-      'sw': 'Teknolojia',
-      'icon': Icons.computer,
-    },
-    {
-      'value': 'Hospitality',
-      'en': 'Hospitality',
-      'sw': 'Ukarimu',
-      'icon': Icons.hotel,
-    },
-    {
-      'value': 'Beauty & Wellness',
-      'en': 'Beauty & Wellness',
-      'sw': 'Uzuri na Afya',
-      'icon': Icons.spa,
-    },
-    {
-      'value': 'Entertainment',
-      'en': 'Entertainment',
-      'sw': 'Burudani',
-      'icon': Icons.theater_comedy,
-    },
-    {
-      'value': 'Real Estate',
-      'en': 'Real Estate',
-      'sw': 'Mali Isiyohamishika',
-      'icon': Icons.apartment,
-    },
-    {
-      'value': 'Financial Services',
-      'en': 'Financial Services',
-      'sw': 'Huduma za Kifedha',
-      'icon': Icons.account_balance,
-    },
-    {
-      'value': 'Professional Services',
-      'en': 'Professional Services',
-      'sw': 'Huduma za Kitaalam',
-      'icon': Icons.business_center,
-    },
-    {'value': 'Other', 'en': 'Other', 'sw': 'Nyingine', 'icon': Icons.category},
-  ];
+  List<Map<String, dynamic>> _businessTypes = LookupService.defaultBusinessTypes;
 
   // Tanzania cities/regions for place of business
   String? _selectedCity;
-  final List<Map<String, String>> _tanzaniaCities = [
-    {'en': 'Dar es Salaam', 'sw': 'Dar es Salaam'},
-    {'en': 'Dodoma', 'sw': 'Dodoma'},
-    {'en': 'Mwanza', 'sw': 'Mwanza'},
-    {'en': 'Arusha', 'sw': 'Arusha'},
-    {'en': 'Mbeya', 'sw': 'Mbeya'},
-    {'en': 'Morogoro', 'sw': 'Morogoro'},
-    {'en': 'Tanga', 'sw': 'Tanga'},
-    {'en': 'Zanzibar', 'sw': 'Zanzibar'},
-    {'en': 'Kigoma', 'sw': 'Kigoma'},
-    {'en': 'Mtwara', 'sw': 'Mtwara'},
-    {'en': 'Tabora', 'sw': 'Tabora'},
-    {'en': 'Iringa', 'sw': 'Iringa'},
-    {'en': 'Singida', 'sw': 'Singida'},
-    {'en': 'Shinyanga', 'sw': 'Shinyanga'},
-    {'en': 'Musoma', 'sw': 'Musoma'},
-    {'en': 'Bukoba', 'sw': 'Bukoba'},
-    {'en': 'Sumbawanga', 'sw': 'Sumbawanga'},
-    {'en': 'Njombe', 'sw': 'Njombe'},
-    {'en': 'Other', 'sw': 'Nyingine'},
-  ];
+  List<Map<String, String>> _tanzaniaCities = LookupService.defaultTanzaniaCities;
 
   final List<TextEditingController> _pinControllers = List.generate(
     4,
@@ -254,6 +136,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
+    _loadLookups();
+  }
+
+  Future<void> _loadLookups() async {
+    try {
+      final types = await LookupService.fetchBusinessTypes();
+      final cities = await LookupService.fetchCities();
+      if (mounted) {
+        setState(() {
+          _businessTypes = types;
+          _tanzaniaCities = cities;
+        });
+      }
+    } catch (_) {}
   }
 
   String _tr(String en, String sw) {
@@ -295,7 +191,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             (t) => t['value'] == value,
             orElse: () => _businessTypes.first,
           );
-          return type['icon'] as IconData;
+          final iconRaw = type['icon'];
+          if (iconRaw is IconData) return iconRaw;
+          if (iconRaw is String) return LookupService.iconFromName(iconRaw);
+          return Icons.category;
         },
       ),
     );

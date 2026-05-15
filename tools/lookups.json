@@ -1,0 +1,22 @@
+{
+  "business_types": {
+    "items": [
+      {"value": "Retail", "en": "Retail", "sw": "Uuzaji", "icon": "store"},
+      {"value": "Wholesale", "en": "Wholesale", "sw": "Uuzaji wa Jumla", "icon": "store_mall_directory"},
+      {"value": "Service", "en": "Service", "sw": "Huduma", "icon": "room_service"},
+      {"value": "Manufacturing", "en": "Manufacturing", "sw": "Uzalishaji", "icon": "build"},
+      {"value": "Food & Beverage", "en": "Food & Beverage", "sw": "Chakula na Vinywaji", "icon": "restaurant"},
+      {"value": "Other", "en": "Other", "sw": "Nyingine", "icon": "category"}
+    ]
+  },
+  "cities": {
+    "items": [
+      {"en": "Dar es Salaam", "sw": "Dar es Salaam"},
+      {"en": "Dodoma", "sw": "Dodoma"},
+      {"en": "Mwanza", "sw": "Mwanza"},
+      {"en": "Arusha", "sw": "Arusha"},
+      {"en": "Mbeya", "sw": "Mbeya"},
+      {"en": "Other", "sw": "Nyingine"}
+    ]
+  }
+}

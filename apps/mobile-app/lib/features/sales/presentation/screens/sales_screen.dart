@@ -876,7 +876,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
 
       await invoicesRef.add({
         'invoiceNumber': invoiceNumber,
-        if (customerName != null) 'customerName': customerName,
+        'customerName': ?customerName,
         if (_selectedCustomer != null) ...{
           'customerId': _selectedCustomer!.id,
           'customerPhone': _selectedCustomer!.phone,
