@@ -4,13 +4,6 @@
       "collectionGroup": "sales_invoices",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "sales_invoices",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
@@ -59,22 +52,8 @@
       "collectionGroup": "expenses",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "expenses",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "category", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "inventory_items",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -113,13 +92,6 @@
       "collectionGroup": "debts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "dueDate", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "debts",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "dueDate", "order": "ASCENDING" }
       ]
@@ -136,13 +108,6 @@
       "collectionGroup": "customers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "name", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "customers",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "name", "order": "ASCENDING" },
         { "fieldPath": "balance", "order": "DESCENDING" }
       ]
@@ -152,20 +117,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "isOrganisation", "order": "ASCENDING" },
-        { "fieldPath": "name", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "customers",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "lastTransactionDate", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "cash_accounts",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "name", "order": "ASCENDING" }
       ]
     }
