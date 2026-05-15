@@ -230,6 +230,14 @@ service cloud.firestore {
     }
 
     // ============================================
+    // PUBLIC LOOKUPS (app bootstrap data)
+    // ============================================
+    match /lookups/{lookupId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ============================================
     // DEFAULT DENY
     // ============================================
     match /{document=**} {
