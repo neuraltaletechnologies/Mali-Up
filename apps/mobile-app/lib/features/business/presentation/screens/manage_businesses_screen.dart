@@ -7,10 +7,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/lookup_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 
@@ -27,56 +27,30 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   late Future<Map<String, dynamic>?> _profileFuture;
   bool _isSaving = false;
 
-  String _selectedBusinessType = 'Retail';
-  String? _selectedCity;
+  
 
-  static const List<Map<String, dynamic>> _businessTypes = [
-    {'value': 'Retail', 'en': 'Retail', 'sw': 'Uuzaji', 'icon': Icons.store},
-    {'value': 'Wholesale', 'en': 'Wholesale', 'sw': 'Uuzaji wa Jumla', 'icon': Icons.store_mall_directory},
-    {'value': 'Service', 'en': 'Service', 'sw': 'Huduma', 'icon': Icons.room_service},
-    {'value': 'Manufacturing', 'en': 'Manufacturing', 'sw': 'Uzalishaji', 'icon': Icons.build},
-    {'value': 'Food & Beverage', 'en': 'Food & Beverage', 'sw': 'Chakula na Vinywaji', 'icon': Icons.restaurant},
-    {'value': 'Agriculture', 'en': 'Agriculture', 'sw': 'Kilimo', 'icon': Icons.agriculture},
-    {'value': 'Transport', 'en': 'Transport', 'sw': 'Usafiri', 'icon': Icons.local_shipping},
-    {'value': 'Construction', 'en': 'Construction', 'sw': 'Ujenzi', 'icon': Icons.construction},
-    {'value': 'Healthcare', 'en': 'Healthcare', 'sw': 'Afya', 'icon': Icons.local_hospital},
-    {'value': 'Education', 'en': 'Education', 'sw': 'Elimu', 'icon': Icons.school},
-    {'value': 'Technology', 'en': 'Technology', 'sw': 'Teknolojia', 'icon': Icons.computer},
-    {'value': 'Hospitality', 'en': 'Hospitality', 'sw': 'Ukarimu', 'icon': Icons.hotel},
-    {'value': 'Beauty & Wellness', 'en': 'Beauty & Wellness', 'sw': 'Uzuri na Afya', 'icon': Icons.spa},
-    {'value': 'Entertainment', 'en': 'Entertainment', 'sw': 'Burudani', 'icon': Icons.theater_comedy},
-    {'value': 'Real Estate', 'en': 'Real Estate', 'sw': 'Mali Isiyohamishika', 'icon': Icons.apartment},
-    {'value': 'Financial Services', 'en': 'Financial Services', 'sw': 'Huduma za Kifedha', 'icon': Icons.account_balance},
-    {'value': 'Professional Services', 'en': 'Professional Services', 'sw': 'Huduma za Kitaalam', 'icon': Icons.business_center},
-    {'value': 'Other', 'en': 'Other', 'sw': 'Nyingine', 'icon': Icons.category},
-  ];
+  List<Map<String, dynamic>> _businessTypes = LookupService.defaultBusinessTypes;
 
-  static const List<Map<String, String>> _tanzaniaCities = [
-    {'en': 'Dar es Salaam', 'sw': 'Dar es Salaam'},
-    {'en': 'Dodoma', 'sw': 'Dodoma'},
-    {'en': 'Mwanza', 'sw': 'Mwanza'},
-    {'en': 'Arusha', 'sw': 'Arusha'},
-    {'en': 'Mbeya', 'sw': 'Mbeya'},
-    {'en': 'Morogoro', 'sw': 'Morogoro'},
-    {'en': 'Tanga', 'sw': 'Tanga'},
-    {'en': 'Zanzibar', 'sw': 'Zanzibar'},
-    {'en': 'Kigoma', 'sw': 'Kigoma'},
-    {'en': 'Mtwara', 'sw': 'Mtwara'},
-    {'en': 'Tabora', 'sw': 'Tabora'},
-    {'en': 'Iringa', 'sw': 'Iringa'},
-    {'en': 'Singida', 'sw': 'Singida'},
-    {'en': 'Shinyanga', 'sw': 'Shinyanga'},
-    {'en': 'Musoma', 'sw': 'Musoma'},
-    {'en': 'Bukoba', 'sw': 'Bukoba'},
-    {'en': 'Sumbawanga', 'sw': 'Sumbawanga'},
-    {'en': 'Njombe', 'sw': 'Njombe'},
-    {'en': 'Other', 'sw': 'Nyingine'},
-  ];
+  List<Map<String, String>> _tanzaniaCities = LookupService.defaultTanzaniaCities;
 
   @override
   void initState() {
     super.initState();
     _profileFuture = _loadProfile();
+    _loadLookups();
+  }
+
+  Future<void> _loadLookups() async {
+    try {
+      final types = await LookupService.fetchBusinessTypes();
+      final cities = await LookupService.fetchCities();
+      if (mounted) {
+        setState(() {
+          _businessTypes = types;
+          _tanzaniaCities = cities;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -84,98 +58,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     _businessNameController.dispose();
     super.dispose();
   }
-
-  Future<void> _showAddBusinessTypeSheet() async {
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => MaliSelectSheet<String>(
-        title: _tr('Business Type', 'Aina ya Biashara'),
-        items: _businessTypes.map((t) => t['value'] as String).toList(),
-        selectedValue: _selectedBusinessType,
-        labelBuilder: (value) {
-          final type = _businessTypes.firstWhere(
-            (t) => t['value'] == value,
-            orElse: () => _businessTypes.first,
-          );
-          return _tr(type['en'] as String, type['sw'] as String);
-        },
-        iconBuilder: (value) {
-          final type = _businessTypes.firstWhere(
-            (t) => t['value'] == value,
-            orElse: () => _businessTypes.first,
-          );
-          return type['icon'] as IconData;
-        },
-      ),
-    );
-    if (selected != null && mounted) {
-      setState(() => _selectedBusinessType = selected);
-    }
-  }
-
-  Future<void> _showAddCitySheet() async {
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => MaliSelectSheet<String>(
-        title: _tr('City / Region', 'Mji / Mkoa'),
-        items: _tanzaniaCities.map((c) => c['en']!).toList(),
-        selectedValue: _selectedCity,
-        labelBuilder: (value) {
-          final city = _tanzaniaCities.firstWhere(
-            (c) => c['en'] == value,
-            orElse: () => _tanzaniaCities.first,
-          );
-          return _tr(city['en']!, city['sw']!);
-        },
-      ),
-    );
-    if (selected != null && mounted) {
-      setState(() => _selectedCity = selected);
-    }
-  }
-
   String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
-
-  String _normalizeOptionalUrl(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return '';
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return trimmed;
-    }
-    return 'https://$trimmed';
-  }
-
-  Future<void> _openWebsiteBuildService() async {
-    final uri = Uri.parse('https://neuraltale.com/services/');
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr(
-              'Could not open website service link.',
-              'Imeshindikana kufungua kiungo cha huduma ya tovuti.',
-            ),
-          ),
-        ),
-      );
-    }
-  }
-
-  String _normalizeBucketName(String bucket) {
-    var value = bucket.trim();
-    if (value.startsWith('gs://')) {
-      value = value.substring(5);
-    }
-    if (value.endsWith('/')) {
-      value = value.substring(0, value.length - 1);
-    }
-    return value;
-  }
+  
 
   String _fileExtension(String path) {
     final dot = path.lastIndexOf('.');
@@ -196,6 +80,24 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
       default:
         return 'image/jpeg';
     }
+  }
+
+  String _normalizeBucketName(String name) {
+    var value = name.trim();
+    if (value.isEmpty) return '';
+    if (value.startsWith('gs://')) value = value.substring(5);
+    if (value.endsWith('/')) value = value.substring(0, value.length - 1);
+    return value;
+  }
+
+  String? _normalizeOptionalUrl(String? url) {
+    if (url == null) return null;
+    var value = url.trim();
+    if (value.isEmpty) return null;
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+      value = 'https://$value';
+    }
+    return value;
   }
 
   bool _isBucketResolutionError(FirebaseException e) {
@@ -367,478 +269,9 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   }
 
   Future<void> _editBusiness(Map<String, dynamic>? profile, Map<String, dynamic> business) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final businessId = business['id'] as String;
-    final nameController = TextEditingController(text: (business['name'] as String?) ?? '');
-    final websiteController = TextEditingController(text: (business['website'] as String?) ?? '');
-    final workingHoursController = TextEditingController(
-      text: (business['workingHours'] as String?) ?? '',
-    );
-    final facebookController = TextEditingController(text: (business['facebook'] as String?) ?? '');
-    final instagramController = TextEditingController(
-      text: (business['instagram'] as String?) ?? '',
-    );
-    final tiktokController = TextEditingController(text: (business['tiktok'] as String?) ?? '');
-    final xController = TextEditingController(text: (business['x'] as String?) ?? '');
-    final linkedinController = TextEditingController(
-      text: (business['linkedin'] as String?) ?? '',
-    );
-    String editBusinessType = () {
-      final stored = (business['category'] as String?) ?? '';
-      return _businessTypes.any((t) => t['value'] == stored) ? stored : 'Retail';
-    }();
-    String? editCity = (business['placeOfBusiness'] as String?)?.trim();
-    if (editCity != null && !_tanzaniaCities.any((c) => c['en'] == editCity)) {
-      editCity = null;
-    }
-    bool isSaving = false;
-    File? pickedLogoFile;
-    final existingLogoUrl = (business['logoUrl'] as String?)?.trim();
-
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final currentName = nameController.text.trim();
-            final initial = currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
-
-            return Container(
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    top: 16,
-                    bottom: MediaQuery.of(dialogContext).viewInsets.bottom + 16,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: AppColors.border,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _tr('Edit business', 'Hariri biashara'),
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                        const SizedBox(height: 16),
-                    // Logo picker
-                        GestureDetector(
-                          onTap: isSaving
-                              ? null
-                              : () async {
-                                  final picker = ImagePicker();
-                                  final picked = await picker.pickImage(
-                                    source: ImageSource.gallery,
-                                    maxWidth: 512,
-                                    maxHeight: 512,
-                                    imageQuality: 85,
-                                  );
-                                  if (picked == null) return;
-                                  if (!dialogContext.mounted) return;
-                                  setDialogState(() => pickedLogoFile = File(picked.path));
-                                },
-                          child: Stack(
-                            alignment: Alignment.bottomRight,
-                            children: [
-                              Container(
-                                width: 80,
-                                height: 80,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppColors.yellowBrand,
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: pickedLogoFile != null
-                                    ? Image.file(pickedLogoFile!, fit: BoxFit.cover)
-                                    : (existingLogoUrl != null && existingLogoUrl.isNotEmpty
-                                        ? Image.network(
-                                            existingLogoUrl,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, _, _) =>
-                                                _LogoInitial(initial: initial),
-                                          )
-                                        : _LogoInitial(initial: initial)),
-                              ),
-                              Container(
-                                width: 26,
-                                height: 26,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt_rounded,
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: nameController,
-                          decoration: InputDecoration(
-                            labelText: _tr('Business name', 'Jina la biashara'),
-                            border: const OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        MaliSelectField(
-                      placeholder: _tr('Business Type', 'Aina ya Biashara'),
-                      displayValue: () {
-                        final type = _businessTypes.firstWhere(
-                          (t) => t['value'] == editBusinessType,
-                          orElse: () => _businessTypes.first,
-                        );
-                        return _tr(type['en'] as String, type['sw'] as String);
-                      }(),
-                      hasValue: true,
-                      onTap: () async {
-                        final selected = await showModalBottomSheet<String>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => MaliSelectSheet<String>(
-                            title: _tr('Business Type', 'Aina ya Biashara'),
-                            items: _businessTypes.map((t) => t['value'] as String).toList(),
-                            selectedValue: editBusinessType,
-                            labelBuilder: (v) {
-                              final t = _businessTypes.firstWhere(
-                                (t) => t['value'] == v,
-                                orElse: () => _businessTypes.first,
-                              );
-                              return _tr(t['en'] as String, t['sw'] as String);
-                            },
-                            iconBuilder: (v) {
-                              final t = _businessTypes.firstWhere(
-                                (t) => t['value'] == v,
-                                orElse: () => _businessTypes.first,
-                              );
-                              return t['icon'] as IconData;
-                            },
-                          ),
-                        );
-                        if (selected != null) {
-                          setDialogState(() => editBusinessType = selected);
-                        }
-                      },
-                      icon: Icons.category_rounded,
-                        ),
-                        const SizedBox(height: 12),
-                        MaliSelectField(
-                      placeholder: _tr('City / Region', 'Mji / Mkoa'),
-                      displayValue: () {
-                        if (editCity == null) return '';
-                        final city = _tanzaniaCities.firstWhere(
-                          (c) => c['en'] == editCity,
-                          orElse: () => _tanzaniaCities.first,
-                        );
-                        return _tr(city['en']!, city['sw']!);
-                      }(),
-                      hasValue: editCity != null,
-                      onTap: () async {
-                        final selected = await showModalBottomSheet<String>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => MaliSelectSheet<String>(
-                            title: _tr('City / Region', 'Mji / Mkoa'),
-                            items: _tanzaniaCities.map((c) => c['en']!).toList(),
-                            selectedValue: editCity,
-                            labelBuilder: (v) {
-                              final c = _tanzaniaCities.firstWhere(
-                                (c) => c['en'] == v,
-                                orElse: () => _tanzaniaCities.first,
-                              );
-                              return _tr(c['en']!, c['sw']!);
-                            },
-                          ),
-                        );
-                        if (selected != null) {
-                          setDialogState(() => editCity = selected);
-                        }
-                      },
-                      icon: Icons.location_on_outlined,
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: websiteController,
-                          keyboardType: TextInputType.url,
-                          decoration: InputDecoration(
-                            labelText: _tr('Website (optional)', 'Tovuti (hiari)'),
-                            hintText: 'https://example.com',
-                            border: const OutlineInputBorder(),
-                          ),
-                        ),
-                        if (websiteController.text.trim().isEmpty) ...[
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              onPressed: _openWebsiteBuildService,
-                              icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                              label: Text(
-                                _tr(
-                                  'Need a website? Get one made for you',
-                                  'Unahitaji tovuti? Tengeneza kwa huduma hii',
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: workingHoursController,
-                          decoration: InputDecoration(
-                            labelText: _tr(
-                              'Working hours (optional)',
-                              'Muda wa kazi (hiari)',
-                            ),
-                            hintText: _tr(
-                              'Mon - Sat: 8:00 AM - 6:00 PM',
-                              'Jtatu - Jumamosi: 2:00 Asubuhi - 12:00 Jioni',
-                            ),
-                            border: const OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _tr('Social media links (optional)', 'Viungo vya mitandao ya kijamii (hiari)'),
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: facebookController,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'Facebook',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: instagramController,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'Instagram',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: tiktokController,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'TikTok',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: xController,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'X (Twitter)',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: linkedinController,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'LinkedIn',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: isSaving
-                                    ? null
-                                    : () => Navigator.of(dialogContext).pop(false),
-                                child: Text(_tr('Cancel', 'Ghairi')),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: isSaving
-                                    ? null
-                                    : () async {
-                          final name = nameController.text.trim();
-                          final place = editCity ?? '';
-                          final category = editBusinessType;
-                          final website = _normalizeOptionalUrl(websiteController.text);
-                          final workingHours = workingHoursController.text.trim();
-                          final facebook = _normalizeOptionalUrl(facebookController.text);
-                          final instagram = _normalizeOptionalUrl(instagramController.text);
-                          final tiktok = _normalizeOptionalUrl(tiktokController.text);
-                          final x = _normalizeOptionalUrl(xController.text);
-                          final linkedin = _normalizeOptionalUrl(linkedinController.text);
-                          if (name.isEmpty || place.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(_tr(
-                                  'Business name and place are required.',
-                                  'Jina la biashara na mahali vinahitajika.',
-                                )),
-                              ),
-                            );
-                            return;
-                          }
-
-                          setDialogState(() => isSaving = true);
-
-                          // Upload logo if a new one was picked
-                          String? newLogoUrl = existingLogoUrl;
-                          if (pickedLogoFile != null) {
-                            try {
-                              newLogoUrl = await _uploadBusinessLogo(
-                                userId: user.uid,
-                                businessId: businessId,
-                                file: pickedLogoFile!,
-                              );
-                            } on FirebaseException catch (e) {
-                              debugPrint('Logo upload failed: ${e.code} ${e.message}');
-                              if (mounted) {
-                                ScaffoldMessenger.of(this.context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      _tr(
-                                        'Logo upload failed. Business details were saved without changing logo.',
-                                        'Kupakia nembo kumeshindikana. Taarifa za biashara zimehifadhiwa bila kubadilisha nembo.',
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-                            }
-                          }
-
-                          final updatedBusinesses = _businessesFromProfile(profile)
-                              .map((entry) {
-                                if (entry['id'] != businessId) return entry;
-                                return <String, dynamic>{
-                                  ...entry,
-                                  'name': name,
-                                  'category': category,
-                                  'placeOfBusiness': place,
-                                  'website': website,
-                                  'workingHours': workingHours,
-                                  'facebook': facebook,
-                                  'instagram': instagram,
-                                  'tiktok': tiktok,
-                                  'x': x,
-                                  'linkedin': linkedin,
-                                  if (newLogoUrl != null && newLogoUrl.isNotEmpty)
-                                    'logoUrl': newLogoUrl,
-                                };
-                              })
-                              .toList();
-
-                          await _persistBusinesses(
-                            userId: user.uid,
-                            businesses: updatedBusinesses,
-                            selectedBusinessId: _selectedBusinessId(profile) ?? businessId,
-                          );
-
-                          await _firestore
-                              .collection('tenants')
-                              .doc(user.uid)
-                              .collection('businesses')
-                              .doc(businessId)
-                              .set({
-                            'id': businessId,
-                            'businessName': name,
-                            'businessCategory': category,
-                            'placeOfBusiness': place,
-                            'ownerUid': user.uid,
-                            'ownerName': profile?['displayName'] ??
-                                profile?['name'] ??
-                                user.displayName,
-                            'website': website,
-                            'workingHours': workingHours,
-                            'facebook': facebook,
-                            'instagram': instagram,
-                            'tiktok': tiktok,
-                            'x': x,
-                            'linkedin': linkedin,
-                            if (newLogoUrl != null && newLogoUrl.isNotEmpty)
-                              'logoUrl': newLogoUrl,
-                            'updatedAt': FieldValue.serverTimestamp(),
-                          }, SetOptions(merge: true));
-
-                          if (!mounted || !dialogContext.mounted) return;
-                          Navigator.of(dialogContext).pop(true);
-                        },
-                                child: Text(
-                                  isSaving
-                                      ? _tr('Saving...', 'Inahifadhi...')
-                                      : _tr('Save', 'Hifadhi'),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    nameController.dispose();
-    websiteController.dispose();
-    workingHoursController.dispose();
-    facebookController.dispose();
-    instagramController.dispose();
-    tiktokController.dispose();
-    xController.dispose();
-    linkedinController.dispose();
-
-    if (result == true && mounted) {
-      setState(() {
-        _profileFuture = _loadProfile();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_tr('Business updated.', 'Biashara imesasishwa.'))),
-      );
-    }
+    await _openBusinessFormSheet(profile, business: business);
   }
+ 
 
   Future<void> _deleteBusiness(Map<String, dynamic>? profile, Map<String, dynamic> business) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -906,235 +339,677 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     );
   }
 
-  Future<void> _addBusiness(Map<String, dynamic>? profile) async {
+  
+
+  Future<void> _openAddBusinessSheet(Map<String, dynamic>? profile) async {
+    await _openBusinessFormSheet(profile);
+  }
+
+  Future<void> _openBusinessFormSheet(
+    Map<String, dynamic>? profile, {
+    Map<String, dynamic>? business,
+  }) async {
+    final isEditing = business != null;
+    final businessId = business?['id'] as String?;
+    final nameController = TextEditingController(text: (business?['name'] as String?) ?? '');
+    final websiteController = TextEditingController(text: (business?['website'] as String?) ?? '');
+    final workingHoursController = TextEditingController(
+      text: (business?['workingHours'] as String?) ?? '',
+    );
+    final facebookController = TextEditingController(text: (business?['facebook'] as String?) ?? '');
+    final instagramController = TextEditingController(
+      text: (business?['instagram'] as String?) ?? '',
+    );
+    final tiktokController = TextEditingController(text: (business?['tiktok'] as String?) ?? '');
+    final xController = TextEditingController(text: (business?['x'] as String?) ?? '');
+    final linkedinController = TextEditingController(
+      text: (business?['linkedin'] as String?) ?? '',
+    );
+
+    String selectedBusinessType = () {
+      final stored = (business?['category'] as String?) ?? 'Retail';
+      return _businessTypes.any((type) => type['value'] == stored) ? stored : 'Retail';
+    }();
+    String? selectedCity = (business?['placeOfBusiness'] as String?)?.trim();
+    if (selectedCity != null && !_tanzaniaCities.any((city) => city['en'] == selectedCity)) {
+      selectedCity = null;
+    }
+
+    File? pickedLogoFile;
+    final existingLogoUrl = (business?['logoUrl'] as String?)?.trim();
+    const bool isSaving = false;
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final currentName = nameController.text.trim();
+            final initial = currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
+            final title = isEditing
+              ? _tr('Edit business', 'Hariri biashara')
+              : _tr('Add new business', 'Ongeza biashara mpya');
+            final subtitle = isEditing
+              ? _tr('Update the profile and keep everything in sync.', 'Sasisha wasifu na uendelee kusawazisha kila kitu.')
+              : _tr('Create a full business profile in one place.', 'Tengeneza wasifu kamili wa biashara hapa hapa.');
+
+            final headerGradient = isEditing
+              ? const LinearGradient(
+                colors: [AppColors.secondary, AppColors.primaryDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                )
+              : const LinearGradient(
+                colors: [AppColors.primary, AppColors.primaryDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                );
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 14,
+                    bottom: MediaQuery.of(dialogContext).viewInsets.bottom + 18,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 44,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: AppColors.border,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: headerGradient,
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                subtitle,
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Center(
+                          child: GestureDetector(
+                            onTap: isSaving
+                                ? null
+                                : () async {
+                                    final picker = ImagePicker();
+                                    final picked = await picker.pickImage(
+                                      source: ImageSource.gallery,
+                                      maxWidth: 512,
+                                      maxHeight: 512,
+                                      imageQuality: 85,
+                                    );
+                                    if (picked != null && dialogContext.mounted) {
+                                      setDialogState(() => pickedLogoFile = File(picked.path));
+                                    }
+                                  },
+                            child: Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                Container(
+                                  width: 92,
+                                  height: 92,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.yellowBrand,
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: pickedLogoFile != null
+                                      ? Image.file(pickedLogoFile!, fit: BoxFit.cover)
+                                      : (existingLogoUrl != null && existingLogoUrl.isNotEmpty
+                                          ? Image.network(
+                                              existingLogoUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) => _LogoInitial(initial: initial),
+                                            )
+                                          : _LogoInitial(initial: initial)),
+                                ),
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            labelText: _tr('Business name', 'Jina la biashara'),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        MaliSelectField(
+                          placeholder: _tr('Business Type', 'Aina ya Biashara'),
+                          displayValue: () {
+                            final type = _businessTypes.firstWhere(
+                              (type) => type['value'] == selectedBusinessType,
+                              orElse: () => _businessTypes.first,
+                            );
+                            return _tr(type['en'] as String, type['sw'] as String);
+                          }(),
+                          hasValue: true,
+                          onTap: () async {
+                            final selected = await showModalBottomSheet<String>(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => MaliSelectSheet<String>(
+                                title: _tr('Business Type', 'Aina ya Biashara'),
+                                items: _businessTypes.map((type) => type['value'] as String).toList(),
+                                selectedValue: selectedBusinessType,
+                                labelBuilder: (value) {
+                                  final type = _businessTypes.firstWhere(
+                                    (type) => type['value'] == value,
+                                    orElse: () => _businessTypes.first,
+                                  );
+                                  return _tr(type['en'] as String, type['sw'] as String);
+                                },
+                                iconBuilder: (value) {
+                                  final type = _businessTypes.firstWhere(
+                                    (type) => type['value'] == value,
+                                    orElse: () => _businessTypes.first,
+                                  );
+                                  final iconRaw = type['icon'];
+                                  if (iconRaw is IconData) return iconRaw;
+                                  if (iconRaw is String) return LookupService.iconFromName(iconRaw);
+                                  return Icons.category;
+                                },
+                              ),
+                            );
+                            if (selected != null && dialogContext.mounted) {
+                              setDialogState(() => selectedBusinessType = selected);
+                            }
+                          },
+                          icon: Icons.category_rounded,
+                        ),
+                        const SizedBox(height: 12),
+                        MaliSelectField(
+                          placeholder: _tr('City / Region', 'Mji / Mkoa'),
+                          displayValue: () {
+                            if (selectedCity == null) return '';
+                            final city = _tanzaniaCities.firstWhere(
+                              (city) => city['en'] == selectedCity,
+                              orElse: () => _tanzaniaCities.first,
+                            );
+                            return _tr(city['en']!, city['sw']!);
+                          }(),
+                          hasValue: selectedCity != null,
+                          onTap: () async {
+                            final selected = await showModalBottomSheet<String>(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => MaliSelectSheet<String>(
+                                title: _tr('City / Region', 'Mji / Mkoa'),
+                                items: _tanzaniaCities.map((city) => city['en']!).toList(),
+                                selectedValue: selectedCity,
+                                labelBuilder: (value) {
+                                  final city = _tanzaniaCities.firstWhere(
+                                    (city) => city['en'] == value,
+                                    orElse: () => _tanzaniaCities.first,
+                                  );
+                                  return _tr(city['en']!, city['sw']!);
+                                },
+                              ),
+                            );
+                            if (selected != null && dialogContext.mounted) {
+                              setDialogState(() => selectedCity = selected);
+                            }
+                          },
+                          icon: Icons.location_on_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: websiteController,
+                          keyboardType: TextInputType.url,
+                          decoration: InputDecoration(
+                            labelText: _tr('Website (optional)', 'Tovuti (hiari)'),
+                            hintText: 'https://example.com',
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: workingHoursController,
+                          decoration: InputDecoration(
+                            labelText: _tr('Working hours (optional)', 'Muda wa kazi (hiari)'),
+                            hintText: _tr(
+                              'Mon - Sat: 8:00 AM - 6:00 PM',
+                              'Jtatu - Jumamosi: 2:00 Asubuhi - 12:00 Jioni',
+                            ),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _tr('Social media links (optional)', 'Viungo vya mitandao ya kijamii (hiari)'),
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: facebookController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'Facebook',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: instagramController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'Instagram',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: tiktokController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'TikTok',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: xController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'X (Twitter)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: linkedinController,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'LinkedIn',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        if (isEditing) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.error,
+                                side: BorderSide(color: AppColors.error.withValues(alpha: 0.12)),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                                onPressed: () async {
+                                final nameConfirmController = TextEditingController();
+                                final businessName = (business['name'] as String?)?.trim() ?? '';
+                                final confirmed = await showDialog<bool>(
+                                  context: dialogContext,
+                                  barrierDismissible: false,
+                                  builder: (c) => StatefulBuilder(
+                                    builder: (sc, setState) {
+                                      return AlertDialog(
+                                        title: Text(_tr('Confirm deletion', 'Thibitisha kufuta')),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(_tr(
+                                              'Type the business name below to confirm permanent deletion. This action cannot be undone.',
+                                              'Andika jina la biashara hapa chini kuthibitisha ufutaji wa kudumu. Hatua hii haitarudishwa.',
+                                            )),
+                                            const SizedBox(height: 12),
+                                            TextField(
+                                              controller: nameConfirmController,
+                                              decoration: InputDecoration(
+                                                hintText: businessName,
+                                              ),
+                                              onChanged: (_) => setState(() {}),
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(c).pop(false),
+                                            child: Text(_tr('Cancel', 'Ghairi')),
+                                          ),
+                                          TextButton(
+                                            onPressed: nameConfirmController.text.trim() == businessName
+                                                ? () => Navigator.of(c).pop(true)
+                                                : null,
+                                            child: Text(
+                                              _tr('Delete permanently', 'Futa kudumu'),
+                                              style: const TextStyle(color: Colors.redAccent),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                );
+                                if (confirmed == true) {
+                                  if (mounted) Navigator.of(context).pop();
+                                  await _deleteBusiness(profile, business);
+                                }
+                              },
+                              icon: const Icon(Icons.delete_outline_rounded),
+                              label: Text(_tr('Delete business', 'Futa biashara')),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: isSaving
+                                    ? null
+                                    : () => Navigator.of(dialogContext).pop(false),
+                                child: Text(_tr('Cancel', 'Ghairi')),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isEditing ? AppColors.primaryDark : null,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                icon: Icon(isEditing ? Icons.save_rounded : Icons.add_business_rounded),
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        final saved = await _saveBusinessForm(
+                                          profile: profile,
+                                          businessId: businessId,
+                                          name: nameController.text.trim(),
+                                          category: selectedBusinessType,
+                                          place: selectedCity ?? '',
+                                          website: websiteController.text,
+                                          workingHours: workingHoursController.text,
+                                          facebook: facebookController.text,
+                                          instagram: instagramController.text,
+                                          tiktok: tiktokController.text,
+                                          x: xController.text,
+                                          linkedin: linkedinController.text,
+                                          pickedLogoFile: pickedLogoFile,
+                                          existingLogoUrl: existingLogoUrl,
+                                        );
+
+                                        if (saved && mounted && dialogContext.mounted) {
+                                          Navigator.of(dialogContext).pop(true);
+                                        }
+                                      },
+                                label: Text(
+                                  isSaving
+                                      ? _tr('Saving...', 'Inahifadhi...')
+                                      : isEditing
+                                          ? _tr('Save changes', 'Hifadhi mabadiliko')
+                                          : _tr('Add business', 'Ongeza biashara'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    websiteController.dispose();
+    workingHoursController.dispose();
+    facebookController.dispose();
+    instagramController.dispose();
+    tiktokController.dispose();
+    xController.dispose();
+    linkedinController.dispose();
+
+    if (result == true && mounted) {
+      setState(() {
+        _profileFuture = _loadProfile();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEditing ? _tr('Business updated.', 'Biashara imesasishwa.') : _tr('Business added.', 'Biashara imeongezwa.'),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<bool> _saveBusinessForm({
+    required Map<String, dynamic>? profile,
+    required String? businessId,
+    required String name,
+    required String category,
+    required String place,
+    required String website,
+    required String workingHours,
+    required String facebook,
+    required String instagram,
+    required String tiktok,
+    required String x,
+    required String linkedin,
+    File? pickedLogoFile,
+    String? existingLogoUrl,
+  }) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) return false;
 
-    final businessName = _businessNameController.text.trim();
-    final placeOfBusiness = _selectedCity ?? '';
-
-    if (businessName.isEmpty || placeOfBusiness.isEmpty) {
+    if (name.isEmpty || place.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_tr(
-            'Please fill business name and select a location.',
-            'Tafadhali jaza jina la biashara na chagua mahali.',
-          )),
+            'Business name and place are required.',
+            'Jina la biashara na mahali vinahitajika.')),
         ),
       );
-      return;
+      return false;
     }
 
     setState(() => _isSaving = true);
     try {
-      final businessId = _firestore
+      final resolvedBusinessId = businessId ?? _firestore
           .collection('tenants')
           .doc(user.uid)
           .collection('businesses')
           .doc()
           .id;
-      final existingBusinesses = _businessesFromProfile(profile);
-      final createdAtIso = DateTime.now().toIso8601String();
-      final newBusinesses = [
-        ...existingBusinesses,
-        {
-          'id': businessId,
-          'name': businessName,
-          'category': _selectedBusinessType,
-          'placeOfBusiness': placeOfBusiness,
-          // FieldValue.serverTimestamp is not allowed inside arrays.
-          'createdAt': createdAtIso,
-        },
-      ];
+      final websiteValue = _normalizeOptionalUrl(website);
+      final workingHoursValue = workingHours.trim();
+      final facebookValue = _normalizeOptionalUrl(facebook);
+      final instagramValue = _normalizeOptionalUrl(instagram);
+      final tiktokValue = _normalizeOptionalUrl(tiktok);
+      final xValue = _normalizeOptionalUrl(x);
+      final linkedinValue = _normalizeOptionalUrl(linkedin);
 
-      await _firestore.collection('users').doc(user.uid).set({
-        'businesses': newBusinesses,
-        'selectedBusinessId': businessId,
-        'defaultContext': 'business:$businessId',
-        'defaultAccountType': 'business',
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      String? newLogoUrl = existingLogoUrl;
+      if (pickedLogoFile != null) {
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
+        try {
+          newLogoUrl = await _uploadBusinessLogo(
+            userId: user.uid,
+            businessId: resolvedBusinessId,
+            file: pickedLogoFile,
+          );
+        } on FirebaseException catch (e) {
+          debugPrint('Logo upload failed: ${e.code} ${e.message}');
+          if (mounted) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  _tr(
+                    'Logo upload failed. Business details were saved without changing logo.',
+                    'Kupakia nembo kumeshindikana. Taarifa za biashara zimehifadhiwa bila kubadilisha nembo.',
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+      }
+
+      final existingBusinesses = _businessesFromProfile(profile);
+      final updatedBusinesses = businessId == null
+          ? [
+              ...existingBusinesses,
+              {
+                'id': resolvedBusinessId,
+                'name': name,
+                'category': category,
+                'placeOfBusiness': place,
+                'website': websiteValue,
+                'workingHours': workingHoursValue,
+                'facebook': facebookValue,
+                'instagram': instagramValue,
+                'tiktok': tiktokValue,
+                'x': xValue,
+                'linkedin': linkedinValue,
+                if (newLogoUrl != null && newLogoUrl.isNotEmpty) 'logoUrl': newLogoUrl,
+                'createdAt': DateTime.now().toIso8601String(),
+              },
+            ]
+          : existingBusinesses.map((entry) {
+              if (entry['id'] != resolvedBusinessId) return entry;
+              return <String, dynamic>{
+                ...entry,
+                'name': name,
+                'category': category,
+                'placeOfBusiness': place,
+                'website': websiteValue,
+                'workingHours': workingHoursValue,
+                'facebook': facebookValue,
+                'instagram': instagramValue,
+                'tiktok': tiktokValue,
+                'x': xValue,
+                'linkedin': linkedinValue,
+                if (newLogoUrl != null && newLogoUrl.isNotEmpty) 'logoUrl': newLogoUrl,
+              };
+            }).toList();
+
+      await _persistBusinesses(
+        userId: user.uid,
+        businesses: updatedBusinesses,
+        selectedBusinessId: _selectedBusinessId(profile) ?? resolvedBusinessId,
+      );
 
       await _firestore
           .collection('tenants')
           .doc(user.uid)
           .collection('businesses')
-          .doc(businessId)
+          .doc(resolvedBusinessId)
           .set({
-        'id': businessId,
-        'businessName': businessName,
-        'businessCategory': _selectedBusinessType,
-        'placeOfBusiness': placeOfBusiness,
+        'id': resolvedBusinessId,
+        'businessName': name,
+        'businessCategory': category,
+        'placeOfBusiness': place,
         'ownerUid': user.uid,
         'ownerName': profile?['displayName'] ?? profile?['name'] ?? user.displayName,
-        'createdAt': FieldValue.serverTimestamp(),
-        'plan': 'Trial',
+        'website': websiteValue,
+        'workingHours': workingHoursValue,
+        'facebook': facebookValue,
+        'instagram': instagramValue,
+        'tiktok': tiktokValue,
+        'x': xValue,
+        'linkedin': linkedinValue,
+        if (newLogoUrl != null && newLogoUrl.isNotEmpty) 'logoUrl': newLogoUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (businessId == null) 'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      if (!mounted) return;
-      setState(() {
-        _profileFuture = _loadProfile();
-        _businessNameController.clear();
-        _selectedBusinessType = 'Retail';
-        _selectedCity = null;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_tr(
-            'Business added and set active.',
-            'Biashara imeongezwa na kuwekwa hai.',
-          )),
-        ),
-      );
+      return true;
     } on FirebaseException catch (e) {
-      debugPrint('Add business failed: ${e.code} ${e.message}');
-      if (!mounted) return;
+      debugPrint('Business save failed: ${e.code} ${e.message}');
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             _tr(
-              'Could not add business right now. Please try again.',
-              'Imeshindikana kuongeza biashara kwa sasa. Tafadhali jaribu tena.',
+              'Could not save business right now. Please try again.',
+              'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
             ),
           ),
         ),
       );
+      return false;
     } catch (e) {
-      debugPrint('Add business failed: $e');
-      if (!mounted) return;
+      debugPrint('Business save failed: $e');
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             _tr(
-              'Could not add business right now. Please try again.',
-              'Imeshindikana kuongeza biashara kwa sasa. Tafadhali jaribu tena.',
+              'Could not save business right now. Please try again.',
+              'Imeshindikana kuhifadhi biashara kwa sasa. Tafadhali jaribu tena.',
             ),
           ),
         ),
       );
+      return false;
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
       }
     }
-  }
-
-  Future<void> _openAddBusinessSheet(Map<String, dynamic>? profile) async {
-    _businessNameController.clear();
-    _selectedBusinessType = 'Retail';
-    _selectedCity = null;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => Container(
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 16,
-                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.border,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _tr('Add New Business', 'Ongeza Biashara Mpya'),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _businessNameController,
-                      decoration: InputDecoration(
-                        labelText: _tr('Business name', 'Jina la biashara'),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    MaliSelectField(
-                      placeholder: _tr('Business Type', 'Aina ya Biashara'),
-                      displayValue: () {
-                        final type = _businessTypes.firstWhere(
-                          (t) => t['value'] == _selectedBusinessType,
-                          orElse: () => _businessTypes.first,
-                        );
-                        return _tr(type['en'] as String, type['sw'] as String);
-                      }(),
-                      hasValue: true,
-                      onTap: () async {
-                        await _showAddBusinessTypeSheet();
-                        setSheetState(() {});
-                      },
-                      icon: Icons.category_rounded,
-                    ),
-                    const SizedBox(height: 12),
-                    MaliSelectField(
-                      placeholder: _tr('City / Region', 'Mji / Mkoa'),
-                      displayValue: () {
-                        if (_selectedCity == null) return '';
-                        final city = _tanzaniaCities.firstWhere(
-                          (c) => c['en'] == _selectedCity,
-                          orElse: () => _tanzaniaCities.first,
-                        );
-                        return _tr(city['en']!, city['sw']!);
-                      }(),
-                      hasValue: _selectedCity != null,
-                      onTap: () async {
-                        await _showAddCitySheet();
-                        setSheetState(() {});
-                      },
-                      icon: Icons.location_on_outlined,
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _isSaving
-                            ? null
-                            : () async {
-                                await _addBusiness(profile);
-                                if (!mounted || !sheetContext.mounted) return;
-                                Navigator.of(sheetContext).pop();
-                              },
-                        icon: const Icon(Icons.add_business_rounded),
-                        label: Text(
-                          _isSaving
-                              ? _tr('Saving...', 'Inahifadhi...')
-                              : _tr('Add business', 'Ongeza biashara'),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _openBusinessActionsSheet(
@@ -1143,90 +1018,96 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   ) async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                (business['name'] ?? '').toString(),
-                style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 10),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.edit_rounded, color: AppColors.primary),
-                title: Text(_tr('Edit business info', 'Hariri taarifa za biashara')),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  await _editBusiness(profile, business);
-                },
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
-                title: Text(_tr('Delete business', 'Futa biashara')),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  await _deleteBusiness(profile, business);
-                },
-              ),
-            ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-      ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.secondary, AppColors.primaryDark],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (business['name'] ?? '').toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _tr('Manage, edit, or remove this business.', 'Simamia, hariri, au futa biashara hii.'),
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _ActionSheetButton(
+                    icon: Icons.edit_rounded,
+                    title: _tr('Edit business info', 'Hariri taarifa za biashara'),
+                    subtitle: _tr('Open the business form.', 'Fungua fomu ya biashara.'),
+                    color: AppColors.primary,
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await _editBusiness(profile, business);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionSheetButton(
+                    icon: Icons.delete_outline_rounded,
+                    title: _tr('Delete business', 'Futa biashara'),
+                    subtitle: _tr('Remove it from your profile.', 'Ondoa kwenye wasifu wako.'),
+                    color: AppColors.error,
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await _deleteBusiness(profile, business);
+                    },
+                    destructive: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Future<void> _openBusinessSwitcherSheet(
-    List<Map<String, dynamic>> businesses,
-    String? selectedBusinessId,
-  ) async {
-    if (businesses.isEmpty) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: ListView.separated(
-          shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          itemCount: businesses.length,
-          separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (_, i) {
-            final b = businesses[i];
-            final isActive = b['id'] == selectedBusinessId;
-            return ListTile(
-              title: Text((b['name'] ?? '').toString()),
-              subtitle: Text('${b['category']} • ${b['placeOfBusiness']}'),
-              trailing:
-                  isActive ? const Icon(Icons.check_circle, color: AppColors.success) : null,
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await _switchToBusiness(b);
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _switchToNextBusiness(
-    List<Map<String, dynamic>> businesses,
-    String? selectedBusinessId,
-  ) async {
-    if (businesses.length < 2) return;
-    final currentIndex = businesses.indexWhere((b) => b['id'] == selectedBusinessId);
-    final nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % businesses.length;
-    await _switchToBusiness(businesses[nextIndex]);
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -1245,36 +1126,32 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
               if (businesses.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
-                  child: GestureDetector(
-                    onTap: () => _openBusinessSwitcherSheet(businesses, selectedBusinessId),
-                    onDoubleTap: () => _switchToNextBusiness(businesses, selectedBusinessId),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.primary),
-                          const SizedBox(width: 6),
-                          Text(
-                            (() {
-                              for (final b in businesses) {
-                                if (b['id'] == selectedBusinessId) {
-                                  return (b['name'] ?? '').toString();
-                                }
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.business_center_rounded, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          (() {
+                            for (final b in businesses) {
+                              if (b['id'] == selectedBusinessId) {
+                                return (b['name'] ?? '').toString();
                               }
-                              return (businesses.first['name'] ?? '').toString();
-                            })(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.secondary,
-                            ),
+                            }
+                            return (businesses.first['name'] ?? '').toString();
+                          })(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.secondary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1284,7 +1161,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             padding: const EdgeInsets.all(20),
             children: [
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
@@ -1296,36 +1173,53 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _tr('Start here', 'Anza hapa'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     Text(
                       _tr(
-                        'Adding another business is important for growth',
-                        'Kuongeza biashara nyingine ni muhimu kwa ukuaji',
+                        'Add a new business first',
+                        'Ongeza biashara mpya kwanza',
                       ),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
-                        fontSize: 18,
+                        fontSize: 20,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
                       _tr(
-                        'Set up a new business profile quickly and manage each business separately.',
-                        'Tengeneza wasifu mpya wa biashara haraka na usimamie kila biashara kivyake.',
+                        'Create a separate profile for every business and keep each one organized.',
+                        'Tengeneza wasifu tofauti kwa kila biashara na uitunze kila moja ikiwa imepangwa vizuri.',
                       ),
                       style: const TextStyle(color: Colors.white70),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton.icon(
+                        child: FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: AppColors.primaryDark,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         onPressed: _isSaving ? null : () => _openAddBusinessSheet(profile),
                         icon: const Icon(Icons.add_business_rounded),
-                        child: Text(
+                        label: Text(
                           _isSaving
                               ? _tr('Saving...', 'Inahifadhi...')
                               : _tr('Add New Business', 'Ongeza Biashara Mpya'),
@@ -1391,38 +1285,32 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                           title: Text(name),
                           subtitle: Text(
                               '${business['category']} • ${business['placeOfBusiness']}'),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                _editBusiness(profile, business);
-                              }
-                              if (value == 'delete') {
-                                _deleteBusiness(profile, business);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              PopupMenuItem<String>(
-                                value: 'edit',
-                                child: Text(_tr('Edit', 'Hariri')),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'delete',
-                                child: Text(_tr('Delete', 'Futa')),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (selectedBusinessId == business['id'])
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: Text(
+                                    _tr('Active', 'Hai'),
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                padding: EdgeInsets.zero,
+                                onPressed: () => _openBusinessActionsSheet(profile, business),
+                                icon: const Icon(Icons.more_vert_rounded),
+                                color: AppColors.textSecondary,
+                                tooltip: _tr('Business actions', 'Vitendo vya biashara'),
                               ),
                             ],
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (selectedBusinessId == business['id'])
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: Text(_tr('Active', 'Hai')),
-                                  ),
-                                const Icon(Icons.more_vert_rounded),
-                              ],
-                            ),
                           ),
-                          onTap: () => _switchToBusiness(business),
+                          onTap: () => _openBusinessActionsSheet(profile, business),
                         ),
                       ),
                     );
@@ -1449,6 +1337,89 @@ class _LogoInitial extends StatelessWidget {
           color: AppColors.navyPrimary,
           fontSize: 32,
           fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionSheetButton extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  const _ActionSheetButton({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: destructive ? color.withValues(alpha: 0.08) : color.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: destructive ? color.withValues(alpha: 0.18) : color.withValues(alpha: 0.12),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: destructive ? AppColors.error : AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: destructive ? AppColors.error : color,
+              ),
+            ],
+          ),
         ),
       ),
     );

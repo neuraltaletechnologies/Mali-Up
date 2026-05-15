@@ -651,7 +651,6 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                 children: [
                   // ── Header: chip · brand · logo ───────────────────
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const _CardChip(),
                       const SizedBox(width: 14),
@@ -659,7 +658,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'MALI UP',
                               style: TextStyle(
                                 color: AppColors.yellowBrand,
@@ -715,7 +714,6 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
 
                   // ── Balance ───────────────────────────────────────
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         child: Column(

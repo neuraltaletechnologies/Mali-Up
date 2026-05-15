@@ -774,6 +774,115 @@ class _FinanceContextSwitcher extends StatelessWidget {
     return selectedContext.split(':').sublist(1).join(':');
   }
 
+  String _businessLabel(Map<String, dynamic> business) {
+    final name = (business['name'] as String?)?.trim();
+    return name != null && name.isNotEmpty
+        ? name
+        : LocalizationService.isSwahili
+            ? 'Muktadha wa Biashara'
+            : 'Business Context';
+  }
+
+  Future<void> _openBusinessSwitcherSheet(
+    BuildContext context,
+    String? selectedBusinessId,
+  ) async {
+    if (!canSwitch || businesses.isEmpty) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final isSwahili = LocalizationService.isSwahili;
+        String tr(String en, String sw) => isSwahili ? sw : en;
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('Switch business', 'Badili biashara'),
+                  style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  tr('Tap a business to open it.', 'Gusa biashara kuifungua.'),
+                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: businesses.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (_, index) {
+                      final business = businesses[index];
+                      final isActive = business['id'] == selectedBusinessId;
+
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.secondary.withValues(alpha: 0.12),
+                          child: const Icon(
+                            Icons.business_center_rounded,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                        title: Text(
+                          _businessLabel(business),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          '${(business['category'] ?? '').toString()} • ${(business['placeOfBusiness'] ?? '').toString()}',
+                        ),
+                        trailing: isActive
+                            ? const Icon(Icons.check_circle_rounded, color: AppColors.success)
+                            : null,
+                        onTap: () async {
+                          Navigator.of(sheetContext).pop();
+                          onChanged('business:${business['id']}');
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (onManageBusinesses != null)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        onManageBusinesses();
+                      },
+                      icon: const Icon(Icons.settings_rounded),
+                      label: Text(tr('Manage businesses', 'Simamia biashara')),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _switchToNextBusiness() {
+    if (!canSwitch || businesses.length < 2) return;
+    final currentBusinessId = _selectedBusinessId();
+    final currentIndex = businesses.indexWhere((business) => business['id'] == currentBusinessId);
+    final nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % businesses.length;
+    onChanged('business:${businesses[nextIndex]['id']}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSwahili = LocalizationService.isSwahili;
@@ -791,69 +900,11 @@ class _FinanceContextSwitcher extends StatelessWidget {
     final label = (selectedBusiness?['name'] as String?)?.trim().isNotEmpty == true
         ? (selectedBusiness!['name'] as String).trim()
         : tr('Business', 'Biashara');
-    const icon = Icons.business_center_rounded;
 
-    return PopupMenuButton<String>(
-      enabled: canSwitch,
-      tooltip: canSwitch
-        ? tr('Switch finance context', 'Badili muktadha wa fedha')
-        : tr('Single account context', 'Muktadha mmoja wa akaunti'),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 8,
-      offset: const Offset(0, 48),
-      onSelected: (value) {
-        if (value == 'manage_businesses') {
-          onManageBusinesses();
-          return;
-        }
-        onChanged(value);
-      },
-      itemBuilder: (context) {
-        return <PopupMenuEntry<String>>[
-          if (businesses.isNotEmpty) const PopupMenuDivider(),
-          ...businesses.map(
-            (business) => PopupMenuItem<String>(
-              value: 'business:${business['id']}',
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.business_center_rounded, size: 20, color: AppColors.secondary),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      (business['name'] as String?)?.trim().isNotEmpty == true
-                          ? (business['name'] as String).trim()
-                          : tr('Business Context', 'Muktadha wa Biashara'),
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const PopupMenuDivider(),
-          PopupMenuItem<String>(
-            value: 'manage_businesses',
-            child: Row(
-              children: [
-                const Icon(Icons.settings_rounded, size: 20, color: AppColors.textSecondary),
-                const SizedBox(width: 12),
-                Text(
-                  tr('Manage businesses', 'Simamia biashara'),
-                  style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ];
-      },
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: canSwitch ? () => _openBusinessSwitcherSheet(context, selectedBusinessId) : null,
+      onDoubleTap: canSwitch ? _switchToNextBusiness : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -871,15 +922,19 @@ class _FinanceContextSwitcher extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: canSwitch ? AppColors.primary : AppColors.secondary),
+            const Icon(Icons.business_center_rounded, size: 16, color: AppColors.primary),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: canSwitch ? AppColors.primary : AppColors.secondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 130),
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: canSwitch ? AppColors.primary : AppColors.secondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
             if (canSwitch) ...[
