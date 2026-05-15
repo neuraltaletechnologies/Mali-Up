@@ -19,8 +19,8 @@ const os = require('os');
 let initialized = false;
 
 // Try Option 1: Service account key via GOOGLE_APPLICATION_CREDENTIALS
-const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-if (keyPath) {
+const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.join(os.homedir(), '.firebase', 'neuraltale-key.json');
+if (fs.existsSync(keyPath)) {
   try {
     const serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
     admin.initializeApp({
@@ -36,16 +36,11 @@ if (keyPath) {
 // Try Option 2: Firebase CLI credentials
 if (!initialized) {
   try {
-    // Firebase CLI stores credentials in ~/.firebase/
-    const firebaseCreds = path.join(os.homedir(), '.firebase', 'credentials');
-    if (fs.existsSync(firebaseCreds)) {
-      process.env.GOOGLE_APPLICATION_CREDENTIALS = firebaseCreds;
-      admin.initializeApp({
-        credential: admin.credential.applicationDefault(),
-      });
-      console.log('✓ Initialized with Firebase CLI credentials');
-      initialized = true;
-    }
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+    });
+    console.log('✓ Initialized with application default credentials');
+    initialized = true;
   } catch (e) {
     // Continue to try other methods
   }
