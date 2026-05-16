@@ -950,51 +950,58 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
 
-    return SizedBox(
-      height: size.height * 0.93,
-      width: size.width,
-      child: Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        clipBehavior: Clip.antiAlias,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            24,
-            0,
-            24,
-            MediaQuery.of(context).viewInsets.bottom + 32,
+    return LayoutBuilder(
+      builder: (context, parentConstraints) {
+        final width = parentConstraints.hasBoundedWidth
+            ? parentConstraints.maxWidth
+            : size.width;
+        return SizedBox(
+          height: size.height * 0.93,
+          width: width,
+          child: Material(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                0,
+                24,
+                MediaQuery.of(context).viewInsets.bottom + 32,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _dragHandle(),
+                  _header(),
+                  const SizedBox(height: 20),
+                  _productField(),
+                  if (_showProductSuggs) _productSuggestions(),
+                  if (_productCtrl.text.isNotEmpty && _selectedItem == null) _addProductHint(),
+                  const SizedBox(height: 14),
+                  _priceAndQty(),
+                  if (_selectedItem != null) ...[
+                    const SizedBox(height: 6),
+                    _stockBadge(),
+                  ],
+                  const SizedBox(height: 14),
+                  _customerField(),
+                  if (_showCustomerSuggs) _customerSuggestions(),
+                  const SizedBox(height: 14),
+                  _paymentToggle(),
+                  if (_payStatus == _PayStatus.partial) ...[
+                    const SizedBox(height: 12),
+                    _amountPaidField(),
+                  ],
+                  const SizedBox(height: 24),
+                  _footer(),
+                ],
+              ),
+            ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _dragHandle(),
-              _header(),
-              const SizedBox(height: 20),
-              _productField(),
-              if (_showProductSuggs) _productSuggestions(),
-              if (_productCtrl.text.isNotEmpty && _selectedItem == null) _addProductHint(),
-              const SizedBox(height: 14),
-              _priceAndQty(),
-              if (_selectedItem != null) ...[
-                const SizedBox(height: 6),
-                _stockBadge(),
-              ],
-              const SizedBox(height: 14),
-              _customerField(),
-              if (_showCustomerSuggs) _customerSuggestions(),
-              const SizedBox(height: 14),
-              _paymentToggle(),
-              if (_payStatus == _PayStatus.partial) ...[
-                const SizedBox(height: 12),
-                _amountPaidField(),
-              ],
-              const SizedBox(height: 24),
-              _footer(),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 

@@ -27,12 +27,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   late final VoidCallback _languageListener;
   late final VoidCallback _motionListener;
+  late final VoidCallback _lockListener;
+  late final VoidCallback _biometricListener;
   AppLanguage _selectedLanguage = LocalizationService.languageNotifier.value;
   bool _reducedMotionEnabled = MotionService.reducedMotionNotifier.value;
   bool _isLoadingLanguage = false;
   bool _notificationsEnabled = true;
   bool _emailAlertsEnabled = false;
-  bool _appLockEnabled = false;
+  bool _appLockEnabled = SecurityService.lockEnabledNotifier.value;
+  bool _biometricEnabled = SecurityService.biometricEnabledNotifier.value;
 
   String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -50,14 +53,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       setState(() => _reducedMotionEnabled = MotionService.reducedMotionNotifier.value);
     };
+    _lockListener = () {
+      if (!mounted) return;
+      setState(() => _appLockEnabled = SecurityService.lockEnabledNotifier.value);
+    };
+    _biometricListener = () {
+      if (!mounted) return;
+      setState(() => _biometricEnabled = SecurityService.biometricEnabledNotifier.value);
+    };
     LocalizationService.languageNotifier.addListener(_languageListener);
     MotionService.reducedMotionNotifier.addListener(_motionListener);
+    SecurityService.lockEnabledNotifier.addListener(_lockListener);
+    SecurityService.biometricEnabledNotifier.addListener(_biometricListener);
   }
 
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
     MotionService.reducedMotionNotifier.removeListener(_motionListener);
+    SecurityService.lockEnabledNotifier.removeListener(_lockListener);
+    SecurityService.biometricEnabledNotifier.removeListener(_biometricListener);
     super.dispose();
   }
 
@@ -94,6 +109,162 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _showSnackBar(enabled
         ? _tr('Reduced motion enabled', 'Mwendo uliopunguzwa umewashwa')
         : _tr('Reduced motion disabled', 'Mwendo uliopunguzwa umezimwa'));
+  }
+
+  Future<void> _toggleAppLock(bool enable) async {
+    if (enable) {
+      final success = await showPinSetupSheet(context);
+      if (!mounted) return;
+      if (success != true) {
+        setState(() => _appLockEnabled = SecurityService.lockEnabledNotifier.value);
+      }
+    } else {
+      final verified = await _showPinVerifyDialog(
+        title: _tr('Disable App Lock', 'Zima Kufunga Programu'),
+        message: _tr(
+          'Enter your PIN to disable App Lock.',
+          'Ingiza PIN yako kuzima Kufunga Programu.',
+        ),
+      );
+      if (!mounted) return;
+      if (verified) {
+        await SecurityService.disableAppLock();
+        _showSnackBar(_tr('App Lock disabled', 'Kufunga programu kumezimwa'));
+      } else {
+        setState(() => _appLockEnabled = true);
+      }
+    }
+  }
+
+  Future<bool> _showPinVerifyDialog({
+    required String title,
+    required String message,
+  }) async {
+    final controller = TextEditingController();
+    bool wrongPin = false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                maxLength: 4,
+                autofocus: true,
+                onChanged: (_) {
+                  if (wrongPin) setDialogState(() => wrongPin = false);
+                },
+                decoration: InputDecoration(
+                  hintText: '••••',
+                  counterText: '',
+                  errorText: wrongPin ? _tr('Incorrect PIN', 'PIN si sahihi') : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, letterSpacing: 10),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: Text(
+                _tr('Cancel', 'Ghairi'),
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () async {
+                final correct = await SecurityService.verifyPin(controller.text);
+                if (correct) {
+                  if (dialogCtx.mounted) Navigator.pop(dialogCtx, true);
+                } else {
+                  controller.clear();
+                  setDialogState(() => wrongPin = true);
+                }
+              },
+              child: Text(_tr('Confirm', 'Thibitisha')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    controller.dispose();
+    return result == true;
+  }
+
+  Future<void> _toggleBiometric(bool enable) async {
+    if (enable) {
+      final available = await SecurityService.canUseBiometrics();
+      if (!mounted) return;
+      if (!available) {
+        _showSnackBar(_tr(
+          'Biometrics not available on this device',
+          'Alama ya kidole haipatikani kwenye kifaa hiki',
+        ));
+        setState(() => _biometricEnabled = false);
+        return;
+      }
+      await SecurityService.enableBiometric();
+      if (!mounted) return;
+      _showSnackBar(_tr(
+        'Biometric login enabled',
+        'Kuingia kwa alama ya kidole kumewashwa',
+      ));
+    } else {
+      await SecurityService.disableBiometric();
+      if (!mounted) return;
+      _showSnackBar(_tr(
+        'Biometric login disabled',
+        'Kuingia kwa alama ya kidole kumezimwa',
+      ));
+    }
+  }
+
+  Future<void> _changePin() async {
+    final success = await showPinChangeSheet(context);
+    if (!mounted) return;
+    if (success == true) {
+      _showSnackBar(_tr('PIN changed successfully', 'PIN imebadilishwa'));
+    }
   }
 
   Future<void> _openExternalLink(String url) async {
@@ -329,10 +500,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: _tr('Require PIN to open the app', 'Hitaji PIN kufungua programu'),
                 trailing: Switch.adaptive(
                   value: _appLockEnabled,
-                  onChanged: (v) {
-                    setState(() => _appLockEnabled = v);
-                    _showComingSoon(_tr('App lock', 'Kufunga programu'));
-                  },
+                  onChanged: _toggleAppLock,
                   activeThumbColor: Colors.white,
                   activeTrackColor: AppColors.secondary,
                 ),
@@ -344,13 +512,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.secondary,
                 title: _tr('Biometric Login', 'Kuingia kwa Alama ya Kidole'),
                 subtitle: _tr('Fingerprint or Face ID', 'Alama ya kidole au uso'),
-                onTap: () => _showComingSoon(
-                  _tr('Biometric login', 'Kuingia kwa alama ya kidole'),
-                ),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
+                trailing: Switch.adaptive(
+                  value: _biometricEnabled,
+                  onChanged: _appLockEnabled ? _toggleBiometric : null,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppColors.secondary,
                 ),
               ),
               const _TileDivider(),
@@ -360,11 +526,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.error,
                 title: _tr('Change PIN', 'Badili PIN'),
                 subtitle: _tr('Update your security PIN', 'Sasisha PIN yako ya usalama'),
-                onTap: () => _showComingSoon(_tr('Change PIN', 'Badili PIN')),
-                trailing: const Icon(
+                onTap: _appLockEnabled ? _changePin : null,
+                trailing: Icon(
                   Icons.chevron_right_rounded,
                   size: 20,
-                  color: AppColors.textMuted,
+                  color: _appLockEnabled ? AppColors.textMuted : AppColors.textDisabled,
                 ),
               ),
             ],
