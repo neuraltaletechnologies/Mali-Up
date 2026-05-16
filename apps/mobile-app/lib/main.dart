@@ -9,6 +9,8 @@ import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
 import 'package:mali_up/core/services/localization_service.dart';
 import 'package:mali_up/core/services/motion_service.dart';
+import 'package:mali_up/core/services/security_service.dart';
+import 'package:mali_up/features/security/presentation/screens/pin_lock_screen.dart';
 import 'firebase_options.dart';
 
 const String _onboardingCompletedKey = 'onboarding_completed';
@@ -36,6 +38,7 @@ Future<void> main() async {
   await Future.wait([
     LocalizationService.initializeWithPrefs(prefs),
     MotionService.initializeWithPrefs(prefs),
+    SecurityService.initialize(),
   ]);
 
   final hasCompletedOnboarding =
@@ -67,12 +70,13 @@ class MaliUpApp extends StatefulWidget {
   State<MaliUpApp> createState() => _MaliUpAppState();
 }
 
-class _MaliUpAppState extends State<MaliUpApp> {
+class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
   late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _router = AppRouter.createRouter(
       showLanguageSelection: !widget.hasSelectedLanguage,
       showOnboarding:
@@ -82,33 +86,58 @@ class _MaliUpAppState extends State<MaliUpApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
     super.dispose();
   }
 
+  // Lock the app whenever it moves to the background.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      SecurityService.lockApp();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<AppLanguage>(
-      valueListenable: LocalizationService.languageNotifier,
-      builder: (context, language, _) {
-        return ValueListenableBuilder<bool>(
-          valueListenable: MotionService.reducedMotionNotifier,
-          builder: (context, reducedMotion, child) {
-            return MaterialApp.router(
-              title: 'Mali Up',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              locale: Locale(language.code),
-              supportedLocales: const [
-                Locale('en'),
-                Locale('sw'),
-              ],
-              localizationsDelegates: const [
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              routerConfig: _router,
+    return ValueListenableBuilder<bool>(
+      valueListenable: SecurityService.isLockedNotifier,
+      builder: (context, isLocked, _) {
+        // When locked, show the PIN lock screen as a standalone MaterialApp
+        // so it sits on top of everything and cannot be bypassed.
+        if (isLocked) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            home: const PinLockScreen(),
+          );
+        }
+
+        return ValueListenableBuilder<AppLanguage>(
+          valueListenable: LocalizationService.languageNotifier,
+          builder: (context, language, _) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: MotionService.reducedMotionNotifier,
+              builder: (context, reducedMotion, child) {
+                return MaterialApp.router(
+                  title: 'Mali Up',
+                  debugShowCheckedModeBanner: false,
+                  theme: AppTheme.lightTheme,
+                  locale: Locale(language.code),
+                  supportedLocales: const [
+                    Locale('en'),
+                    Locale('sw'),
+                  ],
+                  localizationsDelegates: const [
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  routerConfig: _router,
+                );
+              },
             );
           },
         );
