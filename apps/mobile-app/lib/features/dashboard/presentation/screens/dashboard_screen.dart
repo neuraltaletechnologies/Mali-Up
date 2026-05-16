@@ -183,7 +183,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               return SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   20,
-                  MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+                  MediaQuery.of(context).padding.top + kToolbarHeight - 2,
                   20,
                   32,
                 ),
@@ -567,8 +567,8 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final name = widget.businessName ?? _tr('My Business', 'Biashara yangu');
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
-        ? ' ${_fmtCompactAmount(widget.totalCash)}'
-        : ' ••••••••';
+        ? 'TZS ${_fmtCompactAmount(widget.totalCash)}'
+        : 'TZS ••••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
     final expText = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
     final net = widget.totalCash - widget.totalExpenses;

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -279,8 +278,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<bool> _hasInternetConnection() async {
-    final result = await Connectivity().checkConnectivity();
-    return result != ConnectivityResult.none;
+    final results = await Connectivity().checkConnectivity();
+    return !results.contains(ConnectivityResult.none) || results.isNotEmpty;
   }
 
   Future<void> _handleRegistration() async {
@@ -587,7 +586,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Premium gradient header
+          // Brand header — navy gradient with logo identity
           Positioned(
             left: 0,
             right: 0,
@@ -598,22 +597,78 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppColors.primary, AppColors.primaryDark],
+                  colors: [Color(0xFF0D1B3E), Color(0xFF102147), Color(0xFF0A1628)],
+                  stops: [0.0, 0.55, 1.0],
                 ),
               ),
               child: Stack(
-                fit: StackFit.expand,
                 children: [
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 64, 24, 24),
-                      child: Lottie.asset(
-                        'assets/lottie/Login.json',
-                        key: const ValueKey('register-hero-lottie'),
-                        fit: BoxFit.contain,
-                        repeat: false,
-                        animate: true,
+                  Positioned(
+                    right: -60,
+                    top: -60,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFFC107).withValues(alpha: 0.06),
                       ),
+                    ),
+                  ),
+                  Positioned(
+                    left: -40,
+                    bottom: 10,
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.03),
+                      ),
+                    ),
+                  ),
+                  SafeArea(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFFFC107),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFFC107).withValues(alpha: 0.35),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(14),
+                          child: const MaliUpLogo(size: 44),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'MALI UP',
+                          style: TextStyle(
+                            color: Color(0xFFFFC107),
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Create your business workspace',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -623,62 +678,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // Top navigation bar
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Material(
-                    color: Colors.white.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => context.go(AppRouter.loginPath),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
+                  IconButton(
+                    onPressed: () => context.go(AppRouter.loginPath),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(10),
                     ),
                   ),
-                  Material(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _openWhatsAppHelpDesk,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.call_rounded,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _tr('Call', 'Piga'),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  TextButton.icon(
+                    onPressed: _openWhatsAppHelpDesk,
+                    icon: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 15),
+                    label: Text(
+                      _tr('Help', 'Msaada'),
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                   ),
                 ],

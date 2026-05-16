@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -52,7 +53,7 @@ Future<void> main() async {
   );
 }
 
-class MaliUpApp extends StatelessWidget {
+class MaliUpApp extends StatefulWidget {
   final bool hasCompletedOnboarding;
   final bool hasSelectedLanguage;
 
@@ -63,37 +64,51 @@ class MaliUpApp extends StatelessWidget {
   });
 
   @override
+  State<MaliUpApp> createState() => _MaliUpAppState();
+}
+
+class _MaliUpAppState extends State<MaliUpApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = AppRouter.createRouter(
+      showLanguageSelection: !widget.hasSelectedLanguage,
+      showOnboarding:
+          !widget.hasCompletedOnboarding && widget.hasSelectedLanguage,
+    );
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: LocalizationService.languageNotifier,
       builder: (context, language, _) {
         return ValueListenableBuilder<bool>(
-          valueListenable: LocalizationService.languageSelectedNotifier,
-          builder: (context, hasSelectedLanguageNow, child) {
-            return ValueListenableBuilder<bool>(
-              valueListenable: MotionService.reducedMotionNotifier,
-              builder: (context, reducedMotion, child) {
-                return MaterialApp.router(
-                  title: 'Mali Up',
-                  debugShowCheckedModeBanner: false,
-                  theme: AppTheme.lightTheme,
-                  locale: Locale(language.code),
-                  supportedLocales: const [
-                    Locale('en'),
-                    Locale('sw'),
-                  ],
-                  localizationsDelegates: const [
-                    GlobalMaterialLocalizations.delegate,
-                    GlobalWidgetsLocalizations.delegate,
-                    GlobalCupertinoLocalizations.delegate,
-                  ],
-                  routerConfig: AppRouter.createRouter(
-                    showLanguageSelection: !hasSelectedLanguageNow,
-                    showOnboarding:
-                        !hasCompletedOnboarding && hasSelectedLanguageNow,
-                  ),
-                );
-              },
+          valueListenable: MotionService.reducedMotionNotifier,
+          builder: (context, reducedMotion, child) {
+            return MaterialApp.router(
+              title: 'Mali Up',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              locale: Locale(language.code),
+              supportedLocales: const [
+                Locale('en'),
+                Locale('sw'),
+              ],
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              routerConfig: _router,
             );
           },
         );

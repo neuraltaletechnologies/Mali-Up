@@ -227,34 +227,26 @@ class SalesScreen extends ConsumerWidget {
     final salesAsync = ref.watch(salesInvoiceListProvider);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          try {
+      floatingActionButton: Builder(
+        builder: (scaffoldCtx) => FloatingActionButton.extended(
+          onPressed: () async {
             await showModalBottomSheet<void>(
-              context: context,
+              context: scaffoldCtx,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
               useSafeArea: true,
               builder: (_) => const _QuickSaleSheet(),
             );
-          } catch (e) {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  _tr(
-                    'Could not open sell screen. Please try again.',
-                    'Imeshindikana kufungua skrini ya mauzo. Tafadhali jaribu tena.',
-                  ),
-                ),
-              ),
-            );
-          }
-        },
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.secondary,
-        elevation: 4,
-        child: const Icon(Icons.shopping_cart),
+          },
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          icon: const Icon(Icons.add_shopping_cart_rounded),
+          label: Text(
+            _tr('New Sale', 'Mauzo Mapya'),
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -956,10 +948,11 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final sh = MediaQuery.sizeOf(context).height;
+    final size = MediaQuery.sizeOf(context);
 
     return SizedBox(
-      height: sh * 0.93,
+      height: size.height * 0.93,
+      width: size.width,
       child: Material(
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),

@@ -194,290 +194,309 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
         return Align(
           alignment: Alignment.centerLeft,
           child: SafeArea(
-            child: Container(
-              width: MediaQuery.of(dialogContext).size.width * 0.82,
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-                boxShadow: AppTheme.modalShadow,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(24),
+                bottomRight: Radius.circular(24),
               ),
-              child: Column(
-                children: [
-                  // Profile Header — navy gradient
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.navyPrimary, AppColors.navySecondary],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.only(topRight: Radius.circular(24)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                child: Container(
+                  width: MediaQuery.of(dialogContext).size.width * 0.82,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.94),
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
                     ),
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.08)),
+                    boxShadow: AppTheme.modalShadow,
+                  ),
+                  child: Column(
+                    children: [
+                      // Profile Header — glass
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.05),
+                          border: Border(
+                            bottom: BorderSide(color: AppColors.primary.withValues(alpha: 0.08)),
+                          ),
+                          borderRadius: const BorderRadius.only(topRight: Radius.circular(24)),
+                        ),
+                        child: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  width: 52,
-                                  height: 52,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.yellowBrand,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
-                                      style: const TextStyle(
-                                        color: AppColors.navyPrimary,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w800,
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 52,
+                                      height: 52,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppColors.primary.withValues(alpha: 0.25),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        profile.fullName,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            profile.fullName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: AppColors.secondary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            profile.contactLine,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: AppColors.textMuted,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        profile.contactLine,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.6),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => Navigator.of(dialogContext).pop(),
+                                      icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 22),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
                                 ),
-                                IconButton(
-                                  onPressed: () => Navigator.of(dialogContext).pop(),
-                                  icon: Icon(Icons.close_rounded, color: Colors.white.withValues(alpha: 0.7), size: 22),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
+                                const SizedBox(height: 14),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.yellowBrand.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(color: AppColors.yellowBrand.withValues(alpha: 0.4)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.stars_rounded, size: 12, color: AppColors.yellowBrand),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _tr('Free', 'Bure'),
+                                            style: const TextStyle(
+                                              color: AppColors.yellowBrand,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.business_center_rounded,
+                                            size: 12,
+                                            color: AppColors.primary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _tr('Business', 'Biashara'),
+                                            style: const TextStyle(
+                                              color: AppColors.primary,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.yellowBrand.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: AppColors.yellowBrand.withValues(alpha: 0.5)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.stars_rounded, size: 12, color: AppColors.yellowBrand),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _tr('Free', 'Bure'),
-                                        style: const TextStyle(
-                                          color: AppColors.yellowBrand,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.business_center_rounded,
-                                        size: 12,
-                                        color: Colors.white,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _tr('Business', 'Biashara'),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                          ),
+                        ),
+                      ),
+                      // Navigation Items
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                          children: [
+                            _DrawerItemLight(
+                              icon: Icons.grid_view_rounded,
+                              iconColor: AppColors.primary,
+                              label: _tr('Hali ya biashara', 'Hali ya biashara'),
+                              semanticsLabel: _tr('Dashboard, business overview', 'Hali ya biashara, muhtasari wa biashara'),
+                              selected: isDashboard,
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
+                            ),
+                            _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
+                            _DrawerItemLight(
+                              icon: Icons.receipt_long_rounded,
+                              iconColor: AppColors.primary,
+                              label: _tr('Tuma ankara', 'Tuma ankara'),
+                              semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
+                              selected: _isSelected(location, AppRouter.salesPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
+                            ),
+                            _DrawerItemLight(
+                              icon: Icons.inventory_2_rounded,
+                              iconColor: AppColors.primary,
+                              label: _tr('Hisa zangu', 'Hisa zangu'),
+                              semanticsLabel: _tr('My stock and inventory', 'Hisa zangu, usimamizi wa bidhaa'),
+                              selected: _isSelected(location, AppRouter.inventoryPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
+                            ),
+                            _DrawerItemLight(
+                              icon: Icons.people_alt_rounded,
+                              iconColor: AppColors.primary,
+                              label: _tr('Wateja wangu', 'Wateja wangu'),
+                              semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
+                              selected: _isSelected(location, AppRouter.crmPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
+                            ),
+                            _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
+                            _DrawerItemLight(
+                              icon: Icons.account_balance_rounded,
+                              iconColor: AppColors.primary,
+                              label: _tr('Madeni', 'Madeni'),
+                              semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
+                              selected: _isSelected(location, AppRouter.debtPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
+                            ),
+                            _DrawerItemLight(
+                              icon: Icons.payments_outlined,
+                              iconColor: AppColors.primary,
+                              label: _tr('Gharama zangu', 'Gharama zangu'),
+                              semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
+                              selected: _isSelected(location, AppRouter.expensesPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
+                            ),
+                            _DrawerItemLight(
+                              icon: Icons.account_balance_wallet_outlined,
+                              iconColor: AppColors.primary,
+                              label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
+                              semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
+                              selected: _isSelected(location, AppRouter.cashFlowPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
+                            ),
+                            _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
+                            _DrawerItemLight(
+                              icon: Icons.storefront_rounded,
+                              iconColor: AppColors.primary,
+                              label: _tr('Simamia Biashara', 'Simamia Biashara'),
+                              semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
+                              selected: _isSelected(location, AppRouter.businessesPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
+                            ),
+                            _DrawerItemLight(
+                              icon: Icons.settings_rounded,
+                              iconColor: AppColors.primary,
+                              label: _tr('Mipangilio', 'Mipangilio'),
+                              semanticsLabel: _tr('App settings', 'Mipangilio ya programu'),
+                              selected: _isSelected(location, AppRouter.settingsPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                  // Navigation Items
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                      children: [
-                        _DrawerItemLight(
-                          icon: Icons.grid_view_rounded,
-                          label: _tr('Hali ya biashara', 'Hali ya biashara'),
-                          semanticsLabel: _tr('Dashboard, business overview', 'Hali ya biashara, muhtasari wa biashara'),
-                          selected: isDashboard,
-                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
+                      // Sign Out Button
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.fromLTRB(12, 12, 12, MediaQuery.of(dialogContext).padding.bottom + 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.04),
+                          borderRadius: const BorderRadius.only(
+                            bottomRight: Radius.circular(24),
+                          ),
+                          border: Border(
+                            top: BorderSide(color: AppColors.primary.withValues(alpha: 0.08)),
+                          ),
                         ),
-                        _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
-                        _DrawerItemLight(
-                          icon: Icons.receipt_long_rounded,
-                          label: _tr('Tuma ankara', 'Tuma ankara'),
-                          semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
-                          selected: _isSelected(location, AppRouter.salesPath),
-                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
-                        ),
-                        const SizedBox(height: 2),
-                        _DrawerItemLight(
-                          icon: Icons.inventory_2_rounded,
-                          label: _tr('Hisa zangu', 'Hisa zangu'),
-                          semanticsLabel: _tr('My stock and inventory', 'Hisa zangu, usimamizi wa bidhaa'),
-                          selected: _isSelected(location, AppRouter.inventoryPath),
-                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
-                        ),
-                        const SizedBox(height: 2),
-                        _DrawerItemLight(
-                          icon: Icons.people_alt_rounded,
-                          label: _tr('Wateja wangu', 'Wateja wangu'),
-                          semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
-                          selected: _isSelected(location, AppRouter.crmPath),
-                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
-                        ),
-                        _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
-                        _DrawerItemLight(
-                          icon: Icons.account_balance_rounded,
-                          label: _tr('Madeni', 'Madeni'),
-                          semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
-                          selected: _isSelected(location, AppRouter.debtPath),
-                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
-                        ),
-                        const SizedBox(height: 2),
-                        _DrawerItemLight(
-                          icon: Icons.payments_outlined,
-                          label: _tr('Gharama zangu', 'Gharama zangu'),
-                          semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
-                          selected: _isSelected(location, AppRouter.expensesPath),
-                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
-                        ),
-                        const SizedBox(height: 2),
-                        _DrawerItemLight(
-                          icon: Icons.account_balance_wallet_outlined,
-                          label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
-                          semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
-                          selected: _isSelected(location, AppRouter.cashFlowPath),
-                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
-                        ),
-                        _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
-                        _DrawerItemLight(
-                          icon: Icons.storefront_rounded,
-                          label: _tr('Simamia Biashara', 'Simamia Biashara'),
-                          semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
-                          selected: _isSelected(location, AppRouter.businessesPath),
-                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
-                        ),
-                        const SizedBox(height: 2),
-                        _DrawerItemLight(
-                          icon: Icons.settings_rounded,
-                          label: _tr('Mipangilio', 'Mipangilio'),
-                          semanticsLabel: _tr('App settings', 'Mipangilio ya programu'),
-                          selected: _isSelected(location, AppRouter.settingsPath),
-                          onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
-                        ),
-                        const SizedBox(height: 2),
-                      ],
-                    ),
-                  ),
-                  // Sign Out Button
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.fromLTRB(12, 12, 12, MediaQuery.of(dialogContext).padding.bottom + 16),
-                    decoration: const BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.only(
-                        bottomRight: Radius.circular(24),
-                      ),
-                      border: Border(
-                        top: BorderSide(color: AppColors.border),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Semantics(
-                          button: true,
-                          label: _tr('Sign out from Mali App', 'Toka, logout from Mali App'),
-                          child: SizedBox(
-                            height: 48,
-                            child: Material(
-                              type: MaterialType.transparency,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error.withValues(alpha: 0.08),
+                        child: Column(
+                          children: [
+                            Semantics(
+                              button: true,
+                              label: _tr('Sign out from Mali App', 'Toka, logout from Mali App'),
+                              child: SizedBox(
+                                height: 48,
+                                child: Material(
+                                  type: MaterialType.transparency,
+                                  child: InkWell(
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        _tr('Sign Out', 'Toka'),
-                                        style: const TextStyle(
-                                          color: AppColors.error,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                    onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.error.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
                                       ),
-                                    ],
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            _tr('Sign Out', 'Toka'),
+                                            style: const TextStyle(
+                                              color: AppColors.error,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -855,8 +874,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (onManageBusinesses != null)
-                  SizedBox(
+                SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () {
@@ -962,92 +980,90 @@ class _DrawerProfileData {
   });
 }
 
-/// Light theme drawer item for premium fintech look
-class _DrawerItemLight extends StatefulWidget {
+class _DrawerItemLight extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final String semanticsLabel;
   final bool selected;
+  final Color iconColor;
 
   const _DrawerItemLight({
     required this.icon,
     required this.label,
     required this.onTap,
     required this.semanticsLabel,
+    required this.iconColor,
     this.selected = false,
   });
 
   @override
-  State<_DrawerItemLight> createState() => _DrawerItemLightState();
-}
-
-class _DrawerItemLightState extends State<_DrawerItemLight> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const active = AppColors.primary;
+    const activeColor = AppColors.primary;
 
     return Semantics(
       button: true,
-      label: widget.semanticsLabel,
-      child: GestureDetector(
-        onTapDown: (_) => _controller.forward(),
-        onTapUp: (_) {
-          _controller.reverse();
-          widget.onTap();
-        },
-        onTapCancel: () => _controller.reverse(),
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: Container(
-            height: 52,
-            margin: const EdgeInsets.only(bottom: 4),
-            decoration: BoxDecoration(
-              color: widget.selected ? active.withValues(alpha: 0.08) : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-              border: widget.selected ? Border.all(color: active.withValues(alpha: 0.15)) : null,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: widget.selected ? active.withValues(alpha: 0.12) : AppColors.surface,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(widget.icon, size: 18, color: widget.selected ? active : AppColors.textSecondary),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    widget.label,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: widget.selected ? active : AppColors.textPrimary,
-                      fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
+      label: semanticsLabel,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            splashColor: (selected ? activeColor : iconColor).withValues(alpha: 0.1),
+            highlightColor: (selected ? activeColor : iconColor).withValues(alpha: 0.05),
+            child: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: selected ? activeColor.withValues(alpha: 0.07) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: selected
+                    ? const Border(left: BorderSide(color: AppColors.primary, width: 3))
+                    : null,
+              ),
+              padding: EdgeInsets.only(left: selected ? 9 : 12, right: 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? activeColor.withValues(alpha: 0.12)
+                          : iconColor.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 17,
+                      color: selected ? activeColor : iconColor,
                     ),
                   ),
-                ),
-                Icon(Icons.chevron_right_rounded, color: widget.selected ? active : AppColors.textMuted, size: 18),
-              ],
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: selected ? activeColor : AppColors.textPrimary,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 14,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                  ),
+                  if (selected)
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: activeColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1063,15 +1079,24 @@ class _DrawerSectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 6),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppColors.textMuted,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.2,
-        ),
+      padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+      child: Row(
+        children: [
+          const Expanded(child: Divider(height: 1, color: AppColors.border)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+          const Expanded(child: Divider(height: 1, color: AppColors.border)),
+        ],
       ),
     );
   }
