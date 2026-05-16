@@ -51,5 +51,7 @@
 		<true/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
+		<key>NSFaceIDUsageDescription</key>
+		<string>Mali Up uses Face ID to unlock the app securely.</string>
 	</dict>
 </plist>

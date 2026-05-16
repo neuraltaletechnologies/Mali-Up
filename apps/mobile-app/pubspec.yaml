@@ -52,6 +52,7 @@ dependencies:
   flutter_native_contact_picker: ^0.0.11
   flutter_contacts: ^1.1.9+2
   permission_handler: ^12.0.0
+  local_auth: ^2.3.0
 
 dev_dependencies:
   flutter_test:
