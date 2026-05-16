@@ -183,7 +183,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               return SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   20,
-                  MediaQuery.of(context).padding.top + kToolbarHeight - 2,
+                  MediaQuery.of(context).padding.top + 8,
                   20,
                   32,
                 ),
@@ -965,95 +965,84 @@ class _ModuleGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!showHeavyContent) {
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-          childAspectRatio: 1.05,
-        ),
-        itemCount: 6,
-        itemBuilder: (context, i) => const ShimmerBox(
-          height: 90,
-          borderRadius: BorderRadius.all(Radius.circular(14)),
-        ),
-      );
-    }
+    final itemCount = showHeavyContent ? _modules.length : 6;
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.98,
-      ),
-      itemCount: _modules.length,
-      itemBuilder: (context, index) {
-        final module = _modules[index];
-        final label = _tr(module.labelEn, module.labelSw);
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              if (module.route == AppRouter.debtPath) {
-                _openDebtPanel(context);
-                return;
-              }
-              context.go(module.route);
-            },
-            borderRadius: BorderRadius.circular(16),
-            child: Ink(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
+    return SizedBox(
+      height: 108,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: itemCount,
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          if (!showHeavyContent) {
+            return const _HorizontalModuleSkeleton();
+          }
+
+          final module = _modules[index];
+          final label = _tr(module.labelEn, module.labelSw);
+          return SizedBox(
+            width: 106,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  if (module.route == AppRouter.debtPath) {
+                    _openDebtPanel(context);
+                    return;
+                  }
+                  context.go(module.route);
+                },
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: module.color.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: module.color.withValues(alpha: 0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: module.color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: module.color.withValues(alpha: 0.15)),
-                      ),
-                      child: Icon(module.icon, size: 18, color: module.color),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: module.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: module.color.withValues(alpha: 0.15)),
+                          ),
+                          child: Icon(module.icon, size: 18, color: module.color),
+                        ),
+                        Text(
+                          label,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppColors.secondary.withValues(alpha: 0.85),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColors.secondary.withValues(alpha: 0.85),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -1074,6 +1063,21 @@ class _ModuleGrid extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _HorizontalModuleSkeleton extends StatelessWidget {
+  const _HorizontalModuleSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 106,
+      child: ShimmerBox(
+        height: 108,
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
     );
   }
 }

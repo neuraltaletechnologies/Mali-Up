@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:go_router/go_router.dart';
@@ -16,6 +17,8 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../utils/pin_auth_password.dart';
+import '../widgets/privacy_policy.dart';
+import '../widgets/terms_and_conditions.dart';
 import '../../../../core/services/lookup_service.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -106,6 +109,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
     final uri = Uri.parse('https://wa.me/255653520829?text=$message');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _openTermsAndConditions() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const TermsAndConditionsPage()));
+  }
+
+  void _openPrivacyPolicy() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()));
   }
 
   String _normalizeLocalPhone(String input) {
@@ -1004,6 +1019,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
+                        Center(
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: GoogleFonts.poppins(
+                                color: textSecondary,
+                                fontSize: 12,
+                                height: 1.4,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: _tr(
+                                    'By registering, you agree to the ',
+                                    'Kwa kusajili, unakubali ',
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: _tr(
+                                    'User Terms and Conditions',
+                                    'Sheria na Masharti ya Mtumiaji',
+                                  ),
+                                  style: GoogleFonts.poppins(
+                                    color: const Color(0xFFFFC107),
+                                    fontSize: 12,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = _openTermsAndConditions,
+                                ),
+                                TextSpan(text: _tr(' and ', ' na ')),
+                                TextSpan(
+                                  text: _tr(
+                                    'Privacy Policy.',
+                                    'Sera ya Faragha.',
+                                  ),
+                                  style: GoogleFonts.poppins(
+                                    color: const Color(0xFFFFC107),
+                                    fontSize: 12,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = _openPrivacyPolicy,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         // Register button
                         SizedBox(
                           width: double.infinity,
