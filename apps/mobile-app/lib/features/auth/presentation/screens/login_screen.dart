@@ -86,10 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
     4,
     (i) => TextEditingController(),
   );
-  final List<FocusNode> _pinFocusNodes = List.generate(
-    4,
-    (_) => FocusNode(),
-  );
+  final List<FocusNode> _pinFocusNodes = List.generate(4, (_) => FocusNode());
   final FocusNode _phoneFocusNode = FocusNode();
 
   String _normalizeLocalPhone(String input) {
@@ -225,8 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ((profile['recoveryEmail'] ?? profile['email']) as String?)
               ?.trim()
               .toLowerCase();
-      final authEmail =
-          (profile['authEmail'] as String?)?.trim().toLowerCase();
+      final authEmail = (profile['authEmail'] as String?)?.trim().toLowerCase();
 
       setState(() {
         _showPinEntry = true;
@@ -247,26 +243,23 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       final errorMessage = switch (e) {
         FirebaseException(code: 'permission-denied') => _tr(
-            'Access denied by server rules. Please contact support or try again later.',
-            'Ufikiaji umekataliwa na sheria za seva. Tafadhali wasiliana na msaada au jaribu tena baadaye.',
-          ),
+          'Access denied by server rules. Please contact support or try again later.',
+          'Ufikiaji umekataliwa na sheria za seva. Tafadhali wasiliana na msaada au jaribu tena baadaye.',
+        ),
         FirebaseException(code: 'unavailable') => _tr(
-            'Service is temporarily unavailable. Please try again shortly.',
-            'Huduma haipatikani kwa sasa. Tafadhali jaribu tena muda mfupi ujao.',
-          ),
+          'Service is temporarily unavailable. Please try again shortly.',
+          'Huduma haipatikani kwa sasa. Tafadhali jaribu tena muda mfupi ujao.',
+        ),
         FirebaseException(code: 'network-request-failed') => _tr(
-            'No internet connection. Please check your network and try again.',
-            'Hakuna muunganisho wa intaneti. Tafadhali angalia mtandao wako na ujaribu tena.',
-          ),
+          'No internet connection. Please check your network and try again.',
+          'Hakuna muunganisho wa intaneti. Tafadhali angalia mtandao wako na ujaribu tena.',
+        ),
         _ => _tr(
-            'Connection error. Please try again.',
-            'Hitilafu ya muunganisho. Tafadhali jaribu tena.',
-          ),
+          'Connection error. Please try again.',
+          'Hitilafu ya muunganisho. Tafadhali jaribu tena.',
+        ),
       };
-      await _NotificationHelper.showError(
-        context,
-        errorMessage,
-      );
+      await _NotificationHelper.showError(context, errorMessage);
     }
   }
 
@@ -284,8 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _isLoading = true);
-    final email =
-        _authEmailForSignIn ?? '${_normalizedPhone ?? ''}@mali.up';
+    final email = _authEmailForSignIn ?? '${_normalizedPhone ?? ''}@mali.up';
     final authPassword = buildAuthPasswordFromPin(pin);
 
     try {
@@ -296,7 +288,9 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } on FirebaseAuthException catch (e) {
         // Backward compatibility for any accounts created before auth-password derivation.
-        if (e.code != 'wrong-password' && e.code != 'invalid-credential') rethrow;
+        if (e.code != 'wrong-password' && e.code != 'invalid-credential') {
+          rethrow;
+        }
         try {
           await _auth.signInWithEmailAndPassword(email: email, password: pin);
         } catch (_) {
@@ -411,17 +405,17 @@ class _LoginScreenState extends State<LoginScreen> {
               } on FirebaseAuthException catch (e) {
                 final message = switch (e.code) {
                   'user-not-found' => _tr(
-                      'No account found for that email.',
-                      'Hakuna akaunti iliyo na barua pepe hiyo.',
-                    ),
+                    'No account found for that email.',
+                    'Hakuna akaunti iliyo na barua pepe hiyo.',
+                  ),
                   'invalid-email' => _tr(
-                      'Invalid email address.',
-                      'Barua pepe si sahihi.',
-                    ),
+                    'Invalid email address.',
+                    'Barua pepe si sahihi.',
+                  ),
                   _ => _tr(
-                      'Could not send recovery email right now.',
-                      'Imeshindikana kutuma barua pepe ya urejeshaji kwa sasa.',
-                    ),
+                    'Could not send recovery email right now.',
+                    'Imeshindikana kutuma barua pepe ya urejeshaji kwa sasa.',
+                  ),
                 };
                 if (dialogContext.mounted) {
                   await _NotificationHelper.showError(dialogContext, message);
@@ -501,12 +495,11 @@ class _LoginScreenState extends State<LoginScreen> {
           borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
         prefixIcon: prefix != null
-            ? Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: prefix,
-              )
+            ? Padding(padding: const EdgeInsets.only(left: 12), child: prefix)
             : null,
-        suffixIcon: suffixWidget ?? Icon(suffix, color: AppColors.textSecondary, size: 20),
+        suffixIcon:
+            suffixWidget ??
+            Icon(suffix, color: AppColors.textSecondary, size: 20),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
@@ -539,92 +532,19 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Brand header — navy gradient with logo identity
+          // Header image
           Positioned(
             left: 0,
             right: 0,
             top: 0,
             height: topHeight,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF0D1B3E), Color(0xFF102147), Color(0xFF0A1628)],
-                  stops: [0.0, 0.55, 1.0],
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    right: -60,
-                    top: -60,
-                    child: Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFFFC107).withValues(alpha: 0.06),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: -40,
-                    bottom: 10,
-                    child: Container(
-                      width: 150,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.03),
-                      ),
-                    ),
-                  ),
-                  SafeArea(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFFFC107),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFFC107).withValues(alpha: 0.35),
-                                blurRadius: 20,
-                                spreadRadius: 2,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          padding: const EdgeInsets.all(14),
-                          child: const MaliUpLogo(size: 44),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'MALI UP',
-                          style: TextStyle(
-                            color: Color(0xFFFFC107),
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Run your business with clarity',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_in.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                width: double.infinity,
+                height: double.infinity,
               ),
             ),
           ),
@@ -638,7 +558,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   IconButton(
                     onPressed: () => context.go(AppRouter.registerPath),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.15),
                       padding: const EdgeInsets.all(10),
@@ -646,14 +570,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   TextButton.icon(
                     onPressed: _openWhatsAppHelpDesk,
-                    icon: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 15),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: Colors.white,
+                      size: 15,
+                    ),
                     label: Text(
                       _tr('Help', 'Msaada'),
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: TextButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.12),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                 ],
@@ -689,289 +624,320 @@ class _LoginScreenState extends State<LoginScreen> {
                     physics: const ClampingScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                     child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Handle bar
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(bottom: 20),
-                          decoration: BoxDecoration(
-                            color: AppColors.border,
-                            borderRadius: BorderRadius.circular(2),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Handle bar
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                              color: AppColors.border,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
                         ),
-                      ),
-                      // Logo
-                      const Center(child: MaliUpLogo(size: 48)),
-                      const SizedBox(height: 16),
-                      // Title
-                      Center(
-                        child: Text(
-                          _showPinEntry
-                              ? _tr('Verify PIN', 'Thibitisha PIN')
-                              : _tr('Welcome Back', 'Karibu Tena'),
-                          textAlign: TextAlign.center,
-                          style: headingStyle,
+                        // Logo
+                        const Center(child: MaliUpLogo(size: 48)),
+                        const SizedBox(height: 16),
+                        // Title
+                        Center(
+                          child: Text(
+                            _showPinEntry
+                                ? _tr('Verify PIN', 'Thibitisha PIN')
+                                : _tr('Welcome Back', 'Karibu Tena'),
+                            textAlign: TextAlign.center,
+                            style: headingStyle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Subtitle
-                      Center(
-                        child: Text(
-                          _showPinEntry
-                              ? _tr(
-                                  'Enter your 4-digit PIN to access your account.',
-                                  'Weka PIN yako ya tarakimu 4 ili kufikia akaunti yako.',
-                                )
-                              : _tr(
-                                  'Enter your phone number to continue securely.',
-                                  'Weka namba yako ya simu ili kuendelea salama.',
+                        const SizedBox(height: 8),
+                        // Subtitle
+                        Center(
+                          child: Text(
+                            _showPinEntry
+                                ? _tr(
+                                    'Enter your 4-digit PIN to access your account.',
+                                    'Weka PIN yako ya tarakimu 4 ili kufikia akaunti yako.',
+                                  )
+                                : _tr(
+                                    'Enter your phone number to continue securely.',
+                                    'Weka namba yako ya simu ili kuendelea salama.',
+                                  ),
+                            textAlign: TextAlign.center,
+                            style: subtitleStyle,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
+                        // Feedback message
+                        if (_feedbackText != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: EmotionalStatusChip(
+                              visible: true,
+                              text: _feedbackText!,
+                              tone: _feedbackTone,
+                            ),
+                          ),
+                        // Phone entry section
+                        if (!_showPinEntry) ...[
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.person_outline_rounded,
+                                size: 18,
+                                color: textPrimary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _tr('Account Details', 'Taarifa za Akaunti'),
+                                style: sectionTitleStyle,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Phone number field
+                          TextField(
+                            controller: _phoneController,
+                            focusNode: _phoneFocusNode,
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(12),
+                            ],
+                            decoration: fieldDecoration(
+                              hint: _tr('Phone number', 'Namba ya simu'),
+                              suffix: Icons.phone_iphone_rounded,
+                              prefix: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    '🇹🇿',
+                                    style: TextStyle(fontSize: 18),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '+255',
+                                    style: GoogleFonts.poppins(
+                                      color: textPrimary,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Continue button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                elevation: 4,
+                                shadowColor: AppColors.primary.withValues(
+                                  alpha: 0.3,
                                 ),
-                          textAlign: TextAlign.center,
-                          style: subtitleStyle,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      const SizedBox(height: 20),
-                      // Feedback message
-                      if (_feedbackText != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: EmotionalStatusChip(
-                            visible: true,
-                            text: _feedbackText!,
-                            tone: _feedbackTone,
+                                minimumSize: const Size.fromHeight(52),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _isLoading
+                                  ? null
+                                  : _handleLoginRequest,
+                              child: Text(
+                                _isLoading
+                                    ? _tr('Checking...', 'Inahakiki...')
+                                    : _tr('Continue', 'Endelea'),
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      // Phone entry section
-                      if (!_showPinEntry) ...[
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.person_outline_rounded,
-                              size: 18,
-                              color: textPrimary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _tr('Account Details', 'Taarifa za Akaunti'),
-                              style: sectionTitleStyle,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        // Phone number field
-                        TextField(
-                          controller: _phoneController,
-                          focusNode: _phoneFocusNode,
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(12),
-                          ],
-                          decoration: fieldDecoration(
-                            hint: _tr('Phone number', 'Namba ya simu'),
-                            suffix: Icons.phone_iphone_rounded,
-                            prefix: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text('🇹🇿', style: TextStyle(fontSize: 18)),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '+255',
+                          const SizedBox(height: 16),
+                          // Register link
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _tr(
+                                  'Do not have an account? ',
+                                  'Huna akaunti? ',
+                                ),
+                                style: GoogleFonts.poppins(
+                                  color: textSecondary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    context.push(AppRouter.registerPath),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                ),
+                                child: Text(
+                                  _tr('Register', 'Jisajili'),
                                   style: GoogleFonts.poppins(
-                                    color: textPrimary,
-                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w800,
                                     fontSize: 14,
                                   ),
                                 ),
-                              ],
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          // PIN entry section
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.lock_outline_rounded,
+                                size: 18,
+                                color: textPrimary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _tr('Enter PIN', 'Weka PIN'),
+                                style: sectionTitleStyle,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // PIN digit boxes — blocked + dimmed while verifying
+                          IgnorePointer(
+                            ignoring: _isLoading,
+                            child: Opacity(
+                              opacity: _isLoading ? 0.45 : 1.0,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: List.generate(
+                                  4,
+                                  (i) => PinDigitBox(
+                                    controller: _pinControllers[i],
+                                    previousController: i > 0
+                                        ? _pinControllers[i - 1]
+                                        : null,
+                                    focusNode: _pinFocusNodes[i],
+                                    previousFocusNode: i > 0
+                                        ? _pinFocusNodes[i - 1]
+                                        : null,
+                                    nextFocusNode: i < 3
+                                        ? _pinFocusNodes[i + 1]
+                                        : null,
+                                    autoFocus: i == 0,
+                                    isLast: i == 3,
+                                    readOnly: _isLoading,
+                                    onComplete: i == 3
+                                        ? () {
+                                            if (!_isLoading) {
+                                              _handlePINLogin();
+                                            }
+                                          }
+                                        : null,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Continue button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              elevation: 4,
-                              shadowColor: AppColors.primary.withValues(alpha: 0.3),
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: _isLoading ? null : _handleLoginRequest,
-                            child: Text(
-                              _isLoading
-                                  ? _tr('Checking...', 'Inahakiki...')
-                                  : _tr('Continue', 'Endelea'),
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
-                            ),
+                          // Verification progress indicator
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: _isLoading
+                                ? Padding(
+                                    key: const ValueKey('verifying'),
+                                    padding: const EdgeInsets.only(top: 16),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          _tr(
+                                            'Verifying your PIN…',
+                                            'Inathibitisha PIN yako…',
+                                          ),
+                                          style: GoogleFonts.poppins(
+                                            color: textSecondary,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : const SizedBox(
+                                    key: ValueKey('idle'),
+                                    height: 16,
+                                  ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Register link
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _tr('Do not have an account? ', 'Huna akaunti? '),
-                              style: GoogleFonts.poppins(
-                                color: textSecondary,
-                                fontSize: 14,
+                          // Forgot PIN link (hidden while verifying)
+                          if (!_isLoading)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _handleForgotPIN,
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                ),
+                                child: Text(
+                                  _tr('Forgot PIN?', 'Umesahau PIN?'),
+                                  style: GoogleFonts.poppins(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ),
                             ),
-                            TextButton(
-                              onPressed: () => context.push(AppRouter.registerPath),
-                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          const SizedBox(height: 12),
+                          // Change number link
+                          Center(
+                            child: TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _showPinEntry = false;
+                                  for (final c in _pinControllers) {
+                                    c.clear();
+                                  }
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                              ),
                               child: Text(
-                                _tr('Register', 'Jisajili'),
+                                _tr(
+                                  'Use different number',
+                                  'Tumia namba nyingine',
+                                ),
                                 style: GoogleFonts.poppins(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w800,
+                                  color: textSecondary,
                                   fontSize: 14,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ] else ...[
-                        // PIN entry section
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.lock_outline_rounded,
-                              size: 18,
-                              color: textPrimary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _tr('Enter PIN', 'Weka PIN'),
-                              style: sectionTitleStyle,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // PIN digit boxes — blocked + dimmed while verifying
-                        IgnorePointer(
-                          ignoring: _isLoading,
-                          child: Opacity(
-                            opacity: _isLoading ? 0.45 : 1.0,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: List.generate(
-                                4,
-                                (i) => PinDigitBox(
-                                  controller: _pinControllers[i],
-                                  previousController:
-                                      i > 0 ? _pinControllers[i - 1] : null,
-                                  focusNode: _pinFocusNodes[i],
-                                  previousFocusNode:
-                                      i > 0 ? _pinFocusNodes[i - 1] : null,
-                                  nextFocusNode:
-                                      i < 3 ? _pinFocusNodes[i + 1] : null,
-                                  autoFocus: i == 0,
-                                  isLast: i == 3,
-                                  readOnly: _isLoading,
-                                  onComplete: i == 3
-                                      ? () {
-                                          if (!_isLoading) {
-                                            _handlePINLogin();
-                                          }
-                                        }
-                                      : null,
-                                ),
-                              ),
-                            ),
                           ),
-                        ),
-                        // Verification progress indicator
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: _isLoading
-                              ? Padding(
-                                  key: const ValueKey('verifying'),
-                                  padding: const EdgeInsets.only(top: 16),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        _tr('Verifying your PIN…', 'Inathibitisha PIN yako…'),
-                                        style: GoogleFonts.poppins(
-                                          color: textSecondary,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : const SizedBox(key: ValueKey('idle'), height: 16),
-                        ),
-                        // Forgot PIN link (hidden while verifying)
-                        if (!_isLoading)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: _handleForgotPIN,
-                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                              child: Text(
-                                _tr('Forgot PIN?', 'Umesahau PIN?'),
-                                style: GoogleFonts.poppins(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 12),
-                        // Change number link
-                        Center(
-                          child: TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _showPinEntry = false;
-                                for (final c in _pinControllers) {
-                                  c.clear();
-                                }
-                              });
-                            },
-                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                            child: Text(
-                              _tr('Use different number', 'Tumia namba nyingine'),
-                              style: GoogleFonts.poppins(
-                                color: textSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            );
+              );
             },
           ),
           if (_successBurstTrigger > 0)
