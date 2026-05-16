@@ -540,7 +540,7 @@ class _LoginScreenState extends State<LoginScreen> {
             height: topHeight,
             child: ClipRect(
               child: Image.asset(
-                'assets/Picture/sign_in.png',
+                'assets/Picture/sign_up.png',
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
                 width: double.infinity,
@@ -638,9 +638,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        // Logo
-                        const Center(child: MaliUpLogo(size: 48)),
-                        const SizedBox(height: 16),
                         // Title
                         Center(
                           child: Text(

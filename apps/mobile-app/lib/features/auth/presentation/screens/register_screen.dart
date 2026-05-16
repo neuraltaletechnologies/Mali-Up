@@ -596,7 +596,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             height: topHeight,
             child: ClipRect(
               child: Image.asset(
-                'assets/Picture/sign_up.png',
+                'assets/Picture/sign_in.png',
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
                 width: double.infinity,
@@ -693,9 +693,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                         ),
-                        // Logo
-                        const Center(child: MaliUpLogo(size: 48)),
-                        const SizedBox(height: 16),
                         // Title
                         Center(
                           child: Text(
