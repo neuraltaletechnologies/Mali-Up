@@ -24,7 +24,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 // Removed legacy PhoneAuth classes.
 
-
 class RegisterScreen extends StatefulWidget {
   final String? initialFullName;
   final String? initialPhone;
@@ -65,25 +64,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _placeOfBusinessController =
       TextEditingController();
   String _selectedBusinessType = 'Retail';
-  List<Map<String, dynamic>> _businessTypes = LookupService.defaultBusinessTypes;
+  List<Map<String, dynamic>> _businessTypes =
+      LookupService.defaultBusinessTypes;
 
   // Tanzania cities/regions for place of business
   String? _selectedCity;
-  List<Map<String, String>> _tanzaniaCities = LookupService.defaultTanzaniaCities;
+  List<Map<String, String>> _tanzaniaCities =
+      LookupService.defaultTanzaniaCities;
 
   final List<TextEditingController> _pinControllers = List.generate(
     4,
     (_) => TextEditingController(),
   );
-  final List<FocusNode> _pinFocusNodes = List.generate(
-    4,
-    (_) => FocusNode(),
-  );
+  final List<FocusNode> _pinFocusNodes = List.generate(4, (_) => FocusNode());
 
   final String _businessCategoryKey = 'retail';
   final List<Map<String, String>> _accountTypes = const [
     {'value': 'business', 'en': 'Business', 'sw': 'Biashara'},
-    {'value': 'personal', 'en': 'Personal (Coming soon)', 'sw': 'Binafsi (Inakuja)'},
+    {
+      'value': 'personal',
+      'en': 'Personal (Coming soon)',
+      'sw': 'Binafsi (Inakuja)',
+    },
   ];
 
   Future<void> _goToPostLoginLanding() async {
@@ -586,92 +588,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Brand header — navy gradient with logo identity
+          // Header image
           Positioned(
             left: 0,
             right: 0,
             top: 0,
             height: topHeight,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF0D1B3E), Color(0xFF102147), Color(0xFF0A1628)],
-                  stops: [0.0, 0.55, 1.0],
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    right: -60,
-                    top: -60,
-                    child: Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFFFC107).withValues(alpha: 0.06),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: -40,
-                    bottom: 10,
-                    child: Container(
-                      width: 150,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.03),
-                      ),
-                    ),
-                  ),
-                  SafeArea(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFFFC107),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFFC107).withValues(alpha: 0.35),
-                                blurRadius: 20,
-                                spreadRadius: 2,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          padding: const EdgeInsets.all(14),
-                          child: const MaliUpLogo(size: 44),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'MALI UP',
-                          style: TextStyle(
-                            color: Color(0xFFFFC107),
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Create your business workspace',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                width: double.infinity,
+                height: double.infinity,
               ),
             ),
           ),
@@ -684,7 +613,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   IconButton(
                     onPressed: () => context.go(AppRouter.loginPath),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.15),
                       padding: const EdgeInsets.all(10),
@@ -692,14 +625,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   TextButton.icon(
                     onPressed: _openWhatsAppHelpDesk,
-                    icon: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 15),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: Colors.white,
+                      size: 15,
+                    ),
                     label: Text(
                       _tr('Help', 'Msaada'),
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: TextButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.12),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                 ],
@@ -932,7 +876,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               color: AppColors.warningBg,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: AppColors.warning.withValues(alpha: 0.35),
+                                color: AppColors.warning.withValues(
+                                  alpha: 0.35,
+                                ),
                               ),
                             ),
                             child: Row(
@@ -987,10 +933,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 12),
                         // Business type selector
                         MaliSelectField(
-                          placeholder: _tr(
-                            'Business Type',
-                            'Aina ya Biashara',
-                          ),
+                          placeholder: _tr('Business Type', 'Aina ya Biashara'),
                           displayValue: () {
                             final type = _businessTypes.firstWhere(
                               (t) => t['value'] == _selectedBusinessType,
@@ -1049,13 +992,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             4,
                             (i) => PinDigitBox(
                               controller: _pinControllers[i],
-                              previousController:
-                                  i > 0 ? _pinControllers[i - 1] : null,
+                              previousController: i > 0
+                                  ? _pinControllers[i - 1]
+                                  : null,
                               focusNode: _pinFocusNodes[i],
-                              previousFocusNode:
-                                  i > 0 ? _pinFocusNodes[i - 1] : null,
-                              nextFocusNode:
-                                  i < 3 ? _pinFocusNodes[i + 1] : null,
+                              previousFocusNode: i > 0
+                                  ? _pinFocusNodes[i - 1]
+                                  : null,
+                              nextFocusNode: i < 3
+                                  ? _pinFocusNodes[i + 1]
+                                  : null,
                               isLast: i == 3,
                             ),
                           ),
@@ -1078,15 +1024,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: _isLoading || _selectedAccountType == 'personal'
+                            onPressed:
+                                _isLoading || _selectedAccountType == 'personal'
                                 ? null
                                 : _handleRegistration,
                             child: Text(
                               _isLoading
                                   ? _tr('Registering...', 'Inasajili...')
                                   : _selectedAccountType == 'personal'
-                                      ? _tr('Coming Soon', 'Inakuja Hivi Karibuni')
-                                      : _tr('Register Account', 'Sajili Akaunti'),
+                                  ? _tr('Coming Soon', 'Inakuja Hivi Karibuni')
+                                  : _tr('Register Account', 'Sajili Akaunti'),
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
