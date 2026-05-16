@@ -81,8 +81,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
             ),
           ),
           DraggableScrollableSheet(
-            initialChildSize: 0.70,
-            minChildSize: 0.70,
+            initialChildSize: 0.66,
+            minChildSize: 0.66,
             maxChildSize: 0.92,
             builder: (context, scrollController) {
               return Container(

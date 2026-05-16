@@ -11,7 +11,6 @@ import '../../../../shared/widgets/pin_digit_box.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
-import '../../../../core/services/motion_service.dart';
 import '../utils/pin_auth_password.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -81,7 +80,6 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _feedbackText;
   EmotionalStatusTone _feedbackTone = EmotionalStatusTone.neutral;
   int _successBurstTrigger = 0;
-  bool _showHeroAnimation = false;
 
   final TextEditingController _phoneController = TextEditingController();
   final List<TextEditingController> _pinControllers = List.generate(
@@ -124,11 +122,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      setState(() => _showHeroAnimation = true);
-    });
   }
 
   String _tr(String en, String sw) {
@@ -546,7 +539,7 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Premium gradient header with subtle overlay
+          // Brand header — navy gradient with logo identity
           Positioned(
             left: 0,
             right: 0,
@@ -557,56 +550,78 @@ class _LoginScreenState extends State<LoginScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primaryDark,
-                  ],
-                )
-               
+                  colors: [Color(0xFF0D1B3E), Color(0xFF102147), Color(0xFF0A1628)],
+                  stops: [0.0, 0.55, 1.0],
+                ),
               ),
               child: Stack(
-                fit: StackFit.expand,
                 children: [
-                  Center(
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: MotionService.reducedMotionNotifier,
-                      builder: (context, reducedMotion, _) {
-                        return RepaintBoundary(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 64, 24, 24),
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 220),
-                              child: _showHeroAnimation && !reducedMotion
-                                  ? Lottie.asset(
-                                      'assets/lottie/Login.json',
-                                      key: const ValueKey('login-hero-lottie'),
-                                      fit: BoxFit.contain,
-                                      repeat: false,
-                                      animate: true,
-                                    )
-                                  : Center(
-                                      key: const ValueKey(
-                                        'login-hero-placeholder',
-                                      ),
-                                      child: Container(
-                                        width: 120,
-                                        height: 120,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(28),
-                                          border: Border.all(
-                                            color: Colors.white.withValues(alpha: 0.2),
-                                          ),
-                                        ),
-                                        child: const Center(
-                                          child: MaliUpLogo(size: 56),
-                                        ),
-                                      ),
-                                    ),
-                            ),
+                  Positioned(
+                    right: -60,
+                    top: -60,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFFC107).withValues(alpha: 0.06),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: -40,
+                    bottom: 10,
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.03),
+                      ),
+                    ),
+                  ),
+                  SafeArea(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFFFC107),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFFC107).withValues(alpha: 0.35),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        );
-                      },
+                          padding: const EdgeInsets.all(14),
+                          child: const MaliUpLogo(size: 44),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'MALI UP',
+                          style: TextStyle(
+                            color: Color(0xFFFFC107),
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Run your business with clarity',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -614,70 +629,32 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
-          // Top navigation bar with glass effect
+          // Top navigation bar
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Back button with subtle glass effect
-                  Material(
-                    color: Colors.white.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => context.go(AppRouter.registerPath),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
+                  IconButton(
+                    onPressed: () => context.go(AppRouter.registerPath),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(10),
                     ),
                   ),
-                  // WhatsApp support and secure badge
-                  Row(
-                    children: [
-                      // Secure badge with glass effect
-                      Material(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: _openWhatsAppHelpDesk,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.call_rounded,
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _tr('Call', 'Piga'),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ),
-                        ),
-                      ),
-                    ],
+                  TextButton.icon(
+                    onPressed: _openWhatsAppHelpDesk,
+                    icon: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 15),
+                    label: Text(
+                      _tr('Help', 'Msaada'),
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
                   ),
                 ],
               ),
@@ -757,40 +734,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Security badge
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.shield_outlined,
-                              size: 18,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _tr(
-                                  'Your transactions are protected with bank-level encryption.',
-                                  'Miamala yako inalindwa kwa usimbaji salama.',
-                                ),
-                                style: GoogleFonts.poppins(
-                                  color: textSecondary,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                       const SizedBox(height: 20),
                       // Feedback message
                       if (_feedbackText != null)
@@ -919,58 +862,85 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        // PIN digit boxes
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(
-                            4,
-                            (i) => PinDigitBox(
-                              controller: _pinControllers[i],
-                              previousController:
-                                  i > 0 ? _pinControllers[i - 1] : null,
-                              focusNode: _pinFocusNodes[i],
-                              previousFocusNode:
-                                  i > 0 ? _pinFocusNodes[i - 1] : null,
-                              nextFocusNode:
-                                  i < 3 ? _pinFocusNodes[i + 1] : null,
-                              autoFocus: i == 0,
-                              isLast: i == 3,
-                              onComplete: i == 3
-                                  ? () {
-                                      if (!_isLoading) {
-                                        _handlePINLogin();
-                                      }
-                                    }
-                                  : null,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Forgot PIN link
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _handleForgotPIN,
-                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                            child: Text(
-                              _tr('Forgot PIN?', 'Umesahau PIN?'),
-                              style: GoogleFonts.poppins(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                        // PIN digit boxes — blocked + dimmed while verifying
+                        IgnorePointer(
+                          ignoring: _isLoading,
+                          child: Opacity(
+                            opacity: _isLoading ? 0.45 : 1.0,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: List.generate(
+                                4,
+                                (i) => PinDigitBox(
+                                  controller: _pinControllers[i],
+                                  previousController:
+                                      i > 0 ? _pinControllers[i - 1] : null,
+                                  focusNode: _pinFocusNodes[i],
+                                  previousFocusNode:
+                                      i > 0 ? _pinFocusNodes[i - 1] : null,
+                                  nextFocusNode:
+                                      i < 3 ? _pinFocusNodes[i + 1] : null,
+                                  autoFocus: i == 0,
+                                  isLast: i == 3,
+                                  readOnly: _isLoading,
+                                  onComplete: i == 3
+                                      ? () {
+                                          if (!_isLoading) {
+                                            _handlePINLogin();
+                                          }
+                                        }
+                                      : null,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        if (_isLoading)
-                          Center(
-                            child: Text(
-                              _tr('Verifying...', 'Inathibitisha...'),
-                              style: GoogleFonts.poppins(
-                                color: textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                        // Verification progress indicator
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: _isLoading
+                              ? Padding(
+                                  key: const ValueKey('verifying'),
+                                  padding: const EdgeInsets.only(top: 16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        _tr('Verifying your PIN…', 'Inathibitisha PIN yako…'),
+                                        style: GoogleFonts.poppins(
+                                          color: textSecondary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox(key: ValueKey('idle'), height: 16),
+                        ),
+                        // Forgot PIN link (hidden while verifying)
+                        if (!_isLoading)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _handleForgotPIN,
+                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                              child: Text(
+                                _tr('Forgot PIN?', 'Umesahau PIN?'),
+                                style: GoogleFonts.poppins(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ),

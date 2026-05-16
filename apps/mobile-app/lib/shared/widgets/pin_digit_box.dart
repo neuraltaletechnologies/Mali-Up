@@ -13,6 +13,7 @@ class PinDigitBox extends StatefulWidget {
   final double size;
   final bool autoFocus;
   final bool isLast;
+  final bool readOnly;
   final VoidCallback? onComplete;
 
   const PinDigitBox({
@@ -26,6 +27,7 @@ class PinDigitBox extends StatefulWidget {
     this.size = 56,
     this.autoFocus = false,
     this.isLast = false,
+    this.readOnly = false,
     this.onComplete,
   });
 
@@ -125,6 +127,7 @@ class _PinDigitBoxState extends State<PinDigitBox> {
           child: TextField(
             focusNode: _focusNode,
             controller: widget.controller,
+            readOnly: widget.readOnly,
             textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
             textInputAction:
@@ -134,18 +137,20 @@ class _PinDigitBoxState extends State<PinDigitBox> {
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(1),
             ],
-            onChanged: (value) {
-              if (value.isNotEmpty) {
-                if (widget.nextFocusNode != null) {
-                  widget.nextFocusNode!.requestFocus();
-                } else if (!widget.isLast) {
-                  FocusScope.of(context).nextFocus();
-                }
-                if (widget.isLast) {
-                  widget.onComplete?.call();
-                }
-              }
-            },
+            onChanged: widget.readOnly
+                ? null
+                : (value) {
+                    if (value.isNotEmpty) {
+                      if (widget.nextFocusNode != null) {
+                        widget.nextFocusNode!.requestFocus();
+                      } else if (!widget.isLast) {
+                        FocusScope.of(context).nextFocus();
+                      }
+                      if (widget.isLast) {
+                        widget.onComplete?.call();
+                      }
+                    }
+                  },
             style: GoogleFonts.poppins(
               fontSize: 24,
               fontWeight: FontWeight.w800,
@@ -154,6 +159,10 @@ class _PinDigitBoxState extends State<PinDigitBox> {
             ),
             decoration: const InputDecoration(
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              filled: false,
               counterText: '',
               contentPadding: EdgeInsets.zero,
             ),
