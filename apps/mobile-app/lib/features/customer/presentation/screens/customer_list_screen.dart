@@ -282,7 +282,6 @@ class _CustomerCard extends ConsumerWidget {
 
     return Dismissible(
       key: ValueKey(customer.id),
-      direction: DismissDirection.horizontal,
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           // Right swipe → Edit
