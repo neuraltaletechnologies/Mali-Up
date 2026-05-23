@@ -1,12 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/services/security_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../security/presentation/widgets/pin_setup_sheet.dart';
+import 'subscription_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -392,7 +396,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // ── Profile card ────────────────────────────────────
           _ProfileCard(tr: _tr),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // ── My Plan ──────────────────────────────────────────
+          _SectionHeader(label: _tr('Subscription', 'Usajili')),
+          const SizedBox(height: 8),
+          _MyPlanTile(tr: _tr),
+          const SizedBox(height: 20),
 
           // ── Preferences ──────────────────────────────────────
           _SectionHeader(label: _tr('Preferences', 'Mipangilio ya Msingi')),
@@ -750,12 +760,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 // ── Profile card ─────────────────────────────────────────────────────────────
 
-class _ProfileCard extends StatelessWidget {
+class _ProfileCard extends ConsumerWidget {
   final String Function(String en, String sw) tr;
   const _ProfileCard({required this.tr});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final planAsync = ref.watch(planStatusProvider);
     final user = FirebaseAuth.instance.currentUser;
     final displayName = user?.displayName?.trim();
     final initial = displayName != null && displayName.isNotEmpty
@@ -845,33 +856,37 @@ class _ProfileCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.yellowBrand.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: AppColors.yellowBrand.withValues(alpha: 0.4),
+                planAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, e) => const SizedBox.shrink(),
+                  data: (status) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.yellowBrand.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: AppColors.yellowBrand.withValues(alpha: 0.4),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.stars_rounded,
-                        size: 11,
-                        color: AppColors.yellowBrand,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        tr('Free Plan', 'Mpango wa Bure'),
-                        style: const TextStyle(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          status.isPaid ? Icons.stars_rounded : Icons.workspace_premium_outlined,
+                          size: 11,
                           color: AppColors.yellowBrand,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Text(
+                          status.isPaid ? status.tierLabel : tr('Free Plan', 'Mpango wa Bure'),
+                          style: const TextStyle(
+                            color: AppColors.yellowBrand,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -1063,6 +1078,77 @@ class _SocialIcon extends StatelessWidget {
                     height: 1.0,
                   ),
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── My Plan tile ──────────────────────────────────────────────────────────────
+
+class _MyPlanTile extends ConsumerWidget {
+  final String Function(String en, String sw) tr;
+  const _MyPlanTile({required this.tr});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final planAsync = ref.watch(planStatusProvider);
+
+    final subtitle = planAsync.when(
+      loading: () => tr('Loading…', 'Inapakia…'),
+      error: (_, e) => tr('Starter (Free)', 'Starter (Bure)'),
+      data: (s) => s.isStarter
+          ? tr(
+              'Starter — ${s.invoicesRemaining} invoices left this month',
+              'Starter — ankara ${s.invoicesRemaining} zimebaki mwezi huu',
+            )
+          : '${s.tierLabel} · ${tr("Active", "Inafanya kazi")}',
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: _SettingTile(
+        icon: Icons.workspace_premium_rounded,
+        iconBg: AppColors.yellowBrand.withValues(alpha: 0.12),
+        iconColor: AppColors.yellowBrand,
+        title: tr('My Plan', 'Mpango Wangu'),
+        subtitle: subtitle,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            planAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, e) => const SizedBox.shrink(),
+              data: (s) => s.isStarter
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.tealAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        tr('Upgrade', 'Boresha'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.tealAccent,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded,
+                size: 20, color: AppColors.textMuted),
+          ],
         ),
       ),
     );

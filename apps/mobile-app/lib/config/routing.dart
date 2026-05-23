@@ -8,6 +8,7 @@ import '../features/onboarding/presentation/screens/language_selection_screen.da
 import '../features/onboarding/presentation/screens/splash_screen.dart';
 import '../features/dashboard/presentation/screens/dashboard_screen.dart' deferred as dashboard_screen;
 import '../features/settings/presentation/screens/settings_screen.dart' deferred as settings_screen;
+import '../features/settings/presentation/screens/subscription_screen.dart' deferred as subscription_screen;
 import '../features/business/presentation/screens/manage_businesses_screen.dart' deferred as manage_businesses_screen;
 import '../shared/widgets/main_shell_page.dart';
 import '../features/sales/presentation/screens/sales_screen.dart' deferred as sales_screen;
@@ -32,6 +33,7 @@ class AppRouter {
   static const String expensesPath = '/expenses';
   static const String cashFlowPath = '/cashflow';
   static const String settingsPath = '/settings';
+  static const String subscriptionPath = '/subscription';
   static const String businessesPath = '/businesses';
 
   static GoRouter createRouter({
@@ -197,6 +199,13 @@ class AppRouter {
               builder: (context, state) => _buildDeferredRoute(
                 loadLibrary: settings_screen.loadLibrary,
                 builder: () => settings_screen.SettingsScreen(),
+              ),
+            ),
+            GoRoute(
+              path: subscriptionPath,
+              builder: (context, state) => _buildDeferredRoute(
+                loadLibrary: subscription_screen.loadLibrary,
+                builder: () => subscription_screen.SubscriptionScreen(),
               ),
             ),
             GoRoute(

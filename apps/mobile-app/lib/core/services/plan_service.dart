@@ -6,99 +6,217 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Plan tiers
-// Free:    Up to 20 invoices/month — no credit card required
-// Premium: TZS 3,000/month — unlimited invoices + M-Pesa import
-//          Note: M-Pesa import uses manual verification initially
+// Tiers & limits
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum PlanTier { free, premium }
+enum PlanTier { starter, growth, business, enterprise }
 
-const int kFreeInvoiceMonthlyLimit = 20;
-const int kPremiumPriceMonthlyTZS = 3000;
+class PlanLimits {
+  final int monthlyInvoices; // -1 = unlimited
+  final int maxUsers;
+  final bool fullReports;
+  final bool mpesaImport;
+  final bool smsReminders;
+  final bool multiLocation;
+  final bool apiAccess;
+  final bool allExports;
+  final bool prioritySupport;
+
+  const PlanLimits({
+    required this.monthlyInvoices,
+    required this.maxUsers,
+    required this.fullReports,
+    required this.mpesaImport,
+    required this.smsReminders,
+    required this.multiLocation,
+    required this.apiAccess,
+    required this.allExports,
+    required this.prioritySupport,
+  });
+}
+
+const _limits = <PlanTier, PlanLimits>{
+  PlanTier.starter: PlanLimits(
+    monthlyInvoices: 50,
+    maxUsers: 1,
+    fullReports: false,
+    mpesaImport: false,
+    smsReminders: false,
+    multiLocation: false,
+    apiAccess: false,
+    allExports: false,
+    prioritySupport: false,
+  ),
+  PlanTier.growth: PlanLimits(
+    monthlyInvoices: -1,
+    maxUsers: 3,
+    fullReports: true,
+    mpesaImport: true,
+    smsReminders: true,
+    multiLocation: false,
+    apiAccess: false,
+    allExports: false,
+    prioritySupport: false,
+  ),
+  PlanTier.business: PlanLimits(
+    monthlyInvoices: -1,
+    maxUsers: 10,
+    fullReports: true,
+    mpesaImport: true,
+    smsReminders: true,
+    multiLocation: true,
+    apiAccess: true,
+    allExports: true,
+    prioritySupport: true,
+  ),
+  PlanTier.enterprise: PlanLimits(
+    monthlyInvoices: -1,
+    maxUsers: -1,
+    fullReports: true,
+    mpesaImport: true,
+    smsReminders: true,
+    multiLocation: true,
+    apiAccess: true,
+    allExports: true,
+    prioritySupport: true,
+  ),
+};
+
+PlanLimits limitsFor(PlanTier tier) => _limits[tier]!;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PlanStatus — runtime snapshot
+// ─────────────────────────────────────────────────────────────────────────────
 
 class PlanStatus {
   final PlanTier tier;
   final int invoicesUsedThisMonth;
-  final DateTime? premiumExpiresAt;
+  final DateTime? expiresAt;
 
   const PlanStatus({
     required this.tier,
     required this.invoicesUsedThisMonth,
-    this.premiumExpiresAt,
+    this.expiresAt,
   });
 
-  bool get isPremium => tier == PlanTier.premium;
-  bool get isFree => tier == PlanTier.free;
+  PlanLimits get limits => limitsFor(tier);
 
-  int get invoicesRemaining =>
-      isPremium ? 999999 : (kFreeInvoiceMonthlyLimit - invoicesUsedThisMonth).clamp(0, kFreeInvoiceMonthlyLimit);
+  bool get isStarter => tier == PlanTier.starter;
+  bool get isPaid => tier != PlanTier.starter;
 
-  bool get canCreateInvoice => isPremium || invoicesUsedThisMonth < kFreeInvoiceMonthlyLimit;
+  bool get canCreateInvoice {
+    final limit = limits.monthlyInvoices;
+    if (limit == -1) return true;
+    return invoicesUsedThisMonth < limit;
+  }
 
-  double get usagePercent =>
-      isPremium ? 0 : (invoicesUsedThisMonth / kFreeInvoiceMonthlyLimit).clamp(0.0, 1.0);
+  int get invoicesRemaining {
+    final limit = limits.monthlyInvoices;
+    if (limit == -1) return 999999;
+    return (limit - invoicesUsedThisMonth).clamp(0, limit);
+  }
+
+  double get usagePercent {
+    final limit = limits.monthlyInvoices;
+    if (limit == -1) return 0;
+    return (invoicesUsedThisMonth / limit).clamp(0.0, 1.0);
+  }
+
+  String get tierLabel {
+    switch (tier) {
+      case PlanTier.starter:    return 'Starter';
+      case PlanTier.growth:     return 'Growth';
+      case PlanTier.business:   return 'Business';
+      case PlanTier.enterprise: return 'Enterprise';
+    }
+  }
+
+  String get tierLabelSw {
+    switch (tier) {
+      case PlanTier.starter:    return 'Mpango wa Bure';
+      case PlanTier.growth:     return 'Growth';
+      case PlanTier.business:   return 'Business';
+      case PlanTier.enterprise: return 'Enterprise';
+    }
+  }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PlanService
+// ─────────────────────────────────────────────────────────────────────────────
+
 class PlanService {
-  static final _firestore = FirebaseFirestore.instance;
+  static final _db = FirebaseFirestore.instance;
 
   static Future<PlanStatus> fetchStatus() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const PlanStatus(tier: PlanTier.free, invoicesUsedThisMonth: 0);
+    if (user == null) {
+      return const PlanStatus(tier: PlanTier.starter, invoicesUsedThisMonth: 0);
+    }
 
     try {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final doc = await _db.collection('users').doc(user.uid).get();
       final data = doc.data() ?? {};
 
       final tierRaw = (data['plan'] as String?)?.toLowerCase();
-      final tier = tierRaw == 'premium' ? PlanTier.premium : PlanTier.free;
-
-      final premiumExpiresRaw = data['premiumExpiresAt'];
-      DateTime? expiresAt;
-      if (premiumExpiresRaw is Timestamp) {
-        expiresAt = premiumExpiresRaw.toDate();
+      final PlanTier tier;
+      switch (tierRaw) {
+        case 'growth':     tier = PlanTier.growth;     break;
+        case 'business':   tier = PlanTier.business;   break;
+        case 'enterprise': tier = PlanTier.enterprise; break;
+        default:           tier = PlanTier.starter;
       }
 
-      // If premium has expired, treat as free
-      final effectiveTier = (tier == PlanTier.premium && expiresAt != null && expiresAt.isBefore(DateTime.now()))
-          ? PlanTier.free
-          : tier;
+      final expiresRaw = data['planExpiresAt'] ?? data['premiumExpiresAt'];
+      DateTime? expiresAt;
+      if (expiresRaw is Timestamp) expiresAt = expiresRaw.toDate();
 
-      // Count invoices created this calendar month from the active business
-      final selectedBusinessId = (data['selectedBusinessId'] as String?)?.trim();
+      // Revert to Starter if subscription has expired
+      final effectiveTier =
+          (tier != PlanTier.starter && expiresAt != null && expiresAt.isBefore(DateTime.now()))
+              ? PlanTier.starter
+              : tier;
+
       int invoiceCount = 0;
-      if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
-        final now = DateTime.now();
-        final monthStart = DateTime(now.year, now.month);
-        final invoiceSnap = await _firestore
-            .collection('businesses')
-            .doc(selectedBusinessId)
-            .collection('invoices')
-            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(monthStart))
-            .count()
-            .get();
-        invoiceCount = invoiceSnap.count ?? 0;
+      if (effectiveTier == PlanTier.starter) {
+        final selectedBusinessId = (data['selectedBusinessId'] as String?)?.trim() ?? '';
+        if (selectedBusinessId.isNotEmpty) {
+          final now = DateTime.now();
+          final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
+          // Correct path: tenants/{uid}/businesses/{businessId}/sales_invoices
+          final snap = await _db
+              .collection('tenants')
+              .doc(user.uid)
+              .collection('businesses')
+              .doc(selectedBusinessId)
+              .collection('sales_invoices')
+              .where('createdAt', isGreaterThanOrEqualTo: monthStart)
+              .count()
+              .get();
+          invoiceCount = snap.count ?? 0;
+        }
       }
 
       return PlanStatus(
         tier: effectiveTier,
         invoicesUsedThisMonth: invoiceCount,
-        premiumExpiresAt: expiresAt,
+        expiresAt: expiresAt,
       );
     } catch (_) {
-      return const PlanStatus(tier: PlanTier.free, invoicesUsedThisMonth: 0);
+      return const PlanStatus(tier: PlanTier.starter, invoicesUsedThisMonth: 0);
     }
   }
 
-  /// Mark a user as premium after confirmed M-Pesa payment.
-  /// Note: M-Pesa verification is manual for now — agent reviews payment
-  /// screenshot and calls this after confirmation.
-  static Future<void> activatePremium({required String uid, required int months}) async {
+  /// Activate a paid tier for [months] months.
+  static Future<void> activatePlan({
+    required String uid,
+    required PlanTier tier,
+    required int months,
+  }) async {
     final expiresAt = DateTime.now().add(Duration(days: 30 * months));
-    await _firestore.collection('users').doc(uid).set({
-      'plan': 'premium',
-      'premiumExpiresAt': Timestamp.fromDate(expiresAt),
+    await _db.collection('users').doc(uid).set({
+      'plan': tier.name,
+      'planExpiresAt': Timestamp.fromDate(expiresAt),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -108,12 +226,12 @@ class PlanService {
 // Riverpod provider
 // ─────────────────────────────────────────────────────────────────────────────
 
-final planStatusProvider = FutureProvider<PlanStatus>((ref) async {
+final planStatusProvider = FutureProvider.autoDispose<PlanStatus>((ref) {
   return PlanService.fetchStatus();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PlanUpgradeCard — shown inline when user hits invoice limit
+// PlanUpgradeCard — inline warning when approaching or at the limit
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PlanUpgradeCard extends StatelessWidget {
@@ -124,42 +242,38 @@ class PlanUpgradeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (status.isPremium) return const SizedBox.shrink();
+    if (!status.isStarter) return const SizedBox.shrink();
 
-    final atLimit = !status.canCreateInvoice;
+    final atLimit  = !status.canCreateInvoice;
     final nearLimit = status.usagePercent >= 0.8;
-
     if (!nearLimit && !atLimit) return const SizedBox.shrink();
+
+    final limitLabel = limitsFor(PlanTier.starter).monthlyInvoices;
+    final accent = atLimit ? AppColors.error : AppColors.warning;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: atLimit
-              ? [AppColors.error.withValues(alpha: 0.08), AppColors.error.withValues(alpha: 0.03)]
-              : [AppColors.warning.withValues(alpha: 0.08), AppColors.warning.withValues(alpha: 0.03)],
+          colors: [accent.withValues(alpha: 0.08), accent.withValues(alpha: 0.03)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: atLimit
-              ? AppColors.error.withValues(alpha: 0.25)
-              : AppColors.warning.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (atLimit ? AppColors.error : AppColors.warning).withValues(alpha: 0.12),
+              color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               atLimit ? Icons.lock_rounded : Icons.warning_amber_rounded,
-              color: atLimit ? AppColors.error : AppColors.warning,
+              color: accent,
               size: 20,
             ),
           ),
@@ -170,17 +284,17 @@ class PlanUpgradeCard extends StatelessWidget {
               children: [
                 Text(
                   atLimit
-                      ? 'Umefika kikomo cha ankara'
-                      : 'Karibu kukamilisha ankara ${status.invoicesUsedThisMonth}/$kFreeInvoiceMonthlyLimit',
+                      ? 'Umefika kikomo — $limitLabel invoices kwa mwezi'
+                      : '${status.invoicesUsedThisMonth}/$limitLabel invoices mwezi huu',
                   style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: atLimit ? AppColors.error : AppColors.warning,
+                    color: accent,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Pata Premium: TZS ${kPremiumPriceMonthlyTZS.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}/mwezi kupitia M-Pesa',
+                  'Growth: TZS 5,000/mwezi — ankara zisizo na kikomo',
                   style: GoogleFonts.dmSans(
                     fontSize: 11,
                     color: AppColors.textMuted,
@@ -216,7 +330,7 @@ class PlanUpgradeCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PlanInfoCard — shown in settings to display current plan + upgrade CTA
+// PlanInfoCard — shown in settings / subscription screen
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PlanInfoCard extends StatelessWidget {
@@ -227,21 +341,30 @@ class PlanInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPaid = status.isPaid;
+    final limit = limitsFor(PlanTier.starter).monthlyInvoices;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: status.isPremium
+        gradient: isPaid
             ? const LinearGradient(
                 colors: [AppColors.navyPrimary, AppColors.navySecondary],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
             : null,
-        color: status.isFree ? AppColors.surface : null,
+        color: isPaid ? null : AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: status.isFree ? Border.all(color: AppColors.border) : null,
-        boxShadow: status.isPremium
-            ? [BoxShadow(color: AppColors.navyPrimary.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))]
+        border: isPaid ? null : Border.all(color: AppColors.border),
+        boxShadow: isPaid
+            ? [
+                BoxShadow(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                )
+              ]
             : null,
       ),
       child: Column(
@@ -250,33 +373,45 @@ class PlanInfoCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                status.isPremium ? Icons.stars_rounded : Icons.workspace_premium_outlined,
-                color: status.isPremium ? AppColors.yellowBrand : AppColors.textMuted,
+                isPaid ? Icons.stars_rounded : Icons.workspace_premium_outlined,
+                color: isPaid ? AppColors.yellowBrand : AppColors.textMuted,
                 size: 22,
               ),
               const SizedBox(width: 10),
               Text(
-                status.isPremium ? 'Premium' : 'Mpango wa Bure',
+                status.tierLabel,
                 style: GoogleFonts.dmSans(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: status.isPremium ? AppColors.inverseText : AppColors.textPrimary,
+                  color: isPaid ? Colors.white : AppColors.textPrimary,
                 ),
               ),
+              const Spacer(),
+              if (status.expiresAt != null)
+                Text(
+                  'Hadi ${_fmt(status.expiresAt!)}',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: isPaid
+                        ? Colors.white.withValues(alpha: 0.55)
+                        : AppColors.textMuted,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
-          if (status.isFree) ...[
+          if (status.isStarter) ...[
             _UsageBar(status: status),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
-              'Ankara ${status.invoicesUsedThisMonth} / $kFreeInvoiceMonthlyLimit mwezi huu',
+              '${status.invoicesUsedThisMonth} / $limit invoices mwezi huu',
               style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
             ),
-            const SizedBox(height: 16),
-            const _FeatureRow(text: 'Ankara hadi $kFreeInvoiceMonthlyLimit / mwezi', available: true),
-            const _FeatureRow(text: 'Ankara zisizo na kikomo', available: false),
-            const _FeatureRow(text: 'Kuingiza data ya M-Pesa (mwongozo)', available: false),
+            const SizedBox(height: 14),
+            _FeatureRow(text: 'Hadi $limit invoices / mwezi', ok: true),
+            const _FeatureRow(text: 'Ankara zisizo na kikomo', ok: false),
+            const _FeatureRow(text: 'Ripoti kamili', ok: false),
+            const _FeatureRow(text: 'Kuingiza data ya M-Pesa', ok: false),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -287,42 +422,30 @@ class PlanInfoCard extends StatelessWidget {
                   backgroundColor: AppColors.yellowBrand,
                   foregroundColor: AppColors.navyPrimary,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text(
-                  'Panda Premium — TZS 3,000/mwezi',
-                  style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700),
+                  'Angalia Mipango ya Malipo',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.w700),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Malipo ya M-Pesa. Uthibitisho wa mwongozo kwa sasa.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
             ),
           ] else ...[
-            const _FeatureRow(text: 'Ankara zisizo na kikomo', available: true, light: true),
-            const _FeatureRow(text: 'Kuingiza data ya M-Pesa', available: true, light: true),
-            const _FeatureRow(text: 'Msaada wa kipaumbele', available: true, light: true),
-            if (status.premiumExpiresAt != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Inaisha: ${_formatDate(status.premiumExpiresAt!)}',
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  color: AppColors.inverseText.withValues(alpha: 0.6),
-                ),
-              ),
-            ],
+            const _FeatureRow(text: 'Ankara zisizo na kikomo', ok: true, light: true),
+            const _FeatureRow(text: 'Ripoti kamili', ok: true, light: true),
+            const _FeatureRow(text: 'Kuingiza data ya M-Pesa', ok: true, light: true),
+            if (status.tier == PlanTier.business || status == status)
+              const _FeatureRow(text: 'Stoo nyingi', ok: true, light: true),
           ],
         ],
       ),
     );
   }
 
-  static String _formatDate(DateTime dt) =>
-      '${dt.day}/${dt.month}/${dt.year}';
+  static String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
 class _UsageBar extends StatelessWidget {
@@ -352,10 +475,10 @@ class _UsageBar extends StatelessWidget {
 
 class _FeatureRow extends StatelessWidget {
   final String text;
-  final bool available;
+  final bool ok;
   final bool light;
 
-  const _FeatureRow({required this.text, required this.available, this.light = false});
+  const _FeatureRow({required this.text, required this.ok, this.light = false});
 
   @override
   Widget build(BuildContext context) {
@@ -364,9 +487,9 @@ class _FeatureRow extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            available ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            ok ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
             size: 16,
-            color: available
+            color: ok
                 ? (light ? AppColors.yellowBrand : AppColors.success)
                 : AppColors.textDisabled,
           ),
@@ -375,10 +498,10 @@ class _FeatureRow extends StatelessWidget {
             text,
             style: GoogleFonts.dmSans(
               fontSize: 13,
-              color: available
-                  ? (light ? AppColors.inverseText : AppColors.textPrimary)
+              color: ok
+                  ? (light ? Colors.white : AppColors.textPrimary)
                   : AppColors.textDisabled,
-              fontWeight: available ? FontWeight.w500 : FontWeight.w400,
+              fontWeight: ok ? FontWeight.w500 : FontWeight.w400,
             ),
           ),
         ],

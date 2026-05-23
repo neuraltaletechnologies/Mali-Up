@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../inventory/data/inventory_providers.dart';
@@ -231,6 +233,24 @@ class SalesScreen extends ConsumerWidget {
       floatingActionButton: Builder(
         builder: (scaffoldCtx) => FloatingActionButton.extended(
           onPressed: () async {
+            // Check plan limits before opening the sale sheet
+            final plan = await ref.read(planStatusProvider.future);
+            if (!scaffoldCtx.mounted) return;
+
+            if (!plan.canCreateInvoice) {
+              await showUpgradeSheet(
+                scaffoldCtx,
+                currentStatus: plan,
+                triggerReason: _tr(
+                  'You\'ve used all ${plan.limits.monthlyInvoices} invoices '
+                  'for this month on the Starter plan.',
+                  'Umetumia ankara zote ${plan.limits.monthlyInvoices} '
+                  'za mwezi huu kwenye mpango wa Starter.',
+                ),
+              );
+              return;
+            }
+
             await showModalBottomSheet<void>(
               context: scaffoldCtx,
               isScrollControlled: true,
