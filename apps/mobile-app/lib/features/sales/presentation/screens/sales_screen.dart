@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
@@ -941,6 +942,30 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
     }
   }
 
+  Future<void> _scanBarcode() async {
+    final scanned = await BarcodeScannerScreen.show(
+      context,
+      title: _tr('Scan Product', 'Skani Bidhaa'),
+    );
+    if (scanned == null || scanned.isEmpty || !mounted) return;
+
+    final inventory = ref.read(inventoryItemListProvider).value ?? [];
+    final matched = inventory.firstWhere(
+      (item) =>
+          (item['sku'] ?? '').toString().toLowerCase() == scanned.toLowerCase(),
+      orElse: () => <String, dynamic>{},
+    );
+
+    if (matched.isNotEmpty) {
+      _selectItem(matched);
+    } else {
+      _snack(_tr(
+        'No product found for barcode: $scanned',
+        'Hakuna bidhaa kwa nambari: $scanned',
+      ));
+    }
+  }
+
   void _snack(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
@@ -1082,7 +1107,12 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
                       });
                     },
                   )
-                : null),
+                : IconButton(
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 22,
+                        color: AppColors.tealAccent),
+                    tooltip: _tr('Scan barcode', 'Skani nambari'),
+                    onPressed: _scanBarcode,
+                  )),
       ),
     );
   }
@@ -1549,6 +1579,7 @@ class _QuickSaleSheetState extends ConsumerState<_QuickSaleSheet> {
           ),
         ),
         SizedBox(
+          width: 150,
           height: 52,
           child: ElevatedButton(
             onPressed: _isSaving || _isOutOfStock ? null : _save,

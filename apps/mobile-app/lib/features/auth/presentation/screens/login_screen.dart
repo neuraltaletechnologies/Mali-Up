@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/pin_digit_box.dart';
 import '../../../../config/routing.dart';

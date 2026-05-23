@@ -7,10 +7,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/page_intro_header.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/inventory_providers.dart';
+import '../widgets/barcode_view_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -621,6 +623,34 @@ class _ProductRow extends ConsumerWidget {
   final bool isLast;
   const _ProductRow({required this.item, required this.isLast});
 
+  Future<void> _deleteItem(BuildContext context, WidgetRef ref) async {
+    final id = (item['id'] as String?) ?? '';
+    if (id.isEmpty) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx = await repo.resolveContextForUser(user.uid);
+      await repo
+          .scopeCollection(uid: user.uid, context: ctx, childCollection: 'inventory_items')
+          .doc(id)
+          .delete();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_tr('Product deleted', 'Bidhaa imefutwa')),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_tr('Failed to delete. Try again.', 'Imeshindikana kufuta. Jaribu tena.')),
+        ));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final type    = _readType(item);
@@ -634,15 +664,118 @@ class _ProductRow extends ConsumerWidget {
     final health  = _healthLevel(item);
     final hColor  = _healthColor(health);
 
-    return GestureDetector(
-      onTap: () => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        useSafeArea: true,
-        builder: (_) => _ProductDetailSheet(item: item),
+    return Dismissible(
+      key: ValueKey(item['id'] ?? name),
+      direction: DismissDirection.horizontal,
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          // Right swipe → Edit
+          await showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            useSafeArea: true,
+            builder: (_) => _ProductFormSheet(
+              existingItem: item,
+              existingId: (item['id'] as String?) ?? '',
+            ),
+          );
+          return false;
+        } else {
+          // Left swipe → Delete confirmation
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                _tr('Delete Product?', 'Futa Bidhaa?'),
+                style: GoogleFonts.dmSans(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navyPrimary,
+                ),
+              ),
+              content: Text(
+                _tr(
+                  'Delete "$name"? This cannot be undone.',
+                  'Futa "$name"? Hii haiwezi kutenduliwa.',
+                ),
+                style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textSecondary),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: Text(
+                    _tr('Cancel', 'Ghairi'),
+                    style: GoogleFonts.dmSans(color: AppColors.textMuted, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  child: Text(
+                    _tr('Delete', 'Futa'),
+                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          );
+          if (confirmed == true) {
+            await _deleteItem(context, ref);
+            return true;
+          }
+          return false;
+        }
+      },
+      background: Container(
+        color: AppColors.tealAccent.withValues(alpha: 0.08),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.edit_rounded, color: AppColors.tealAccent, size: 22),
+            const SizedBox(height: 4),
+            Text(
+              _tr('Edit', 'Hariri'),
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.tealAccent,
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Container(
+      secondaryBackground: Container(
+        color: AppColors.error.withValues(alpha: 0.08),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
+            const SizedBox(height: 4),
+            Text(
+              _tr('Delete', 'Futa'),
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.error,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: GestureDetector(
+        onTap: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          useSafeArea: true,
+          builder: (_) => _ProductDetailSheet(item: item),
+        ),
+        child: Container(
         margin: const EdgeInsets.only(bottom: 1),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -758,7 +891,8 @@ class _ProductRow extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 
@@ -1318,6 +1452,27 @@ class _DetailView extends StatelessWidget {
                     _DetailSectionLabel(_tr('Details', 'Maelezo')),
                     const SizedBox(height: 14),
                     _KeyValue(k: 'SKU', v: sku),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => BarcodeViewSheet.show(
+                          context,
+                          productName: name,
+                          sku: sku,
+                          price: sell,
+                        ),
+                        icon: const Icon(Icons.qr_code_rounded, size: 16),
+                        label: Text(_tr('View / Print Barcode', 'Ona / Chapa Nambari')),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.tealAccent,
+                          side: const BorderSide(color: AppColors.tealAccent),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
 
                   const SizedBox(height: 28),
@@ -1666,6 +1821,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
   }
 
+  Future<void> _scanSku() async {
+    final scanned = await BarcodeScannerScreen.show(
+      context,
+      title: _tr('Scan Product Barcode', 'Skani Nambari ya Bidhaa'),
+    );
+    if (scanned != null && scanned.isNotEmpty && mounted) {
+      setState(() => _skuCtrl.text = scanned);
+    }
+  }
+
   void _snack(String t) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
 
@@ -1832,10 +1997,32 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
                   _FormLabel('SKU / ${_tr("Barcode", "Nambari")} (${_tr("optional", "hiari")})'),
                   const SizedBox(height: 6),
-                  _FormField(
-                    ctrl: _skuCtrl,
-                    hint: 'e.g. ABC-001',
-                    caps: TextCapitalization.characters,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _FormField(
+                          ctrl: _skuCtrl,
+                          hint: 'e.g. ABC-001',
+                          caps: TextCapitalization.characters,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: _scanSku,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            side: const BorderSide(color: AppColors.tealAccent),
+                            foregroundColor: AppColors.tealAccent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Icon(Icons.qr_code_scanner_rounded, size: 22),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 20),

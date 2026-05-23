@@ -9,7 +9,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../shared/widgets/shimmer.dart';
-import '../../../../shared/widgets/logo.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/pin_digit_box.dart';
 import '../../../../shared/widgets/mali_components.dart';

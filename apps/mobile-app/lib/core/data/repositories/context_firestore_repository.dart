@@ -136,6 +136,57 @@ class ContextFirestoreRepository {
     });
   }
 
+  Future<void> addExpense({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required Expense expense,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'expenses',
+    ).add(expense.toFirestore());
+  }
+
+  Future<void> addRecurringTemplate({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required Map<String, dynamic> templateData,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'expense_templates',
+    ).add(templateData);
+  }
+
+  Stream<List<Map<String, dynamic>>> watchRecurringTemplates({
+    required String uid,
+    required ResolvedFinanceContext context,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'expense_templates',
+    ).orderBy('category').snapshots().map((snap) {
+      return snap.docs
+          .map((doc) => {'id': doc.id, ...doc.data()})
+          .toList();
+    });
+  }
+
+  Future<void> deleteRecurringTemplate({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String templateId,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'expense_templates',
+    ).doc(templateId).delete();
+  }
+
   Stream<List<CashAccount>> watchCashAccounts({
     required String uid,
     required ResolvedFinanceContext context,
