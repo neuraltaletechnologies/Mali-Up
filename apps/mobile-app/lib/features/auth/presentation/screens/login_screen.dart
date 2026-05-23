@@ -542,7 +542,6 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Image.asset(
                 'assets/Picture/sign_up.png',
                 fit: BoxFit.cover,
-                alignment: Alignment.center,
                 width: double.infinity,
                 height: double.infinity,
               ),

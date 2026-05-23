@@ -1076,7 +1076,6 @@ class _HorizontalModuleSkeleton extends StatelessWidget {
       width: 106,
       child: ShimmerBox(
         height: 108,
-        borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
     );
   }
@@ -1340,12 +1339,12 @@ class _RecentTransactionsList extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: _items.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 8),
+          separatorBuilder: (context, index) => const SizedBox(height: 6),
           itemBuilder: (context, index) {
             final item = _items[index];
             final isExpense = item['kind'] == 'expense';
@@ -1356,9 +1355,9 @@ class _RecentTransactionsList extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                 leading: Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: (isExpense ? AppColors.error : AppColors.success)
                         .withValues(alpha: 0.1),
