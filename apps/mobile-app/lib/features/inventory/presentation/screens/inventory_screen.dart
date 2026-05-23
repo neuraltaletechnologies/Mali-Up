@@ -666,7 +666,6 @@ class _ProductRow extends ConsumerWidget {
 
     return Dismissible(
       key: ValueKey(item['id'] ?? name),
-      direction: DismissDirection.horizontal,
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           // Right swipe → Edit
