@@ -613,7 +613,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Image.asset(
                 'assets/Picture/sign_in.png',
                 fit: BoxFit.cover,
-                alignment: Alignment.center,
                 width: double.infinity,
                 height: double.infinity,
               ),
