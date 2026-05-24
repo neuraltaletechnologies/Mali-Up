@@ -5,6 +5,7 @@ import '../../../features/debt/domain/models/debt.dart';
 import '../../../features/finance/domain/models/cash_account.dart';
 import '../../../features/finance/domain/models/expense.dart';
 
+
 enum FinanceContextType { business }
 
 class ResolvedFinanceContext {
@@ -117,6 +118,33 @@ class ContextFirestoreRepository {
           .map((doc) => Debt.fromFirestore(doc.data(), doc.id))
           .toList();
     });
+  }
+
+  Stream<List<DebtPayment>> watchDebtPayments({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String debtId,
+  }) {
+    return _scopeCollection(uid: uid, context: context, childCollection: 'debts')
+        .doc(debtId)
+        .collection('payments')
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => DebtPayment.fromFirestore(doc.data(), doc.id))
+            .toList());
+  }
+
+  Future<void> addDebtPayment({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String debtId,
+    required Map<String, dynamic> paymentData,
+  }) {
+    return _scopeCollection(uid: uid, context: context, childCollection: 'debts')
+        .doc(debtId)
+        .collection('payments')
+        .add(paymentData);
   }
 
   Stream<List<Expense>> watchExpenses({
