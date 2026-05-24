@@ -1,28 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../features/auth/services/auth_service.dart';
 
-/// Enum to track onboarding state
-enum OnboardingState {
+/// Simple enum used only for high-level splash / shell routing.
+/// The detailed per-screen state lives in [OnboardingState] (the class).
+enum OnboardingFlowState {
   splash,
   onboarding,
   complete,
 }
 
-/// Provider to manage onboarding flow
+/// Provider for the top-level flow state (splash → onboarding → done).
 final onboardingStateProvider =
-    NotifierProvider<OnboardingNotifier, OnboardingState>(
-  OnboardingNotifier.new,
+    NotifierProvider<OnboardingFlowNotifier, OnboardingFlowState>(
+  OnboardingFlowNotifier.new,
 );
 
-class OnboardingNotifier extends Notifier<OnboardingState> {
+class OnboardingFlowNotifier extends Notifier<OnboardingFlowState> {
   @override
-  OnboardingState build() => OnboardingState.onboarding;
+  OnboardingFlowState build() => OnboardingFlowState.onboarding;
 
-  void showOnboarding() => state = OnboardingState.onboarding;
+  void showOnboarding() => state = OnboardingFlowState.onboarding;
 
-  void completeOnboarding() => state = OnboardingState.complete;
+  void completeOnboarding() => state = OnboardingFlowState.complete;
 
-  void reset() => state = OnboardingState.onboarding;
+  void reset() => state = OnboardingFlowState.onboarding;
 }
 
 /// Provider to check if onboarding has been completed

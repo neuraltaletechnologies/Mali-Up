@@ -1831,13 +1831,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final profitAmt  = _profit(_buyVal, _sellVal);
     final marginAmt  = _margin(_buyVal, _sellVal);
 
-    return Material(
-      color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
           // Handle + Header ────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
@@ -1931,7 +1934,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           Container(height: 1, color: AppColors.border),
 
           // ── Scrollable form ─────────────────────────────────────────
-          Flexible(
+          Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
                 24, 20, 24,
@@ -2163,6 +2166,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -2278,7 +2282,7 @@ class _UnitDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      initialValue: units.contains(value) ? value : units.first,
+      value: units.contains(value) ? value : units.first,
       decoration: InputDecoration(
         filled: true,
         fillColor: AppColors.surface,

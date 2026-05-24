@@ -258,7 +258,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     final notes = _inv['notes']?.toString() ?? '';
     if (notes.isNotEmpty) {
       lines.writeln('');
-      lines.writeln('_$notes_');
+      lines.writeln('_${notes}_');
     }
     return lines.toString();
   }
