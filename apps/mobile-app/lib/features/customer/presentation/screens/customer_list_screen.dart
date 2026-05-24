@@ -2,22 +2,62 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/customer_providers.dart';
 import '../../domain/models/customer.dart';
 import '../widgets/add_customer_dialog.dart';
+import 'customer_detail_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-String _fmtCustomerBalance(double amount) {
-  if (amount >= 1_000_000) {
-    return 'TSh ${(amount / 1_000_000).toStringAsFixed(1)}M';
-  }
-  if (amount >= 1_000) return 'TSh ${(amount / 1_000).toStringAsFixed(0)}K';
-  return 'TSh ${amount.toStringAsFixed(0)}';
+// ─────────────────────────────────────────────────────────────────────────────
+// Segment filter
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum _Segment { all, vip, wholesale, retail, blacklisted, hasBalance }
+
+extension _SegmentX on _Segment {
+  String get label => switch (this) {
+        _Segment.all => _tr('All', 'Wote'),
+        _Segment.vip => 'VIP',
+        _Segment.wholesale => _tr('Wholesale', 'Jumla'),
+        _Segment.retail => _tr('Retail', 'Reja reja'),
+        _Segment.blacklisted => _tr('Blacklisted', 'Orodha Nyeusi'),
+        _Segment.hasBalance => _tr('Owes Balance', 'Ana Deni'),
+      };
+
+  Color get color => switch (this) {
+        _Segment.all => AppColors.navyPrimary,
+        _Segment.vip => const Color(0xFFB45309),
+        _Segment.wholesale => AppColors.tealAccent,
+        _Segment.retail => AppColors.navySecondary,
+        _Segment.blacklisted => AppColors.error,
+        _Segment.hasBalance => AppColors.warning,
+      };
+
+  bool matches(Customer c) => switch (this) {
+        _Segment.all => true,
+        _Segment.vip => c.tags.any((t) => t.toLowerCase() == 'vip'),
+        _Segment.wholesale =>
+          c.tags.any((t) => t.toLowerCase().contains('jumla') ||
+              t.toLowerCase().contains('wholesale')),
+        _Segment.retail =>
+          c.tags.any((t) => t.toLowerCase().contains('reja') ||
+              t.toLowerCase().contains('retail')),
+        _Segment.blacklisted =>
+          c.tags.any((t) => t.toLowerCase().contains('nyeusi') ||
+              t.toLowerCase().contains('black')),
+        _Segment.hasBalance => (double.tryParse(c.balance) ?? 0) > 0,
+      };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Screen
+// ─────────────────────────────────────────────────────────────────────────────
 
 class CustomerListScreen extends ConsumerStatefulWidget {
   const CustomerListScreen({super.key});
@@ -27,214 +67,252 @@ class CustomerListScreen extends ConsumerStatefulWidget {
 }
 
 class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
-  late TextEditingController _searchController;
-
-  @override
-  void initState() {
-    super.initState();
-    _searchController = TextEditingController();
-  }
+  final _searchCtrl = TextEditingController();
+  _Segment _segment = _Segment.all;
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _searchCtrl.dispose();
     super.dispose();
+  }
+
+  List<Customer> _filter(List<Customer> all) {
+    var list = all.where(_segment.matches).toList();
+    final q = _searchCtrl.text.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      list = list
+          .where((c) =>
+              c.name.toLowerCase().contains(q) ||
+              c.phone.contains(q) ||
+              c.email.toLowerCase().contains(q))
+          .toList();
+    }
+    return list;
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final customers = ref.watch(customerListProvider);
-    final allCustomers = customers.maybeWhen(
-      data: (items) => items,
-      orElse: () => const [],
-    );
+    final customersAsync = ref.watch(customerListProvider);
+    final all = customersAsync.maybeWhen(data: (d) => d, orElse: () => <Customer>[]);
+    final filtered = _filter(all);
 
-    // Filter customers based on search
-    final filteredCustomers = _searchController.text.isEmpty
-        ? allCustomers
-        : allCustomers
-            .where((customer) =>
-                customer.name.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-                customer.phone.toLowerCase().contains(_searchController.text.toLowerCase()))
-            .toList();
-
-    final totalBalance = filteredCustomers.fold<double>(
-      0,
-      (sum, c) => sum + (double.tryParse(c.balance) ?? 0),
-    );
+    final totalBalance = all.fold<double>(
+        0, (s, c) => s + (double.tryParse(c.balance) ?? 0));
+    final debtCount = all.where((c) => (double.tryParse(c.balance) ?? 0) > 0).length;
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _tr('Active Customers', 'Wateja Hai'),
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          _buildHeader(all.length, totalBalance, debtCount),
+          _FilterPills(
+            selected: _segment,
+            customers: all,
+            onSelect: (s) => setState(() => _segment = s),
           ),
-
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: _tr('Search by name or phone...', 'Tafuta kwa jina au simu...'),
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {});
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                filled: true,
-                fillColor: AppColors.card,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              onChanged: (value) => setState(() {}),
-            ),
-          ),
-
-          // CRM Summary Header - Compact card style
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _CompactStat(
-                  label: _tr('Clients', 'Wateja'),
-                  value: '${filteredCustomers.length}',
-                  icon: Icons.people_alt_outlined,
-                ),
-                Container(width: 1, height: 20, color: AppColors.border),
-                _CompactStat(
-                  label: _tr('Balance', 'Salio'),
-                  value: _fmtBalance(totalBalance),
-                  icon: Icons.account_balance_wallet_outlined,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
           Expanded(
-            child: customers.isLoading
+            child: customersAsync.isLoading
                 ? const CustomerPageSkeleton()
-                : filteredCustomers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.person_off_outlined, size: 64, color: Colors.grey[400]),
-                            const SizedBox(height: 16),
-                            Text(
-                              _tr('No customers found', 'Hakuna wateja waliofumanwa'),
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
+                : filtered.isEmpty
+                    ? _Empty(query: _searchCtrl.text, segment: _segment)
                     : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                        itemCount: filteredCustomers.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final customer = filteredCustomers[index];
-                          return _CustomerCard(customer: customer);
-                        },
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, _i) => const SizedBox(height: 10),
+                        itemBuilder: (_, i) =>
+                            _CustomerCard(customer: filtered[i]),
                       ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddCustomerDialog(context, ref),
-        backgroundColor: AppColors.primary,
-        child: const Icon(
-          Icons.person_add_alt_1_rounded,
-          color: AppColors.secondary,
-        ),
+        onPressed: () => _showAddDialog(context),
+        backgroundColor: AppColors.navyPrimary,
+        child: const Icon(Icons.person_add_alt_1_rounded,
+            color: AppColors.yellowBrand),
       ),
     );
   }
 
-  static String _fmtBalance(double amount) {
-    if (amount >= 1_000_000) {
-      return 'TSh ${(amount / 1_000_000).toStringAsFixed(1)}M';
-    }
-    if (amount >= 1_000) {
-      return 'TSh ${(amount / 1_000).toStringAsFixed(0)}K';
-    }
-    return 'TSh ${amount.toStringAsFixed(0)}';
+  Widget _buildHeader(int count, double totalBalance, int debtCount) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _tr('Customers', 'Wateja'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyPrimary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Stats row
+          Row(
+            children: [
+              _StatChip(
+                icon: Icons.people_rounded,
+                label: '$count ${_tr("clients", "wateja")}',
+                color: AppColors.navyPrimary,
+              ),
+              const SizedBox(width: 8),
+              _StatChip(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'TZS ${_fmtShort(totalBalance)}',
+                label2: _tr('receivable', 'inadaiwa'),
+                color: totalBalance > 0 ? AppColors.warning : AppColors.success,
+              ),
+              const SizedBox(width: 8),
+              _StatChip(
+                icon: Icons.warning_amber_rounded,
+                label: '$debtCount ${_tr("with debt", "wenye deni")}',
+                color: debtCount > 0 ? AppColors.error : AppColors.textMuted,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Search
+          TextField(
+            controller: _searchCtrl,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: _tr('Search by name, phone…', 'Tafuta kwa jina, simu…'),
+              hintStyle:
+                  GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
+              prefixIcon: const Icon(Icons.search_rounded,
+                  size: 20, color: AppColors.textMuted),
+              suffixIcon: _searchCtrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          size: 18, color: AppColors.textMuted),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        setState(() {});
+                      },
+                    )
+                  : null,
+              isDense: true,
+              filled: true,
+              fillColor: AppColors.surfaceVariant,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
   }
 
-  void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
+  void _showAddDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AddCustomerDialog(),
+      builder: (_) => const AddCustomerDialog(),
     );
   }
 }
 
-class _CompactStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter pills
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const _CompactStat({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+class _FilterPills extends StatelessWidget {
+  final _Segment selected;
+  final List<Customer> customers;
+  final ValueChanged<_Segment> onSelect;
+
+  const _FilterPills(
+      {required this.selected, required this.customers, required this.onSelect});
+
+  int _count(_Segment s) => s == _Segment.all
+      ? customers.length
+      : customers.where(s.matches).length;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Expanded(
+    return Container(
+      color: Colors.white,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: AppColors.primary),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: AppColors.textMuted,
-              fontSize: 11,
+          const Divider(height: 1, color: AppColors.border),
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              children: _Segment.values.map((s) {
+                final active = s == selected;
+                final count = _count(s);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: GestureDetector(
+                    onTap: () => onSelect(s),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: active ? s.color : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: active ? s.color : AppColors.border,
+                          width: active ? 0 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            s.label,
+                            style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    active ? Colors.white : AppColors.textMuted),
+                          ),
+                          if (count > 0) ...[
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? Colors.white.withValues(alpha: 0.25)
+                                    : AppColors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$count',
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: active
+                                        ? Colors.white
+                                        : AppColors.textMuted),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
@@ -243,19 +321,40 @@ class _CompactStat extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Customer card
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _CustomerCard extends ConsumerWidget {
   final Customer customer;
   const _CustomerCard({required this.customer});
 
-  Future<void> _deleteCustomer(BuildContext context, WidgetRef ref) async {
+  Color get _accentColor {
+    if (customer.tags.any((t) =>
+        t.toLowerCase().contains('black') ||
+        t.toLowerCase().contains('nyeusi'))) {
+      return AppColors.error;
+    }
+    if (customer.tags.any((t) => t.toLowerCase() == 'vip')) {
+      return const Color(0xFFB45309);
+    }
+    if (customer.tags.any((t) =>
+        t.toLowerCase().contains('jumla') ||
+        t.toLowerCase().contains('wholesale'))) {
+      return AppColors.tealAccent;
+    }
+    return AppColors.navyPrimary;
+  }
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo
-          .scopeCollection(uid: user.uid, context: ctx, childCollection: 'customers')
+          .scopeCollection(
+              uid: user.uid, context: ctx, childCollection: 'customers')
           .doc(customer.id)
           .delete();
       if (context.mounted) {
@@ -268,7 +367,7 @@ class _CustomerCard extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('Failed to delete. Try again.', 'Imeshindikana kufuta. Jaribu tena.')),
+          content: Text(_tr('Delete failed', 'Imeshindwa kufuta')),
         ));
       }
     }
@@ -276,15 +375,14 @@ class _CustomerCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final rawBalance = double.tryParse(customer.balance) ?? 0;
-    final hasBalance = rawBalance > 0;
+    final balance = double.tryParse(customer.balance) ?? 0;
+    final hasBalance = balance > 0;
+    final accent = _accentColor;
 
     return Dismissible(
       key: ValueKey(customer.id),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
-          // Right swipe → Edit
           await showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
@@ -293,205 +391,280 @@ class _CustomerCard extends ConsumerWidget {
             builder: (_) => _EditCustomerSheet(customer: customer),
           );
           return false;
-        } else {
-          // Left swipe → Delete confirmation
-          final confirmed = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text(
-                _tr('Delete Customer?', 'Futa Mteja?'),
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              content: Text(
-                _tr(
-                  'Delete "${customer.name}"? This cannot be undone.',
-                  'Futa "${customer.name}"? Hii haiwezi kutenduliwa.',
-                ),
-                style: theme.textTheme.bodyMedium,
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: Text(
-                    _tr('Cancel', 'Ghairi'),
-                    style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                  child: Text(
-                    _tr('Delete', 'Futa'),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-          );
-          if (confirmed == true) {
-            await _deleteCustomer(context, ref);
-            return true;
-          }
-          return false;
         }
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(_tr('Delete Customer?', 'Futa Mteja?'),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+            content: Text(
+              _tr('Delete "${customer.name}"? This cannot be undone.',
+                  'Futa "${customer.name}"? Hii haiwezi kutenduliwa.'),
+              style: GoogleFonts.dmSans(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(_tr('Cancel', 'Ghairi'),
+                    style: GoogleFonts.dmSans(color: AppColors.textMuted)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: Text(_tr('Delete', 'Futa'),
+                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true) {
+          // ignore: use_build_context_synchronously
+          await _delete(context, ref);
+          return true;
+        }
+        return false;
       },
-      background: Container(
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-        ),
+      background: _swipeHint(
+        icon: Icons.edit_rounded,
+        label: _tr('Edit', 'Hariri'),
+        color: AppColors.navyPrimary,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.edit_rounded, color: AppColors.primary, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              _tr('Edit', 'Hariri'),
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
       ),
-      secondaryBackground: Container(
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-        ),
+      secondaryBackground: _swipeHint(
+        icon: Icons.delete_outline_rounded,
+        label: _tr('Delete', 'Futa'),
+        color: AppColors.error,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              _tr('Delete', 'Futa'),
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.error,
-              ),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => CustomerDetailScreen(customer: customer),
+          ));
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border(
+              left: BorderSide(color: accent, width: 3.5),
+              right: const BorderSide(color: AppColors.border),
+              top: const BorderSide(color: AppColors.border),
+              bottom: const BorderSide(color: AppColors.border),
             ),
-          ],
-        ),
-      ),
-      child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowCard,
-            blurRadius: 6,
-            offset: Offset(0, 1),
+            boxShadow: const [
+              BoxShadow(
+                  color: AppColors.shadowCard,
+                  blurRadius: 6,
+                  offset: Offset(0, 2))
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
+          padding: const EdgeInsets.all(14),
+          child: Row(
             children: [
+              // Avatar
               CircleAvatar(
-                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                radius: 22,
+                backgroundColor: accent.withValues(alpha: 0.1),
                 child: Text(
-                  customer.name[0],
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: AppColors.primaryDark,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  customer.name.isNotEmpty
+                      ? customer.name[0].toUpperCase()
+                      : '?',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: accent),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
+              // Name + phone + tags
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      customer.name,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            customer.name,
+                            style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (customer.isOrganisation)
+                          Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.tealAccent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _tr('ORG', 'SHIRIKA'),
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.tealAccent),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 2),
-                    Text(customer.phone, style: theme.textTheme.bodySmall),
+                    Text(
+                      customer.phone,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 12, color: AppColors.textMuted),
+                    ),
+                    if (customer.tags.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 5,
+                        children: customer.tags.take(3).map((t) {
+                          final tagColor = _tagColor(t);
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: tagColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: tagColor.withValues(alpha: 0.25)),
+                            ),
+                            child: Text(
+                              t,
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: tagColor),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
+              const SizedBox(width: 10),
+              // Balance
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    _tr('Outstanding Balance', 'Salio Linalodaiwa'),
-                    style: theme.textTheme.labelSmall,
+                    _tr('Balance', 'Salio'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 10, color: AppColors.textMuted),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _fmtCustomerBalance(rawBalance),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: hasBalance ? AppColors.error : AppColors.textMuted,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    hasBalance
+                        ? 'TZS ${_fmtShort(balance)}'
+                        : _tr('Clear', 'Safi'),
+                    style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: hasBalance ? AppColors.error : AppColors.success),
                   ),
+                  const SizedBox(height: 4),
+                  const Icon(Icons.chevron_right_rounded,
+                      size: 16, color: AppColors.textDisabled),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          const Divider(color: AppColors.border, height: 1),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Wrap(
-                spacing: 8,
-                children: customer.tags
-                    .map<Widget>(
-                      (tag) => Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                          ),
-                        ),
-                        child: Text(
-                          tag,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: AppColors.primaryDark,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-              Text(
-                '${_tr('Last Tx', 'Muamala wa Mwisho')}: ${customer.lastTransactionDate}',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-          ),
+        ),
+      ),
+    );
+  }
+
+  Color _tagColor(String tag) {
+    final t = tag.toLowerCase();
+    if (t == 'vip') return const Color(0xFFB45309);
+    if (t.contains('black') || t.contains('nyeusi')) return AppColors.error;
+    if (t.contains('jumla') || t.contains('wholesale')) return AppColors.tealAccent;
+    return AppColors.navySecondary;
+  }
+
+  Widget _swipeHint({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Alignment alignment,
+    required EdgeInsets padding,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      alignment: alignment,
+      padding: padding,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 4),
+          Text(label,
+              style: GoogleFonts.dmSans(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: color)),
         ],
       ),
-    ),
     );
   }
 }
 
-// ── Edit Customer Sheet ───────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Empty state
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Empty extends StatelessWidget {
+  final String query;
+  final _Segment segment;
+
+  const _Empty({required this.query, required this.segment});
+
+  @override
+  Widget build(BuildContext context) {
+    final msg = query.isNotEmpty
+        ? _tr('No results for "$query"', 'Hakuna matokeo ya "$query"')
+        : _tr('No customers in this group',
+            'Hakuna wateja katika kikundi hiki');
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              query.isNotEmpty
+                  ? Icons.search_off_rounded
+                  : Icons.group_off_rounded,
+              size: 56,
+              color: AppColors.textDisabled,
+            ),
+            const SizedBox(height: 12),
+            Text(msg,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSans(
+                    fontSize: 14, color: AppColors.textMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Edit Customer Sheet (preserved from original)
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _EditCustomerSheet extends ConsumerStatefulWidget {
   final Customer customer;
@@ -508,18 +681,24 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
   late final TextEditingController _emailCtrl;
   late final TextEditingController _tinCtrl;
   late final TextEditingController _addressCtrl;
+  late final TextEditingController _creditLimitCtrl;
   late bool _isOrg;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _nameCtrl    = TextEditingController(text: widget.customer.name);
-    _phoneCtrl   = TextEditingController(text: widget.customer.phone);
-    _emailCtrl   = TextEditingController(text: widget.customer.email);
-    _tinCtrl     = TextEditingController(text: widget.customer.tinNumber);
+    _nameCtrl = TextEditingController(text: widget.customer.name);
+    _phoneCtrl = TextEditingController(text: widget.customer.phone);
+    _emailCtrl = TextEditingController(text: widget.customer.email);
+    _tinCtrl = TextEditingController(text: widget.customer.tinNumber);
     _addressCtrl = TextEditingController(text: widget.customer.address);
-    _isOrg       = widget.customer.isOrganisation;
+    _creditLimitCtrl = TextEditingController(
+      text: widget.customer.creditLimit > 0
+          ? widget.customer.creditLimit.toStringAsFixed(0)
+          : '',
+    );
+    _isOrg = widget.customer.isOrganisation;
   }
 
   @override
@@ -529,6 +708,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
     _emailCtrl.dispose();
     _tinCtrl.dispose();
     _addressCtrl.dispose();
+    _creditLimitCtrl.dispose();
     super.dispose();
   }
 
@@ -542,21 +722,24 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Not logged in');
       final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx  = await repo.resolveContextForUser(user.uid);
+      final ctx = await repo.resolveContextForUser(user.uid);
 
+      final limit = double.tryParse(_creditLimitCtrl.text) ?? 0;
       final updates = <String, dynamic>{
-        'name':           _nameCtrl.text.trim(),
-        'phone':          _phoneCtrl.text.trim(),
-        'email':          _emailCtrl.text.trim(),
+        'name': _nameCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
         'isOrganisation': _isOrg,
-        'address':        _addressCtrl.text.trim(),
-        'updatedAt':      FieldValue.serverTimestamp(),
+        'address': _addressCtrl.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (limit > 0) 'creditLimit': limit,
       };
       final tin = _tinCtrl.text.trim();
       if (tin.isNotEmpty) updates['tinNumber'] = tin;
 
       await repo
-          .scopeCollection(uid: user.uid, context: ctx, childCollection: 'customers')
+          .scopeCollection(
+              uid: user.uid, context: ctx, childCollection: 'customers')
           .doc(widget.customer.id)
           .update(updates);
 
@@ -570,37 +753,42 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
       if (!mounted) return;
       setState(() => _isSaving = false);
       msg.showSnackBar(SnackBar(
-        content: Text(_tr('Failed to update. Try again.', 'Imeshindikana kusasisha. Jaribu tena.')),
+        content: Text(_tr('Failed to update', 'Imeshindwa kusasisha')),
       ));
     }
   }
 
   InputDecoration _dec(String label, IconData icon) => InputDecoration(
         labelText: label,
+        labelStyle: GoogleFonts.dmSans(fontSize: 13),
         prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.navyPrimary, width: 2),
         ),
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       );
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Material(
       color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius:
+          const BorderRadius.vertical(top: Radius.circular(24)),
       child: SafeArea(
         top: false,
         child: Padding(
           padding: EdgeInsets.fromLTRB(
-            20, 12, 20, 20 + MediaQuery.of(context).viewInsets.bottom,
+            20, 12, 20,
+            20 + MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Form(
             key: _formKey,
@@ -614,49 +802,25 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                       width: 44,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.black12,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
+                          color: Colors.black12,
+                          borderRadius: BorderRadius.circular(999)),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     _tr('Edit Customer', 'Hariri Mteja'),
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.secondary,
-                    ),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navyPrimary),
                   ),
                   const SizedBox(height: 16),
-
                   // Individual / Organisation toggle
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    child: Row(
-                      children: [
-                        _TypeToggleBtn(
-                          label: _tr('Individual', 'Mtu Binafsi'),
-                          icon: Icons.person_outline_rounded,
-                          active: !_isOrg,
-                          onTap: () => setState(() => _isOrg = false),
-                        ),
-                        const SizedBox(width: 4),
-                        _TypeToggleBtn(
-                          label: _tr('Organisation', 'Shirika'),
-                          icon: Icons.business_outlined,
-                          active: _isOrg,
-                          onTap: () => setState(() => _isOrg = true),
-                        ),
-                      ],
-                    ),
+                  _TypeToggleRow(
+                    isOrg: _isOrg,
+                    onChanged: (v) => setState(() => _isOrg = v),
                   ),
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _nameCtrl,
                     textCapitalization: TextCapitalization.words,
@@ -664,98 +828,102 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                       _isOrg
                           ? _tr('Organisation Name *', 'Jina la Shirika *')
                           : _tr('Customer Name *', 'Jina la Mteja *'),
-                      _isOrg ? Icons.business_outlined : Icons.person_outline_rounded,
+                      _isOrg
+                          ? Icons.business_outlined
+                          : Icons.person_outline_rounded,
                     ),
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? _tr('Please enter a name', 'Tafadhali weka jina')
                         : null,
                   ),
-                  const SizedBox(height: 14),
-
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: _phoneCtrl,
                     keyboardType: TextInputType.phone,
-                    decoration: _dec(
-                      _tr('Phone Number *', 'Namba ya Simu *'),
-                      Icons.phone_outlined,
-                    ),
+                    decoration:
+                        _dec(_tr('Phone Number *', 'Namba ya Simu *'),
+                            Icons.phone_outlined),
                     validator: (v) => (v == null || v.trim().isEmpty)
-                        ? _tr('Please enter phone number', 'Tafadhali weka namba ya simu')
+                        ? _tr('Please enter phone number',
+                            'Tafadhali weka namba ya simu')
                         : null,
                   ),
-                  const SizedBox(height: 14),
-
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: _emailCtrl,
                     keyboardType: TextInputType.emailAddress,
                     decoration: _dec(
-                      _tr('Email (Optional)', 'Barua pepe (Hiari)'),
-                      Icons.email_outlined,
-                    ),
+                        _tr('Email (Optional)', 'Barua pepe (Hiari)'),
+                        Icons.email_outlined),
                   ),
-
                   if (_isOrg) ...[
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _tinCtrl,
                       textCapitalization: TextCapitalization.characters,
                       decoration: _dec(
-                        _tr('TIN Number (Optional)', 'Namba ya TIN (Hiari)'),
-                        Icons.numbers_outlined,
-                      ),
+                          _tr('TIN Number (Optional)',
+                              'Namba ya TIN (Hiari)'),
+                          Icons.numbers_outlined),
                     ),
                   ],
-
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: _addressCtrl,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: _dec(
-                      _tr('Address (Optional)', 'Anwani (Hiari)'),
-                      Icons.location_on_outlined,
-                    ),
+                        _tr('Address (Optional)', 'Anwani (Hiari)'),
+                        Icons.location_on_outlined),
                   ),
-
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _creditLimitCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: _dec(
+                        _tr('Credit Limit (TZS, 0 = no limit)',
+                            'Kikomo cha Mkopo (TZS, 0 = bila kikomo)'),
+                        Icons.credit_score_rounded),
+                  ),
                   const SizedBox(height: 24),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: _isSaving ? null : () => Navigator.pop(context),
+                          onPressed: _isSaving
+                              ? null
+                              : () => Navigator.pop(context),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                                borderRadius: BorderRadius.circular(14)),
                           ),
-                          child: Text(_tr('Cancel', 'Ghairi')),
+                          child: Text(_tr('Cancel', 'Ghairi'),
+                              style: GoogleFonts.dmSans()),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: ElevatedButton(
+                        child: FilledButton(
                           onPressed: _isSaving ? null : _save,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.secondary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.navyPrimary,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 0,
+                                borderRadius: BorderRadius.circular(14)),
                           ),
                           child: _isSaving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
+                              ? const SizedBox.square(
+                                  dimension: 20,
                                   child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: AppColors.secondary,
-                                  ),
-                                )
+                                      strokeWidth: 2.5,
+                                      color: Colors.white))
                               : Text(
                                   _tr('Save Changes', 'Hifadhi Mabadiliko'),
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                  style: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white),
                                 ),
                         ),
                       ),
@@ -771,18 +939,57 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
   }
 }
 
-class _TypeToggleBtn extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TypeToggleRow extends StatelessWidget {
+  final bool isOrg;
+  final ValueChanged<bool> onChanged;
+
+  const _TypeToggleRow({required this.isOrg, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          _ToggleTab(
+            label: _tr('Individual', 'Mtu Binafsi'),
+            icon: Icons.person_outline_rounded,
+            active: !isOrg,
+            onTap: () => onChanged(false),
+          ),
+          const SizedBox(width: 4),
+          _ToggleTab(
+            label: _tr('Organisation', 'Shirika'),
+            icon: Icons.business_outlined,
+            active: isOrg,
+            onTap: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToggleTab extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool active;
   final VoidCallback onTap;
 
-  const _TypeToggleBtn({
-    required this.label,
-    required this.icon,
-    required this.active,
-    required this.onTap,
-  });
+  const _ToggleTab(
+      {required this.label,
+      required this.icon,
+      required this.active,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -793,21 +1000,22 @@ class _TypeToggleBtn extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: active ? AppColors.secondary : Colors.transparent,
+            color: active ? AppColors.navyPrimary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: active ? Colors.white : AppColors.textMuted),
+              Icon(icon,
+                  size: 16,
+                  color: active ? Colors.white : AppColors.textMuted),
               const SizedBox(width: 6),
               Text(
                 label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: active ? Colors.white : AppColors.textMuted,
-                ),
+                style: GoogleFonts.dmSans(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: active ? Colors.white : AppColors.textMuted),
               ),
             ],
           ),
@@ -815,4 +1023,61 @@ class _TypeToggleBtn extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? label2;
+  final Color color;
+
+  const _StatChip(
+      {required this.icon, required this.label, this.label2, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: color),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (label2 != null)
+                    Text(
+                      label2!,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 10, color: AppColors.textMuted),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _fmtShort(double v) {
+  if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
+  if (v >= 1000) return '${(v / 1000).toStringAsFixed(0)}K';
+  return v.toStringAsFixed(0);
 }

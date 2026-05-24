@@ -9,6 +9,7 @@ class Customer {
   final bool isOrganisation;
   final String tinNumber;
   final String address;
+  final double creditLimit; // 0 = no limit set
 
   Customer({
     required this.id,
@@ -21,6 +22,7 @@ class Customer {
     this.isOrganisation = false,
     this.tinNumber = '',
     this.address = '',
+    this.creditLimit = 0,
   });
 
   factory Customer.fromFirestore(Map<String, dynamic> data, String id) {
@@ -35,6 +37,7 @@ class Customer {
       isOrganisation: data['isOrganisation'] as bool? ?? false,
       tinNumber: data['tinNumber'] ?? '',
       address: data['address'] ?? '',
+      creditLimit: (data['creditLimit'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -49,6 +52,7 @@ class Customer {
       'isOrganisation': isOrganisation,
       if (tinNumber.isNotEmpty) 'tinNumber': tinNumber,
       if (address.isNotEmpty) 'address': address,
+      if (creditLimit > 0) 'creditLimit': creditLimit,
     };
   }
 
@@ -63,6 +67,7 @@ class Customer {
     bool? isOrganisation,
     String? tinNumber,
     String? address,
+    double? creditLimit,
   }) {
     return Customer(
       id: id ?? this.id,
@@ -75,6 +80,7 @@ class Customer {
       isOrganisation: isOrganisation ?? this.isOrganisation,
       tinNumber: tinNumber ?? this.tinNumber,
       address: address ?? this.address,
+      creditLimit: creditLimit ?? this.creditLimit,
     );
   }
 

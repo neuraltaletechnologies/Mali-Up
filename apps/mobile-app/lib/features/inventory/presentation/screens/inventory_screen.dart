@@ -226,15 +226,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ),
       body: Column(
         children: [
-          PageIntroHeader(
-            title: _tr('Inventory', 'Hisa'),
-            subtitle: _tr(
-              'Track stock, costs and profit across every product.',
-              'Fuatilia stoo, gharama na faida kwa bidhaa zote.',
-            ),
-            scene: EmotionalLottieScene.onboarding,
-          ),
-
           Expanded(
             child: inventoryAsync.when(
               loading: () => const InventoryPageSkeleton(),
