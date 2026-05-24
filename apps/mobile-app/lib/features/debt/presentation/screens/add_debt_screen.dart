@@ -93,7 +93,6 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(
             primary: AppColors.navyPrimary,
-            onPrimary: Colors.white,
           ),
         ),
         child: child!,
@@ -374,7 +373,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide:
-              BorderSide(color: AppColors.navyPrimary, width: 1.5),
+              const BorderSide(color: AppColors.navyPrimary, width: 1.5),
         ),
       );
 }
@@ -506,10 +505,10 @@ class _AmountCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.navyPrimary, const Color(0xFF1C3A7A)],
+          colors: [AppColors.navyPrimary, Color(0xFF003153)],
         ),
         borderRadius: BorderRadius.circular(18),
       ),
@@ -527,7 +526,6 @@ class _AmountCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 'TZS',
@@ -630,3 +628,4 @@ class _LabeledField extends StatelessWidget {
     );
   }
 }
+

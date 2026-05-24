@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// PIN Lock Setup Screen
 /// Allows users to set a 4-6 digit PIN code for app security
 /// Stored securely in device keychain/keystore
 
 class PINLockSetupScreen extends ConsumerStatefulWidget {
-  const PINLockSetupScreen({Key? key}) : super(key: key);
+  const PINLockSetupScreen({super.key});
 
   @override
   ConsumerState<PINLockSetupScreen> createState() => _PINLockSetupScreenState();
@@ -60,19 +61,19 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: index < pinEntry.length
-                              ? Colors.blue
+                              ? AppColors.navyPrimary
                               : Colors.grey[300]!,
                           width: 2,
                         ),
                         color: index < pinEntry.length
-                            ? Colors.blue[50]
+                            ? AppColors.navyPrimary.withValues(alpha: 0.08)
                             : Colors.transparent,
                       ),
                       child: Center(
                         child: index < pinEntry.length
-                            ? Icon(
+                            ? const Icon(
                                 Icons.circle,
-                                color: Colors.blue,
+                                color: AppColors.navyPrimary,
                                 size: 20,
                               )
                             : const SizedBox.shrink(),
@@ -102,7 +103,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue[50],
+                      color: AppColors.navyPrimary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -166,9 +167,9 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
               shape: BoxShape.circle,
               color: color != null
                   ? color.withAlpha(100)
-                  : Colors.blue[50],
+                  : AppColors.navyPrimary.withValues(alpha: 0.08),
               border: Border.all(
-                color: color ?? Colors.blue[200]!,
+                color: color ?? AppColors.navyPrimary.withValues(alpha: 0.25),
               ),
             ),
             child: Center(
@@ -177,7 +178,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
-                  color: color ?? Colors.blue[900],
+                  color: color ?? AppColors.navyPrimary,
                 ),
               ),
             ),
@@ -265,3 +266,4 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
     );
   }
 }
+

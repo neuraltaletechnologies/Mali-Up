@@ -2282,7 +2282,7 @@ class _UnitDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: units.contains(value) ? value : units.first,
+      initialValue: units.contains(value) ? value : units.first,
       decoration: InputDecoration(
         filled: true,
         fillColor: AppColors.surface,

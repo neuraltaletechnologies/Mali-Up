@@ -564,7 +564,6 @@ class _AmountSection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 'TZS',
@@ -864,8 +863,7 @@ class _ReceiptSection extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-              color: AppColors.border,
-              style: BorderStyle.solid),
+              color: AppColors.border),
         ),
         child: Column(
           children: [

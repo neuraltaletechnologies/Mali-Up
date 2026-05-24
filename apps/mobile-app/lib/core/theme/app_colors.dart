@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 class AppColors {
   // ── Core Brand Tokens ──
 
-  static const Color navyPrimary = Color(0xFF0D1B3E);
-  static const Color navySecondary = Color(0xFF1C3A7A);
+  static const Color navyPrimary = Color(0xFF003153);
+  static const Color navySecondary = Color(0xFF003153);
   static const Color tealAccent = Color(0xFF1A6E8A);
   static const Color yellowBrand = Color(0xFFFFC107);
   static const Color purpleAccent = Color(0xFF7C3AED); // Reserved — personal mode
@@ -49,7 +49,7 @@ class AppColors {
 
   static const Color border = Color(0xFFE2E8F0); // borderGray
   static const Color borderLight = Color(0xFFF1F5F9);
-  static const Color glassBorder = Color(0x330D1B3E);
+  static const Color glassBorder = Color(0x33003153);
 
   // ── Shadows ──
 
@@ -60,7 +60,7 @@ class AppColors {
   // ── Utility ──
 
   static const Color disabled = Color(0xFFE5E7EB);
-  static const Color overlay = Color(0x660D1B3E);
+  static const Color overlay = Color(0x66003153);
   static const Color inverseText = Color(0xFFFFFFFF);
 
   // ── Data Visualization ──

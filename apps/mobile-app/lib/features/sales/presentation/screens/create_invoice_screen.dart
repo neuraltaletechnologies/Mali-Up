@@ -655,7 +655,7 @@ class _CustomerPickerState extends ConsumerState<_CustomerPicker> {
                       ],
                     ),
             ),
-            Icon(
+            const Icon(
               Icons.chevron_right_rounded,
               color: AppColors.textMuted,
               size: 20,
@@ -1399,7 +1399,7 @@ class _TotalsCard extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             AppColors.navyPrimary,
-            AppColors.navyPrimary.withBlue(120),
+            AppColors.navyPrimary.withValues(alpha: 0.85),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1893,3 +1893,4 @@ String _fmtNum(double v) {
   }
   return buf.toString();
 }
+

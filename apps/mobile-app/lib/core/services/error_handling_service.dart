@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'localization_service.dart';
+import '../theme/app_colors.dart';
 
 enum ErrorType {
   network,
@@ -338,7 +339,7 @@ class ErrorHandlingService {
       case ErrorType.server:
         return Colors.purple;
       case ErrorType.timeout:
-        return Colors.blue;
+        return AppColors.navyPrimary;
       case ErrorType.unknown:
         return Colors.grey;
     }
@@ -409,3 +410,4 @@ extension FutureExtensions<T> on Future<T> {
     return this.timeout(timeout, onTimeout: onTimeout);
   }
 }
+
