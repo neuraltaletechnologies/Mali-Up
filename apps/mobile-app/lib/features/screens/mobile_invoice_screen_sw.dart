@@ -20,7 +20,7 @@ class InvoiceScreenSW extends ConsumerWidget {
           Card(
             child: ListTile(
               title: Text(manager.t('finance.invoice', locale)),
-              subtitle: Text('INV-001'),
+              subtitle: const Text('INV-001'),
               trailing: Text(
                 CurrencyFormatter.formatCurrency(150000.00),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),

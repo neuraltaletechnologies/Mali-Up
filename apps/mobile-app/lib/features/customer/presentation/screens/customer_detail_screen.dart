@@ -137,11 +137,11 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
       Customer c, double balance, List<Map<String, dynamic>> overdue) {
     final buf = StringBuffer();
     buf.writeln(_tr('Dear *${c.name}*,', 'Ndugu *${c.name}*,'));
-    buf.writeln('');
+    buf.writeln();
     buf.writeln(_tr(
         'This is a friendly reminder of your outstanding balance with us.',
         'Hii ni ukumbusho wa kirafiki wa salio lako linalodaiwa kwetu.'));
-    buf.writeln('');
+    buf.writeln();
     if (overdue.isNotEmpty) {
       buf.writeln(_tr('Unpaid invoices:', 'Ankara ambazo hazijalipwa:'));
       for (final inv in overdue.take(5)) {
@@ -149,11 +149,11 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         final amt = parseNumericAmount(inv['totalAmount']);
         buf.writeln('• $num — TZS ${_fmtNum(amt)}');
       }
-      buf.writeln('');
+      buf.writeln();
     }
     buf.writeln(
         '*${_tr('Total Outstanding: TZS ${_fmtNum(balance)}', 'Jumla Inayodaiwa: TZS ${_fmtNum(balance)}')}*');
-    buf.writeln('');
+    buf.writeln();
     buf.writeln(_tr('Please arrange payment at your earliest convenience.',
         'Tafadhali panga malipo haraka iwezekanavyo.'));
     buf.writeln(_tr('Thank you!', 'Asante!'));
@@ -1036,8 +1036,8 @@ class _TagsCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (active)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 5),
+                        const Padding(
+                          padding: EdgeInsets.only(right: 5),
                           child: Icon(Icons.check_rounded,
                               size: 13, color: Colors.white),
                         ),

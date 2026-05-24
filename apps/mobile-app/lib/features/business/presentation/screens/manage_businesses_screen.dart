@@ -1144,14 +1144,14 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
         child: Ink(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF0D1B3E), Color(0xFF162C62)],
+              colors: [Color(0xFF003153), Color(0xFF003153)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0D1B3E).withValues(alpha: 0.45),
+                color: const Color(0xFF003153).withValues(alpha: 0.45),
                 blurRadius: 24,
                 offset: const Offset(0, 10),
                 spreadRadius: -4,
@@ -1678,3 +1678,4 @@ class _LogoInitial extends StatelessWidget {
     );
   }
 }
+

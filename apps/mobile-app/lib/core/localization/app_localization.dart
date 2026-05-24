@@ -108,8 +108,8 @@ class DateFormatter {
   static String formatRelativeDate(DateTime date, Locale locale) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(Duration(days: 1));
-    final tomorrow = today.add(Duration(days: 1));
+    final yesterday = today.subtract(const Duration(days: 1));
+    final tomorrow = today.add(const Duration(days: 1));
     final dateOnly = DateTime(date.year, date.month, date.day);
     
     if (dateOnly == today) {

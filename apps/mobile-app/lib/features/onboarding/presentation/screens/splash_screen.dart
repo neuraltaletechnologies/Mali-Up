@@ -33,8 +33,8 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _pulseAnim;
   bool _hasNavigated = false;
 
-  static const _navyBg = Color(0xFF0D1B3E);
-  static const _navyMid = Color(0xFF102147);
+  static const _navyBg = Color(0xFF003153);
+  static const _navyMid = Color(0xFF003153);
   static const _yellowBrand = Color(0xFFFFC107);
 
   @override
@@ -141,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_navyBg, _navyMid, Color(0xFF0A1628)],
+            colors: [_navyBg, _navyMid, Color(0xFF003153)],
             stops: [0.0, 0.55, 1.0],
           ),
         ),
@@ -360,3 +360,4 @@ class _LoadingDotsState extends State<_LoadingDots>
     );
   }
 }
+

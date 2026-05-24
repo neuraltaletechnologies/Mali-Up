@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Consent Screen - PDPA Compliance
 /// Users must accept privacy policy before signup (PDPA requirement)
@@ -10,8 +11,8 @@ class ConsentScreen extends ConsumerStatefulWidget {
 
   const ConsentScreen({
     required this.onConsentAccepted,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   ConsumerState<ConsentScreen> createState() => _ConsentScreenState();
@@ -66,7 +67,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                     child: Text(
                       'Read full policy',
                       style: TextStyle(
-                        color: Colors.blue[600],
+                        color: AppColors.navyPrimary,
                         decoration: TextDecoration.underline,
                       ),
                     ),
@@ -120,7 +121,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
+                  color: AppColors.navyPrimary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -231,3 +232,4 @@ Significant policy changes require email notification and 30-day notice.
 For questions: privacy@maliup.co.tz''';
   }
 }
+
