@@ -83,7 +83,6 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
 
     return OnboardingScaffold(
       currentStep: 4,
-      totalSteps: 6,
       onBack: () => state.isReturningUser
           ? context.go(AppRoutes.returning)
           : context.go(AppRoutes.newUser),
@@ -211,7 +210,7 @@ class _BusinessTypeDropdown extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           items: items,
           validator: validator,
           onChanged: onChanged,
