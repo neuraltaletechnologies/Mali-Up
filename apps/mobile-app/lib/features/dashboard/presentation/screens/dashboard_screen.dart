@@ -645,17 +645,17 @@ class _UnifiedHeroCard extends StatefulWidget {
 class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
   bool _detailsVisible = false;
 
-  static const _cardGrad1 = Color(0xFF0D1B3E);
+  static const _cardGrad1 = Color(0xFF003153);
   static const _cardGrad2 = Color(0xFF102450);
-  static const _cardGrad3 = Color(0xFF162C62);
+  static const _cardGrad3 = Color(0xFF003153);
 
   @override
   Widget build(BuildContext context) {
     final name = widget.businessName ?? _tr('My Business', 'Biashara yangu');
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
-        ? 'TZS ${_fmtCompactAmount(widget.totalCash)}'
-        : 'TZS ••••••••';
+        ? '${_fmtCompactAmount(widget.totalCash)}'
+        : '••••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
     final expText = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
     final net = widget.totalCash - widget.totalExpenses;
@@ -1042,7 +1042,7 @@ class _ModuleGrid extends StatelessWidget {
   const _ModuleGrid({required this.showHeavyContent});
 
   static const _modules = [
-    (icon: Icons.receipt_long_rounded, labelEn: 'Tuma ankara', labelSw: 'Tuma ankara', color: Color(0xFF0D1B3E), route: AppRouter.salesPath),
+    (icon: Icons.receipt_long_rounded, labelEn: 'Tuma ankara', labelSw: 'Tuma ankara', color: Color(0xFF003153), route: AppRouter.salesPath),
     (icon: Icons.inventory_2_rounded, labelEn: 'Hisa zangu', labelSw: 'Hisa zangu', color: Color(0xFF1A6E8A), route: AppRouter.inventoryPath),
     (icon: Icons.people_alt_rounded, labelEn: 'Wateja wangu', labelSw: 'Wateja wangu', color: Color(0xFF059669), route: AppRouter.crmPath),
     (icon: Icons.payments_rounded, labelEn: 'Gharama zangu', labelSw: 'Gharama zangu', color: Color(0xFFD97706), route: AppRouter.expensesPath),
@@ -1635,39 +1635,11 @@ class _RevenueOverviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.trending_up_rounded, size: 13, color: AppColors.textMuted),
-              const SizedBox(width: 5),
-              Text(
-                _tr('REVENUE', 'MAPATO'),
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMuted,
-                  letterSpacing: 1.0,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _RevStat(label: _tr('Today', 'Leo'), value: _fmtCompactAmount(todayRevenue)),
-              const _RevDivider(),
-              _RevStat(label: _tr('This Week', 'Wiki Hii'), value: _fmtCompactAmount(weekRevenue)),
-              const _RevDivider(),
-              _RevStat(
-                label: _tr('This Month', 'Mwezi Huu'),
-                value: _fmtCompactAmount(monthRevenue),
-                highlight: true,
-              ),
-            ],
-          ),
-        ],
+        
+          
+        
       ),
     );
   }
@@ -1678,7 +1650,7 @@ class _RevStat extends StatelessWidget {
   final String value;
   final bool highlight;
 
-  const _RevStat({required this.label, required this.value, this.highlight = false});
+  const _RevStat({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -1749,24 +1721,8 @@ class _ProfitSnapshotCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                isProfitable ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                size: 12,
-                color: profitColor,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _tr('NET PROFIT', 'FAIDA HALISI'),
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: profitColor,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ],
+          const Row(
+
           ),
           const SizedBox(height: 8),
           Text(
@@ -1817,22 +1773,7 @@ class _ReceivablesCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.pending_actions_rounded, size: 12, color: AppColors.textMuted),
-              const SizedBox(width: 4),
-              Text(
-                _tr('OWED TO YOU', 'WANAKUDAI'),
-                style: const TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMuted,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ],
-          ),
+        children: [  
           const SizedBox(height: 8),
           Text(
             _fmtCompactAmount(totalOutstanding),
@@ -2064,11 +2005,11 @@ class _TopPerformersSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final products = (_topProducts.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(5)
+        .take(3)
         .toList();
     final customers = (_topCustomers.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(5)
+        .take(3)
         .toList();
 
     if (products.isEmpty && customers.isEmpty) return const SizedBox.shrink();
@@ -2155,67 +2096,66 @@ class _PerformerSubsection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          ...entries.asMap().entries.map((e) {
-            final rank = e.key + 1;
-            final entry = e.value;
-            final pct = maxVal > 0 ? (entry.value / maxVal).clamp(0.0, 1.0) : 0.0;
-            return Padding(
-              padding: EdgeInsets.only(bottom: e.key < entries.length - 1 ? 8 : 0),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    child: Text(
-                      '#$rank',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w600,
+          SizedBox(
+            height: 72,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: entries.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final rank = index + 1;
+                final entry = entries[index];
+                final pct = maxVal > 0 ? (entry.value / maxVal).clamp(0.0, 1.0) : 0.0;
+                return Container(
+                  width: 180,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: color.withValues(alpha: 0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '#$rank  ${entry.key}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.secondary,
+                        ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          entry.key,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.secondary,
-                          ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: pct,
+                          backgroundColor: color.withValues(alpha: 0.12),
+                          valueColor: AlwaysStoppedAnimation(color.withValues(alpha: 0.65)),
+                          minHeight: 3,
                         ),
-                        const SizedBox(height: 3),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: LinearProgressIndicator(
-                            value: pct,
-                            backgroundColor: color.withValues(alpha: 0.1),
-                            valueColor: AlwaysStoppedAnimation(color.withValues(alpha: 0.65)),
-                            minHeight: 3,
-                          ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _fmtCompactAmount(entry.value),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.secondary,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  Text(
-                    _fmtCompactAmount(entry.value),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 }
+

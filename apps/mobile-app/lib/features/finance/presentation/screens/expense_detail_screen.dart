@@ -171,7 +171,7 @@ class _ExpenseDetailScreenState extends ConsumerState<ExpenseDetailScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
+            onPressed: () => Navigator.of(ctx).pop(),
             child: Text(_tr('Cancel', 'Ghairi'),
                 style: GoogleFonts.dmSans(color: AppColors.textMuted)),
           ),
@@ -991,7 +991,7 @@ class _PayMethodLabel {
 
   static _PayMethodLabel fromKey(String key) {
     return switch (key) {
-      'mpesa' => _PayMethodLabel(
+      'mpesa' => const _PayMethodLabel(
           label: 'M-Pesa', icon: Icons.phone_android_rounded),
       'bank' => _PayMethodLabel(
           label: _tr('Bank Transfer', 'Benki'),

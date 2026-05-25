@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Audit Log Screen - Activity Log
 /// Shows all compliance-critical events (logins, exports, deletions, etc)
@@ -8,7 +9,7 @@ import 'package:intl/intl.dart';
 /// Complies with PDPA transparency requirements
 
 class AuditLogScreen extends ConsumerWidget {
-  const AuditLogScreen({Key? key}) : super(key: key);
+  const AuditLogScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -114,8 +115,7 @@ class _AuditLogItem extends StatelessWidget {
 
   const _AuditLogItem({
     required this.event,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -198,7 +198,7 @@ class _AuditLogItem extends StatelessWidget {
   Color _getActionColor(String action) {
     switch (action) {
       case 'DATA_EXPORT':
-        return Colors.blue;
+        return AppColors.navyPrimary;
       case 'DATA_DELETE':
         return Colors.red;
       case 'LOGIN':
@@ -249,3 +249,4 @@ class _AuditLogItem extends StatelessWidget {
     }
   }
 }
+

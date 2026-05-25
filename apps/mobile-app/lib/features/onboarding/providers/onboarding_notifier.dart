@@ -121,7 +121,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       _cooldownTimer?.cancel(); // OTP accepted — cooldown no longer relevant.
 
       switch (result.lookupResult) {
-        case ReturningUser r:
+        case final ReturningUser r:
           state = state.copyWith(
             isReturningUser: true,
             existingUserId: r.userId,

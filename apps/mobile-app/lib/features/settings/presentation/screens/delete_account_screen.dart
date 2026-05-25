@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Delete Account Screen - PDPA Right to Deletion
 /// Implements Article 19 of Tanzania's Personal Data Protection Act
@@ -7,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Includes 30-day grace period for cancellation
 
 class DeleteAccountScreen extends ConsumerStatefulWidget {
-  const DeleteAccountScreen({Key? key}) : super(key: key);
+  const DeleteAccountScreen({super.key});
 
   @override
   ConsumerState<DeleteAccountScreen> createState() => _DeleteAccountScreenState();
@@ -169,7 +170,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
+                  color: AppColors.navyPrimary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -275,3 +276,4 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     }
   }
 }
+

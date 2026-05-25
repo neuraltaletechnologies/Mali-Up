@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Biometric App Lock Setup Screen
 /// Allows fingerprint and face recognition unlock
 /// Part of Phase 1 security implementation
 
 class BiometricSetupScreen extends ConsumerStatefulWidget {
-  const BiometricSetupScreen({Key? key}) : super(key: key);
+  const BiometricSetupScreen({super.key});
 
   @override
   ConsumerState<BiometricSetupScreen> createState() => _BiometricSetupScreenState();
@@ -139,7 +140,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
+                  color: AppColors.navyPrimary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -186,7 +187,6 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
         localizedReason: 'Verify your identity to change security settings',
         options: const AuthenticationOptions(
           biometricOnly: true,
-          stickyAuth: false,
         ),
       );
 
@@ -217,3 +217,4 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
     }
   }
 }
+

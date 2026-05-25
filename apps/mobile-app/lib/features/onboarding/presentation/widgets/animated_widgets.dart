@@ -51,7 +51,7 @@ class _AnimatedChartState extends State<AnimatedChart>
             ),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: const Color(0xFF0B5ED7).withValues(alpha: 0.3),
+              color: const Color(0xFF003153).withValues(alpha: 0.3),
               width: 1.5,
             ),
           ),
@@ -363,3 +363,4 @@ class _EntranceAnimationState extends State<EntranceAnimation>
     );
   }
 }
+

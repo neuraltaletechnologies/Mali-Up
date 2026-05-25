@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart' as intl;
 import 'package:riverpod/riverpod.dart';
 
 /// Manages all translations for the app

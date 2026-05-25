@@ -9,7 +9,6 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/mali_components.dart';
-import '../../../../shared/widgets/page_intro_header.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/inventory_providers.dart';
 import '../widgets/barcode_view_sheet.dart';
@@ -2282,7 +2281,7 @@ class _UnitDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: units.contains(value) ? value : units.first,
+      initialValue: units.contains(value) ? value : units.first,
       decoration: InputDecoration(
         filled: true,
         fillColor: AppColors.surface,
