@@ -39,12 +39,17 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
 
-    // Sync language already selected on the welcome screen into the notifier.
-    final lang = LocalizationService.languageNotifier.value;
-    ref.read(onboardingNotifierProvider.notifier).selectLanguage(lang);
-
     // Pre-fill if navigating back from the OTP screen.
     _phoneCtrl.text = ref.read(onboardingNotifierProvider).phone;
+
+    // Sync the language from LocalizationService into the notifier.
+    // Deferred to post-frame because modifying a provider during initState
+    // (which runs inside the build phase) is forbidden by Riverpod.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final lang = LocalizationService.languageNotifier.value;
+      ref.read(onboardingNotifierProvider.notifier).selectLanguage(lang);
+    });
   }
 
   @override
