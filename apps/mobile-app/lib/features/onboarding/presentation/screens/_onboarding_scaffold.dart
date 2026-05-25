@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show TextInputFormatter;
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 
-/// Shared layout shell for onboarding screens 4A–7.
+/// Unified layout shell for all onboarding form screens.
 ///
-/// Provides:
-/// - Safe-area aware white scaffold
-/// - Animated linear progress bar (hidden when [showProgress] is false)
-/// - Back arrow that calls [onBack]
-/// - Step label ("Step 3 of 6")
-/// - Horizontally padded, scrollable [child] content
+/// Visually matches the intro slides: white background, optional lottie
+/// illustration, step-dots indicator at the bottom, and an
+/// EmotionalTapScale-wrapped primary button — so every screen in the
+/// journey feels like a natural continuation of the intro flow.
 class OnboardingScaffold extends StatelessWidget {
   const OnboardingScaffold({
     super.key,
@@ -17,43 +17,29 @@ class OnboardingScaffold extends StatelessWidget {
     this.currentStep = 1,
     this.totalSteps = 6,
     this.onBack,
-    this.showProgress = true,
+    this.lottieScene,
   });
 
   final Widget child;
   final int currentStep;
   final int totalSteps;
   final VoidCallback? onBack;
-  final bool showProgress;
+
+  /// When provided, renders a centered [EmotionalLottieSpot] above the form
+  /// content — matching the illustration style of the intro slides.
+  final EmotionalLottieScene? lottieScene;
 
   @override
   Widget build(BuildContext context) {
-    final progress = (currentStep / totalSteps).clamp(0.0, 1.0);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Progress bar ───────────────────────────────────────────────
-            if (showProgress)
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: progress),
-                duration: const Duration(milliseconds: 480),
-                curve: Curves.easeOutCubic,
-                builder: (context, value, child) => LinearProgressIndicator(
-                  value: value,
-                  minHeight: 3,
-                  backgroundColor: AppColors.border,
-                  color: AppColors.yellowBrand,
-                ),
-              ),
-
-            // ── Header row ─────────────────────────────────────────────────
+            // ── Back button row ─────────────────────────────────────────
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
               child: Row(
                 children: [
                   if (onBack != null)
@@ -67,26 +53,61 @@ class OnboardingScaffold extends StatelessWidget {
                     )
                   else
                     const SizedBox(width: 48),
-                  const Spacer(),
-                  if (showProgress)
-                    Text(
-                      'Step $currentStep of $totalSteps',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  const SizedBox(width: 16),
                 ],
               ),
             ),
 
-            // ── Scrollable content ─────────────────────────────────────────
+            // ── Scrollable content (illustration + form) ────────────────
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-                child: child,
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (lottieScene != null) ...[
+                      Center(
+                        child: EmotionalLottieSpot(
+                          scene: lottieScene!,
+                          size: 110,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    child,
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Step indicator dots (mirrors intro slides) ───────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: AnimatedSmoothIndicator(
+                    activeIndex:
+                        (currentStep - 1).clamp(0, totalSteps - 1),
+                    count: totalSteps,
+                    effect: ExpandingDotsEffect(
+                      expansionFactor: 2.2,
+                      spacing: 6,
+                      radius: 99,
+                      dotHeight: 6,
+                      dotWidth: 6,
+                      activeDotColor: AppColors.primary,
+                      dotColor: AppColors.primary.withValues(alpha: 0.18),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -96,13 +117,13 @@ class OnboardingScaffold extends StatelessWidget {
   }
 }
 
-/// Reusable labelled `TextFormField` styled to the onboarding design system.
+/// Reusable labelled [TextFormField] styled to the onboarding design system.
 class OnboardingField extends StatelessWidget {
   const OnboardingField({
     super.key,
     required this.controller,
     required this.label,
-    required this.hint,
+    this.hint = '',
     this.keyboardType = TextInputType.text,
     this.textInputAction = TextInputAction.next,
     this.obscureText = false,
@@ -199,7 +220,8 @@ class OnboardingField extends StatelessWidget {
   }
 }
 
-/// Reusable primary CTA button for onboarding screens.
+/// Primary CTA button styled to match the intro slides primary button:
+/// yellow fill with shadow and [EmotionalTapScale] press animation.
 class OnboardingPrimaryButton extends StatelessWidget {
   const OnboardingPrimaryButton({
     super.key,
@@ -214,23 +236,29 @@ class OnboardingPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    final enabled = onPressed != null && !isLoading;
+
+    final content = Container(
       width: double.infinity,
-      child: FilledButton(
-        onPressed: isLoading ? null : onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.yellowBrand,
-          foregroundColor: AppColors.navyPrimary,
-          disabledBackgroundColor: AppColors.disabled,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
+      height: 56,
+      decoration: BoxDecoration(
+        color: enabled ? AppColors.primary : AppColors.disabled,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: enabled
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.30),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Center(
         child: isLoading
             ? const SizedBox(
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
                   color: AppColors.navyPrimary,
@@ -238,12 +266,20 @@ class OnboardingPrimaryButton extends StatelessWidget {
               )
             : Text(
                 label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                ),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: AppColors.navyPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
               ),
       ),
+    );
+
+    if (!enabled) return content;
+
+    return EmotionalTapScale(
+      onTap: onPressed!,
+      child: content,
     );
   }
 }
@@ -280,4 +316,3 @@ class OnboardingErrorBanner extends StatelessWidget {
     );
   }
 }
-

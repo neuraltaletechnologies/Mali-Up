@@ -49,9 +49,8 @@ abstract final class OnboardingStrings {
   static const phoneTitleEn = "What's your phone number?";
   static const phoneTitleSw = 'Namba yako ya simu ni ipi?';
 
-  static const phoneSubEn = "We'll send a one-time verification code via SMS.";
-  static const phoneSubSw =
-      'Tutatuma msimbo wa uhakiki mmoja kwa SMS.';
+  static const phoneSubEn = 'Enter your phone number to get started.';
+  static const phoneSubSw = 'Weka namba yako ya simu ili uanze.';
 
   static const phoneLabelEn = 'Phone number';
   static const phoneLabelSw = 'Namba ya simu';
@@ -65,8 +64,8 @@ abstract final class OnboardingStrings {
   static const phoneHelperEn = 'Your number is kept private and secure.';
   static const phoneHelperSw = 'Namba yako inabaki siri na salama.';
 
-  static const phoneSendCtaEn = 'Send Code';
-  static const phoneSendCtaSw = 'Tuma Msimbo';
+  static const phoneSendCtaEn = 'Continue';
+  static const phoneSendCtaSw = 'Endelea';
 
   // Errors
   static const phoneRequiredEn = 'Phone number is required.';
@@ -141,7 +140,82 @@ abstract final class OnboardingStrings {
       'Uhakiki umeshindwa. Tafadhali jaribu tena.';
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SCREEN 4A — RETURNING USER DETECTED
+  // SCREEN 4A — PIN LOGIN (existing owner / activated team member)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// [name] — first name of the user.
+  static String pinLoginGreetEn(String name) => 'Welcome back, $name!';
+  static String pinLoginGreetSw(String name) => 'Karibu tena, $name!';
+
+  static const pinLoginSubEn = 'Enter your 4-digit PIN to sign in.';
+  static const pinLoginSubSw = 'Weka PIN yako ya tarakimu 4 ili uingie.';
+
+  static const pinLoginFieldLabelEn = 'Your PIN';
+  static const pinLoginFieldLabelSw = 'PIN yako';
+
+  static const pinLoginCtaEn = 'Sign In';
+  static const pinLoginCtaSw = 'Ingia';
+
+  static const pinLoginWrongEn = 'Incorrect PIN. Please try again.';
+  static const pinLoginWrongSw = 'PIN si sahihi. Tafadhali jaribu tena.';
+
+  static const pinLoginForgotEn = 'Forgot your PIN? Contact support.';
+  static const pinLoginForgotSw = 'Umesahau PIN? Wasiliana na msaada.';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCREEN 4B — TEAM MEMBER FIRST-TIME SETUP
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// [name] — first name of the team member.
+  static String teamGreetEn(String name) => 'Hi $name, your account is ready!';
+  static String teamGreetSw(String name) => 'Habari $name, akaunti yako iko tayari!';
+
+  static const teamSubEn =
+      'Your employer has added you. Set a PIN to activate your account.';
+  static const teamSubSw =
+      'Mwajiri wako amekuongeza. Weka PIN ili uwashe akaunti yako.';
+
+  static const teamBusinessLabelEn = 'You have been added to:';
+  static const teamBusinessLabelSw = 'Umeongezwa kwenye:';
+
+  static const teamRoleLabelEn = 'Your role:';
+  static const teamRoleLabelSw = 'Nafsi yako:';
+
+  static const teamContinueCtaEn = 'Set Up My PIN';
+  static const teamContinueCtaSw = 'Weka PIN Yangu';
+
+  static const teamStartOverCtaEn = "That's not me — register instead";
+  static const teamStartOverCtaSw = 'Hiyo si mimi — jisajili badala yake';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCREEN 6 — PIN SETUP (replaces password + PIN screen)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static const pinSetupTitleEn = 'Set your PIN';
+  static const pinSetupTitleSw = 'Weka PIN yako';
+
+  static const pinSetupSubEn =
+      'Choose a 4-digit PIN you will remember. Keep it private.';
+  static const pinSetupSubSw =
+      'Chagua PIN ya tarakimu 4 utakayoikumbuka. Isimwambie mtu.';
+
+  static const pinSetupEnterLabelEn = 'Create PIN';
+  static const pinSetupEnterLabelSw = 'Tengeneza PIN';
+
+  static const pinSetupConfirmLabelEn = 'Confirm PIN';
+  static const pinSetupConfirmLabelSw = 'Thibitisha PIN';
+
+  static const pinSetupMismatchEn = 'PINs do not match. Please try again.';
+  static const pinSetupMismatchSw = 'PIN hazilingani. Tafadhali jaribu tena.';
+
+  static const pinSetupCtaEn = 'Create Account';
+  static const pinSetupCtaSw = 'Tengeneza Akaunti';
+
+  static const pinSetupSavingEn = 'Setting up your workspace…';
+  static const pinSetupSavingSw = 'Inaandaa eneo lako la kazi…';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCREEN 4A — RETURNING USER DETECTED (legacy — kept for reference)
   // ═══════════════════════════════════════════════════════════════════════════
 
   /// [name] — first name of the returning user.

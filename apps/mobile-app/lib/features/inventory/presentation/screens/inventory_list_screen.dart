@@ -175,7 +175,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
           color: AppColors.secondary,
         ),
         label: Text(
-          _tr('Add Item', 'Ongeza Bidhaa'),
+          _tr('Add Item', 'Ongeza Bidhaaa'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppColors.secondary,
             fontWeight: FontWeight.w700,
@@ -235,8 +235,8 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
             const SizedBox(height: 16),
             Text(
               _searchController.text.isNotEmpty
-                  ? _tr('No items found', 'Hakuna bidhaa zilizopatikana')
-                  : _tr('No inventory items', 'Hakuna bidhaa za akiba'),
+                  ? _tr('No items found', 'Hakuna bidhaaa zilizopatikana')
+                  : _tr('No inventory items', 'Hakuna bidhaaa za akiba'),
               style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             ),
             const SizedBox(height: 8),
@@ -245,7 +245,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                   ? _tr('Try different search terms', 'Jaribu masharti mengine ya utafutaji')
                   : _tr(
                       'Add your first inventory item to get started',
-                      'Ongeza bidhaa yako ya kwanza ya akiba kuanza',
+                      'Ongeza bidhaaa yako ya kwanza ya akiba kuanza',
                     ),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[500]),
@@ -545,21 +545,21 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    _tr('Add New Item', 'Ongeza Bidhaa Mpya'),
+                    _tr('Add New Item', 'Ongeza Bidhaaa Mpya'),
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
-                      labelText: _tr('Item Name', 'Jina la Bidhaa'),
+                      labelText: _tr('Item Name', 'Jina la Bidhaaa'),
                       border: const OutlineInputBorder(),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return _tr(
                           'Please enter item name',
-                          'Tafadhali weka jina la bidhaa',
+                          'Tafadhali weka jina la bidhaaa',
                         );
                       }
                       return null;
@@ -713,7 +713,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                                     Radius.circular(999),
                                   ),
                                 )
-                              : Text(_tr('Add Item', 'Ongeza Bidhaa')),
+                              : Text(_tr('Add Item', 'Ongeza Bidhaaa')),
                         ),
                       ),
                     ],
@@ -765,7 +765,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
           navigator.pop();
           messenger.showSnackBar(
             SnackBar(
-              content: Text(_tr('Item added successfully', 'Bidhaa imeongezwa kwa mafanikio')),
+              content: Text(_tr('Item added successfully', 'Bidhaaa imeongezwa kwa mafanikio')),
               backgroundColor: AppColors.success,
             ),
           );

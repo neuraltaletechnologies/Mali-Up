@@ -200,7 +200,7 @@ getTranslation(locale: string, key: string) {
 | Invoice | Ankara | "Hadithi ya Ankara" = Invoice History |
 | Customer | Mteja | "Orodha ya Wateja" = Customer List |
 | Expense | Matumizi | "Muhtasari wa Matumizi" = Expense Report |
-| Inventory | Hesabu ya Bidhaa | "Idara ya Hesabu ya Bidhaa" = Inventory Section |
+| Inventory | Hesabu ya Bidhaaa | "Idara ya Hesabu ya Bidhaaa" = Inventory Section |
 | Sale | Mauzo | "Jmlah Mauzo" = Total Sales |
 | Report | Ripoti | "Ripoti ya Kila Mwezi" = Monthly Report |
 

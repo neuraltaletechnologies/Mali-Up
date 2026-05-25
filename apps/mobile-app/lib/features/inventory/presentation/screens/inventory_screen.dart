@@ -318,7 +318,7 @@ class _SearchBar extends StatelessWidget {
         onChanged: onChanged,
         style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
         decoration: InputDecoration(
-          hintText: _tr('Search products…', 'Tafuta bidhaa…'),
+          hintText: _tr('Search products…', 'Tafuta bidhaaa…'),
           hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
           prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
           suffixIcon: ctrl.text.isNotEmpty
@@ -430,7 +430,7 @@ class _StatsStrip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _Strip(label: _tr('Products', 'Bidhaa'), value: '${items.length}'),
+          _Strip(label: _tr('Products', 'Bidhaaa'), value: '${items.length}'),
           _StripDiv(),
           _Strip(label: _tr('Stock Value', 'Thamani'), value: 'TSh ${_fmtShort(stockVal)}'),
           _StripDiv(),
@@ -587,8 +587,8 @@ class _EmptyPlaceholder extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             hasQuery
-                ? _tr('No products match', 'Hakuna bidhaa inayolingana')
-                : _tr('No products yet', 'Bado hakuna bidhaa'),
+                ? _tr('No products match', 'Hakuna bidhaaa inayolingana')
+                : _tr('No products yet', 'Bado hakuna bidhaaa'),
             style: GoogleFonts.dmSans(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -599,7 +599,7 @@ class _EmptyPlaceholder extends StatelessWidget {
           Text(
             hasQuery
                 ? _tr('Try a different search or filter', 'Jaribu utafutaji tofauti')
-                : _tr('Tap + to add your first product', 'Bonyeza + kuongeza bidhaa ya kwanza'),
+                : _tr('Tap + to add your first product', 'Bonyeza + kuongeza bidhaaa ya kwanza'),
             style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
           ),
         ],
@@ -629,7 +629,7 @@ class _ProductRow extends ConsumerWidget {
           .delete();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('Product deleted', 'Bidhaa imefutwa')),
+          content: Text(_tr('Product deleted', 'Bidhaaa imefutwa')),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ));
@@ -680,7 +680,7 @@ class _ProductRow extends ConsumerWidget {
             builder: (ctx) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Text(
-                _tr('Delete Product?', 'Futa Bidhaa?'),
+                _tr('Delete Product?', 'Futa Bidhaaa?'),
                 style: GoogleFonts.dmSans(
                   fontWeight: FontWeight.w700,
                   color: AppColors.navyPrimary,
@@ -1036,7 +1036,7 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
               const SizedBox(height: 20),
 
               // ── Type filter ───────────────────────────────────────────
-              _SheetSectionLabel(_tr('Product type', 'Aina ya bidhaa')),
+              _SheetSectionLabel(_tr('Product type', 'Aina ya bidhaaa')),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -1478,7 +1478,7 @@ class _DetailView extends StatelessWidget {
                       onPressed: onEdit,
                       icon: const Icon(Icons.edit_rounded, size: 17),
                       label: Text(
-                        _tr('Edit Product', 'Hariri Bidhaa'),
+                        _tr('Edit Product', 'Hariri Bidhaaa'),
                         style: GoogleFonts.dmSans(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -1748,7 +1748,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      _snack(_tr('Enter product name', 'Ingiza jina la bidhaa'));
+      _snack(_tr('Enter product name', 'Ingiza jina la bidhaaa'));
       return;
     }
     if (_sellVal <= 0) {
@@ -1799,7 +1799,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         data['createdAt'] = FieldValue.serverTimestamp();
         await col.add(data);
         msg.showSnackBar(SnackBar(
-          content: Text(_tr('Product added', 'Bidhaa imeongezwa')),
+          content: Text(_tr('Product added', 'Bidhaaa imeongezwa')),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ));
@@ -1817,7 +1817,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   Future<void> _scanSku() async {
     final scanned = await BarcodeScannerScreen.show(
       context,
-      title: _tr('Scan Product Barcode', 'Skani Nambari ya Bidhaa'),
+      title: _tr('Scan Product Barcode', 'Skani Nambari ya Bidhaaa'),
     );
     if (scanned != null && scanned.isNotEmpty && mounted) {
       setState(() => _skuCtrl.text = scanned);
@@ -1864,8 +1864,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                     Expanded(
                       child: Text(
                         _isEdit
-                            ? _tr('Edit Product', 'Hariri Bidhaa')
-                            : _tr('Add Product', 'Ongeza Bidhaa'),
+                            ? _tr('Edit Product', 'Hariri Bidhaaa')
+                            : _tr('Add Product', 'Ongeza Bidhaaa'),
                         style: GoogleFonts.dmSans(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -1947,7 +1947,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Basic info
-                  _FormLabel(_tr('Product name *', 'Jina la bidhaa *')),
+                  _FormLabel(_tr('Product name *', 'Jina la bidhaaa *')),
                   const SizedBox(height: 6),
                   _FormField(
                     ctrl: _nameCtrl,
@@ -2157,7 +2157,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           : Text(
                               _isEdit
                                   ? _tr('Save changes', 'Hifadhi mabadiliko')
-                                  : _tr('Add to inventory', 'Ongeza kwa hisa'),
+                                  : _tr('Add to inventory', 'Ongeza kwa bidhaa'),
                               style: GoogleFonts.dmSans(
                                 fontSize: 15, fontWeight: FontWeight.w700,
                               ),

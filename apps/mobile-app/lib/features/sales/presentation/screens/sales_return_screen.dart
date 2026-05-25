@@ -75,7 +75,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
     if (!_hasSelection) {
       _showSnack(_tr(
           'Select at least one item to return',
-          'Chagua bidhaa angalau moja ya kurudisha'));
+          'Chagua bidhaaa angalau moja ya kurudisha'));
       return;
     }
     setState(() => _saving = true);
@@ -186,7 +186,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
         foregroundColor: Colors.white,
         elevation: 0,
         title: Text(
-          _tr('Sales Return', 'Kurudisha Bidhaa'),
+          _tr('Sales Return', 'Kurudisha Bidhaaa'),
           style: GoogleFonts.dmSans(
               fontWeight: FontWeight.w700,
               fontSize: 17,
@@ -211,7 +211,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                   const SizedBox(height: 16),
                   _SectionHeader(
                     _tr('Select Items to Return',
-                        'Chagua Bidhaa za Kurudisha')),
+                        'Chagua Bidhaaa za Kurudisha')),
                   const SizedBox(height: 8),
                   if (_lines.isEmpty)
                     _EmptyItems()
@@ -394,7 +394,7 @@ class _EmptyItems extends StatelessWidget {
       child: Center(
         child: Text(
           _tr('No line items on this invoice',
-              'Hakuna bidhaa kwenye ankara hii'),
+              'Hakuna bidhaaa kwenye ankara hii'),
           style: GoogleFonts.dmSans(color: AppColors.textMuted),
         ),
       ),
@@ -629,7 +629,7 @@ class _RestockToggle extends StatelessWidget {
                 ),
                 Text(
                   _tr('Restores stock for returned items',
-                      'Inarudisha hisa kwa bidhaa zilizorudishwa'),
+                      'Inarudisha bidhaa kwa bidhaaa zilizorudishwa'),
                   style: GoogleFonts.dmSans(
                       fontSize: 12, color: AppColors.textMuted),
                 ),
@@ -682,7 +682,7 @@ class _ReasonField extends StatelessWidget {
             decoration: InputDecoration(
               hintText: _tr(
                   'e.g. Damaged goods, wrong item delivered, customer changed mind…',
-                  'mfano: Bidhaa ziliharibiwa, bidhaa mbaya kuletewa, mteja alibadilisha mawazo…'),
+                  'mfano: Bidhaaa ziliharibiwa, bidhaaa mbaya kuletewa, mteja alibadilisha mawazo…'),
               hintStyle: GoogleFonts.dmSans(
                   fontSize: 13, color: AppColors.textMuted),
               border: InputBorder.none,
@@ -798,7 +798,7 @@ class _BottomBar extends StatelessWidget {
             Expanded(
               child: Text(
                 _tr('Select items to return',
-                    'Chagua bidhaa za kurudisha'),
+                    'Chagua bidhaaa za kurudisha'),
                 style: GoogleFonts.dmSans(
                     fontSize: 13, color: AppColors.textMuted),
               ),

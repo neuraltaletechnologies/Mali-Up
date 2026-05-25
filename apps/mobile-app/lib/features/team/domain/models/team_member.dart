@@ -24,7 +24,7 @@ enum TeamRole {
         TeamRole.manager => 'Meneja',
         TeamRole.accountant => 'Mhasibu',
         TeamRole.cashier => 'Kasna',
-        TeamRole.stockClerk => 'Msimamizi wa Hisa',
+        TeamRole.stockClerk => 'Msimamizi wa Bidhaa',
         TeamRole.custom => 'Maalum',
       };
 
@@ -47,11 +47,11 @@ enum TeamRole {
         TeamRole.manager =>
           'Shughuli zote na ripoti; hakuna mabadiliko ya bili',
         TeamRole.accountant =>
-          'Ufikiaji kamili wa fedha; mauzo na hisa — kusoma tu',
+          'Ufikiaji kamili wa fedha; mauzo na bidhaa — kusoma tu',
         TeamRole.cashier =>
           'POS na kuingiza mauzo tu; hakuna ripoti za fedha',
         TeamRole.stockClerk =>
-          'Hisa na manunuzi tu; hakuna data za fedha',
+          'Bidhaa na manunuzi tu; hakuna data za fedha',
         TeamRole.custom => 'Ruhusa maalum kwa mwanachama huyu',
       };
 
@@ -133,11 +133,11 @@ extension AppPermissionX on AppPermission {
         AppPermission.deleteSale => 'Futa Mauzo',
         AppPermission.applyDiscount => 'Toa Punguzo',
         AppPermission.issueRefund => 'Rudisha Malipo',
-        AppPermission.viewInventory => 'Angalia Hisa',
-        AppPermission.addStock => 'Ongeza Hisa',
-        AppPermission.editStock => 'Hariri Hisa',
-        AppPermission.adjustStock => 'Rekebisha Hisa',
-        AppPermission.deleteStock => 'Futa Hisa',
+        AppPermission.viewInventory => 'Angalia Bidhaa',
+        AppPermission.addStock => 'Ongeza Bidhaa',
+        AppPermission.editStock => 'Hariri Bidhaa',
+        AppPermission.adjustStock => 'Rekebisha Bidhaa',
+        AppPermission.deleteStock => 'Futa Bidhaa',
         AppPermission.viewFinancialReports => 'Angalia Ripoti za Fedha',
         AppPermission.manageExpenses => 'Simamia Matumizi',
         AppPermission.viewCashFlow => 'Angalia Mtiririko wa Fedha',

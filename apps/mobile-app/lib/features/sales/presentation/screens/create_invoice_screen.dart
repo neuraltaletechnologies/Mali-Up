@@ -191,7 +191,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
   Future<void> _save({required bool asDraft}) async {
     if (_items.every((i) => i.productName.trim().isEmpty)) {
-      _showSnack(_tr('Add at least one item', 'Ongeza bidhaa angalau moja'));
+      _showSnack(_tr('Add at least one item', 'Ongeza bidhaaa angalau moja'));
       return;
     }
     setState(() => _saving = true);
@@ -924,7 +924,7 @@ class _ItemsSection extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              _tr('Items', 'Bidhaa'),
+              _tr('Items', 'Bidhaaa'),
               style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -1098,7 +1098,7 @@ class _LineItemCardState extends State<_LineItemCard> {
                 Expanded(
                   child: Text(
                     widget.item.productName.isEmpty
-                        ? _tr('New Item', 'Bidhaa Mpya')
+                        ? _tr('New Item', 'Bidhaaa Mpya')
                         : widget.item.productName,
                     style: GoogleFonts.dmSans(
                         fontSize: 13,
@@ -1123,7 +1123,7 @@ class _LineItemCardState extends State<_LineItemCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _FieldLabel(_tr('Product / Service', 'Bidhaa / Huduma')),
+                _FieldLabel(_tr('Product / Service', 'Bidhaaa / Huduma')),
                 const SizedBox(height: 4),
                 _OutlineField(
                   controller: _nameCtrl,

@@ -232,7 +232,7 @@ Always refer to **TERMINOLOGY_DICTIONARY.md** for official terms.
 | Invoice | Ankara | Ankara ya Bima (wrong) |
 | Customer | Mteja | Mteja wa Duka (too specific) |
 | Payment | Malipo | Fedha (too general) |
-| Inventory | Hesabu ya Bidhaa | Duka ya Bidhaa (not exact) |
+| Inventory | Hesabu ya Bidhaaa | Duka ya Bidhaaa (not exact) |
 | Report | Ripoti | Ufafanuzi (wrong) |
 
 **When in doubt, check the dictionary first.**
