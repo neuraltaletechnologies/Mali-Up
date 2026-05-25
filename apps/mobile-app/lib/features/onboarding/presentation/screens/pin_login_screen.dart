@@ -69,7 +69,6 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
         state.firstName.isNotEmpty ? state.firstName : '';
 
     return OnboardingScaffold(
-      currentStep: 4,
       onBack: () {
         _pinCtrl.clear();
         context.go(AppRoutes.phone);

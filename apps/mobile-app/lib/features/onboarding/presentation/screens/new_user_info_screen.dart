@@ -67,7 +67,6 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
     final sw    = state.isSwahili;
 
     return OnboardingScaffold(
-      currentStep: 3,
       onBack: () => context.go(AppRoutes.phone),
       child: FadeTransition(
         opacity: _fade,
@@ -78,27 +77,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 20),
-
-                // ── Icon ──────────────────────────────────────────────────
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppColors.tealAccent,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.tealAccent.withValues(alpha: 0.28),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.person_rounded,
-                      color: Colors.white, size: 26),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 8),
 
                 // ── Heading ───────────────────────────────────────────────
                 Text(

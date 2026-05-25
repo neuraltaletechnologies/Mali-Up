@@ -249,6 +249,9 @@ class OnboardingRepository {
       'businessName': state.businessName,
       'businessType': state.businessType,
       'city': state.city,
+      'country': state.businessCountry,
+      'region': state.businessRegion,
+      'district': state.businessDistrict,
       'createdAt': FieldValue.serverTimestamp(),
       'lastActiveAt': FieldValue.serverTimestamp(),
     });

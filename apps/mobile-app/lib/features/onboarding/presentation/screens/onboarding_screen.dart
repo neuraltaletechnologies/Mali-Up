@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
 
@@ -20,8 +19,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     with TickerProviderStateMixin {
   final PageController _pageCtrl = PageController();
   int _current = 0;
-
-  late AnimationController _btnCtrl;
 
   late VoidCallback _langListener;
   late AppLanguage _language;
@@ -75,146 +72,43 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       }
     };
     LocalizationService.languageNotifier.addListener(_langListener);
-
-    _btnCtrl = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
   }
 
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_langListener);
     _pageCtrl.dispose();
-    _btnCtrl.dispose();
     super.dispose();
   }
 
   bool get _sw => _language == AppLanguage.swahili;
 
   void _onPageChanged(int index) {
-    setState(() => _current = index);
-    if (index == _slides.length - 1) {
-      _btnCtrl.forward();
-    } else {
-      _btnCtrl.reverse();
-    }
-  }
-
-  void _next() {
-    HapticFeedback.selectionClick();
-    if (_current < _slides.length - 1) {
-      _pageCtrl.nextPage(
-        duration: const Duration(milliseconds: 420),
-        curve: Curves.easeOutCubic,
-      );
-    } else {
+    if (index == _slides.length) {
       widget.onOnboardingComplete();
+      return;
     }
-  }
-
-  void _skip() {
-    HapticFeedback.selectionClick();
-    _pageCtrl.animateToPage(
-      _slides.length - 1,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutCubic,
-    );
+    setState(() => _current = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLast = _current == _slides.length - 1;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            // ── Top bar: skip ───────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  AnimatedOpacity(
-                    opacity: isLast ? 0.0 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: TextButton(
-                      onPressed: isLast ? null : _skip,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.textMuted,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                      ),
-                      child: Text(
-                        _sw ? 'Ruka' : 'Skip',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Slides ──────────────────────────────────────────────────────
-            Expanded(
-              child: PageView.builder(
-                controller: _pageCtrl,
-                onPageChanged: _onPageChanged,
-                itemCount: _slides.length,
-                itemBuilder: (context, index) {
-                  return _SlidePage(
-                    slide: _slides[index],
-                    isSwahili: _sw,
-                    isCurrent: index == _current,
-                  );
-                },
-              ),
-            ),
-
-            // ── Bottom controls ──────────────────────────────────────────────
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Page indicator
-                    SmoothPageIndicator(
-                      controller: _pageCtrl,
-                      count: _slides.length,
-                      effect: ExpandingDotsEffect(
-                        expansionFactor: 2.5,
-                        spacing: 6,
-                        radius: 99,
-                        dotHeight: 6,
-                        dotWidth: 6,
-                        activeDotColor: AppColors.navyPrimary,
-                        dotColor: AppColors.navyPrimary.withValues(alpha: 0.15),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    // Next / Get started button
-                    _PrimaryButton(
-                      label: isLast
-                          ? (_sw ? 'Tuanze 🚀' : "Let's get started 🚀")
-                          : (_sw ? 'Endelea' : 'Continue'),
-                      onTap: _next,
-                      isLast: isLast,
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        child: PageView.builder(
+          controller: _pageCtrl,
+          onPageChanged: _onPageChanged,
+          itemCount: _slides.length + 1,
+          itemBuilder: (context, index) {
+            if (index == _slides.length) return const SizedBox.shrink();
+            return _SlidePage(
+              slide: _slides[index],
+              isSwahili: _sw,
+              isCurrent: index == _current,
+            );
+          },
         ),
       ),
     );
@@ -899,95 +793,6 @@ class _AppIcon extends StatelessWidget {
           style: const TextStyle(fontSize: 7, color: AppColors.textMuted),
         ),
       ],
-    );
-  }
-}
-
-// ── Primary CTA button ─────────────────────────────────────────────────────────
-
-class _PrimaryButton extends StatefulWidget {
-  final String label;
-  final VoidCallback onTap;
-  final bool isLast;
-
-  const _PrimaryButton({
-    required this.label,
-    required this.onTap,
-    required this.isLast,
-  });
-
-  @override
-  State<_PrimaryButton> createState() => _PrimaryButtonState();
-}
-
-class _PrimaryButtonState extends State<_PrimaryButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pressCtrl;
-  late Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressCtrl = AnimationController(
-      duration: const Duration(milliseconds: 120),
-      vsync: this,
-    );
-    _scale = Tween<double>(begin: 1.0, end: 0.96).animate(
-      CurvedAnimation(parent: _pressCtrl, curve: Curves.easeOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pressCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _pressCtrl.forward(),
-      onTapUp: (_) {
-        _pressCtrl.reverse();
-        widget.onTap();
-      },
-      onTapCancel: () => _pressCtrl.reverse(),
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder: (context, child) => Transform.scale(
-          scale: _scale.value,
-          child: child,
-        ),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: double.infinity,
-          height: 56,
-          decoration: BoxDecoration(
-            color: widget.isLast ? AppColors.navyPrimary : AppColors.yellowBrand,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: (widget.isLast ? AppColors.navyPrimary : AppColors.yellowBrand)
-                    .withValues(alpha: 0.28),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Center(
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: widget.isLast ? Colors.white : AppColors.navyPrimary,
-                letterSpacing: 0.1,
-              ),
-              child: Text(widget.label),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
