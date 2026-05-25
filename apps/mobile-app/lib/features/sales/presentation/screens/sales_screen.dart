@@ -495,7 +495,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     if (discount > 0) {
       b.writeln(
-          '${_tr("Subtotal", "Jumla Bidhaa")}: TSh ${subtotal.toStringAsFixed(0)}');
+          '${_tr("Subtotal", "Jumla Bidhaaa")}: TSh ${subtotal.toStringAsFixed(0)}');
       b.writeln(
           '${_tr("Discount", "Punguzo")}: -TSh ${discount.toStringAsFixed(0)}');
     }
@@ -1480,7 +1480,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Future<void> _scanBarcode(int index) async {
     final entry = _items[index];
     final scanned = await BarcodeScannerScreen.show(context,
-        title: _tr('Scan Product', 'Skani Bidhaa'));
+        title: _tr('Scan Product', 'Skani Bidhaaa'));
     if (scanned == null || scanned.isEmpty || !mounted) return;
 
     final inventory = ref.read(inventoryItemListProvider).value ?? [];
@@ -1495,7 +1495,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       _selectProduct(entry, matched);
     } else {
       _snack(_tr('No product found for barcode: $scanned',
-          'Hakuna bidhaa kwa nambari: $scanned'));
+          'Hakuna bidhaaa kwa nambari: $scanned'));
     }
   }
 
@@ -1515,12 +1515,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final e = _items[i];
       if (e.nameCtrl.text.trim().isEmpty) {
         _snack(_tr(
-            'Enter name for item ${i + 1}', 'Ingiza jina la bidhaa ${i + 1}'));
+            'Enter name for item ${i + 1}', 'Ingiza jina la bidhaaa ${i + 1}'));
         return;
       }
       if (e.unitPrice <= 0) {
         _snack(_tr(
-            'Enter price for item ${i + 1}', 'Ingiza bei ya bidhaa ${i + 1}'));
+            'Enter price for item ${i + 1}', 'Ingiza bei ya bidhaaa ${i + 1}'));
         return;
       }
       if (e.isOutOfStock) {
@@ -1905,14 +1905,14 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       children: [
         Row(
           children: [
-            Text(_tr('Items', 'Bidhaa'),
+            Text(_tr('Items', 'Bidhaaa'),
                 style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textMuted)),
             const Spacer(),
             Text(
-                '${_items.length} ${_tr("item", "bidhaa")}${_items.length != 1 ? "s" : ""}',
+                '${_items.length} ${_tr("item", "bidhaaa")}${_items.length != 1 ? "s" : ""}',
                 style: GoogleFonts.dmSans(
                     fontSize: 11, color: AppColors.textMuted)),
           ],
@@ -1940,7 +1940,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 const Icon(Icons.add_circle_outline_rounded,
                     size: 18, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(_tr('Add Item', 'Ongeza Bidhaa'),
+                Text(_tr('Add Item', 'Ongeza Bidhaaa'),
                     style: GoogleFonts.dmSans(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700,
@@ -1971,7 +1971,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           Row(
             children: [
               Text(
-                '${_tr("Item", "Bidhaa")} ${index + 1}',
+                '${_tr("Item", "Bidhaaa")} ${index + 1}',
                 style: GoogleFonts.dmSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -1993,7 +1993,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             textCapitalization: TextCapitalization.words,
             onChanged: (_) => setState(() {}),
             decoration: _fieldDec(
-              label: _tr('Product name', 'Jina la bidhaa'),
+              label: _tr('Product name', 'Jina la bidhaaa'),
               prefix: Icons.inventory_2_outlined,
               suffix: entry.selectedItem != null
                   ? const Icon(Icons.check_circle_rounded,
@@ -2057,7 +2057,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                         child: Text(
                           _tr(
                               'Add "${entry.nameCtrl.text}" to inventory',
-                              'Ongeza "${entry.nameCtrl.text}" kwa hisa'),
+                              'Ongeza "${entry.nameCtrl.text}" kwa bidhaa'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.dmSans(
@@ -2255,7 +2255,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       child: Column(
         children: [
           _TotalRow(
-              label: _tr('Subtotal', 'Jumla Bidhaa'),
+              label: _tr('Subtotal', 'Jumla Bidhaaa'),
               value: 'TSh ${_subtotal.toStringAsFixed(0)}'),
           const SizedBox(height: 8),
           TextField(
@@ -2466,7 +2466,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     strokeWidth: 2.5, color: AppColors.navyPrimary))
             : Text(
                 hasOutOfStock
-                    ? _tr('Item out of stock', 'Bidhaa imekwisha')
+                    ? _tr('Item out of stock', 'Bidhaaa imekwisha')
                     : _tr('Save Sale', 'Hifadhi Mauzo'),
                 style: GoogleFonts.dmSans(
                     fontSize: 15, fontWeight: FontWeight.w700)),
@@ -2719,7 +2719,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              _tr('Enter product name', 'Ingiza jina la bidhaa'))));
+              _tr('Enter product name', 'Ingiza jina la bidhaaa'))));
       return;
     }
     if (price <= 0) {
@@ -2770,7 +2770,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(_tr(
-              'Failed to add product', 'Imeshindikana kuongeza bidhaa'))));
+              'Failed to add product', 'Imeshindikana kuongeza bidhaaa'))));
     }
   }
 
@@ -2801,7 +2801,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                 ),
               ),
               Text(
-                _tr('Add New Product', 'Ongeza Bidhaa Mpya'),
+                _tr('Add New Product', 'Ongeza Bidhaaa Mpya'),
                 style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -2810,7 +2810,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               const SizedBox(height: 20),
               _field(
                   ctrl: _nameCtrl,
-                  label: _tr('Product Name *', 'Jina la Bidhaa *'),
+                  label: _tr('Product Name *', 'Jina la Bidhaaa *'),
                   icon: Icons.inventory_2_outlined,
                   caps: TextCapitalization.words),
               const SizedBox(height: 14),
@@ -2913,7 +2913,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                               strokeWidth: 2.5,
                               color: AppColors.secondary))
                       : Text(
-                          _tr('Add to Inventory', 'Ongeza kwa Hisa'),
+                          _tr('Add to Inventory', 'Ongeza kwa Bidhaa'),
                           style: const TextStyle(
                               fontSize: 15, fontWeight: FontWeight.w700)),
                 ),

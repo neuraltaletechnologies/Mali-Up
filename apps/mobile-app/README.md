@@ -8,7 +8,7 @@ The current Mali Up B v1.0 app is a business-only Flutter product for Tanzanian 
 - Tuma ankara
 - Wateja wangu
 - Gharama zangu
-- Hisa zangu
+- Bidhaa zangu
 
 ## Architecture
 

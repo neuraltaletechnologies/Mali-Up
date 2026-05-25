@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
@@ -83,9 +84,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
 
     return OnboardingScaffold(
       currentStep: 4,
-      onBack: () => state.isReturningUser
-          ? context.go(AppRoutes.returning)
-          : context.go(AppRoutes.newUser),
+      onBack: () => context.go(AppRoutes.newUser),
       child: FadeTransition(
         opacity: _fade,
         child: SlideTransition(

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
@@ -39,12 +40,11 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
 
-    // Pre-fill if navigating back from the OTP screen.
+    // Pre-fill if navigating back.
     _phoneCtrl.text = ref.read(onboardingNotifierProvider).phone;
 
-    // Sync the language from LocalizationService into the notifier.
-    // Deferred to post-frame because modifying a provider during initState
-    // (which runs inside the build phase) is forbidden by Riverpod.
+    // Sync language — deferred because modifying a provider during initState
+    // (inside the build phase) is forbidden by Riverpod.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final lang = LocalizationService.languageNotifier.value;
@@ -65,12 +65,18 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
         OnboardingValidator.normalisePhone(_phoneCtrl.text.trim());
     final notifier = ref.read(onboardingNotifierProvider.notifier);
     notifier.setPhone(phone);
-    await notifier.sendOtp();
-    if (mounted) {
-      final s = ref.read(onboardingNotifierProvider);
-      if (s.verificationId.isNotEmpty && s.errorMessage == null) {
-        context.go(AppRoutes.otp);
-      }
+    await notifier.lookupPhone();
+    if (!mounted) return;
+
+    final s = ref.read(onboardingNotifierProvider);
+    if (s.errorMessage != null) return; // stay on screen, error is displayed
+
+    if (s.isReturningUser) {
+      context.go(AppRoutes.pinLogin);
+    } else if (s.isTeamMember) {
+      context.go(AppRoutes.teamSetup);
+    } else {
+      context.go(AppRoutes.newUser);
     }
   }
 
@@ -80,8 +86,9 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     final sw = state.isSwahili;
 
     return OnboardingScaffold(
-      currentStep: 2,
-      onBack: () => context.go(AppRoutes.welcome),
+      currentStep: 3,
+      lottieScene: EmotionalLottieScene.authVerify,
+      onBack: () => context.go(AppRoutes.intro),
       child: FadeTransition(
         opacity: _fade,
         child: SlideTransition(

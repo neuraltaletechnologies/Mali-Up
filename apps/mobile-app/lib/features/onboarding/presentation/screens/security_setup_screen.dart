@@ -5,11 +5,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
 import '_onboarding_scaffold.dart';
 
+/// Screen 6 — PIN setup for new owner users.
+/// The user sets a 4-digit PIN and confirms it. On submit a Firebase Auth
+/// account is created and user/business profiles are written to Firestore.
 class SecuritySetupScreen extends ConsumerStatefulWidget {
   const SecuritySetupScreen({super.key});
 
@@ -21,9 +25,8 @@ class SecuritySetupScreen extends ConsumerStatefulWidget {
 class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _passwordCtrl = TextEditingController();
   final _pinCtrl = TextEditingController();
-  bool _obscurePassword = true;
+  final _confirmCtrl = TextEditingController();
 
   late final AnimationController _animCtrl;
   late final Animation<double> _fade;
@@ -42,23 +45,23 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     _animCtrl.forward();
 
     final s = ref.read(onboardingNotifierProvider);
-    _passwordCtrl.text = s.password;
     _pinCtrl.text = s.pin;
+    _confirmCtrl.text = s.confirmPin;
   }
 
   @override
   void dispose() {
     _animCtrl.dispose();
-    _passwordCtrl.dispose();
     _pinCtrl.dispose();
+    _confirmCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final notifier = ref.read(onboardingNotifierProvider.notifier);
-    notifier.setPassword(_passwordCtrl.text);
     notifier.setPin(_pinCtrl.text);
+    notifier.setConfirmPin(_confirmCtrl.text);
     await notifier.saveAndComplete();
     if (mounted && ref.read(onboardingNotifierProvider).isComplete) {
       context.go(AppRoutes.success);
@@ -87,8 +90,8 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                 // ── Title ─────────────────────────────────────────────────
                 Text(
                   OnboardingStrings.s(sw,
-                      en: OnboardingStrings.securityTitleEn,
-                      sw: OnboardingStrings.securityTitleSw),
+                      en: OnboardingStrings.pinSetupTitleEn,
+                      sw: OnboardingStrings.pinSetupTitleSw),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: AppColors.navyPrimary,
@@ -97,54 +100,55 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                 const SizedBox(height: 6),
                 Text(
                   OnboardingStrings.s(sw,
-                      en: OnboardingStrings.securitySubEn,
-                      sw: OnboardingStrings.securitySubSw),
+                      en: OnboardingStrings.pinSetupSubEn,
+                      sw: OnboardingStrings.pinSetupSubSw),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textMuted,
                       ),
                 ),
                 const SizedBox(height: 32),
 
-                // ── Password ──────────────────────────────────────────────
-                OnboardingField(
-                  controller: _passwordCtrl,
-                  label: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.passwordLabelEn,
-                      sw: OnboardingStrings.passwordLabelSw),
-                  hint: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.passwordHintEn,
-                      sw: OnboardingStrings.passwordHintSw),
-                  autofocus: true,
-                  obscureText: _obscurePassword,
-                  suffix: _PasswordToggle(
-                    isObscured: _obscurePassword,
-                    isSwahili: sw,
-                    onToggle: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
-                  ),
-                  validator: (v) =>
-                      OnboardingValidator.validatePassword(v ?? '',
-                          isSwahili: sw),
-                ),
-                const SizedBox(height: 20),
-
                 // ── PIN ───────────────────────────────────────────────────
                 OnboardingField(
                   controller: _pinCtrl,
                   label: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.pinLabelEn,
-                      sw: OnboardingStrings.pinLabelSw),
-                  hint: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.pinHintEn,
-                      sw: OnboardingStrings.pinHintSw),
+                      en: OnboardingStrings.pinSetupEnterLabelEn,
+                      sw: OnboardingStrings.pinSetupEnterLabelSw),
+                  hint: '••••',
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 4,
+                  autofocus: true,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (v) =>
+                      OnboardingValidator.validatePin(v ?? '', isSwahili: sw),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Confirm PIN ───────────────────────────────────────────
+                OnboardingField(
+                  controller: _confirmCtrl,
+                  label: OnboardingStrings.s(sw,
+                      en: OnboardingStrings.pinSetupConfirmLabelEn,
+                      sw: OnboardingStrings.pinSetupConfirmLabelSw),
+                  hint: '••••',
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,
                   obscureText: true,
                   maxLength: 4,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onFieldSubmitted: (_) => _submit(),
-                  validator: (v) =>
-                      OnboardingValidator.validatePin(v ?? '', isSwahili: sw),
+                  validator: (v) {
+                    final base = OnboardingValidator.validatePin(
+                        v ?? '', isSwahili: sw);
+                    if (base != null) return base;
+                    if (v != _pinCtrl.text) {
+                      return OnboardingStrings.s(sw,
+                          en: OnboardingStrings.pinSetupMismatchEn,
+                          sw: OnboardingStrings.pinSetupMismatchSw);
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -165,55 +169,17 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                 OnboardingPrimaryButton(
                   label: state.isLoading
                       ? OnboardingStrings.s(sw,
-                          en: OnboardingStrings.securitySavingEn,
-                          sw: OnboardingStrings.securitySavingSw)
+                          en: OnboardingStrings.pinSetupSavingEn,
+                          sw: OnboardingStrings.pinSetupSavingSw)
                       : OnboardingStrings.s(sw,
-                          en: OnboardingStrings.securityCreateCtaEn,
-                          sw: OnboardingStrings.securityCreateCtaSw),
+                          en: OnboardingStrings.pinSetupCtaEn,
+                          sw: OnboardingStrings.pinSetupCtaSw),
                   onPressed: state.isLoading ? null : _submit,
                   isLoading: state.isLoading,
                 ),
                 const SizedBox(height: 16),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Password visibility toggle ───────────────────────────────────────────────
-
-class _PasswordToggle extends StatelessWidget {
-  const _PasswordToggle({
-    required this.isObscured,
-    required this.isSwahili,
-    required this.onToggle,
-  });
-
-  final bool isObscured;
-  final bool isSwahili;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onToggle,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Text(
-          isObscured
-              ? OnboardingStrings.s(isSwahili,
-                  en: OnboardingStrings.passwordToggleShowEn,
-                  sw: OnboardingStrings.passwordToggleShowSw)
-              : OnboardingStrings.s(isSwahili,
-                  en: OnboardingStrings.passwordToggleHideEn,
-                  sw: OnboardingStrings.passwordToggleHideSw),
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.navyPrimary,
           ),
         ),
       ),

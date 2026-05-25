@@ -381,8 +381,8 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             _DrawerItemLight(
                               icon: Icons.inventory_2_rounded,
                               iconColor: AppColors.primary,
-                              label: _tr('Hisa zangu', 'Hisa zangu'),
-                              semanticsLabel: _tr('My stock and inventory', 'Hisa zangu, usimamizi wa bidhaa'),
+                              label: _tr('Bidhaa zangu', 'Bidhaa zangu'),
+                              semanticsLabel: _tr('My stock and inventory', 'Bidhaa zangu, usimamizi wa bidhaaa'),
                               selected: _isSelected(location, AppRouter.inventoryPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
                             ),
@@ -418,6 +418,14 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                               semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
                               selected: _isSelected(location, AppRouter.cashFlowPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
+                            ),
+                            _DrawerItemLight(
+                              icon: Icons.bar_chart_rounded,
+                              iconColor: AppColors.primary,
+                              label: _tr('Ripoti za Fedha', 'Ripoti za Fedha'),
+                              semanticsLabel: _tr('Financial reports — P&L, Balance Sheet, VAT', 'Ripoti za fedha — P&L, Mizania, VAT'),
+                              selected: _isSelected(location, AppRouter.reportsPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.reportsPath),
                             ),
                             _DrawerSectionLabel(label: _tr('TEAM', 'TIMU')),
                             _DrawerItemLight(
@@ -535,7 +543,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
       ),
       _NavDestination(
         route: AppRouter.inventoryPath,
-        label: _tr('Stock', 'Hisa'),
+        label: _tr('Stock', 'Bidhaa'),
         icon: Icons.inventory_2_outlined,
         activeIcon: Icons.inventory_2_rounded,
       ),

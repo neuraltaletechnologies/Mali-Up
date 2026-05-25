@@ -26,18 +26,18 @@
 | Paid | Lilipi | Settled/completed | "Lilipi" = Paid |
 | Pending | Linangojea | Awaiting completion | "Linangojea" = Pending |
 
-### Inventory & Products (Bidhaa)
+### Inventory & Products (Bidhaaa)
 
 | English | Kiswahili | Context | Example |
 |---------|-----------|---------|---------|
-| Inventory | Hesabu ya Bidhaa | Stock/products | "Idara ya Hesabu ya Bidhaa" = Inventory section |
-| Product | Bidhaa | Item for sale | "Orodha ya Bidhaa" = Product list |
+| Inventory | Hesabu ya Bidhaaa | Stock/products | "Idara ya Hesabu ya Bidhaaa" = Inventory section |
+| Product | Bidhaaa | Item for sale | "Orodha ya Bidhaaa" = Product list |
 | Stock | Benki | Available quantity | "Benki ndogo" = Low stock |
 | Unit | Kipimo | Measurement | "Kipimo: Kg" = Unit: Kg |
 | Quantity | Wingi | Amount/number | "Ingiza wingi" = Enter quantity |
 | Price | Bei | Cost per unit | "Badilisha Bei" = Change price |
 | Category | Jamii | Product group | "Jamii mpya" = New category |
-| SKU | Nambari ya Bidhaa | Product code | "Nambari ya Bidhaa: SKU123" = Product ID: SKU123 |
+| SKU | Nambari ya Bidhaaa | Product code | "Nambari ya Bidhaaa: SKU123" = Product ID: SKU123 |
 
 ### Reporting & Analytics (Ripoti)
 
@@ -89,7 +89,7 @@
 | Dashboard | Paneli | Overview | "Paneli Kuu" = Main dashboard |
 | Invoices | Ankara | Billing | "Orodha ya Ankara" = Invoice list |
 | Customers | Wateja | Contacts | "Orodha ya Wateja" = Customer list |
-| Inventory | Hesabu ya Bidhaa | Stock | "Idara ya Hesabu ya Bidhaa" = Inventory section |
+| Inventory | Hesabu ya Bidhaaa | Stock | "Idara ya Hesabu ya Bidhaaa" = Inventory section |
 | Reports | Ripoti | Analytics | "Ripoti za Biashara" = Business reports |
 | Settings | Mipango | Configuration | "Mipango ya Akaunti" = Account settings |
 | Profile | Wasifu | User info | "Wasifu Wangu" = My profile |

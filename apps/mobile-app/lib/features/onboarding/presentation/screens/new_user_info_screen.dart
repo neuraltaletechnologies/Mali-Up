@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/emotional_design.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
@@ -76,7 +77,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
 
     return OnboardingScaffold(
       currentStep: 3,
-      onBack: () => context.go(AppRoutes.otp),
+      onBack: () => context.go(AppRoutes.phone),
       child: FadeTransition(
         opacity: _fade,
         child: SlideTransition(

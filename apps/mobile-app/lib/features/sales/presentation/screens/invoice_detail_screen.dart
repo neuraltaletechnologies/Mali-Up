@@ -234,7 +234,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       lines.writeln('${_tr('Due:', 'Mwisho:')} ${_fmt(_dueDate!)}');
     }
     lines.writeln();
-    lines.writeln(_tr('Items:', 'Bidhaa:'));
+    lines.writeln(_tr('Items:', 'Bidhaaa:'));
     for (final item in _lineItems) {
       final name = item['productName']?.toString() ?? '';
       final qty = item['qty']?.toString() ?? '1';
@@ -704,7 +704,7 @@ class _LineItemsCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Text(
-              _tr('Items', 'Bidhaa'),
+              _tr('Items', 'Bidhaaa'),
               style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,

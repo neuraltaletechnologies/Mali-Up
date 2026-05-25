@@ -1043,7 +1043,7 @@ class _ModuleGrid extends StatelessWidget {
 
   static const _modules = [
     (icon: Icons.receipt_long_rounded, labelEn: 'Tuma ankara', labelSw: 'Tuma ankara', color: Color(0xFF003153), route: AppRouter.salesPath),
-    (icon: Icons.inventory_2_rounded, labelEn: 'Hisa zangu', labelSw: 'Hisa zangu', color: Color(0xFF1A6E8A), route: AppRouter.inventoryPath),
+    (icon: Icons.inventory_2_rounded, labelEn: 'Bidhaa zangu', labelSw: 'Bidhaa zangu', color: Color(0xFF1A6E8A), route: AppRouter.inventoryPath),
     (icon: Icons.people_alt_rounded, labelEn: 'Wateja wangu', labelSw: 'Wateja wangu', color: Color(0xFF059669), route: AppRouter.crmPath),
     (icon: Icons.payments_rounded, labelEn: 'Gharama zangu', labelSw: 'Gharama zangu', color: Color(0xFFD97706), route: AppRouter.expensesPath),
     (icon: Icons.account_balance_rounded, labelEn: 'Madeni', labelSw: 'Madeni', color: Color(0xFFDC2626), route: AppRouter.debtPath),
@@ -1859,7 +1859,7 @@ class _LowStockAlertsSection extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(
-              _tr('Low Stock Alerts', 'Tahadhari ya Hisa Ndogo'),
+              _tr('Low Stock Alerts', 'Tahadhari ya Bidhaa Ndogo'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -2042,7 +2042,7 @@ class _TopPerformersSection extends StatelessWidget {
         if (products.isNotEmpty)
           _PerformerSubsection(
             icon: Icons.inventory_2_outlined,
-            label: _tr('Best Products', 'Bidhaa Bora'),
+            label: _tr('Best Products', 'Bidhaaa Bora'),
             color: AppColors.tealAccent,
             entries: products,
           ),
