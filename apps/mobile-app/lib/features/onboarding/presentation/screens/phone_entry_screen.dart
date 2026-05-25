@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/emotional_design.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
@@ -32,19 +31,15 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
+        vsync: this, duration: const Duration(milliseconds: 480));
     _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
         .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
 
-    // Pre-fill if navigating back.
     _phoneCtrl.text = ref.read(onboardingNotifierProvider).phone;
 
-    // Sync language — deferred because modifying a provider during initState
-    // (inside the build phase) is forbidden by Riverpod.
+    // Sync language after frame — modifying providers during build is forbidden.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final lang = LocalizationService.languageNotifier.value;
@@ -61,15 +56,14 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final phone =
-        OnboardingValidator.normalisePhone(_phoneCtrl.text.trim());
+    final phone = OnboardingValidator.normalisePhone(_phoneCtrl.text.trim());
     final notifier = ref.read(onboardingNotifierProvider.notifier);
     notifier.setPhone(phone);
     await notifier.lookupPhone();
     if (!mounted) return;
 
     final s = ref.read(onboardingNotifierProvider);
-    if (s.errorMessage != null) return; // stay on screen, error is displayed
+    if (s.errorMessage != null) return;
 
     if (s.isReturningUser) {
       context.go(AppRoutes.pinLogin);
@@ -87,7 +81,6 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
 
     return OnboardingScaffold(
       currentStep: 3,
-      lottieScene: EmotionalLottieScene.authVerify,
       onBack: () => context.go(AppRoutes.intro),
       child: FadeTransition(
         opacity: _fade,
@@ -98,34 +91,59 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
+                const SizedBox(height: 20),
+
+                // ── Icon ──────────────────────────────────────────────────
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.yellowBrand,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.yellowBrand.withValues(alpha: 0.30),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.phone_iphone_rounded,
+                      color: AppColors.navyPrimary, size: 26),
+                ),
+                const SizedBox(height: 20),
 
                 // ── Title ─────────────────────────────────────────────────
                 Text(
                   OnboardingStrings.s(sw,
                       en: OnboardingStrings.phoneTitleEn,
                       sw: OnboardingStrings.phoneTitleSw),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.navyPrimary,
-                      ),
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                    height: 1.2,
+                    letterSpacing: -0.4,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   OnboardingStrings.s(sw,
                       en: OnboardingStrings.phoneSubEn,
                       sw: OnboardingStrings.phoneSubSw),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textMuted,
+                    height: 1.5,
+                  ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 36),
 
-                // ── Tanzania country chip ──────────────────────────────────
-                _CountryChip(isSwahili: sw),
-                const SizedBox(height: 12),
+                // ── Country selector ──────────────────────────────────────
+                _CountrySelector(isSwahili: sw),
+                const SizedBox(height: 14),
 
-                // ── Phone number field ─────────────────────────────────────
+                // ── Phone field ───────────────────────────────────────────
                 OnboardingField(
                   controller: _phoneCtrl,
                   label: OnboardingStrings.s(sw,
@@ -141,26 +159,28 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s]')),
                   ],
                   onFieldSubmitted: (_) => _submit(),
-                  validator: (v) =>
-                      OnboardingValidator.validatePhone(v ?? '',
-                          isSwahili: sw),
+                  validator: (v) => OnboardingValidator.validatePhone(
+                      v ?? '', isSwahili: sw),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   OnboardingStrings.s(sw,
                       en: OnboardingStrings.phoneHelperEn,
                       sw: OnboardingStrings.phoneHelperSw),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
                 ),
                 const SizedBox(height: 32),
 
+                // ── Error ─────────────────────────────────────────────────
                 if (state.errorMessage != null) ...[
                   OnboardingErrorBanner(message: state.errorMessage!),
                   const SizedBox(height: 16),
                 ],
 
+                // ── CTA ───────────────────────────────────────────────────
                 OnboardingPrimaryButton(
                   label: OnboardingStrings.s(sw,
                       en: OnboardingStrings.phoneSendCtaEn,
@@ -169,6 +189,28 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                   isLoading: state.isLoading,
                 ),
                 const SizedBox(height: 16),
+
+                // ── Privacy note ──────────────────────────────────────────
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_outline_rounded,
+                          size: 12, color: AppColors.textMuted),
+                      const SizedBox(width: 5),
+                      Text(
+                        sw
+                            ? 'Nambari yako ni salama'
+                            : 'Your number is kept private',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -178,37 +220,50 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   }
 }
 
-// ─── Tanzania country chip ─────────────────────────────────────────────────────
+// ── Country selector ──────────────────────────────────────────────────────────
 
-class _CountryChip extends StatelessWidget {
-  const _CountryChip({required this.isSwahili});
-
+class _CountrySelector extends StatelessWidget {
+  const _CountrySelector({required this.isSwahili});
   final bool isSwahili;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('🇹🇿', style: TextStyle(fontSize: 20)),
-          const SizedBox(width: 10),
-          Text(
-            OnboardingStrings.s(isSwahili,
-                en: OnboardingStrings.phoneCountryChipEn,
-                sw: OnboardingStrings.phoneCountryChipSw),
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.navyPrimary,
+          const Text('🇹🇿', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isSwahili ? 'Tanzania' : 'Tanzania',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                const Text(
+                  '+255',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
+          const Icon(Icons.check_circle_rounded,
+              color: AppColors.success, size: 18),
         ],
       ),
     );

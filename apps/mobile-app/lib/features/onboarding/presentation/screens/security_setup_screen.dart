@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/emotional_design.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
 import '_onboarding_scaffold.dart';
 
-/// Screen 6 — PIN setup for new owner users.
-/// The user sets a 4-digit PIN and confirms it. On submit a Firebase Auth
-/// account is created and user/business profiles are written to Firestore.
+/// Screen 6 — PIN creation for new owner accounts.
+/// Two-step: set PIN → confirm PIN → save & complete.
 class SecuritySetupScreen extends ConsumerStatefulWidget {
   const SecuritySetupScreen({super.key});
 
@@ -24,9 +20,14 @@ class SecuritySetupScreen extends ConsumerStatefulWidget {
 
 class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     with SingleTickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
-  final _pinCtrl = TextEditingController();
+  final _pinCtrl     = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  final _pinFocus    = FocusNode();
+  final _confirmFocus = FocusNode();
+
+  bool _showConfirm = false;
+  bool _pinHasError = false;
+  bool _confirmHasError = false;
 
   late final AnimationController _animCtrl;
   late final Animation<double> _fade;
@@ -36,12 +37,11 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
+        vsync: this, duration: const Duration(milliseconds: 480));
     _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+        .animate(
+            CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
 
     final s = ref.read(onboardingNotifierProvider);
@@ -54,18 +54,57 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     _animCtrl.dispose();
     _pinCtrl.dispose();
     _confirmCtrl.dispose();
+    _pinFocus.dispose();
+    _confirmFocus.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  // ── Step 1: validate PIN and advance to confirm step ───────────────────────
+  void _advanceToConfirm() {
+    final sw = ref.read(onboardingNotifierProvider).isSwahili;
+    final err = OnboardingValidator.validatePin(_pinCtrl.text, isSwahili: sw);
+    if (err != null) {
+      setState(() => _pinHasError = true);
+      return;
+    }
+    setState(() {
+      _pinHasError = false;
+      _showConfirm = true;
+    });
+    // Slight delay so the UI rebuilds before requesting focus
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) FocusScope.of(context).requestFocus(_confirmFocus);
+    });
+  }
+
+  // ── Step 2: confirm PIN matches, then save ─────────────────────────────────
+  Future<void> _submitConfirm() async {
+    final sw = ref.read(onboardingNotifierProvider).isSwahili;
+    final err = OnboardingValidator.validatePin(_confirmCtrl.text, isSwahili: sw);
+    if (err != null || _confirmCtrl.text != _pinCtrl.text) {
+      setState(() => _confirmHasError = true);
+      return;
+    }
+    setState(() => _confirmHasError = false);
     final notifier = ref.read(onboardingNotifierProvider.notifier);
     notifier.setPin(_pinCtrl.text);
     notifier.setConfirmPin(_confirmCtrl.text);
     await notifier.saveAndComplete();
-    if (mounted && ref.read(onboardingNotifierProvider).isComplete) {
+    if (!mounted) return;
+    if (ref.read(onboardingNotifierProvider).isComplete) {
       context.go(AppRoutes.success);
     }
+  }
+
+  void _backToPin() {
+    _confirmCtrl.clear();
+    setState(() {
+      _showConfirm = false;
+      _confirmHasError = false;
+    });
+    Future.delayed(const Duration(milliseconds: 80), () {
+      if (mounted) FocusScope.of(context).requestFocus(_pinFocus);
+    });
   }
 
   @override
@@ -75,114 +114,304 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
 
     return OnboardingScaffold(
       currentStep: 6,
-      onBack: () => context.go(AppRoutes.business),
+      onBack: _showConfirm
+          ? _backToPin
+          : () => context.go(AppRoutes.business),
       child: FadeTransition(
         opacity: _fade,
         child: SlideTransition(
           position: _slide,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-
-                // ── Title ─────────────────────────────────────────────────
-                Text(
-                  OnboardingStrings.s(sw,
-                      en: OnboardingStrings.pinSetupTitleEn,
-                      sw: OnboardingStrings.pinSetupTitleSw),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.navyPrimary,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  OnboardingStrings.s(sw,
-                      en: OnboardingStrings.pinSetupSubEn,
-                      sw: OnboardingStrings.pinSetupSubSw),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
-                ),
-                const SizedBox(height: 32),
-
-                // ── PIN ───────────────────────────────────────────────────
-                OnboardingField(
-                  controller: _pinCtrl,
-                  label: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.pinSetupEnterLabelEn,
-                      sw: OnboardingStrings.pinSetupEnterLabelSw),
-                  hint: '••••',
-                  keyboardType: TextInputType.number,
-                  obscureText: true,
-                  maxLength: 4,
-                  autofocus: true,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  validator: (v) =>
-                      OnboardingValidator.validatePin(v ?? '', isSwahili: sw),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Confirm PIN ───────────────────────────────────────────
-                OnboardingField(
-                  controller: _confirmCtrl,
-                  label: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.pinSetupConfirmLabelEn,
-                      sw: OnboardingStrings.pinSetupConfirmLabelSw),
-                  hint: '••••',
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.done,
-                  obscureText: true,
-                  maxLength: 4,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onFieldSubmitted: (_) => _submit(),
-                  validator: (v) {
-                    final base = OnboardingValidator.validatePin(
-                        v ?? '', isSwahili: sw);
-                    if (base != null) return base;
-                    if (v != _pinCtrl.text) {
-                      return OnboardingStrings.s(sw,
-                          en: OnboardingStrings.pinSetupMismatchEn,
-                          sw: OnboardingStrings.pinSetupMismatchSw);
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  OnboardingStrings.s(sw,
-                      en: OnboardingStrings.pinHelperEn,
-                      sw: OnboardingStrings.pinHelperSw),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
-                ),
-                const SizedBox(height: 32),
-
-                if (state.errorMessage != null) ...[
-                  OnboardingErrorBanner(message: state.errorMessage!),
-                  const SizedBox(height: 16),
-                ],
-
-                OnboardingPrimaryButton(
-                  label: state.isLoading
-                      ? OnboardingStrings.s(sw,
-                          en: OnboardingStrings.pinSetupSavingEn,
-                          sw: OnboardingStrings.pinSetupSavingSw)
-                      : OnboardingStrings.s(sw,
-                          en: OnboardingStrings.pinSetupCtaEn,
-                          sw: OnboardingStrings.pinSetupCtaSw),
-                  onPressed: state.isLoading ? null : _submit,
-                  isLoading: state.isLoading,
-                ),
-                const SizedBox(height: 16),
-              ],
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 320),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.08, 0),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
             ),
+            child: _showConfirm
+                ? _ConfirmPinBody(
+                    key: const ValueKey('confirm'),
+                    sw: sw,
+                    controller: _confirmCtrl,
+                    focusNode: _confirmFocus,
+                    hasError: _confirmHasError,
+                    isLoading: state.isLoading,
+                    errorMessage: state.errorMessage,
+                    onChanged: (_) {
+                      if (_confirmHasError) {
+                        setState(() => _confirmHasError = false);
+                      }
+                    },
+                    onComplete: _submitConfirm,
+                    onSubmit: _submitConfirm,
+                  )
+                : _SetPinBody(
+                    key: const ValueKey('set'),
+                    sw: sw,
+                    controller: _pinCtrl,
+                    focusNode: _pinFocus,
+                    hasError: _pinHasError,
+                    onChanged: (_) {
+                      if (_pinHasError) setState(() => _pinHasError = false);
+                    },
+                    onComplete: _advanceToConfirm,
+                    onSubmit: _advanceToConfirm,
+                  ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Step 1: Set PIN ────────────────────────────────────────────────────────────
+
+class _SetPinBody extends StatelessWidget {
+  const _SetPinBody({
+    super.key,
+    required this.sw,
+    required this.controller,
+    required this.focusNode,
+    required this.hasError,
+    required this.onChanged,
+    required this.onComplete,
+    required this.onSubmit,
+  });
+
+  final bool sw;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool hasError;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onComplete;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+
+        // Icon
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.navyPrimary.withValues(alpha: 0.25),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.lock_rounded,
+              color: AppColors.yellowBrand, size: 26),
+        ),
+        const SizedBox(height: 20),
+
+        Text(
+          sw ? 'Linda akaunti yako 🔐' : 'Secure your account 🔐',
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: AppColors.navyPrimary,
+            height: 1.2,
+            letterSpacing: -0.4,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          sw
+              ? 'Tengeneza PIN ya tarakimu 4 utakayotumia kufikia Mali Up.'
+              : 'Create a 4-digit PIN you\'ll use to access Mali Up.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textMuted,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 40),
+
+        Center(
+          child: Column(
+            children: [
+              Text(
+                sw ? 'Ingiza PIN mpya' : 'Enter new PIN',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 18),
+              PinDotsInput(
+                controller: controller,
+                focusNode: focusNode,
+                hasError: hasError,
+                onChanged: onChanged,
+                onComplete: onComplete,
+              ),
+            ],
+          ),
+        ),
+
+        if (hasError) ...[
+          const SizedBox(height: 16),
+          const OnboardingErrorBanner(
+              message: 'PIN must be 4 digits.'),
+        ],
+
+        const SizedBox(height: 36),
+
+        OnboardingPrimaryButton(
+          label: sw ? 'Endelea' : 'Continue',
+          onPressed: onSubmit,
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ── Step 2: Confirm PIN ────────────────────────────────────────────────────────
+
+class _ConfirmPinBody extends StatelessWidget {
+  const _ConfirmPinBody({
+    super.key,
+    required this.sw,
+    required this.controller,
+    required this.focusNode,
+    required this.hasError,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.onChanged,
+    required this.onComplete,
+    required this.onSubmit,
+  });
+
+  final bool sw;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool hasError;
+  final bool isLoading;
+  final String? errorMessage;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onComplete;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+
+        // Icon
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppColors.success,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.success.withValues(alpha: 0.25),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.verified_user_rounded,
+              color: Colors.white, size: 26),
+        ),
+        const SizedBox(height: 20),
+
+        Text(
+          sw ? 'Thibitisha PIN yako ✓' : 'Confirm your PIN ✓',
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: AppColors.navyPrimary,
+            height: 1.2,
+            letterSpacing: -0.4,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          sw
+              ? 'Ingiza tena PIN yako ili ithibitishwe.'
+              : 'Enter your PIN once more to confirm it.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textMuted,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 40),
+
+        Center(
+          child: Column(
+            children: [
+              Text(
+                sw ? 'Thibitisha PIN' : 'Confirm PIN',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 18),
+              PinDotsInput(
+                controller: controller,
+                focusNode: focusNode,
+                hasError: hasError,
+                onChanged: onChanged,
+                onComplete: onComplete,
+              ),
+            ],
+          ),
+        ),
+
+        if (hasError) ...[
+          const SizedBox(height: 16),
+          OnboardingErrorBanner(
+            message: sw
+                ? 'PIN hazifanani. Jaribu tena.'
+                : 'PINs do not match. Please try again.',
+          ),
+        ],
+
+        if (errorMessage != null) ...[
+          const SizedBox(height: 16),
+          OnboardingErrorBanner(message: errorMessage!),
+        ],
+
+        const SizedBox(height: 36),
+
+        OnboardingPrimaryButton(
+          label: isLoading
+              ? (sw ? 'Inahifadhi...' : 'Saving...')
+              : (sw ? 'Hifadhi & Endelea' : 'Save & Continue'),
+          onPressed: isLoading ? null : onSubmit,
+          isLoading: isLoading,
+          color: AppColors.navyPrimary,
+          textColor: Colors.white,
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }
