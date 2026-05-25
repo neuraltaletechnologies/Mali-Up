@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/onboarding/presentation/screens/splash_screen.dart';
+import '../features/onboarding/presentation/screens/phone_entry_screen.dart';
+import '../features/onboarding/presentation/screens/otp_verify_screen.dart';
 import '../features/onboarding/presentation/screens/returning_user_screen.dart';
 import '../features/onboarding/presentation/screens/new_user_info_screen.dart';
 import '../features/onboarding/presentation/screens/business_details_screen.dart';
@@ -16,10 +18,7 @@ import '../shared/widgets/main_shell_page.dart';
 // Deferred imports — loaded on first navigation to avoid bundling everything upfront.
 import '../features/onboarding/presentation/screens/language_selection_screen.dart'
     deferred as screen_welcome;
-import '../features/auth/presentation/screens/register_screen.dart'
-    deferred as screen_phone;
-import '../features/auth/presentation/screens/otp_verification_screen.dart'
-    deferred as screen_otp;
+
 import '../features/dashboard/presentation/screens/dashboard_screen.dart'
     deferred as screen_dashboard;
 import '../features/settings/presentation/screens/settings_screen.dart'
@@ -224,30 +223,17 @@ List<RouteBase> _buildRoutes() {
       path: AppRoutes.phone,
       pageBuilder: (context, state) => _authPage(
         state,
-        _deferred(
-          load: screen_phone.loadLibrary,
-          build: () => screen_phone.RegisterScreen(fromOnboarding: true),
-        ),
+        const PhoneEntryScreen(),
       ),
     ),
 
     // ── Screen 3 — OTP Verification ──────────────────────────────────────────
     GoRoute(
       path: AppRoutes.otp,
-      pageBuilder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>?;
-        return _authPage(
-          state,
-          _deferred(
-            load: screen_otp.loadLibrary,
-            build: () => screen_otp.OTPVerificationScreen(
-              phoneNumber: extra?['phoneNumber'] as String? ?? '',
-              isRegistration: extra?['isRegistration'] as bool? ?? true,
-              userData: extra?['userData'] as Map<String, dynamic>?,
-            ),
-          ),
-        );
-      },
+      pageBuilder: (context, state) => _authPage(
+        state,
+        const OtpVerifyScreen(),
+      ),
     ),
 
     // ── Screen 4A — Returning User ───────────────────────────────────────────
