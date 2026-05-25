@@ -484,4 +484,14 @@ class AppRouter {
   static const settingsPath          = AppRoutes.settings;
   static const subscriptionPath      = AppRoutes.subscription;
   static const businessesPath        = AppRoutes.businesses;
+
+  static GoRouter createRouter({
+    required bool showLanguageSelection,
+    required bool showOnboarding,
+  }) {
+    return GoRouter(
+      initialLocation: AppRoutes.splash,
+      routes: _buildRoutes(),
+    );
+  }
 }
