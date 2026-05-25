@@ -2852,7 +2852,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: _selectedUnit,
+                      value: _selectedUnit,
                       decoration: InputDecoration(
                         labelText: _tr('Unit', 'Kitengo'),
                         prefixIcon:
