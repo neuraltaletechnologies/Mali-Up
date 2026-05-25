@@ -94,7 +94,6 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
           SliverAppBar(
             expandedHeight: 220,
             pinned: true,
-            floating: false,
             backgroundColor: AppColors.navyPrimary,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
@@ -130,7 +129,7 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
           children: [
             _ReceivablesTab(onTap: _openDetail),
             _PayablesTab(onTap: _openDetail),
-            _AgingTab(),
+            const _AgingTab(),
           ],
         ),
       ),
@@ -176,7 +175,7 @@ class _HeroHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.navyPrimary, Color(0xFF1C3A7A)],
+          colors: [AppColors.navyPrimary, Color(0xFF003153)],
         ),
       ),
       padding: const EdgeInsets.fromLTRB(20, 56, 20, 0),
@@ -261,7 +260,6 @@ class _HeroStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -557,13 +555,12 @@ class _AgingChartCard extends StatelessWidget {
                   ),
                 ),
                 titlesData: FlTitlesData(
-                  show: true,
                   leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                      ),
                   rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                      ),
                   topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                      ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -1342,3 +1339,4 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+

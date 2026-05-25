@@ -225,16 +225,15 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     lines.writeln('*$type — $_invoiceNumber*');
     lines.writeln('━━━━━━━━━━━━━━━━━━━━━');
     if (_customerName.isNotEmpty) {
-      lines.writeln(_tr('To:', 'Kwa:') + ' *$_customerName*');
+      lines.writeln('${_tr('To:', 'Kwa:')} *$_customerName*');
     }
     if (_invoiceDate != null) {
-      lines.writeln(_tr('Date:', 'Tarehe:') +
-          ' ${_fmt(_invoiceDate!)}');
+      lines.writeln('${_tr('Date:', 'Tarehe:')} ${_fmt(_invoiceDate!)}');
     }
     if (_dueDate != null) {
-      lines.writeln(_tr('Due:', 'Mwisho:') + ' ${_fmt(_dueDate!)}');
+      lines.writeln('${_tr('Due:', 'Mwisho:')} ${_fmt(_dueDate!)}');
     }
-    lines.writeln('');
+    lines.writeln();
     lines.writeln(_tr('Items:', 'Bidhaa:'));
     for (final item in _lineItems) {
       final name = item['productName']?.toString() ?? '';
@@ -246,18 +245,18 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     lines.writeln('━━━━━━━━━━━━━━━━━━━━━');
     if (_discount > 0) {
       lines.writeln(
-          _tr('Discount:', 'Punguzo:') + ' -TZS ${_fmtNum(_discount)}');
+          '${_tr('Discount:', 'Punguzo:')} -TZS ${_fmtNum(_discount)}');
     }
     if (_vat > 0) {
       lines.writeln(
-          _tr('VAT (18%):', 'VAT (18%):') + ' TZS ${_fmtNum(_vat)}');
+          '${_tr('VAT (18%):', 'VAT (18%):')} TZS ${_fmtNum(_vat)}');
     }
     lines.writeln(
         '*${_tr('TOTAL:', 'JUMLA:')} TZS ${_fmtNum(_total)}*');
 
     final notes = _inv['notes']?.toString() ?? '';
     if (notes.isNotEmpty) {
-      lines.writeln('');
+      lines.writeln();
       lines.writeln('_${notes}_');
     }
     return lines.toString();
@@ -436,7 +435,7 @@ class _HeroCard extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             AppColors.navyPrimary,
-            AppColors.navyPrimary.withBlue(120),
+            AppColors.navyPrimary.withValues(alpha: 0.85),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -980,7 +979,7 @@ class _PaymentInfoCard extends StatelessWidget {
                 ),
                 if (ref.isNotEmpty)
                   Text(
-                    _tr('Ref:', 'Kumb:') + ' $ref',
+                    '${_tr('Ref:', 'Kumb:')} $ref',
                     style: GoogleFonts.jetBrainsMono(
                         fontSize: 12, color: AppColors.textMuted),
                   ),
@@ -1199,7 +1198,7 @@ class _ActionTile extends StatelessWidget {
                           : AppColors.textPrimary),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded,
+              const Icon(Icons.chevron_right_rounded,
                   size: 18, color: AppColors.textMuted),
             ],
           ),
@@ -1435,3 +1434,4 @@ String _fmtNum(double v) {
   }
   return buf.toString();
 }
+

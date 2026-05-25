@@ -238,7 +238,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                 ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: selectedReason,
+                  initialValue: selectedReason,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
@@ -493,7 +493,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppColors.navyPrimary, Color(0xFF1C3A7A)],
+              colors: [AppColors.navyPrimary, Color(0xFF003153)],
             ),
           ),
           child: Center(
@@ -1474,3 +1474,4 @@ class _MethodChip extends StatelessWidget {
     );
   }
 }
+

@@ -17,7 +17,7 @@ class OnboardingColors {
   // Neutral colors
   static const Color white = Color(0xFFFFFFFF);
   static const Color background = Color(0xFFFFFFFF); // White
-  static const Color textDark = Color(0xFF1E3A8A); // Navy text (aligned with app theme)
+  static const Color textDark = Color(0xFF003153); // Prussian Blue
   static const Color textLight = Color(0xFF6B7280); // Medium gray
   static const Color divider = Color(0xFFE5E7EB); // Light divider
   

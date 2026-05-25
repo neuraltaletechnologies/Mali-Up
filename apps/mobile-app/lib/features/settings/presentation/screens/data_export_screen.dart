@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Data Export Screen - PDPA Right to Export
 /// Allows users to download all their business data as JSON or CSV
 /// Complies with PDPA Article 18 (Right to Portability)
 
 class DataExportScreen extends ConsumerStatefulWidget {
-  const DataExportScreen({Key? key}) : super(key: key);
+  const DataExportScreen({super.key});
 
   @override
   ConsumerState<DataExportScreen> createState() => _DataExportScreenState();
@@ -101,7 +102,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
+                    color: AppColors.navyPrimary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -158,7 +159,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
+                  color: AppColors.navyPrimary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -251,3 +252,4 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
     }
   }
 }
+

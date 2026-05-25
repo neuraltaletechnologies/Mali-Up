@@ -5,6 +5,7 @@ import '../../data/invoice_provider.dart';
 import '../../domain/models/invoice.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/theme/app_colors.dart';
 
 // Global invoice provider instance
 final _invoiceProviderInstance = InvoiceProvider();
@@ -501,7 +502,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
       case 'paid':
         return Colors.green;
       case 'pending':
-        return Colors.blue;
+        return AppColors.navyPrimary;
       case 'overdue':
         return Colors.red;
       default:
@@ -648,3 +649,4 @@ class InvoiceCard extends StatelessWidget {
     );
   }
 }
+

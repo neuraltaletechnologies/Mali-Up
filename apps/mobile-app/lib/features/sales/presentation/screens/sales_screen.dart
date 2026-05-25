@@ -791,7 +791,7 @@ class _FilterPills extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                    const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? color.withValues(alpha: 0.12)
@@ -1589,7 +1589,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         'type': 'invoice',
         'invoiceStatus': statusStr,
         'status': statusStr,
-        if (customerName != null) 'customerName': customerName,
+        'customerName': ?customerName,
         if (_selectedCustomer != null) ...{
           'customerId': _selectedCustomer!.id,
           'customerPhone': _selectedCustomer!.phone,
