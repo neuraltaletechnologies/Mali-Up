@@ -64,7 +64,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                   ),
                   subtitle: GestureDetector(
                     onTap: () => _showPrivacyPolicy(context),
-                    child: Text(
+                    child: const Text(
                       'Read full policy',
                       style: TextStyle(
                         color: AppColors.navyPrimary,

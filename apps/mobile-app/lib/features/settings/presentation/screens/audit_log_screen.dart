@@ -115,7 +115,6 @@ class _AuditLogItem extends StatelessWidget {
 
   const _AuditLogItem({
     required this.event,
-    super.key,
   });
 
   @override

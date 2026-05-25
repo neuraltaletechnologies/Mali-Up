@@ -654,8 +654,8 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final name = widget.businessName ?? _tr('My Business', 'Biashara yangu');
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
-        ? 'TZS ${_fmtCompactAmount(widget.totalCash)}'
-        : 'TZS ••••••••';
+        ? '${_fmtCompactAmount(widget.totalCash)}'
+        : '••••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
     final expText = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
     final net = widget.totalCash - widget.totalExpenses;
@@ -1635,25 +1635,11 @@ class _RevenueOverviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         
-          R
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _RevStat(label: _tr('Today', 'Leo'), value: _fmtCompactAmount(todayRevenue)),
-              const _RevDivider(),
-              _RevStat(label: _tr('This Week', 'Wiki Hii'), value: _fmtCompactAmount(weekRevenue)),
-              const _RevDivider(),
-              _RevStat(
-                label: _tr('This Month', 'Mwezi Huu'),
-                value: _fmtCompactAmount(monthRevenue),
-                highlight: true,
-              ),
-            ],
-          ),
-        ],
+          
+        
       ),
     );
   }
@@ -1664,7 +1650,7 @@ class _RevStat extends StatelessWidget {
   final String value;
   final bool highlight;
 
-  const _RevStat({required this.label, required this.value, this.highlight = false});
+  const _RevStat({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -1735,7 +1721,7 @@ class _ProfitSnapshotCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
 
           ),
           const SizedBox(height: 8),
