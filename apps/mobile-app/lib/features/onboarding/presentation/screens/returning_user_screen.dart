@@ -21,7 +21,6 @@ class ReturningUserScreen extends ConsumerWidget {
 
     return OnboardingScaffold(
       currentStep: 3,
-      totalSteps: 6,
       onBack: () => context.go(AppRoutes.otp),
       child: _ReturningUserBody(
         state: _BodyState(
@@ -208,7 +207,7 @@ class _ReturningUserBodyState extends State<_ReturningUserBody>
                   OnboardingStrings.s(sw,
                       en: OnboardingStrings.returningStartOverCtaEn,
                       sw: OnboardingStrings.returningStartOverCtaSw),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 14,
                     decoration: TextDecoration.underline,

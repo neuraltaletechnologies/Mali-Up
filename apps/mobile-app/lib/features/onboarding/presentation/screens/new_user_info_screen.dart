@@ -76,7 +76,6 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
 
     return OnboardingScaffold(
       currentStep: 3,
-      totalSteps: 6,
       onBack: () => context.go(AppRoutes.otp),
       child: FadeTransition(
         opacity: _fade,
