@@ -331,6 +331,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
     final result = await showModalBottomSheet<bool>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -1001,6 +1002,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
     await showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.white,
       showDragHandle: true,
       builder: (sheetContext) {

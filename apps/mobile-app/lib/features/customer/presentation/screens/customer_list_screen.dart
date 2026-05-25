@@ -219,6 +219,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   void _showAddDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -385,6 +386,7 @@ class _CustomerCard extends ConsumerWidget {
         if (direction == DismissDirection.startToEnd) {
           await showModalBottomSheet<void>(
             context: context,
+            useRootNavigator: true,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
             useSafeArea: true,

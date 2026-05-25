@@ -178,6 +178,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     if (!ctx.mounted) return;
     await showModalBottomSheet<void>(
       context: ctx,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -553,6 +554,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     await showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       backgroundColor: AppColors.background,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
@@ -1864,6 +1866,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           InkWell(
             onTap: () => showModalBottomSheet<void>(
               context: context,
+              useRootNavigator: true,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
               useSafeArea: true,
@@ -2025,6 +2028,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               child: InkWell(
                 onTap: () => showModalBottomSheet<void>(
                   context: context,
+                  useRootNavigator: true,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   useSafeArea: true,

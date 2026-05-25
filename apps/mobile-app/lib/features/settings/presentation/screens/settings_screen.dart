@@ -285,6 +285,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _openLanguagePicker() async {
     await showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.white,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(

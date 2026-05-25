@@ -320,6 +320,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen>
   void _showAddRecurringSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(

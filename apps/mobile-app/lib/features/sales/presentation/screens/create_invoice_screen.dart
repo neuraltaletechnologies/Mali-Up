@@ -587,6 +587,7 @@ class _CustomerPickerState extends ConsumerState<_CustomerPicker> {
         .maybeWhen(data: (d) => d, orElse: () => <Customer>[]);
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(

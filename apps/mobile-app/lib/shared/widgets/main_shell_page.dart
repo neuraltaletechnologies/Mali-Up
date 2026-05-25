@@ -419,6 +419,15 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                               selected: _isSelected(location, AppRouter.cashFlowPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
                             ),
+                            _DrawerSectionLabel(label: _tr('TEAM', 'TIMU')),
+                            _DrawerItemLight(
+                              icon: Icons.group_rounded,
+                              iconColor: AppColors.primary,
+                              label: _tr('My Team', 'Timu yangu'),
+                              semanticsLabel: _tr('Team and role management', 'Timu yangu, usimamizi wa majukumu'),
+                              selected: _isSelected(location, AppRouter.teamPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.teamPath),
+                            ),
                             _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
                             _DrawerItemLight(
                               icon: Icons.storefront_rounded,
@@ -810,6 +819,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
 
     await showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.white,
       showDragHandle: true,
       builder: (sheetContext) {
