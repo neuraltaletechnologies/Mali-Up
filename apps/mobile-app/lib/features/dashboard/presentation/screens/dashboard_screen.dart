@@ -289,54 +289,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     else
                       const _DashboardHeroSkeleton(),
 
-                    const SizedBox(height: 16),
-
-                    // ── Revenue Overview ───────────────────────────────────
-                    if (_showHeavyContent)
-                      _RevenueOverviewCard(
-                        todayRevenue: todayRevenue,
-                        weekRevenue: weekRevenue,
-                        monthRevenue: monthRevenue,
-                      )
-                    else
-                      const _DashboardHeroSkeleton(),
-
-                    const SizedBox(height: 12),
-
-                    // ── Profit Snapshot + Receivables ─────────────────────
-                    if (_showHeavyContent)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _ProfitSnapshotCard(
-                              monthRevenue: monthRevenue,
-                              totalExpenses: totalExpenses,
-                              netProfit: netProfit,
-                              profitMargin: profitMargin,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _ReceivablesCard(
-                              totalOutstanding: totalOutstanding,
-                              invoiceCount: unpaidSales.length,
-                              overdueCount: overdueCount,
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      const Row(children: [
-                        Expanded(child: _DashboardHalfCardSkeleton()),
-                        SizedBox(width: 12),
-                        Expanded(child: _DashboardHalfCardSkeleton()),
-                      ]),
-
-                    if (_showHeavyContent && lowStockItems.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _LowStockAlertsSection(items: lowStockItems),
-                    ],
-
                     const SizedBox(height: 24),
 
                     // ── Quick access modules ───────────────────────────────
@@ -1616,196 +1568,6 @@ List<FlSpot> _buildSpotsFromInvoices(List<Map<String, dynamic>> invoices) {
 
 // ── Revenue Overview Card ─────────────────────────────────────────────────────
 
-class _RevenueOverviewCard extends StatelessWidget {
-  final double todayRevenue;
-  final double weekRevenue;
-  final double monthRevenue;
-
-  const _RevenueOverviewCard({
-    required this.todayRevenue,
-    required this.weekRevenue,
-    required this.monthRevenue,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        
-          
-        
-      ),
-    );
-  }
-}
-
-class _RevStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool highlight;
-
-  const _RevStat({
-    required this.label,
-    required this.value,
-    this.highlight = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: highlight ? AppColors.secondary : AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RevDivider extends StatelessWidget {
-  const _RevDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 28,
-      color: AppColors.border,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-    );
-  }
-}
-
-// ── Profit Snapshot Card ──────────────────────────────────────────────────────
-
-class _ProfitSnapshotCard extends StatelessWidget {
-  final double monthRevenue;
-  final double totalExpenses;
-  final double netProfit;
-  final double profitMargin;
-
-  const _ProfitSnapshotCard({
-    required this.monthRevenue,
-    required this.totalExpenses,
-    required this.netProfit,
-    required this.profitMargin,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isProfitable = netProfit >= 0;
-    final profitColor = isProfitable ? AppColors.success : AppColors.error;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: profitColor.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: profitColor.withValues(alpha: 0.18)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _fmtCompactAmount(netProfit.abs()),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: profitColor,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${profitMargin.toStringAsFixed(1)}% ${_tr('margin', 'faida %')}',
-            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Receivables Card ──────────────────────────────────────────────────────────
-
-class _ReceivablesCard extends StatelessWidget {
-  final double totalOutstanding;
-  final int invoiceCount;
-  final int overdueCount;
-
-  const _ReceivablesCard({
-    required this.totalOutstanding,
-    required this.invoiceCount,
-    required this.overdueCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hasOverdue = overdueCount > 0;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: hasOverdue ? AppColors.warning.withValues(alpha: 0.35) : AppColors.border,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [  
-          const SizedBox(height: 8),
-          Text(
-            _fmtCompactAmount(totalOutstanding),
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: AppColors.secondary,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            invoiceCount == 0
-                ? _tr('No unpaid invoices', 'Hakuna ankara zisizolipwa')
-                : '$invoiceCount ${_tr('unpaid', 'hazijalipwa')}${hasOverdue ? ' · $overdueCount ${_tr('overdue', 'imechelewa')}' : ''}',
-            style: TextStyle(
-              fontSize: 10,
-              color: hasOverdue ? AppColors.warning : AppColors.textMuted,
-              fontWeight: hasOverdue ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Half-card skeleton ────────────────────────────────────────────────────────
 
 class _DashboardHalfCardSkeleton extends StatelessWidget {
@@ -2102,7 +1864,7 @@ class _PerformerSubsection extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 72,
+            height: 140,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -2113,8 +1875,8 @@ class _PerformerSubsection extends StatelessWidget {
                 final entry = entries[index];
                 final pct = maxVal > 0 ? (entry.value / maxVal).clamp(0.0, 1.0) : 0.0;
                 return Container(
-                  width: 180,
-                  padding: const EdgeInsets.all(10),
+                  width: 240,
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(12),
@@ -2122,35 +1884,70 @@ class _PerformerSubsection extends StatelessWidget {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '#$rank  ${entry.key}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.secondary,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '#$rank Rank',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: color,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            entry.key,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: LinearProgressIndicator(
-                          value: pct,
-                          backgroundColor: color.withValues(alpha: 0.12),
-                          valueColor: AlwaysStoppedAnimation(color.withValues(alpha: 0.65)),
-                          minHeight: 3,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _fmtCompactAmount(entry.value),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.secondary,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _tr('Performance', 'Utendaji'),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: LinearProgressIndicator(
+                              value: pct,
+                              backgroundColor: color.withValues(alpha: 0.12),
+                              valueColor: AlwaysStoppedAnimation(color.withValues(alpha: 0.65)),
+                              minHeight: 4,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _fmtCompactAmount(entry.value),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: color,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
