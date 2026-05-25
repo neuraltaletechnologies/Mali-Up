@@ -181,6 +181,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   void _openAdd(BuildContext ctx) {
     showModalBottomSheet<void>(
       context: ctx,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -191,6 +192,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   void _openFilterSort(BuildContext ctx, List<Map<String, dynamic>> allItems) {
     showModalBottomSheet<void>(
       context: ctx,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -661,6 +663,7 @@ class _ProductRow extends ConsumerWidget {
           // Right swipe → Edit
           await showModalBottomSheet<void>(
             context: context,
+            useRootNavigator: true,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
             useSafeArea: true,
@@ -759,6 +762,7 @@ class _ProductRow extends ConsumerWidget {
       child: GestureDetector(
         onTap: () => showModalBottomSheet<void>(
           context: context,
+          useRootNavigator: true,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           useSafeArea: true,

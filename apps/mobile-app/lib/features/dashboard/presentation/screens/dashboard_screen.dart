@@ -1136,6 +1136,7 @@ class _ModuleGrid extends StatelessWidget {
   void _openDebtPanel(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) {

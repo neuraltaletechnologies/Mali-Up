@@ -4,6 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/onboarding/presentation/screens/splash_screen.dart';
+import '../features/onboarding/presentation/screens/returning_user_screen.dart';
+import '../features/onboarding/presentation/screens/new_user_info_screen.dart';
+import '../features/onboarding/presentation/screens/business_details_screen.dart';
+import '../features/onboarding/presentation/screens/security_setup_screen.dart';
+import '../features/onboarding/presentation/screens/onboarding_success_screen.dart';
 import '../features/onboarding/providers/onboarding_notifier.dart';
 import '../features/onboarding/domain/models/onboarding_state.dart';
 import '../shared/widgets/main_shell_page.dart';
@@ -35,6 +40,8 @@ import '../features/finance/presentation/screens/expense_list_screen.dart'
     deferred as screen_expenses;
 import '../features/finance/presentation/screens/cash_flow_screen.dart'
     deferred as screen_cashflow;
+import '../features/team/presentation/screens/team_screen.dart'
+    deferred as screen_team;
 
 // ─── ROUTE PATHS ─────────────────────────────────────────────────────────────
 
@@ -58,6 +65,7 @@ abstract final class AppRoutes {
   static const debt        = '/debt';
   static const expenses    = '/expenses';
   static const cashflow    = '/cashflow';
+  static const team        = '/team';
   static const settings    = '/settings';
   static const subscription = '/subscription';
   static const businesses  = '/businesses';
@@ -101,7 +109,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
     // Any mutation of OnboardingState will trigger a redirect re-check.
-    _ref.listen(onboardingNotifierProvider, (_, __) => notifyListeners());
+    _ref.listen(onboardingNotifierProvider, (prev, next) => notifyListeners());
   }
 
   final Ref _ref;
@@ -123,7 +131,9 @@ class _RouterNotifier extends ChangeNotifier {
 
     // ── Post-completion guards ────────────────────────────────────────────
     if (ob.isComplete) {
-      // Block access to any onboarding screen once the flow is done.
+      // Allow the success screen as the post-completion landing page.
+      if (path == AppRoutes.success) return null;
+      // Block any other onboarding screen once the flow is done.
       if (AppRoutes.isOnboardingPath(path)) return AppRoutes.dashboard;
       return null; // allow dashboard + shell routes
     }
@@ -241,15 +251,11 @@ List<RouteBase> _buildRoutes() {
     ),
 
     // ── Screen 4A — Returning User ───────────────────────────────────────────
-    //
-    // This screen has no existing widget yet — it will be built in the
-    // presentation layer. Route is registered here so the redirect guard works.
-    // Replace the placeholder once the screen widget is created.
     GoRoute(
       path: AppRoutes.returning,
       pageBuilder: (context, state) => _authPage(
         state,
-        const _PlaceholderScreen(label: 'Screen 4A — Returning User'),
+        const ReturningUserScreen(),
       ),
     ),
 
@@ -258,7 +264,7 @@ List<RouteBase> _buildRoutes() {
       path: AppRoutes.newUser,
       pageBuilder: (context, state) => _authPage(
         state,
-        const _PlaceholderScreen(label: 'Screen 4B — New User Info'),
+        const NewUserInfoScreen(),
       ),
     ),
 
@@ -267,7 +273,7 @@ List<RouteBase> _buildRoutes() {
       path: AppRoutes.business,
       pageBuilder: (context, state) => _authPage(
         state,
-        const _PlaceholderScreen(label: 'Screen 5 — Business Details'),
+        const BusinessDetailsScreen(),
       ),
     ),
 
@@ -276,20 +282,16 @@ List<RouteBase> _buildRoutes() {
       path: AppRoutes.security,
       pageBuilder: (context, state) => _authPage(
         state,
-        const _PlaceholderScreen(label: 'Screen 6 — Password & PIN'),
+        const SecuritySetupScreen(),
       ),
     ),
 
     // ── Screen 7 — Success ───────────────────────────────────────────────────
-    //
-    // When the user taps "Go to Dashboard", call:
-    //   context.go(AppRoutes.dashboard)
-    // The redirect guard (isComplete check) will allow it.
     GoRoute(
       path: AppRoutes.success,
       pageBuilder: (context, state) => _authPage(
         state,
-        const _PlaceholderScreen(label: 'Screen 7 — Success'),
+        const OnboardingSuccessScreen(),
       ),
     ),
 
@@ -389,6 +391,13 @@ List<RouteBase> _buildRoutes() {
             build: () => screen_businesses.ManageBusinessesScreen(),
           ),
         ),
+        GoRoute(
+          path: AppRoutes.team,
+          builder: (context, state) => _deferred(
+            load: screen_team.loadLibrary,
+            build: () => screen_team.TeamScreen(),
+          ),
+        ),
       ],
     ),
   ];
@@ -435,28 +444,6 @@ Widget _deferred({
   );
 }
 
-// ─── PLACEHOLDER ─────────────────────────────────────────────────────────────
-
-/// Temporary scaffold used for screens that haven't been built yet.
-/// Replace the route's `pageBuilder` content once each screen widget exists.
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ),
-    );
-  }
-}
-
 // ─── BACKWARD-COMPAT FACTORY ─────────────────────────────────────────────────
 
 /// Legacy factory kept so existing [main.dart] callers don't break.
@@ -493,6 +480,7 @@ class AppRouter {
   static const debtPath              = AppRoutes.debt;
   static const expensesPath          = AppRoutes.expenses;
   static const cashFlowPath          = AppRoutes.cashflow;
+  static const teamPath              = AppRoutes.team;
   static const settingsPath          = AppRoutes.settings;
   static const subscriptionPath      = AppRoutes.subscription;
   static const businessesPath        = AppRoutes.businesses;

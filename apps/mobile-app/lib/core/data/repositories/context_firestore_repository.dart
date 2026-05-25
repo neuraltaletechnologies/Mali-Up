@@ -4,6 +4,7 @@ import '../../../features/customer/domain/models/customer.dart';
 import '../../../features/debt/domain/models/debt.dart';
 import '../../../features/finance/domain/models/cash_account.dart';
 import '../../../features/finance/domain/models/expense.dart';
+import '../../../features/team/domain/models/team_member.dart';
 
 
 enum FinanceContextType { business }
@@ -230,6 +231,58 @@ class ContextFirestoreRepository {
           .map((doc) => CashAccount.fromFirestore(doc.data(), doc.id))
           .toList();
     });
+  }
+
+  // ── Team members ────────────────────────────────────────────────────────────
+
+  Stream<List<TeamMember>> watchTeamMembers({
+    required String uid,
+    required ResolvedFinanceContext context,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'team_members',
+    ).orderBy('invitedAt').snapshots().map((snap) => snap.docs
+        .map((doc) => TeamMember.fromFirestore(doc.data(), doc.id))
+        .toList());
+  }
+
+  Future<void> addTeamMember({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required Map<String, dynamic> data,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'team_members',
+    ).add(data);
+  }
+
+  Future<void> updateTeamMember({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String memberId,
+    required Map<String, dynamic> data,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'team_members',
+    ).doc(memberId).update(data);
+  }
+
+  Future<void> deleteTeamMember({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String memberId,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'team_members',
+    ).doc(memberId).delete();
   }
 
   CollectionReference<Map<String, dynamic>> _scopeCollection({

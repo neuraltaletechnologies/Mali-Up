@@ -217,6 +217,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
   void _openEdit() {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -473,6 +474,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
   void _showAddNoteSheet() {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(

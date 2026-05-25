@@ -188,6 +188,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final isSwahili = _language == AppLanguage.swahili;
     final selected = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => MaliSelectSheet<String>(
@@ -222,6 +223,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final isSwahili = _language == AppLanguage.swahili;
     final selected = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => MaliSelectSheet<String>(
@@ -249,6 +251,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final isSwahili = _language == AppLanguage.swahili;
     final selected = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => MaliSelectSheet<String>(

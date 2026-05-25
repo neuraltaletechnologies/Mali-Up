@@ -281,6 +281,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
   void _showAddItemDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,

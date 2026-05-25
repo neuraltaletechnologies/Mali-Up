@@ -275,6 +275,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
   void _showInvoiceDetails(Invoice invoice) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (context) => _buildInvoiceDetailsSheet(invoice),
     );

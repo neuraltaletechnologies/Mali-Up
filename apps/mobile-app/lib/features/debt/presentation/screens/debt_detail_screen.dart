@@ -112,6 +112,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
   Future<void> _recordPayment() async {
     final result = await showModalBottomSheet<bool>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) =>
