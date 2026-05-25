@@ -1651,7 +1651,11 @@ class _RevStat extends StatelessWidget {
   final String value;
   final bool highlight;
 
-  const _RevStat({required this.label, required this.value});
+  const _RevStat({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
 
   @override
   Widget build(BuildContext context) {
