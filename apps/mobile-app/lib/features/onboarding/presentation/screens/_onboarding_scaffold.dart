@@ -15,14 +15,10 @@ class OnboardingScaffold extends StatelessWidget {
   const OnboardingScaffold({
     super.key,
     required this.child,
-    this.currentStep = 1,
-    this.totalSteps = 6,
     this.onBack,
   });
 
   final Widget child;
-  final int currentStep;
-  final int totalSteps;
   final VoidCallback? onBack;
 
   @override
@@ -34,11 +30,7 @@ class OnboardingScaffold extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Header bar ────────────────────────────────────────────────
-            _HeaderBar(
-              onBack: onBack,
-              currentStep: currentStep,
-              totalSteps: totalSteps,
-            ),
+            _HeaderBar(onBack: onBack),
 
             // ── Scrollable form content ───────────────────────────────────
             Expanded(
@@ -57,91 +49,38 @@ class OnboardingScaffold extends StatelessWidget {
 class _HeaderBar extends StatelessWidget {
   const _HeaderBar({
     required this.onBack,
-    required this.currentStep,
-    required this.totalSteps,
   });
 
   final VoidCallback? onBack;
-  final int currentStep;
-  final int totalSteps;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 20, 0),
-          child: Row(
-            children: [
-              // Back button
-              if (onBack != null)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(99),
-                    onTap: onBack,
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.arrow_back_rounded,
-                        color: AppColors.navyPrimary,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                const SizedBox(width: 48),
-
-              const Spacer(),
-
-              // Step label
-              Text(
-                'Step $currentStep of $totalSteps',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Progress line
-        const SizedBox(height: 10),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Stack(
-            children: [
-              Container(
-                height: 3,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-              AnimatedFractionallySizedBox(
-                duration: const Duration(milliseconds: 400),
-                curve: Curves.easeOutCubic,
-                widthFactor:
-                    (currentStep / totalSteps).clamp(0.05, 1.0),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 20, 4),
+      child: Row(
+        children: [
+          if (onBack != null)
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(99),
+                onTap: onBack,
                 child: Container(
-                  height: 3,
-                  decoration: BoxDecoration(
+                  width: 42,
+                  height: 42,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.arrow_back_rounded,
                     color: AppColors.navyPrimary,
-                    borderRadius: BorderRadius.circular(99),
+                    size: 22,
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-      ],
+            )
+          else
+            const SizedBox(width: 48),
+        ],
+      ),
     );
   }
 }

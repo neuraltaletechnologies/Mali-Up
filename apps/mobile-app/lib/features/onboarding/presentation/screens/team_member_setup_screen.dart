@@ -115,7 +115,6 @@ class _TeamMemberSetupScreenState
     final name = state.firstName.isNotEmpty ? state.firstName : state.fullName;
 
     return OnboardingScaffold(
-      currentStep: 4,
       onBack: _onBack,
       child: FadeTransition(
         opacity: _fade,

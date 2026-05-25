@@ -23,7 +23,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
   late Animation<Offset> _headerSlide;
   late Animation<double> _cardsFade;
   late Animation<Offset> _cardsSlide;
-  late Animation<double> _btnFade;
+
+  // Exit animation when navigating away
+  late AnimationController _exitCtrl;
+  late Animation<double> _exitFade;
 
   String _tr(String en, String sw) =>
       _language == AppLanguage.swahili ? sw : en;
@@ -37,8 +40,13 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
         statusBarIconBrightness: Brightness.light,
       ),
     );
+
     _entranceCtrl = AnimationController(
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 680),
+      vsync: this,
+    );
+    _exitCtrl = AnimationController(
+      duration: const Duration(milliseconds: 260),
       vsync: this,
     );
 
@@ -49,7 +57,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
       ),
     );
     _headerSlide = Tween<Offset>(
-      begin: const Offset(0, 0.12),
+      begin: const Offset(0, 0.10),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entranceCtrl,
@@ -58,21 +66,18 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     _cardsFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _entranceCtrl,
-        curve: const Interval(0.3, 0.75, curve: Curves.easeOut),
+        curve: const Interval(0.35, 0.85, curve: Curves.easeOut),
       ),
     );
     _cardsSlide = Tween<Offset>(
-      begin: const Offset(0, 0.15),
+      begin: const Offset(0, 0.12),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entranceCtrl,
-      curve: const Interval(0.3, 0.75, curve: Curves.easeOutCubic),
+      curve: const Interval(0.35, 0.85, curve: Curves.easeOutCubic),
     ));
-    _btnFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _entranceCtrl,
-        curve: const Interval(0.55, 1.0, curve: Curves.easeOut),
-      ),
+    _exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn),
     );
 
     _entranceCtrl.forward();
@@ -81,11 +86,12 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
   @override
   void dispose() {
     _entranceCtrl.dispose();
+    _exitCtrl.dispose();
     super.dispose();
   }
 
   void _selectLanguage(AppLanguage lang) {
-    if (_language == lang || _isContinuing) return;
+    if (_isContinuing) return;
     HapticFeedback.selectionClick();
     setState(() => _language = lang);
   }
@@ -94,341 +100,259 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     if (_isContinuing) return;
     HapticFeedback.lightImpact();
     setState(() => _isContinuing = true);
-    try {
-      await LocalizationService.setLanguage(_language);
-      if (mounted) widget.onLanguageSelected();
-    } finally {
-      if (mounted) setState(() => _isContinuing = false);
-    }
+    await _exitCtrl.forward();
+    if (!mounted) return;
+    await LocalizationService.setLanguage(_language);
+    if (mounted) widget.onLanguageSelected();
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final headerH = size.height * 0.40;
+    final headerH = size.height * 0.42;
 
-    return Scaffold(
-      backgroundColor: AppColors.navyPrimary,
-      body: Stack(
-        children: [
-          // ── Dark navy header ───────────────────────────────────────────────
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: headerH,
-            child: Container(
-              color: AppColors.navyPrimary,
-              child: Stack(
-                children: [
-                  // Decorative accent circle
-                  Positioned(
-                    right: -60,
-                    top: -40,
-                    child: Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.tealAccent.withValues(alpha: 0.08),
+    return FadeTransition(
+      opacity: _exitFade,
+      child: Scaffold(
+        backgroundColor: AppColors.navyPrimary,
+        body: Stack(
+          children: [
+            // ── Navy header area ─────────────────────────────────────────────
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: headerH,
+              child: Container(
+                color: AppColors.navyPrimary,
+                child: Stack(
+                  children: [
+                    // Decorative orbs
+                    Positioned(
+                      right: -70,
+                      top: -50,
+                      child: Container(
+                        width: 220,
+                        height: 220,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.tealAccent.withValues(alpha: 0.07),
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: -40,
-                    bottom: 20,
-                    child: Container(
-                      width: 130,
-                      height: 130,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.yellowBrand.withValues(alpha: 0.06),
+                    Positioned(
+                      left: -50,
+                      bottom: 30,
+                      child: Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.yellowBrand.withValues(alpha: 0.05),
+                        ),
                       ),
                     ),
-                  ),
 
-                  // Header content
-                  SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 20, 28, 32),
-                      child: FadeTransition(
-                        opacity: _headerFade,
-                        child: SlideTransition(
-                          position: _headerSlide,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              // Mali Up badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.yellowBrand
-                                      .withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(99),
-                                  border: Border.all(
+                    // Header content
+                    SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(28, 24, 28, 36),
+                        child: FadeTransition(
+                          opacity: _headerFade,
+                          child: SlideTransition(
+                            position: _headerSlide,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                // Mali Up brand pill
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 5),
+                                  decoration: BoxDecoration(
                                     color: AppColors.yellowBrand
-                                        .withValues(alpha: 0.30),
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(99),
+                                    border: Border.all(
+                                      color: AppColors.yellowBrand
+                                          .withValues(alpha: 0.28),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: AppColors.yellowBrand,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 7),
+                                      const Text(
+                                        'Mali Up',
+                                        style: TextStyle(
+                                          color: AppColors.yellowBrand,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: AppColors.yellowBrand,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 7),
-                                    const Text(
-                                      'Mali Up',
-                                      style: TextStyle(
-                                        color: AppColors.yellowBrand,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 18),
+                                const SizedBox(height: 20),
 
-                              Text(
-                                _tr('Welcome to Mali Up 👋',
-                                    'Karibu Mali Up 👋'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.15,
-                                  letterSpacing: -0.4,
+                                Text(
+                                  _tr('Welcome 👋', 'Karibu 👋'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.1,
+                                    letterSpacing: -0.6,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _tr(
-                                  'Your smart business companion.',
-                                  'Mshauri wako wa biashara.',
+                                const SizedBox(height: 6),
+                                Text(
+                                  _tr(
+                                    'Choose the language you\'re most comfortable with.',
+                                    'Chagua lugha unayoijua vizuri zaidi.',
+                                  ),
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.60),
+                                    fontSize: 15,
+                                    height: 1.5,
+                                  ),
                                 ),
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.62),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w400,
-                                  height: 1.45,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // ── White bottom sheet ─────────────────────────────────────────────
-          Positioned(
-            top: headerH - 24,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Drag handle
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AppColors.border,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Section label
-                      FadeTransition(
-                        opacity: _cardsFade,
-                        child: SlideTransition(
-                          position: _cardsSlide,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _tr('Choose your language', 'Chagua lugha'),
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.navyPrimary,
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                _tr(
-                                  'Track sales, manage stock, follow payments, and grow your business with confidence.',
-                                  'Fuatilia mauzo, simamia hifadhi, fuatilia malipo, na kukuza biashara yako kwa ujasiri.',
-                                ),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
-                                  color: AppColors.textMuted,
-                                  height: 1.5,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-
-                              // ── Language cards side by side ───────────────
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _LanguageCard(
-                                      flag: '🇬🇧',
-                                      name: 'English',
-                                      subtitle: 'Continue in English',
-                                      selected:
-                                          _language == AppLanguage.english,
-                                      onTap: () =>
-                                          _selectLanguage(AppLanguage.english),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _LanguageCard(
-                                      flag: '🇹🇿',
-                                      name: 'Kiswahili',
-                                      subtitle: 'Endelea kwa Kiswahili',
-                                      selected:
-                                          _language == AppLanguage.swahili,
-                                      onTap: () =>
-                                          _selectLanguage(AppLanguage.swahili),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      // ── Continue button ────────────────────────────────────
-                      FadeTransition(
-                        opacity: _btnFade,
+            // ── White card sheet ─────────────────────────────────────────────
+            Positioned(
+              top: headerH - 28,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: FadeTransition(
+                    opacity: _cardsFade,
+                    child: SlideTransition(
+                      position: _cardsSlide,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
+                            // Drag handle
+                            Center(
+                              child: Container(
+                                width: 36,
+                                height: 4,
                                 decoration: BoxDecoration(
-                                  color: _isContinuing
-                                      ? AppColors.disabled
-                                      : AppColors.navyPrimary,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: _isContinuing
-                                      ? null
-                                      : [
-                                          BoxShadow(
-                                            color: AppColors.navyPrimary
-                                                .withValues(alpha: 0.28),
-                                            blurRadius: 20,
-                                            offset: const Offset(0, 6),
-                                          ),
-                                        ],
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(16),
-                                    onTap: _isContinuing ? null : _continue,
-                                    child: Center(
-                                      child: _isContinuing
-                                          ? const SizedBox(
-                                              width: 22,
-                                              height: 22,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : Text(
-                                              _tr('Continue', 'Endelea'),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 0.1,
-                                              ),
-                                            ),
-                                    ),
-                                  ),
+                                  color: AppColors.border,
+                                  borderRadius: BorderRadius.circular(99),
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 28),
+
+                            Text(
+                              _tr('Select language', 'Chagua lugha'),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navyPrimary,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
                             Text(
                               _tr(
-                                'You can change language anytime.',
-                                'Unaweza kubadilisha lugha wakati wowote.',
+                                'You can change this anytime in Settings.',
+                                'Unaweza kubadilisha wakati wowote kwenye Mipangilio.',
                               ),
-                              textAlign: TextAlign.center,
                               style: const TextStyle(
+                                fontSize: 13,
                                 color: AppColors.textMuted,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
                               ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // ── Language cards ─────────────────────────────────
+                            _LanguageCard(
+                              flag: '🇬🇧',
+                              name: 'English',
+                              nativeName: 'Continue in English',
+                              selected: _language == AppLanguage.english,
+                              enabled: !_isContinuing,
+                              onTap: () => _selectLanguage(AppLanguage.english),
+                            ),
+                            const SizedBox(height: 12),
+                            _LanguageCard(
+                              flag: '🇹🇿',
+                              name: 'Kiswahili',
+                              nativeName: 'Endelea kwa Kiswahili',
+                              selected: _language == AppLanguage.swahili,
+                              enabled: !_isContinuing,
+                              onTap: () => _selectLanguage(AppLanguage.swahili),
+                            ),
+
+                            const Spacer(),
+
+                            // Continue button
+                            _ContinueButton(
+                              label: _tr('Continue', 'Endelea'),
+                              isLoading: _isContinuing,
+                              onTap: _continue,
                             ),
                           ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// ─── Language Card ─────────────────────────────────────────────────────────────
+// ─── Language Card — full-width horizontal row ────────────────────────────────
 
 class _LanguageCard extends StatefulWidget {
   final String flag;
   final String name;
-  final String subtitle;
+  final String nativeName;
   final bool selected;
+  final bool enabled;
   final VoidCallback onTap;
 
   const _LanguageCard({
     required this.flag,
     required this.name,
-    required this.subtitle,
+    required this.nativeName,
     required this.selected,
+    required this.enabled,
     required this.onTap,
   });
 
@@ -438,61 +362,42 @@ class _LanguageCard extends StatefulWidget {
 
 class _LanguageCardState extends State<_LanguageCard>
     with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scaleAnim;
+  late AnimationController _pressCtrl;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      duration: const Duration(milliseconds: 180),
+    _pressCtrl = AnimationController(
+      duration: const Duration(milliseconds: 90),
+      reverseDuration: const Duration(milliseconds: 200),
+      lowerBound: 0.97,
       vsync: this,
-      value: widget.selected ? 1.0 : 0.0,
     );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 0.97).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
-    );
-  }
-
-  @override
-  void didUpdateWidget(_LanguageCard old) {
-    super.didUpdateWidget(old);
-    if (old.selected != widget.selected) {
-      if (widget.selected) {
-        _ctrl.forward();
-      } else {
-        _ctrl.reverse();
-      }
-    }
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _pressCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) {
-        if (!widget.selected) _ctrl.reverse();
-        widget.onTap();
-      },
-      onTapCancel: () {
-        if (!widget.selected) _ctrl.reverse();
-      },
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (context, child) => Transform.scale(
-          scale: _scaleAnim.value,
-          child: child,
-        ),
+    return ScaleTransition(
+      scale: _pressCtrl,
+      child: GestureDetector(
+        onTapDown: widget.enabled ? (_) => _pressCtrl.reverse() : null,
+        onTapUp: widget.enabled
+            ? (_) {
+                _pressCtrl.forward();
+                widget.onTap();
+              }
+            : null,
+        onTapCancel: () => _pressCtrl.forward(),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
+          duration: const Duration(milliseconds: 240),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
           decoration: BoxDecoration(
             color: widget.selected
                 ? AppColors.navyPrimary
@@ -507,45 +412,163 @@ class _LanguageCardState extends State<_LanguageCard>
             boxShadow: widget.selected
                 ? [
                     BoxShadow(
-                      color: AppColors.navyPrimary.withValues(alpha: 0.18),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      color: AppColors.navyPrimary.withValues(alpha: 0.22),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
                     ),
                   ]
                 : null,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
+              // Flag
               Text(
                 widget.flag,
-                style: const TextStyle(fontSize: 28),
+                style: const TextStyle(fontSize: 26),
               ),
-              const SizedBox(height: 10),
-              Text(
-                widget.name,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: widget.selected
-                      ? Colors.white
-                      : AppColors.navyPrimary,
-                  letterSpacing: -0.2,
+              const SizedBox(width: 14),
+
+              // Text
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.name,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: widget.selected
+                            ? Colors.white
+                            : AppColors.navyPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.nativeName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: widget.selected
+                            ? Colors.white.withValues(alpha: 0.60)
+                            : AppColors.textMuted,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                widget.subtitle,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
+
+              // Check indicator
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
                   color: widget.selected
-                      ? Colors.white.withValues(alpha: 0.65)
-                      : AppColors.textMuted,
-                  height: 1.4,
+                      ? AppColors.yellowBrand
+                      : AppColors.border.withValues(alpha: 0.6),
                 ),
+                child: widget.selected
+                    ? const Icon(Icons.check_rounded,
+                        size: 16, color: AppColors.navyPrimary)
+                    : null,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Continue button ──────────────────────────────────────────────────────────
+
+class _ContinueButton extends StatefulWidget {
+  final String label;
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  const _ContinueButton({
+    required this.label,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  @override
+  State<_ContinueButton> createState() => _ContinueButtonState();
+}
+
+class _ContinueButtonState extends State<_ContinueButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pressCtrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressCtrl = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 200),
+      lowerBound: 0.96,
+      vsync: this,
+    );
+    _scale = _pressCtrl;
+  }
+
+  @override
+  void dispose() {
+    _pressCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scale,
+      child: GestureDetector(
+        onTapDown: widget.isLoading ? null : (_) => _pressCtrl.reverse(),
+        onTapUp: widget.isLoading
+            ? null
+            : (_) {
+                _pressCtrl.forward();
+                widget.onTap();
+              },
+        onTapCancel: () => _pressCtrl.forward(),
+        child: Container(
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.navyPrimary.withValues(alpha: 0.25),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Center(
+            child: widget.isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    widget.label,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
           ),
         ),
       ),

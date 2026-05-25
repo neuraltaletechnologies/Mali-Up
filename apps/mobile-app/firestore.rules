@@ -18,6 +18,12 @@ service cloud.firestore {
       return isSignedIn() && isOwner(ownerId);
     }
 
+    // Reusable limit guard for unauthenticated phone lookups.
+    // Prevents full-collection scans while allowing single-document lookups.
+    function isLimitedLookup() {
+      return request.query.limit != null && request.query.limit <= 1;
+    }
+
     // ── Validators ────────────────────────────────────────────────────────────
 
     // Customer (individual or organisation)
@@ -41,7 +47,8 @@ service cloud.firestore {
       return isValidCustomer(data);
     }
 
-    // New user profile on registration
+    // User profile — covers both new owner accounts and team-member first-time setup.
+    // Required: phone + name.  All other fields are optional but type-checked when present.
     function isValidUserCreate(data) {
       return data.keys().hasAll(['phone', 'name']) &&
         data.name is string &&
@@ -50,6 +57,17 @@ service cloud.firestore {
         data.name.size() <= 120 &&
         data.phone.size() > 0 &&
         data.phone.size() <= 32 &&
+        // Personal profile fields
+        (!data.keys().hasAny(['firstName'])    || data.firstName is string) &&
+        (!data.keys().hasAny(['lastName'])     || data.lastName is string) &&
+        (!data.keys().hasAny(['city'])         || data.city is string) &&
+        (!data.keys().hasAny(['role'])         || data.role is string) &&
+        (!data.keys().hasAny(['language'])     || data.language in ['en', 'sw']) &&
+        // Team member link fields
+        (!data.keys().hasAny(['isTeamMember']) || data.isTeamMember is bool) &&
+        (!data.keys().hasAny(['ownerUid'])     || data.ownerUid is string) &&
+        (!data.keys().hasAny(['businessId'])   || data.businessId is string) &&
+        // Legacy account preference fields
         (!data.keys().hasAny(['defaultAccountType']) ||
           data.defaultAccountType in ['business']) &&
         (!data.keys().hasAny(['accountTypes'])       || data.accountTypes is list) &&
@@ -57,7 +75,22 @@ service cloud.firestore {
           data.usagePreference in ['business']);
     }
 
-    // Business document under a tenant
+    // Top-level business profile written during owner onboarding.
+    function isValidBusinessProfile(data) {
+      return data.keys().hasAll(['ownerId', 'businessName']) &&
+        data.ownerId is string &&
+        data.ownerId == request.auth.uid &&
+        data.businessName is string &&
+        data.businessName.size() > 0 &&
+        data.businessName.size() <= 200 &&
+        (!data.keys().hasAny(['businessType']) || data.businessType is string) &&
+        (!data.keys().hasAny(['city'])         || data.city is string) &&
+        (!data.keys().hasAny(['country'])      || data.country is string) &&
+        (!data.keys().hasAny(['region'])       || data.region is string) &&
+        (!data.keys().hasAny(['district'])     || data.district is string);
+    }
+
+    // Business document under a tenant (tenants/{uid}/businesses/{bizId})
     function isValidBusinessCreate(data, tenantId) {
       return data.keys().hasAll(['id', 'businessName', 'ownerUid']) &&
         data.ownerUid == tenantId &&
@@ -173,11 +206,42 @@ service cloud.firestore {
       allow read, update, delete: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId) &&
         isValidUserCreate(request.resource.data);
-      // Allow unauthenticated phone lookups (app bootstrap / login)
+      // Allow unauthenticated phone lookups during onboarding (before auth).
+      // Limit <= 1 prevents full-collection scans.
       allow list: if isSignedIn() ||
-        (request.auth == null &&
-         request.query.limit != null &&
-         request.query.limit <= 1);
+        (request.auth == null && isLimitedLookup());
+    }
+
+    // =========================================================================
+    // BUSINESS PROFILES (top-level — written during owner onboarding)
+    // Path: businesses/{businessId}
+    // =========================================================================
+    match /businesses/{businessId} {
+      // Signed-in users can query their own business; unauthenticated phone
+      // lookups (returning-user flow) may run a limit-1 ownerId query.
+      allow list: if isSignedIn() ||
+        (request.auth == null && isLimitedLookup());
+
+      // Direct document read: owner only.
+      allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+
+      // Create: new owner account setup — ownerId must match caller's UID.
+      allow create: if isSignedIn() &&
+        isValidBusinessProfile(request.resource.data);
+
+      // Updates/deletes: owner only.
+      allow update, delete: if isSignedIn() &&
+        resource.data.ownerId == request.auth.uid;
+    }
+
+    // =========================================================================
+    // TEAM MEMBERS — collection group lookup (unauthenticated phone lookup)
+    // Path: tenants/{uid}/businesses/{bizId}/team_members/{memberId}
+    // The wildcard rule lets collectionGroup('team_members') run a limit-1
+    // phone query before the user has authenticated.
+    // =========================================================================
+    match /{path=**}/team_members/{memberId} {
+      allow list: if request.auth == null && isLimitedLookup();
     }
 
     // =========================================================================
@@ -332,7 +396,13 @@ service cloud.firestore {
             isValidExpenseTemplate(request.resource.data);
         }
 
-        // Fallback for any other subcollection (debts, team_members, etc.)
+        // Explicit team_members rule (owner full access; unauthenticated lookup
+        // is handled by the wildcard /{path=**}/team_members rule above).
+        match /team_members/{memberId} {
+          allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+        }
+
+        // Fallback for any other subcollection (debts, etc.)
         match /{collection}/{docId} {
           allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
         }

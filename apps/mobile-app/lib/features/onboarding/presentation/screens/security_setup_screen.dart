@@ -113,7 +113,6 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     final sw = state.isSwahili;
 
     return OnboardingScaffold(
-      currentStep: 6,
       onBack: _showConfirm
           ? _backToPin
           : () => context.go(AppRoutes.business),
@@ -198,27 +197,7 @@ class _SetPinBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 20),
-
-        // Icon
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.navyPrimary.withValues(alpha: 0.25),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.lock_rounded,
-              color: AppColors.yellowBrand, size: 26),
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
 
         Text(
           sw ? 'Linda akaunti yako 🔐' : 'Secure your account 🔐',
@@ -316,27 +295,7 @@ class _ConfirmPinBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 20),
-
-        // Icon
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: AppColors.success,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.success.withValues(alpha: 0.25),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.verified_user_rounded,
-              color: Colors.white, size: 26),
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
 
         Text(
           sw ? 'Thibitisha PIN yako ✓' : 'Confirm your PIN ✓',

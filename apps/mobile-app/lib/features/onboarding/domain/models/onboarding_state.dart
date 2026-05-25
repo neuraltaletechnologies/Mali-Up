@@ -54,6 +54,9 @@ class OnboardingState {
     this.businessName = '',
     this.businessType = '',
     this.businessId = '',
+    this.businessCountry = 'TZ',
+    this.businessRegion = '',
+    this.businessDistrict = '',
 
     // Screen 6 — PIN setup
     this.pin = '',
@@ -97,6 +100,9 @@ class OnboardingState {
   final String businessName;
   final String businessType;
   final String businessId;
+  final String businessCountry;  // ISO-2 code, default 'TZ'
+  final String businessRegion;
+  final String businessDistrict;
 
   // ── Screen 6 ──────────────────────────────────────────────────────────────
   final String pin;
@@ -141,6 +147,9 @@ class OnboardingState {
     String? businessName,
     String? businessType,
     String? businessId,
+    String? businessCountry,
+    String? businessRegion,
+    String? businessDistrict,
     String? pin,
     String? confirmPin,
     bool? isLoading,
@@ -165,6 +174,9 @@ class OnboardingState {
       businessName: businessName ?? this.businessName,
       businessType: businessType ?? this.businessType,
       businessId: businessId ?? this.businessId,
+      businessCountry: businessCountry ?? this.businessCountry,
+      businessRegion: businessRegion ?? this.businessRegion,
+      businessDistrict: businessDistrict ?? this.businessDistrict,
       pin: pin ?? this.pin,
       confirmPin: confirmPin ?? this.confirmPin,
       isLoading: isLoading ?? this.isLoading,
@@ -192,6 +204,9 @@ class OnboardingState {
         other.businessName == businessName &&
         other.businessType == businessType &&
         other.businessId == businessId &&
+        other.businessCountry == businessCountry &&
+        other.businessRegion == businessRegion &&
+        other.businessDistrict == businessDistrict &&
         other.pin == pin &&
         other.confirmPin == confirmPin &&
         other.isLoading == isLoading &&
@@ -206,6 +221,7 @@ class OnboardingState {
         isTeamMember, teamMemberId, teamOwnerUid,
         firstName, lastName, city, role,
         businessName, businessType, businessId,
+        businessCountry, businessRegion, businessDistrict,
         pin, confirmPin, isLoading, errorMessage, isComplete,
       ]);
 }
