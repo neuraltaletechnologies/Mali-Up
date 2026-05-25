@@ -35,7 +35,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   OnboardingState build() {
     // Service is injected via the provider graph — no direct Firebase import.
     _service = ref.read(onboardingServiceProvider);
-    ref.onDispose(_cooldownTimer?.cancel);
+    ref.onDispose(() => _cooldownTimer?.cancel());
     return const OnboardingState();
   }
 

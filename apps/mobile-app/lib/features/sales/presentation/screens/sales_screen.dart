@@ -358,8 +358,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             const SizedBox(height: 10),
                         itemBuilder: (ctx, i) {
                           final item = filtered[i];
-                          final docId =
-                              (item['id'] as String?) ?? '';
                           return _InvoiceCard(
                             item: item,
                             onTap: () => Navigator.of(ctx).push(
@@ -445,7 +443,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final amount = parseNumericAmount(sale['amount']);
     final amountPaid = parseNumericAmount(sale['amountPaid']);
     final outstanding = (amount - amountPaid).clamp(0, amount);
-    final status = readInvoiceStatus(sale);
     final items =
         (sale['items'] as List?)?.whereType<Map>().toList() ?? const [];
     final isQuotation =
@@ -2284,7 +2281,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               Switch.adaptive(
                 value: _vatEnabled,
                 onChanged: (v) => setState(() => _vatEnabled = v),
-                activeColor: AppColors.tealAccent,
+                activeThumbColor: AppColors.tealAccent,
+                activeTrackColor:
+                    AppColors.tealAccent.withValues(alpha: 0.4),
               ),
             ],
           ),
