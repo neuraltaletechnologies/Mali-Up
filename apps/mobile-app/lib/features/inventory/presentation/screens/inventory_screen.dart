@@ -1834,10 +1834,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final profitAmt  = _profit(_buyVal, _sellVal);
     final marginAmt  = _margin(_buyVal, _sellVal);
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.92,
-      ),
+    final screenSize = MediaQuery.of(context).size;
+    return SizedBox(
+      width: screenSize.width,
+      height: screenSize.height * 0.92,
       child: Material(
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
