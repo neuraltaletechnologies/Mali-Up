@@ -24,6 +24,14 @@ service cloud.firestore {
       return request.query.limit != null && request.query.limit <= 1;
     }
 
+    // CMS role check: users with a custom claim `cms: true` or `admin: true`
+    // can perform content-management writes (e.g., update `lookups`).
+    function isCms() {
+      return request.auth != null && (
+        request.auth.token.cms == true || request.auth.token.admin == true
+      );
+    }
+
     // ── Validators ────────────────────────────────────────────────────────────
 
     // Customer (individual or organisation)
@@ -421,8 +429,9 @@ service cloud.firestore {
     // PUBLIC LOOKUPS (app bootstrap / onboarding data)
     // =========================================================================
     match /lookups/{lookupId} {
+      // Public read for bootstrap data; writes restricted to CMS/admins.
       allow read: if true;
-      allow write: if false;
+      allow write: if isCms();
     }
 
     // =========================================================================

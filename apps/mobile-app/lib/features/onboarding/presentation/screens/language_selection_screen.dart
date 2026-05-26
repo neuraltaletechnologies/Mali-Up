@@ -166,47 +166,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                // Mali Up brand pill
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.yellowBrand
-                                        .withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(99),
-                                    border: Border.all(
-                                      color: AppColors.yellowBrand
-                                          .withValues(alpha: 0.28),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: const BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: AppColors.yellowBrand,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 7),
-                                      const Text(
-                                        'Mali Up',
-                                        style: TextStyle(
-                                          color: AppColors.yellowBrand,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.3,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
+                            
 
                                 Text(
-                                  _tr('Welcome 👋', 'Karibu 👋'),
+                                  _tr('Welcome ', 'Karibu '),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 32,
@@ -219,7 +182,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                 Text(
                                   _tr(
                                     'Choose the language you\'re most comfortable with.',
-                                    'Chagua lugha unayoijua vizuri zaidi.',
+                                    'Chagua lugha ambayo unayostarehesha nayo zaidi',
                                   ),
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.60),
@@ -286,7 +249,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                             Text(
                               _tr(
                                 'You can change this anytime in Settings.',
-                                'Unaweza kubadilisha wakati wowote kwenye Mipangilio.',
+                                'Unaweza kubadilisha badaye kwenye Mipangilio.',
                               ),
                               style: const TextStyle(
                                 fontSize: 13,
