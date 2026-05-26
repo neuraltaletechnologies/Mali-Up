@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 import 'add_debt_screen.dart';
@@ -326,15 +327,7 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
           ),
         ),
         if (isLoading)
-          const SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: CircularProgressIndicator(
-                    color: AppColors.navyPrimary),
-              ),
-            ),
-          )
+          const SliverDebtListSkeleton()
         else if (filtered.isEmpty)
           SliverToBoxAdapter(child: _EmptyState(
             icon: Icons.check_circle_outline_rounded,
@@ -383,19 +376,6 @@ class _PayablesTab extends ConsumerWidget {
     final payables = ref.watch(payablesProvider);
     final isLoading = ref.watch(debtListProvider).isLoading;
 
-    if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.navyPrimary),
-      );
-    }
-    if (payables.isEmpty) {
-      return _EmptyState(
-        icon: Icons.task_alt_rounded,
-        title: _tr('No outstanding bills', 'Hakuna bili zilizo wazi'),
-        subtitle: _tr('All your supplier payments are up to date.', 'Malipo yote ya wasambazaji yamekamilika.'),
-      );
-    }
-
     final overdue = payables.where((d) => d.daysOverdue > 0).toList();
     final dueSoon = payables
         .where((d) => d.daysOverdue <= 0 && d.daysOverdue >= -7)
@@ -404,7 +384,23 @@ class _PayablesTab extends ConsumerWidget {
         .where((d) => d.daysOverdue < -7)
         .toList();
 
-    return CustomScrollView(
+    Widget body;
+    if (isLoading) {
+      body = const DebtTabSkeleton(key: ValueKey('skeleton'));
+    } else if (payables.isEmpty) {
+      body = KeyedSubtree(
+        key: const ValueKey('empty'),
+        child: _EmptyState(
+          icon: Icons.task_alt_rounded,
+          title: _tr('No outstanding bills', 'Hakuna bili zilizo wazi'),
+          subtitle: _tr('All your supplier payments are up to date.',
+              'Malipo yote ya wasambazaji yamekamilika.'),
+        ),
+      );
+    } else {
+      body = KeyedSubtree(
+        key: const ValueKey('content'),
+        child: CustomScrollView(
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
@@ -447,6 +443,14 @@ class _PayablesTab extends ConsumerWidget {
           ),
         ),
       ],
+        ),
+      );
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      switchInCurve: Curves.easeOut,
+      child: body,
     );
   }
 }
@@ -1005,20 +1009,21 @@ class _DebtCard extends StatelessWidget {
     final isReceivable = debt.type == 'receivable';
     final daysOver = debt.daysOverdue;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-          boxShadow: const [
-            BoxShadow(
-                color: AppColors.shadowCard,
-                blurRadius: 8,
-                offset: Offset(0, 2))
-          ],
-        ),
+    return Ink(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard, blurRadius: 8, offset: Offset(0, 2))
+        ],
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        splashColor: AppColors.navyPrimary.withValues(alpha: 0.06),
+        highlightColor: AppColors.navyPrimary.withValues(alpha: 0.04),
         child: IntrinsicHeight(
           child: Row(
             children: [

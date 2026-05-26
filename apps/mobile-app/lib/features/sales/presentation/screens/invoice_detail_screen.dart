@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/sales_providers.dart';
 import 'create_invoice_screen.dart';
@@ -84,28 +85,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     final raw = _inv['lineItems'];
     if (raw is List) return raw.whereType<Map<String, dynamic>>().toList();
     return [];
-  }
-
-  Color get _statusColor {
-    return switch (_status) {
-      'paid' => AppColors.success,
-      'sent' => AppColors.tealAccent,
-      'overdue' => AppColors.error,
-      'draft' => AppColors.textMuted,
-      'cancelled' => AppColors.textDisabled,
-      _ => AppColors.warning,
-    };
-  }
-
-  String get _statusLabel {
-    return switch (_status) {
-      'paid' => _tr('Paid', 'Imelipwa'),
-      'sent' => _tr('Sent', 'Imetumwa'),
-      'overdue' => _tr('Overdue', 'Imechelewa'),
-      'draft' => _tr('Draft', 'Rasimu'),
-      'cancelled' => _tr('Cancelled', 'Imefutwa'),
-      _ => _tr('Pending', 'Inasubiri'),
-    };
   }
 
   // ── Actions ─────────────────────────────────────────────────────────────────
@@ -291,8 +270,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               invoiceNumber: _invoiceNumber,
               total: _total,
               status: _status,
-              statusLabel: _statusLabel,
-              statusColor: _statusColor,
               isQuotation: _isQuotation,
               customerName: _customerName,
               invoiceDate: _invoiceDate,
@@ -409,8 +386,6 @@ class _HeroCard extends StatelessWidget {
   final String invoiceNumber;
   final double total;
   final String status;
-  final String statusLabel;
-  final Color statusColor;
   final bool isQuotation;
   final String customerName;
   final DateTime? invoiceDate;
@@ -420,8 +395,6 @@ class _HeroCard extends StatelessWidget {
     required this.invoiceNumber,
     required this.total,
     required this.status,
-    required this.statusLabel,
-    required this.statusColor,
     required this.isQuotation,
     required this.customerName,
     required this.invoiceDate,
@@ -482,24 +455,7 @@ class _HeroCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border:
-                      Border.all(color: statusColor.withOpacity(0.4)),
-                ),
-                child: Text(
-                  statusLabel.toUpperCase(),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
-                      letterSpacing: 0.5),
-                ),
-              ),
+              PaymentStatusChip(status: status),
             ],
           ),
           const SizedBox(height: 20),
@@ -1059,10 +1015,8 @@ class _ActionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDraft = status == 'draft';
-    final isSent = status == 'sent' || status == 'pending';
     final isPaid = status == 'paid';
     final isCancelled = status == 'cancelled';
-    final isOverdue = status == 'overdue';
 
     return Container(
       decoration: BoxDecoration(

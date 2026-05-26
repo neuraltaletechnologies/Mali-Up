@@ -456,7 +456,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           ],
                         ),
                       ),
-                      // Sign Out Button
+                      // Bottom actions — Switch Account
                       Container(
                         width: double.infinity,
                         padding: EdgeInsets.fromLTRB(12, 12, 12, MediaQuery.of(dialogContext).padding.bottom + 16),
@@ -469,46 +469,42 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             top: BorderSide(color: AppColors.primary.withValues(alpha: 0.08)),
                           ),
                         ),
-                        child: Column(
-                          children: [
-                            Semantics(
-                              button: true,
-                              label: _tr('Sign out from Mali App', 'Toka, logout from Mali App'),
-                              child: SizedBox(
-                                height: 48,
-                                child: Material(
-                                  type: MaterialType.transparency,
-                                  child: InkWell(
+                        child: Semantics(
+                          button: true,
+                          label: _tr('Switch account or sign in to a different account', 'Badili akaunti au ingia akaunti nyingine'),
+                          child: SizedBox(
+                            height: 48,
+                            child: Material(
+                              type: MaterialType.transparency,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary.withValues(alpha: 0.06),
                                     borderRadius: BorderRadius.circular(12),
-                                    onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.error.withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+                                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.14)),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.swap_horiz_rounded, color: AppColors.secondary, size: 20),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        _tr('Switch Account', 'Badili Akaunti'),
+                                        style: const TextStyle(
+                                          color: AppColors.secondary,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            _tr('Sign Out', 'Toka'),
-                                            style: const TextStyle(
-                                              color: AppColors.error,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ],

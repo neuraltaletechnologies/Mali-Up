@@ -4,6 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'audit_log_screen.dart';
+import 'data_export_screen.dart';
+import 'delete_account_screen.dart';
+import 'legal_compliance_screen.dart';
+
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -573,7 +578,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 iconColor: AppColors.tealAccent,
                 title: _tr('Export Data', 'Hamisha Data'),
                 subtitle: _tr('Download as CSV or PDF', 'Pakua kama CSV au PDF'),
-                onTap: () => _showComingSoon(_tr('Export data', 'Hamisha data')),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const DataExportScreen(),
+                )),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const _TileDivider(),
+              _SettingTile(
+                icon: Icons.history_rounded,
+                iconBg: AppColors.secondary.withValues(alpha: 0.07),
+                iconColor: AppColors.secondary,
+                title: _tr('Audit Log', 'Kumbukumbu ya Matukio'),
+                subtitle: _tr('View account activity history', 'Angalia historia ya shughuli za akaunti'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const AuditLogScreen(),
+                )),
                 trailing: const Icon(
                   Icons.chevron_right_rounded,
                   size: 20,
@@ -634,6 +657,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
+          // ── Legal & Compliance ────────────────────────────────
+          _SectionHeader(label: _tr('Legal & Compliance', 'Kisheria na Uzingatiaji')),
+          const SizedBox(height: 8),
+          _SettingCard(
+            children: [
+              _SettingTile(
+                icon: Icons.shield_outlined,
+                iconBg: AppColors.secondary.withValues(alpha: 0.06),
+                iconColor: AppColors.secondary,
+                title: _tr('Legal & Compliance', 'Kisheria na Uzingatiaji'),
+                subtitle: _tr(
+                  'BRELA, TRA, BoT, data protection & more',
+                  'BRELA, TRA, BoT, ulinzi wa data na zaidi',
+                ),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const LegalComplianceScreen(),
+                )),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const _TileDivider(),
+              _SettingTile(
+                icon: Icons.delete_forever_outlined,
+                iconBg: AppColors.error.withValues(alpha: 0.07),
+                iconColor: AppColors.error,
+                title: _tr('Delete Account', 'Futa Akaunti'),
+                subtitle: _tr('Permanently remove your data', 'Futa data yako kabisa'),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const DeleteAccountScreen(),
+                )),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.error,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
           // ── About ─────────────────────────────────────────────
           _SectionHeader(label: _tr('About', 'Kuhusu')),
           const SizedBox(height: 8),
@@ -652,39 +718,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     border: Border.all(color: AppColors.border),
                   ),
                   child: const Text(
-                    '1.0.0',
+                    '1.1.0',
                     style: TextStyle(
                       color: AppColors.textMuted,
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                     ),
                   ),
-                ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
-                icon: Icons.gavel_rounded,
-                iconBg: AppColors.secondary.withValues(alpha: 0.06),
-                iconColor: AppColors.secondary,
-                title: _tr('Terms & Conditions', 'Sheria na Masharti'),
-                onTap: () => _showComingSoon(_tr('Terms', 'Sheria')),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
-                ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
-                icon: Icons.privacy_tip_rounded,
-                iconBg: AppColors.secondary.withValues(alpha: 0.06),
-                iconColor: AppColors.secondary,
-                title: _tr('Privacy Policy', 'Sera ya Faragha'),
-                onTap: () => _showComingSoon(_tr('Privacy policy', 'Sera ya faragha')),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
                 ),
               ),
               const _TileDivider(),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/services/localization_service.dart';
 import 'shimmer.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -395,6 +396,9 @@ class StatusChip extends StatelessWidget {
 
   const StatusChip({super.key, required this.status, this.customLabel});
 
+  static String _tr(String en, String sw) =>
+      LocalizationService.tr(en: en, sw: sw);
+
   static ({Color bg, Color text, String label, IconData icon}) _resolve(
     InvoiceStatus s,
   ) {
@@ -403,42 +407,42 @@ class StatusChip extends StatelessWidget {
         return (
           bg: const Color(0xFFD1FAE5),
           text: AppColors.success,
-          label: 'Imelipwa',
+          label: _tr('Paid', 'Imelipwa'),
           icon: Icons.check_circle_rounded,
         );
       case InvoiceStatus.sent:
         return (
           bg: const Color(0xFFDBEAFE),
           text: AppColors.tealAccent,
-          label: 'Imetumwa',
+          label: _tr('Sent', 'Imetumwa'),
           icon: Icons.send_rounded,
         );
       case InvoiceStatus.overdue:
         return (
           bg: AppColors.errorBg,
           text: AppColors.error,
-          label: 'Imechelewa',
+          label: _tr('Overdue', 'Imechelewa'),
           icon: Icons.warning_rounded,
         );
       case InvoiceStatus.draft:
         return (
           bg: AppColors.surfaceVariant,
           text: AppColors.textMuted,
-          label: 'Rasimu',
+          label: _tr('Draft', 'Rasimu'),
           icon: Icons.edit_rounded,
         );
       case InvoiceStatus.pending:
         return (
           bg: AppColors.warningBg,
           text: AppColors.warning,
-          label: 'Inasubiri',
+          label: _tr('Pending', 'Inasubiri'),
           icon: Icons.hourglass_empty_rounded,
         );
       case InvoiceStatus.cancelled:
         return (
           bg: const Color(0xFFF1F5F9),
           text: AppColors.textDisabled,
-          label: 'Imefutwa',
+          label: _tr('Cancelled', 'Imefutwa'),
           icon: Icons.cancel_rounded,
         );
     }
@@ -820,6 +824,113 @@ class ExpensePageSkeleton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DebtListSkeleton — sliver skeleton for the debt tracking tabs
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A single debt card-shaped shimmer placeholder matching _DebtCard's layout.
+class DebtCardSkeleton extends StatelessWidget {
+  const DebtCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 78,
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: const Row(
+        children: [
+          ShimmerBox(
+            width: 42,
+            height: 42,
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ShimmerBox(
+                  width: 140,
+                  height: 11,
+                  borderRadius: BorderRadius.all(Radius.circular(999)),
+                ),
+                SizedBox(height: 7),
+                ShimmerBox(
+                  width: 90,
+                  height: 10,
+                  borderRadius: BorderRadius.all(Radius.circular(999)),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ShimmerBox(
+                width: 72,
+                height: 12,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
+              SizedBox(height: 6),
+              ShimmerBox(
+                width: 40,
+                height: 9,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Sliver version — drop straight into a CustomScrollView.
+class SliverDebtListSkeleton extends StatelessWidget {
+  final int itemCount;
+  const SliverDebtListSkeleton({super.key, this.itemCount = 6});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, i) => const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: DebtCardSkeleton(),
+          ),
+          childCount: itemCount,
+        ),
+      ),
+    );
+  }
+}
+
+/// Plain (non-sliver) version for tabs rendered as regular widgets.
+class DebtTabSkeleton extends StatelessWidget {
+  final int itemCount;
+  const DebtTabSkeleton({super.key, this.itemCount = 6});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      itemCount: itemCount,
+      separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+      itemBuilder: (ctx, i) => const DebtCardSkeleton(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PlanBadge — shows Free / Premium tier inline
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1081,6 +1192,110 @@ class PlanBadge extends StatelessWidget {
           fontWeight: FontWeight.w700,
           color: isPremium ? AppColors.navyPrimary : AppColors.textMuted,
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PaymentStatusChip — compact pill for paid / partial / pending / overdue etc.
+// Accepts raw string status values used across invoices, debts, and sales.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class PaymentStatusChip extends StatelessWidget {
+  final String status;
+
+  const PaymentStatusChip({super.key, required this.status});
+
+  static String _tr(String en, String sw) =>
+      LocalizationService.tr(en: en, sw: sw);
+
+  static ({Color bg, Color fg, String label, IconData icon}) _resolve(
+      String s) {
+    switch (s.toLowerCase().trim()) {
+      case 'paid':
+        return (
+          bg: const Color(0xFFD1FAE5),
+          fg: AppColors.success,
+          label: _tr('Paid', 'Imelipwa'),
+          icon: Icons.check_circle_rounded,
+        );
+      case 'partial':
+        return (
+          bg: const Color(0xFFFFF3CD),
+          fg: const Color(0xFF92600A),
+          label: _tr('Partial', 'Sehemu'),
+          icon: Icons.timelapse_rounded,
+        );
+      case 'overdue':
+        return (
+          bg: AppColors.errorBg,
+          fg: AppColors.error,
+          label: _tr('Overdue', 'Imechelewa'),
+          icon: Icons.warning_rounded,
+        );
+      case 'sent':
+        return (
+          bg: const Color(0xFFDBEAFE),
+          fg: AppColors.tealAccent,
+          label: _tr('Sent', 'Imetumwa'),
+          icon: Icons.send_rounded,
+        );
+      case 'draft':
+        return (
+          bg: AppColors.surfaceVariant,
+          fg: AppColors.textMuted,
+          label: _tr('Draft', 'Rasimu'),
+          icon: Icons.edit_rounded,
+        );
+      case 'cancelled':
+        return (
+          bg: const Color(0xFFF1F5F9),
+          fg: AppColors.textDisabled,
+          label: _tr('Cancelled', 'Imefutwa'),
+          icon: Icons.cancel_rounded,
+        );
+      case 'written_off':
+        return (
+          bg: const Color(0xFFF1F5F9),
+          fg: AppColors.textDisabled,
+          label: _tr('Written Off', 'Imeandikwa'),
+          icon: Icons.remove_circle_outline_rounded,
+        );
+      default: // pending / current / unknown
+        return (
+          bg: AppColors.warningBg,
+          fg: AppColors.warning,
+          label: _tr('Pending', 'Inasubiri'),
+          icon: Icons.hourglass_empty_rounded,
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _resolve(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: c.bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(c.icon, size: 11, color: c.fg),
+          const SizedBox(width: 3),
+          Text(
+            c.label,
+            style: GoogleFonts.dmSans(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: c.fg,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
       ),
     );
   }

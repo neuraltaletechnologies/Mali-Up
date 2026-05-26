@@ -58,14 +58,14 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                 subtitle: const Text('Full data structure, best for backup'),
                 value: 'json',
                 groupValue: selectedFormat,
-                onChanged: isExporting ? null : (val) => setState(() => selectedFormat = val),
+                onChanged: isExporting ? null : (val) => setState(() => selectedFormat = val as String?),
               ),
               RadioListTile(
                 title: const Text('CSV (For spreadsheets)'),
                 subtitle: const Text('Comma-separated values, open in Excel'),
                 value: 'csv',
                 groupValue: selectedFormat,
-                onChanged: isExporting ? null : (val) => setState(() => selectedFormat = val),
+                onChanged: isExporting ? null : (val) => setState(() => selectedFormat = val as String?),
               ),
 
               const SizedBox(height: 32),

@@ -15,6 +15,7 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
+import '../../../customer/presentation/widgets/add_customer_dialog.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../data/sales_providers.dart';
 import 'invoice_detail_screen.dart';
@@ -1499,6 +1500,73 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     }
   }
 
+  /// Opens the continuous POS scanner. Each successful scan auto-adds an
+  /// item row (or increments qty if the product is already in the list).
+  Future<void> _openPosScanner() async {
+    final inventory = ref.read(inventoryItemListProvider).value ?? [];
+
+    final results = await PosScannerScreen.show(
+      context,
+      title: _tr('Scan Items', 'Skani Bidhaa'),
+      onScanned: (barcode) async {
+        final matched = inventory.firstWhere(
+          (item) =>
+              (item['sku'] ?? '').toString().toLowerCase() ==
+              barcode.toLowerCase(),
+          orElse: () => <String, dynamic>{},
+        );
+        if (matched.isEmpty) return null;
+        final name = (matched['name'] ?? '').toString();
+        final price = parseUnitPrice(matched['unitPrice'] ?? matched['price'] ?? 0);
+        return PosCartEntry(barcode: barcode, name: name, price: price);
+      },
+    );
+
+    if (!mounted || results.isEmpty) return;
+
+    // Remove any blank placeholder items first.
+    final toRemove = _items
+        .where((e) =>
+            e.nameCtrl.text.trim().isEmpty && e.selectedItem == null)
+        .toList();
+    for (final e in toRemove) {
+      e.dispose();
+      _items.remove(e);
+    }
+
+    // Merge scanner results into the items list.
+    for (final scanned in results) {
+      final existing = _items.firstWhere(
+        (e) =>
+            e.selectedItem != null &&
+            (e.selectedItem!['sku'] ?? '').toString().toLowerCase() ==
+                scanned.barcode.toLowerCase(),
+        orElse: () => _ItemEntry(name: '___not_found___'),
+      );
+
+      if (existing.nameCtrl.text != '___not_found___') {
+        existing.qty += scanned.qty - 1; // already counted 1 in the entry
+      } else {
+        final inv = inventory.firstWhere(
+          (item) =>
+              (item['sku'] ?? '').toString().toLowerCase() ==
+              scanned.barcode.toLowerCase(),
+          orElse: () => <String, dynamic>{},
+        );
+        if (inv.isNotEmpty) {
+          final newEntry = _ItemEntry();
+          newEntry.nameCtrl.addListener(() => _onItemNameChanged(newEntry));
+          _selectProduct(newEntry, inv);
+          newEntry.qty = scanned.qty;
+          _items.add(newEntry);
+        }
+      }
+    }
+
+    if (_items.isEmpty) _addItem();
+    setState(() {});
+  }
+
   Future<void> _pickDueDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -1870,7 +1938,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
               useSafeArea: true,
-              builder: (_) => _QuickAddCustomerSheet(
+              builder: (_) => AddCustomerDialog(
                 initialName: _customerCtrl.text.trim(),
                 onAdded: _selectCustomer,
               ),
@@ -1905,14 +1973,42 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       children: [
         Row(
           children: [
-            Text(_tr('Items', 'Bidhaaa'),
+            Text(_tr('Items', 'Bidhaa'),
                 style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textMuted)),
             const Spacer(),
+            // POS continuous scan button
+            GestureDetector(
+              onTap: _openPosScanner,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.tealAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: AppColors.tealAccent.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.qr_code_scanner_rounded,
+                        size: 14, color: AppColors.tealAccent),
+                    const SizedBox(width: 5),
+                    Text(_tr('Scan Mode', 'Skani'),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.tealAccent)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Text(
-                '${_items.length} ${_tr("item", "bidhaaa")}${_items.length != 1 ? "s" : ""}',
+                '${_items.length} ${_tr("item", "kitu")}${_items.length != 1 ? "s" : ""}',
                 style: GoogleFonts.dmSans(
                     fontSize: 11, color: AppColors.textMuted)),
           ],
