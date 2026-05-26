@@ -179,12 +179,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _openAdd(BuildContext ctx) {
+    final mq = MediaQuery.of(ctx).size;
     showModalBottomSheet<void>(
       context: ctx,
       useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
+      constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
       builder: (_) => const _ProductFormSheet(),
     );
   }
@@ -661,12 +663,14 @@ class _ProductRow extends ConsumerWidget {
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           // Right swipe → Edit
+          final mq = MediaQuery.of(context).size;
           await showModalBottomSheet<void>(
             context: context,
             useRootNavigator: true,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
             useSafeArea: true,
+            constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
             builder: (_) => _ProductFormSheet(
               existingItem: item,
               existingId: (item['id'] as String?) ?? '',
@@ -760,14 +764,18 @@ class _ProductRow extends ConsumerWidget {
         ),
       ),
       child: GestureDetector(
-        onTap: () => showModalBottomSheet<void>(
-          context: context,
-          useRootNavigator: true,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          useSafeArea: true,
-          builder: (_) => _ProductDetailSheet(item: item),
-        ),
+        onTap: () {
+          final mq = MediaQuery.of(context).size;
+          showModalBottomSheet<void>(
+            context: context,
+            useRootNavigator: true,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            useSafeArea: true,
+            constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
+            builder: (_) => _ProductDetailSheet(item: item),
+          );
+        },
         child: Container(
         margin: const EdgeInsets.only(bottom: 1),
         decoration: BoxDecoration(
@@ -1834,11 +1842,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final profitAmt  = _profit(_buyVal, _sellVal);
     final marginAmt  = _margin(_buyVal, _sellVal);
 
-    final screenSize = MediaQuery.of(context).size;
-    return SizedBox(
-      width: screenSize.width,
-      height: screenSize.height * 0.92,
-      child: Material(
+    return Material(
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         clipBehavior: Clip.antiAlias,
@@ -2170,7 +2174,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           ),
         ],
         ),
-      ),
     );
   }
 }
