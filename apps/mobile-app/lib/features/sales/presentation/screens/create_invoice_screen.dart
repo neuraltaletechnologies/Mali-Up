@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../inventory/data/inventory_providers.dart';
@@ -350,9 +351,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                   const SizedBox(height: 16),
                   _SectionCard(
                     children: [
-                      _CustomerPicker(
+                      CustomerPickerField(
                         selected: _customer,
-                        onPicked: (c) => setState(() => _customer = c),
+                        onSelected: (c) => setState(() => _customer = c),
                       ),
                       const _Divider(),
                       _DateRow(
@@ -568,206 +569,7 @@ class _Divider extends StatelessWidget {
       const Divider(height: 1, thickness: 1, color: AppColors.border);
 }
 
-// ── Customer Picker ──────────────────────────────────────────────────────────
 
-class _CustomerPicker extends ConsumerStatefulWidget {
-  final Customer? selected;
-  final ValueChanged<Customer?> onPicked;
-
-  const _CustomerPicker({required this.selected, required this.onPicked});
-
-  @override
-  ConsumerState<_CustomerPicker> createState() => _CustomerPickerState();
-}
-
-class _CustomerPickerState extends ConsumerState<_CustomerPicker> {
-  void _open() {
-    final customers = ref
-        .read(customerListProvider)
-        .maybeWhen(data: (d) => d, orElse: () => <Customer>[]);
-    showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _CustomerSheet(
-        customers: customers,
-        onSelected: (c) {
-          widget.onPicked(c);
-          Navigator.of(context).pop();
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = widget.selected;
-    return InkWell(
-      onTap: _open,
-      borderRadius:
-          const BorderRadius.vertical(top: Radius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: c != null
-                    ? AppColors.navyPrimary.withValues(alpha: 0.08)
-                    : AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                Icons.person_rounded,
-                size: 20,
-                color: c != null
-                    ? AppColors.navyPrimary
-                    : AppColors.textMuted,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: c == null
-                  ? Text(
-                      _tr('Select Customer (optional)',
-                          'Chagua Mteja (si lazima)'),
-                      style: GoogleFonts.dmSans(
-                          fontSize: 14, color: AppColors.textMuted),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(c.name,
-                            style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary)),
-                        if (c.phone.isNotEmpty)
-                          Text(c.phone,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 12,
-                                  color: AppColors.textMuted)),
-                      ],
-                    ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textMuted,
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CustomerSheet extends StatefulWidget {
-  final List<Customer> customers;
-  final ValueChanged<Customer> onSelected;
-
-  const _CustomerSheet(
-      {required this.customers, required this.onSelected});
-
-  @override
-  State<_CustomerSheet> createState() => _CustomerSheetState();
-}
-
-class _CustomerSheetState extends State<_CustomerSheet> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final filtered = _query.isEmpty
-        ? widget.customers
-        : widget.customers
-            .where((c) =>
-                c.name.toLowerCase().contains(_query.toLowerCase()) ||
-                c.phone.contains(_query))
-            .toList();
-
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.65,
-      maxChildSize: 0.9,
-      minChildSize: 0.4,
-      builder: (_, ctrl) => Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2)),
-          ),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: TextField(
-              autofocus: true,
-              onChanged: (v) => setState(() => _query = v),
-              decoration: InputDecoration(
-                hintText:
-                    _tr('Search customers…', 'Tafuta wateja…'),
-                prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                filled: true,
-                fillColor: AppColors.surfaceVariant,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              controller: ctrl,
-              itemCount: filtered.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, color: AppColors.border),
-              itemBuilder: (_, i) {
-                final c = filtered[i];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor:
-                        AppColors.navyPrimary.withValues(alpha: 0.1),
-                    child: Text(
-                      c.name.isNotEmpty
-                          ? c.name[0].toUpperCase()
-                          : '?',
-                      style: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary),
-                    ),
-                  ),
-                  title: Text(c.name,
-                      style: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w600)),
-                  subtitle: c.phone.isNotEmpty
-                      ? Text(c.phone,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              color: AppColors.textMuted))
-                      : null,
-                  onTap: () => widget.onSelected(c),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ── Date Row ─────────────────────────────────────────────────────────────────
 

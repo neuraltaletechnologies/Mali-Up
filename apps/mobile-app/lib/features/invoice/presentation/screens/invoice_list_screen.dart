@@ -5,7 +5,7 @@ import '../../data/invoice_provider.dart';
 import '../../domain/models/invoice.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 
 // Global invoice provider instance
 final _invoiceProviderInstance = InvoiceProvider();
@@ -318,24 +318,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                       ),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(invoice.status).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _getStatusColor(invoice.status).withOpacity(0.3),
-                      ),
-                    ),
-                    child: Text(
-                      invoice.status.toUpperCase(),
-                      style: TextStyle(
-                        color: _getStatusColor(invoice.status),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
+                  PaymentStatusChip(status: invoice.status),
                 ],
               ),
             ),
@@ -358,9 +341,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 8),
-                  ...invoice.items.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
+                  ...invoice.items.map((item) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
@@ -498,18 +479,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'paid':
-        return Colors.green;
-      case 'pending':
-        return AppColors.navyPrimary;
-      case 'overdue':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
+
 
   void _shareInvoice(Invoice invoice) async {
     final whatsappText = ref.read(invoiceChangeNotifierProvider).generateWhatsAppReceipt(invoice.id);

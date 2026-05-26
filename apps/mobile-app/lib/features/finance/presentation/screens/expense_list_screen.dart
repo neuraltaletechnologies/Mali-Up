@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/expense.dart';
@@ -357,9 +358,7 @@ class _ExpensesTab extends ConsumerWidget {
         : expenses.where((e) => e.category == filterCat!.key).toList();
 
     if (isLoading) {
-      return const Center(
-          child: CircularProgressIndicator(
-              color: AppColors.navyPrimary, strokeWidth: 2));
+      return const ExpensePageSkeleton();
     }
 
     return Column(
@@ -1266,9 +1265,7 @@ class _RecurringTab extends ConsumerWidget {
     final templatesAsync = ref.watch(recurringTemplateListProvider);
 
     return templatesAsync.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(
-              color: AppColors.navyPrimary, strokeWidth: 2)),
+      loading: () => const SkeletonList(itemCount: 4),
       error: (e, _) => Center(child: Text('$e')),
       data: (templates) {
         if (templates.isEmpty) {

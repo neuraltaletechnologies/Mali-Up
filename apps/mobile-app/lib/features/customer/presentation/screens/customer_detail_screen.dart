@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../sales/data/sales_providers.dart';
 import '../../data/customer_providers.dart';
 import '../../domain/models/customer.dart';
@@ -1201,15 +1202,6 @@ class _InvoiceTile extends StatelessWidget {
       'cancelled' => AppColors.textDisabled,
       _ => AppColors.warning,
     };
-    final statusLabel = switch (status) {
-      'paid' => _tr('Paid', 'Imelipwa'),
-      'sent' => _tr('Sent', 'Imetumwa'),
-      'overdue' => _tr('Overdue', 'Imechelewa'),
-      'draft' => _tr('Draft', 'Rasimu'),
-      'cancelled' => _tr('Cancelled', 'Imefutwa'),
-      _ => _tr('Pending', 'Inasubiri'),
-    };
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1278,21 +1270,7 @@ class _InvoiceTile extends StatelessWidget {
                     color: AppColors.textPrimary),
               ),
               const SizedBox(height: 3),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: GoogleFonts.dmSans(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor),
-                ),
-              ),
+              PaymentStatusChip(status: status),
             ],
           ),
         ],

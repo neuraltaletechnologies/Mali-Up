@@ -25,15 +25,30 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
   final _recipientController = TextEditingController();
   final _dateController = TextEditingController();
 
-  String _selectedCategory = 'Food & Drinks';
+  String _selectedCategory = 'Rent';
   bool _isLoading = false;
   bool _isRecurring = false;
   String _recurrenceType = 'monthly';
 
-  static const _categories = [
-    'Food & Drinks', 'Transport', 'Rent', 'Utilities', 'Supplies',
-    'Marketing', 'Salaries', 'Office', 'Equipment', 'Maintenance',
-    'Insurance', 'Taxes', 'Other',
+  /// Standard expense categories for Tanzanian SMEs.
+  /// Keys are the stored English values; values are Swahili display labels.
+  static const _categoryEntries = <(String en, String sw)>[
+    ('Rent',        'Kodi ya Nyumba'),
+    ('Salary',      'Mshahara'),
+    ('Fuel',        'Mafuta'),
+    ('Electricity', 'Umeme'),
+    ('Water',       'Maji'),
+    ('Transport',   'Usafirishaji'),
+    ('Internet',    'Intaneti'),
+    ('Inventory',   'Stoo / Bidhaa'),
+    ('Marketing',   'Masoko'),
+    ('Tax',         'Kodi / Ushuru'),
+    ('Maintenance', 'Matengenezo'),
+    ('Supplies',    'Vifaa'),
+    ('Insurance',   'Bima'),
+    ('Equipment',   'Vifaa vya Kazi'),
+    ('Office',      'Ofisi'),
+    ('Other',       'Nyingine'),
   ];
 
   @override
@@ -97,11 +112,29 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                     initialValue: _selectedCategory,
                     decoration: InputDecoration(
                       labelText: _t('Category', 'Kundi'),
-                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.category_outlined, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                            color: AppColors.primary, width: 2),
+                      ),
                     ),
-                    items: _categories
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
+                    items: _categoryEntries.map((entry) {
+                      final label = LocalizationService.isSwahili
+                          ? entry.$2
+                          : entry.$1;
+                      return DropdownMenuItem(
+                        value: entry.$1,
+                        child: Text(label),
+                      );
+                    }).toList(),
                     onChanged: (v) => setState(() => _selectedCategory = v!),
                   ),
                   const SizedBox(height: 16),
