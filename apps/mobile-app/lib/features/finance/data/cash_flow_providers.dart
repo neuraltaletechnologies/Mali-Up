@@ -1,10 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/data/repositories/context_firestore_repository.dart';
+import '../../customer/data/customer_providers.dart';
 import '../domain/models/cash_account.dart';
 import '../domain/models/cash_transaction.dart';
 import '../domain/models/daily_reconciliation.dart';
-import '../../customer/data/customer_providers.dart';
 import 'finance_providers.dart';
 
 // ── Month selector for cash flow screens ──────────────────────────────────────
@@ -31,9 +32,16 @@ final cashTransactionListProvider = StreamProvider<List<CashTransaction>>((ref) 
     yield const <CashTransaction>[];
     return;
   }
-  final repo = ref.watch(contextFirestoreRepositoryProvider);
-  final ctx = await repo.resolveContextForUser(user.uid);
-  yield* repo.watchCashTransactions(uid: user.uid, context: ctx);
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <CashTransaction>[];
+    return;
+  }
+  final repo = ref.read(contextFirestoreRepositoryProvider);
+  yield* repo.watchCashTransactions(
+    uid: user.uid,
+    context: ResolvedFinanceContext.business(bizId),
+  );
 });
 
 /// Transactions filtered to the currently selected month.
@@ -117,9 +125,16 @@ final reconciliationListProvider = StreamProvider<List<DailyReconciliation>>((re
     yield const <DailyReconciliation>[];
     return;
   }
-  final repo = ref.watch(contextFirestoreRepositoryProvider);
-  final ctx = await repo.resolveContextForUser(user.uid);
-  yield* repo.watchDailyReconciliations(uid: user.uid, context: ctx);
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <DailyReconciliation>[];
+    return;
+  }
+  final repo = ref.read(contextFirestoreRepositoryProvider);
+  yield* repo.watchDailyReconciliations(
+    uid: user.uid,
+    context: ResolvedFinanceContext.business(bizId),
+  );
 });
 
 /// Reconciliations for a specific account.

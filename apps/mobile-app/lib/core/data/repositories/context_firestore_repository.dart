@@ -38,40 +38,42 @@ class ContextFirestoreRepository {
           .collection('users')
           .doc(uid)
           .get(const GetOptions());
-      final data = snapshot.data();
-
-      final defaultContext = (data?['defaultContext'] as String?)
-          ?.toLowerCase();
-      final selectedBusinessId = (data?['selectedBusinessId'] as String?)
-          ?.trim();
-      final businesses = _businessListFromProfile(data);
-
-      if (defaultContext != null && defaultContext.startsWith('business')) {
-        final businessId =
-            _businessIdFromContext(defaultContext) ??
-            selectedBusinessId ??
-            businesses.firstOrNull?.id;
-        if (businessId != null && businessId.isNotEmpty) {
-          return ResolvedFinanceContext.business(businessId);
-        }
-      }
-
-      final defaultAccountType = (data?['defaultAccountType'] as String?)
-          ?.toLowerCase();
-      if (defaultAccountType == 'business') {
-        final businessId = selectedBusinessId ?? businesses.firstOrNull?.id;
-        if (businessId != null && businessId.isNotEmpty) {
-          return ResolvedFinanceContext.business(businessId);
-        }
-      }
-
-      if (businesses.isNotEmpty) {
-        return ResolvedFinanceContext.business(
-          selectedBusinessId ?? businesses.first.id,
-        );
-      }
+      return resolveContextFromData(snapshot.data());
     } catch (_) {
-      // Keep a safe fallback when user profile is unavailable.
+      return const ResolvedFinanceContext.business('');
+    }
+  }
+
+  /// Resolves finance context synchronously from an already-fetched profile map.
+  /// Used by [currentBusinessIdProvider] to avoid redundant Firestore reads.
+  ResolvedFinanceContext resolveContextFromData(Map<String, dynamic>? data) {
+    final defaultContext = (data?['defaultContext'] as String?)?.toLowerCase();
+    final selectedBusinessId =
+        (data?['selectedBusinessId'] as String?)?.trim();
+    final businesses = _businessListFromProfile(data);
+
+    if (defaultContext != null && defaultContext.startsWith('business')) {
+      final businessId = _businessIdFromContext(defaultContext) ??
+          selectedBusinessId ??
+          businesses.firstOrNull?.id;
+      if (businessId != null && businessId.isNotEmpty) {
+        return ResolvedFinanceContext.business(businessId);
+      }
+    }
+
+    final defaultAccountType =
+        (data?['defaultAccountType'] as String?)?.toLowerCase();
+    if (defaultAccountType == 'business') {
+      final businessId = selectedBusinessId ?? businesses.firstOrNull?.id;
+      if (businessId != null && businessId.isNotEmpty) {
+        return ResolvedFinanceContext.business(businessId);
+      }
+    }
+
+    if (businesses.isNotEmpty) {
+      return ResolvedFinanceContext.business(
+        selectedBusinessId ?? businesses.first.id,
+      );
     }
 
     return const ResolvedFinanceContext.business('');

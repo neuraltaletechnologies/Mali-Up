@@ -815,6 +815,17 @@ class _FinanceContextSwitcher extends StatelessWidget {
             : 'Business Context';
   }
 
+  /// Returns the first meaningful word for compact display in the navbar.
+  /// e.g. "Neuraltale Electronics Ltd" → "Neuraltale"
+  ///      "AB Shop" → "AB Shop" (first word is too short, keep two words)
+  static String _shortName(String name) {
+    final words = name.trim().split(RegExp(r'\s+'));
+    if (words.isEmpty) return name;
+    final first = words.first;
+    if (first.length >= 4 || words.length == 1) return first;
+    return words.take(2).join(' ');
+  }
+
   Future<void> _openBusinessSwitcherSheet(
     BuildContext context,
     String? selectedBusinessId,
@@ -929,9 +940,8 @@ class _FinanceContextSwitcher extends StatelessWidget {
         }
       }
     }
-    final label = (selectedBusiness?['name'] as String?)?.trim().isNotEmpty == true
-        ? (selectedBusiness!['name'] as String).trim()
-        : tr('Business', 'Biashara');
+    final rawName = (selectedBusiness?['name'] as String?)?.trim() ?? '';
+    final label = rawName.isNotEmpty ? _shortName(rawName) : tr('Business', 'Biashara');
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
