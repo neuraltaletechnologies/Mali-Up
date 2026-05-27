@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -59,7 +61,6 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     super.dispose();
   }
 
-  // ── Step 1: validate PIN and advance to confirm step ───────────────────────
   void _advanceToConfirm() {
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
     final err = OnboardingValidator.validatePin(_pinCtrl.text, isSwahili: sw);
@@ -71,16 +72,15 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
       _pinHasError = false;
       _showConfirm = true;
     });
-    // Slight delay so the UI rebuilds before requesting focus
     Future.delayed(const Duration(milliseconds: 80), () {
       if (mounted) FocusScope.of(context).requestFocus(_confirmFocus);
     });
   }
 
-  // ── Step 2: confirm PIN matches, then save ─────────────────────────────────
   Future<void> _submitConfirm() async {
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
-    final err = OnboardingValidator.validatePin(_confirmCtrl.text, isSwahili: sw);
+    final err =
+        OnboardingValidator.validatePin(_confirmCtrl.text, isSwahili: sw);
     if (err != null || _confirmCtrl.text != _pinCtrl.text) {
       setState(() => _confirmHasError = true);
       return;
@@ -107,64 +107,213 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
     });
   }
 
+  Future<void> _openWhatsAppHelp(bool sw) async {
+    final message = Uri.encodeComponent(
+      sw
+          ? 'Habari Mali App Help Desk, nahitaji msaada wa kuweka PIN.'
+          : 'Hello Mali App Help Desk, I need help setting up my PIN.',
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(sw
+              ? 'Hatukuweza kufungua WhatsApp sasa.'
+              : 'We could not open WhatsApp right now.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
     final sw = state.isSwahili;
+    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    return OnboardingScaffold(
-      onBack: _showConfirm
-          ? _backToPin
-          : () => context.go(AppRoutes.business),
-      child: FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(
-          position: _slide,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 320),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.08, 0),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // Header image
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: topHeight,
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
               ),
             ),
-            child: _showConfirm
-                ? _ConfirmPinBody(
-                    key: const ValueKey('confirm'),
-                    sw: sw,
-                    controller: _confirmCtrl,
-                    focusNode: _confirmFocus,
-                    hasError: _confirmHasError,
-                    isLoading: state.isLoading,
-                    errorMessage: state.errorMessage,
-                    onChanged: (_) {
-                      if (_confirmHasError) {
-                        setState(() => _confirmHasError = false);
-                      }
-                    },
-                    onComplete: _submitConfirm,
-                    onSubmit: _submitConfirm,
-                  )
-                : _SetPinBody(
-                    key: const ValueKey('set'),
-                    sw: sw,
-                    controller: _pinCtrl,
-                    focusNode: _pinFocus,
-                    hasError: _pinHasError,
-                    onChanged: (_) {
-                      if (_pinHasError) setState(() => _pinHasError = false);
-                    },
-                    onComplete: _advanceToConfirm,
-                    onSubmit: _advanceToConfirm,
-                  ),
           ),
-        ),
+
+          // Top navigation bar
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed:
+                        _showConfirm ? _backToPin : () => context.go(AppRoutes.business),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(10),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _openWhatsAppHelp(sw),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: Colors.white,
+                      size: 15,
+                    ),
+                    label: Text(
+                      sw ? 'Msaada' : 'Help',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Main content sheet
+          DraggableScrollableSheet(
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: FadeTransition(
+                    opacity: _fade,
+                    child: SlideTransition(
+                      position: _slide,
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        physics: const ClampingScrollPhysics(),
+                        padding:
+                            const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Handle bar
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(bottom: 20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.border,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+
+                            // Animated content switcher
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 320),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeIn,
+                              transitionBuilder: (child, animation) =>
+                                  FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0.08, 0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              ),
+                              child: _showConfirm
+                                  ? _ConfirmPinBody(
+                                      key: const ValueKey('confirm'),
+                                      sw: sw,
+                                      controller: _confirmCtrl,
+                                      focusNode: _confirmFocus,
+                                      hasError: _confirmHasError,
+                                      isLoading: state.isLoading,
+                                      errorMessage: state.errorMessage,
+                                      onChanged: (_) {
+                                        if (_confirmHasError) {
+                                          setState(
+                                              () => _confirmHasError = false);
+                                        }
+                                      },
+                                      onComplete: _submitConfirm,
+                                      onSubmit: _submitConfirm,
+                                    )
+                                  : _SetPinBody(
+                                      key: const ValueKey('set'),
+                                      sw: sw,
+                                      controller: _pinCtrl,
+                                      focusNode: _pinFocus,
+                                      hasError: _pinHasError,
+                                      onChanged: (_) {
+                                        if (_pinHasError) {
+                                          setState(() => _pinHasError = false);
+                                        }
+                                      },
+                                      onComplete: _advanceToConfirm,
+                                      onSubmit: _advanceToConfirm,
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -197,11 +346,9 @@ class _SetPinBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
-
         Text(
           sw ? 'Linda akaunti yako 🔐' : 'Secure your account 🔐',
-          style: const TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 26,
             fontWeight: FontWeight.w800,
             color: AppColors.navyPrimary,
@@ -214,7 +361,7 @@ class _SetPinBody extends StatelessWidget {
           sw
               ? 'Tengeneza PIN ya tarakimu 4 utakayotumia kufikia Mali Up.'
               : 'Create a 4-digit PIN you\'ll use to access Mali Up.',
-          style: const TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 14,
             color: AppColors.textMuted,
             height: 1.5,
@@ -227,7 +374,7 @@ class _SetPinBody extends StatelessWidget {
             children: [
               Text(
                 sw ? 'Ingiza PIN mpya' : 'Enter new PIN',
-                style: const TextStyle(
+                style: GoogleFonts.poppins(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textMuted,
@@ -248,15 +395,34 @@ class _SetPinBody extends StatelessWidget {
 
         if (hasError) ...[
           const SizedBox(height: 16),
-          const OnboardingErrorBanner(
-              message: 'PIN must be 4 digits.'),
+          const OnboardingErrorBanner(message: 'PIN must be 4 digits.'),
         ],
 
         const SizedBox(height: 36),
 
-        OnboardingPrimaryButton(
-          label: sw ? 'Endelea' : 'Continue',
-          onPressed: onSubmit,
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 4,
+              shadowColor: AppColors.primary.withValues(alpha: 0.3),
+              minimumSize: const Size.fromHeight(52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: onSubmit,
+            child: Text(
+              sw ? 'Endelea' : 'Continue',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+          ),
         ),
         const SizedBox(height: 24),
       ],
@@ -295,11 +461,9 @@ class _ConfirmPinBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
-
         Text(
           sw ? 'Thibitisha PIN yako ✓' : 'Confirm your PIN ✓',
-          style: const TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 26,
             fontWeight: FontWeight.w800,
             color: AppColors.navyPrimary,
@@ -312,7 +476,7 @@ class _ConfirmPinBody extends StatelessWidget {
           sw
               ? 'Ingiza tena PIN yako ili ithibitishwe.'
               : 'Enter your PIN once more to confirm it.',
-          style: const TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 14,
             color: AppColors.textMuted,
             height: 1.5,
@@ -325,7 +489,7 @@ class _ConfirmPinBody extends StatelessWidget {
             children: [
               Text(
                 sw ? 'Thibitisha PIN' : 'Confirm PIN',
-                style: const TextStyle(
+                style: GoogleFonts.poppins(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textMuted,
@@ -360,14 +524,38 @@ class _ConfirmPinBody extends StatelessWidget {
 
         const SizedBox(height: 36),
 
-        OnboardingPrimaryButton(
-          label: isLoading
-              ? (sw ? 'Inahifadhi...' : 'Saving...')
-              : (sw ? 'Hifadhi & Endelea' : 'Save & Continue'),
-          onPressed: isLoading ? null : onSubmit,
-          isLoading: isLoading,
-          color: AppColors.navyPrimary,
-          textColor: Colors.white,
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navyPrimary,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: AppColors.navyPrimary.withValues(alpha: 0.3),
+              minimumSize: const Size.fromHeight(52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: isLoading ? null : onSubmit,
+            child: isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                    sw ? 'Hifadhi & Endelea' : 'Save & Continue',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+          ),
         ),
         const SizedBox(height: 24),
       ],
