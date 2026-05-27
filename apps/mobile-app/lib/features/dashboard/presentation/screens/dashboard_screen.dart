@@ -1654,6 +1654,7 @@ class _RevStat extends StatelessWidget {
   const _RevStat({
     required this.label,
     required this.value,
+    this.highlight = false,
   });
 
   @override
