@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../domain/models/budget.dart';
-import '../domain/models/expense.dart';
-import '../domain/models/cash_account.dart';
-import '../domain/models/recurring_expense_template.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/data/repositories/context_firestore_repository.dart';
 import '../../customer/data/customer_providers.dart';
+import '../domain/models/budget.dart';
+import '../domain/models/cash_account.dart';
+import '../domain/models/expense.dart';
+import '../domain/models/recurring_expense_template.dart';
 
 // ── Selected month for expense screen navigation ──────────────────────────────
 
@@ -28,10 +30,16 @@ final expenseListProvider = StreamProvider<List<Expense>>((ref) async* {
     yield const <Expense>[];
     return;
   }
-
-  final repository = ref.watch(contextFirestoreRepositoryProvider);
-  final context = await repository.resolveContextForUser(user.uid);
-  yield* repository.watchExpenses(uid: user.uid, context: context);
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <Expense>[];
+    return;
+  }
+  final repository = ref.read(contextFirestoreRepositoryProvider);
+  yield* repository.watchExpenses(
+    uid: user.uid,
+    context: ResolvedFinanceContext.business(bizId),
+  );
 });
 
 /// Expenses filtered to the currently selected month.
@@ -94,11 +102,15 @@ final budgetStreamProvider = StreamProvider<List<Budget>>((ref) async* {
     yield const <Budget>[];
     return;
   }
-  final repo = ref.watch(contextFirestoreRepositoryProvider);
-  final ctx = await repo.resolveContextForUser(user.uid);
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <Budget>[];
+    return;
+  }
+  final repo = ref.read(contextFirestoreRepositoryProvider);
   final col = repo.scopeCollection(
     uid: user.uid,
-    context: ctx,
+    context: ResolvedFinanceContext.business(bizId),
     childCollection: 'budgets',
   );
   yield* col.snapshots().map(
@@ -134,10 +146,11 @@ Future<void> saveBudget({
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
   final repo = container.read(contextFirestoreRepositoryProvider);
-  final ctx = await repo.resolveContextForUser(user.uid);
+  final bizId = container.read(currentBusinessIdProvider).valueOrNull ?? '';
+  if (bizId.isEmpty) return;
   final col = repo.scopeCollection(
     uid: user.uid,
-    context: ctx,
+    context: ResolvedFinanceContext.business(bizId),
     childCollection: 'budgets',
   );
   // Upsert: find existing doc for category/month/year
@@ -171,11 +184,17 @@ final recurringTemplateListProvider =
     yield const <RecurringExpenseTemplate>[];
     return;
   }
-
-  final repository = ref.watch(contextFirestoreRepositoryProvider);
-  final context = await repository.resolveContextForUser(user.uid);
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <RecurringExpenseTemplate>[];
+    return;
+  }
+  final repository = ref.read(contextFirestoreRepositoryProvider);
   yield* repository
-      .watchRecurringTemplates(uid: user.uid, context: context)
+      .watchRecurringTemplates(
+        uid: user.uid,
+        context: ResolvedFinanceContext.business(bizId),
+      )
       .map((list) => list
           .map((m) => RecurringExpenseTemplate.fromMap(m, m['id'] as String))
           .toList());
@@ -189,8 +208,14 @@ final cashAccountListProvider = StreamProvider<List<CashAccount>>((ref) async* {
     yield const <CashAccount>[];
     return;
   }
-
-  final repository = ref.watch(contextFirestoreRepositoryProvider);
-  final context = await repository.resolveContextForUser(user.uid);
-  yield* repository.watchCashAccounts(uid: user.uid, context: context);
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <CashAccount>[];
+    return;
+  }
+  final repository = ref.read(contextFirestoreRepositoryProvider);
+  yield* repository.watchCashAccounts(
+    uid: user.uid,
+    context: ResolvedFinanceContext.business(bizId),
+  );
 });
