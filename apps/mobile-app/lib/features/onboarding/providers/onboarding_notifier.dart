@@ -99,6 +99,8 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
             teamOwnerUid: t.ownerUid,
             businessId: t.businessId,
             businessName: t.businessName,
+            inviteId: t.inviteId,
+            memberEmail: t.email,
             firstName: parts.isNotEmpty ? parts.first : t.name,
             lastName: parts.length > 1 ? parts.skip(1).join(' ') : '',
             role: t.role,
@@ -169,12 +171,14 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     );
   }
 
-  /// Team member chose "that's not me" — reset and start fresh as a new user.
+  /// Team member chose "start fresh" — clear invite state and route to new user.
   void startOverFromTeamMember() {
     state = state.copyWith(
       isTeamMember: false,
       teamMemberId: '',
       teamOwnerUid: '',
+      inviteId: '',
+      memberEmail: '',
       firstName: '',
       lastName: '',
       role: '',
@@ -184,6 +188,21 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       currentStep: OnboardingStep.newUserInfo,
       clearError: true,
     );
+  }
+
+  // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
+
+  /// Sends PIN recovery instructions. Returns the real email on file (if any).
+  Future<String?> sendPinRecovery() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final email = await _service.sendPinRecovery(phone: state.phone);
+      state = state.copyWith(isLoading: false);
+      return email;
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+      return null;
+    }
   }
 
   /// Saves the team member's first-time PIN, creates their account, and
@@ -199,6 +218,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         ownerUid: state.teamOwnerUid,
         businessId: state.businessId,
         memberId: state.teamMemberId,
+        inviteId: state.inviteId,
       );
       state = state.copyWith(
         pin: pin,

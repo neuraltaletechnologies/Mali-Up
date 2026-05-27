@@ -32,13 +32,13 @@ class OnboardingRepository {
 
   // ─── LOOKUP ───────────────────────────────────────────────────────────────
 
-  /// Searches first the `users` collection, then the `team_members` collection
-  /// group, for a document matching [phone].
+  /// Searches for a document matching [phone].
   ///
   /// Priority:
-  ///   1. Found in `users`           → [ReturningUser]  (already has PIN)
-  ///   2. Found in `team_members`    → [TeamMemberPending] (needs to set PIN)
-  ///   3. Not found                  → [NewUser]
+  ///   1. Found in `users`            → [ReturningUser]  (already has PIN)
+  ///   2. Found in `pendingInvites`   → [TeamMemberPending] (invite, no PIN yet)
+  ///   3. Found in `team_members`     → [TeamMemberPending] (legacy, no inviteId)
+  ///   4. Not found                   → [NewUser]
   ///
   /// On any Firestore error the method silently returns [NewUser] and logs.
   Future<UserLookupResult> lookupByPhone(String phone) async {
@@ -89,7 +89,31 @@ class OnboardingRepository {
         );
       }
 
-      // ── 2. Check team_members collection group ────────────────────────────
+      // ── 2. Check pendingInvites top-level collection (fast, no index needed)
+      final inviteSnap = await _db
+          .collection('pendingInvites')
+          .where('phoneNumber', isEqualTo: phone)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+
+      if (inviteSnap.docs.isNotEmpty) {
+        final inviteDoc = inviteSnap.docs.first;
+        final invite = inviteDoc.data();
+
+        return TeamMemberPending(
+          memberId: (invite['memberId'] as String?) ?? '',
+          name: (invite['fullName'] as String?) ?? '',
+          role: (invite['role'] as String?) ?? '',
+          businessName: (invite['businessName'] as String?) ?? '',
+          ownerUid: (invite['ownerUid'] as String?) ?? '',
+          businessId: (invite['businessId'] as String?) ?? '',
+          inviteId: inviteDoc.id,
+          email: (invite['email'] as String?) ?? '',
+        );
+      }
+
+      // ── 3. Fallback: check team_members collectionGroup (legacy records) ──
       final memberSnap = await _db
           .collectionGroup('team_members')
           .where('phone', isEqualTo: phone)
@@ -105,7 +129,6 @@ class OnboardingRepository {
         final ownerUid = pathSegments.length > 1 ? pathSegments[1] : '';
         final bizId = pathSegments.length > 3 ? pathSegments[3] : '';
 
-        // Fetch business name for the owner
         String bizName = '';
         if (ownerUid.isNotEmpty && bizId.isNotEmpty) {
           try {
@@ -126,6 +149,7 @@ class OnboardingRepository {
           businessName: bizName,
           ownerUid: ownerUid,
           businessId: bizId,
+          email: (memberData['email'] as String?) ?? '',
         );
       }
 
@@ -154,10 +178,9 @@ class OnboardingRepository {
 
   // ─── AUTH — TEAM MEMBER FIRST-TIME SETUP ─────────────────────────────────
 
-  /// Creates a Firebase Auth account for a team member and writes their user
-  /// document to `users/{uid}`, then marks the team member record as active.
-  ///
-  /// Called when a [TeamMemberPending] user sets up their PIN for the first time.
+  /// Creates a Firebase Auth account for a team member, writes their user
+  /// document to `users/{uid}`, marks the `team_members` record as active,
+  /// and marks the `pendingInvites` record as accepted (if [inviteId] given).
   Future<void> createTeamMemberAccount({
     required String phone,
     required String pin,
@@ -166,6 +189,7 @@ class OnboardingRepository {
     required String ownerUid,
     required String businessId,
     required String memberId,
+    String inviteId = '',
   }) async {
     final email = _emailFromPhone(phone);
     final password = buildAuthPasswordFromPin(pin);
@@ -194,7 +218,7 @@ class OnboardingRepository {
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
 
-    // Mark team member record as active
+    // Mark team_member record as active
     if (ownerUid.isNotEmpty && businessId.isNotEmpty && memberId.isNotEmpty) {
       try {
         await _db
@@ -212,6 +236,51 @@ class OnboardingRepository {
       } catch (e) {
         if (kDebugMode) debugPrint('[createTeamMemberAccount] activate: $e');
       }
+    }
+
+    // Mark pendingInvite as accepted
+    if (inviteId.isNotEmpty) {
+      try {
+        await _db.collection('pendingInvites').doc(inviteId).update({
+          'status': 'accepted',
+          'pinCreated': true,
+          'acceptedAt': FieldValue.serverTimestamp(),
+          'uid': uid,
+        });
+      } catch (e) {
+        if (kDebugMode) debugPrint('[createTeamMemberAccount] invite: $e');
+      }
+    }
+  }
+
+  // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
+
+  /// Looks up the email stored against this phone number and sends a Firebase
+  /// Auth password-reset email to the derived auth address.
+  /// Returns the real email found (for display), or null if nothing was found.
+  Future<String?> sendPinRecovery({required String phone}) async {
+    try {
+      // Fetch the real email stored in Firestore
+      final userSnap = await _db
+          .collection('users')
+          .where('phone', isEqualTo: phone)
+          .limit(1)
+          .get();
+
+      String? realEmail;
+      if (userSnap.docs.isNotEmpty) {
+        realEmail =
+            userSnap.docs.first.data()['email'] as String?;
+      }
+
+      // Send reset to the derived Firebase Auth email
+      final authEmail = _emailFromPhone(phone);
+      await _auth.sendPasswordResetEmail(email: authEmail);
+
+      return realEmail;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[sendPinRecovery] $e');
+      return null;
     }
   }
 

@@ -406,7 +406,8 @@ class ContextFirestoreRepository {
         .toList());
   }
 
-  Future<void> addTeamMember({
+  /// Returns the new document reference so callers can use the generated ID.
+  Future<DocumentReference<Map<String, dynamic>>> addTeamMember({
     required String uid,
     required ResolvedFinanceContext context,
     required Map<String, dynamic> data,
@@ -441,6 +442,47 @@ class ContextFirestoreRepository {
       context: context,
       childCollection: 'team_members',
     ).doc(memberId).delete();
+  }
+
+  // ── Pending invites (top-level collection for easy phone lookup) ─────────────
+
+  /// Writes a new pending invite document. Returns the auto-generated ID.
+  Future<String> writePendingInvite({
+    required Map<String, dynamic> inviteData,
+  }) async {
+    final ref = await _firestore.collection('pendingInvites').add(inviteData);
+    return ref.id;
+  }
+
+  /// Updates an existing pending invite (e.g., mark as accepted).
+  Future<void> updatePendingInvite({
+    required String inviteId,
+    required Map<String, dynamic> data,
+  }) {
+    return _firestore
+        .collection('pendingInvites')
+        .doc(inviteId)
+        .update(data);
+  }
+
+  /// Fetches the display name for the current business context.
+  Future<String> getBusinessName({
+    required String uid,
+    required ResolvedFinanceContext context,
+  }) async {
+    final bizId = context.businessId;
+    if (bizId == null || bizId.isEmpty) return '';
+    try {
+      final doc = await _firestore
+          .collection('tenants')
+          .doc(uid)
+          .collection('businesses')
+          .doc(bizId)
+          .get();
+      return (doc.data()?['businessName'] as String?) ?? '';
+    } catch (_) {
+      return '';
+    }
   }
 
   CollectionReference<Map<String, dynamic>> _scopeCollection({

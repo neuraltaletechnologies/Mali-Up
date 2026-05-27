@@ -62,7 +62,7 @@ class OnboardingService {
   // ─── SCREEN 4B — TEAM MEMBER FIRST-TIME SETUP ────────────────────────────
 
   /// Creates a Firebase Auth account + user document for a pending team member,
-  /// then marks onboarding complete.
+  /// marks the invite record as accepted, then marks onboarding complete.
   Future<void> setupTeamMemberPin({
     required String phone,
     required String pin,
@@ -71,6 +71,7 @@ class OnboardingService {
     required String ownerUid,
     required String businessId,
     required String memberId,
+    String inviteId = '',
   }) async {
     await _repository.createTeamMemberAccount(
       phone: phone,
@@ -80,8 +81,16 @@ class OnboardingService {
       ownerUid: ownerUid,
       businessId: businessId,
       memberId: memberId,
+      inviteId: inviteId,
     );
     await completeOnboarding();
+  }
+
+  // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
+
+  /// Triggers a PIN recovery flow. Returns the real email on file (if any).
+  Future<String?> sendPinRecovery({required String phone}) {
+    return _repository.sendPinRecovery(phone: phone);
   }
 
   // ─── SCREEN 6 — NEW OWNER ACCOUNT CREATION ───────────────────────────────
