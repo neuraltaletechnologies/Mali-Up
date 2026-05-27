@@ -237,10 +237,15 @@ List<RouteBase> _buildRoutes() {
     // ── Screen 3 — Phone Entry ───────────────────────────────────────────────
     GoRoute(
       path: AppRoutes.phone,
-      pageBuilder: (context, state) => _authPage(
-        state,
-        const PhoneEntryScreen(),
-      ),
+      pageBuilder: (context, state) {
+        final extra = state.extra;
+        final isSwitchAccount =
+            extra is Map && extra['switchAccount'] == true;
+        return _authPage(
+          state,
+          PhoneEntryScreen(isSwitchAccount: isSwitchAccount),
+        );
+      },
     ),
 
     // ── Screen 4A — PIN Login ────────────────────────────────────────────────

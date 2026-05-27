@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,29 +74,53 @@ class MaliUpApp extends StatefulWidget {
 class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
   late final GoRouter _router;
 
+  // True when the app was launched with the lock screen active (PIN lock set).
+  late final bool _startedLocked;
+  // Flipped to true after the first post-unlock navigation so subsequent
+  // lock/unlock cycles (app backgrounded and resumed) don't force a redirect.
+  bool _navigatedAfterFirstUnlock = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _startedLocked = SecurityService.isLockedNotifier.value;
     _router = AppRouter.createRouter(
       showLanguageSelection: !widget.hasSelectedLanguage,
       showOnboarding:
           !widget.hasCompletedOnboarding && widget.hasSelectedLanguage,
     );
+    SecurityService.isLockedNotifier.addListener(_onLockStateChanged);
   }
 
   @override
   void dispose() {
+    SecurityService.isLockedNotifier.removeListener(_onLockStateChanged);
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
     super.dispose();
   }
 
-  // Lock the app whenever it moves to the background.
+  // When the app was started locked and the user just verified their PIN,
+  // skip the splash screen and go straight to the dashboard.
+  void _onLockStateChanged() {
+    if (!SecurityService.isLockedNotifier.value &&
+        _startedLocked &&
+        !_navigatedAfterFirstUnlock) {
+      _navigatedAfterFirstUnlock = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && FirebaseAuth.instance.currentUser != null) {
+          _router.go(AppRoutes.dashboard);
+        }
+      });
+    }
+  }
+
+  // Lock only when fully backgrounded — not on transient inactive states
+  // (notification shade, volume overlay, app switcher, etc.).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused) {
       SecurityService.lockApp();
     }
   }
