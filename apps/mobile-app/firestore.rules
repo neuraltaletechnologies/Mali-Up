@@ -207,6 +207,36 @@ service cloud.firestore {
         (!data.keys().hasAny(['paymentMethod']) || data.paymentMethod is string);
     }
 
+    // Top-level pending invite used for pre-auth phone lookup.
+    function isValidPendingInviteCreate(data) {
+      return data.keys().hasAll([
+          'businessId',
+          'businessName',
+          'fullName',
+          'phoneNumber',
+          'role',
+          'invitedBy',
+          'ownerUid',
+          'memberId',
+          'status',
+          'pinCreated'
+        ]) &&
+        data.businessId is string &&
+        data.businessName is string &&
+        data.fullName is string &&
+        data.phoneNumber is string &&
+        data.role is string &&
+        data.invitedBy is string &&
+        data.ownerUid is string &&
+        data.memberId is string &&
+        data.status == 'pending' &&
+        data.pinCreated == false &&
+        data.ownerUid == request.auth.uid &&
+        data.invitedBy == request.auth.uid &&
+        (!data.keys().hasAny(['email']) || data.email is string) &&
+        (!data.keys().hasAny(['createdAt']) || data.createdAt is timestamp);
+    }
+
     // =========================================================================
     // USER PROFILES
     // =========================================================================
@@ -432,6 +462,30 @@ service cloud.firestore {
       // Public read for bootstrap data; writes restricted to CMS/admins.
       allow read: if true;
       allow write: if isCms();
+    }
+
+    // =========================================================================
+    // TOP-LEVEL PENDING INVITES (staff onboarding lookup)
+    // =========================================================================
+    match /pendingInvites/{inviteId} {
+      // Owner can read own invites; unauthenticated phone lookup allowed with
+      // strict limit to prevent scans.
+      allow get: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow list: if isSignedIn() ||
+        (request.auth == null && isLimitedLookup());
+
+      // Owner creates invite.
+      allow create: if isSignedIn() &&
+        isValidPendingInviteCreate(request.resource.data);
+
+      // Owner can manage invite lifecycle, and accepted team member can mark
+      // their own invite as accepted by attaching their UID.
+      allow update: if isSignedIn() && (
+        resource.data.ownerUid == request.auth.uid ||
+        request.resource.data.uid == request.auth.uid
+      );
+
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
     }
 
     // =========================================================================
