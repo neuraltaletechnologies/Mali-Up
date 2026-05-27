@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -67,7 +69,6 @@ class _TeamMemberSetupScreenState
     final sw = state.isSwahili;
     final businessName = state.businessName;
 
-    // Show security warning modal before allowing a fresh account
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       useRootNavigator: true,
@@ -97,7 +98,8 @@ class _TeamMemberSetupScreenState
 
   Future<void> _savePin() async {
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
-    final err = OnboardingValidator.validatePin(_confirmCtrl.text, isSwahili: sw);
+    final err =
+        OnboardingValidator.validatePin(_confirmCtrl.text, isSwahili: sw);
     if (err != null || _confirmCtrl.text != _pinCtrl.text) {
       setState(() => _confirmHasError = true);
       return;
@@ -126,71 +128,221 @@ class _TeamMemberSetupScreenState
     return () => context.go(AppRoutes.phone);
   }
 
+  Future<void> _openWhatsAppHelp(bool sw) async {
+    final message = Uri.encodeComponent(
+      sw
+          ? 'Habari Mali App Help Desk, nahitaji msaada wa mwaliko wa timu.'
+          : 'Hello Mali App Help Desk, I need help with my team invitation.',
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(sw
+              ? 'Hatukuweza kufungua WhatsApp sasa.'
+              : 'We could not open WhatsApp right now.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
     final sw = state.isSwahili;
     final name = state.firstName.isNotEmpty ? state.firstName : state.fullName;
+    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    return OnboardingScaffold(
-      onBack: _onBack,
-      child: FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(
-          position: _slide,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 320),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.08, 0),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // Header image
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: topHeight,
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
               ),
             ),
-            child: _showPinSetup
-                ? _PinSetupBody(
-                    key: const ValueKey('pin'),
-                    sw: sw,
-                    pinCtrl: _pinCtrl,
-                    confirmCtrl: _confirmCtrl,
-                    pinFocus: _pinFocus,
-                    confirmFocus: _confirmFocus,
-                    onConfirmStep: _onConfirmStep,
-                    pinHasError: _pinHasError,
-                    confirmHasError: _confirmHasError,
-                    isLoading: state.isLoading,
-                    errorMessage: state.errorMessage,
-                    onPinChanged: (_) {
-                      if (_pinHasError) setState(() => _pinHasError = false);
-                    },
-                    onConfirmChanged: (_) {
-                      if (_confirmHasError) {
-                        setState(() => _confirmHasError = false);
-                      }
-                    },
-                    onPinComplete: _advanceToConfirm,
-                    onConfirmComplete: _savePin,
-                    onPinSubmit: _advanceToConfirm,
-                    onConfirmSubmit: _savePin,
-                  )
-                : _InvitationBody(
-                    key: const ValueKey('invite'),
-                    sw: sw,
-                    name: name,
-                    role: state.role,
-                    businessName: state.businessName,
-                    isLoading: state.isLoading,
-                    errorMessage: state.errorMessage,
-                    onContinue: _continueAsTeamMember,
-                    onStartOver: _startOver,
-                  ),
           ),
-        ),
+
+          // Top navigation bar
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: _onBack,
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(10),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _openWhatsAppHelp(sw),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: Colors.white,
+                      size: 15,
+                    ),
+                    label: Text(
+                      sw ? 'Msaada' : 'Help',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Main content sheet
+          DraggableScrollableSheet(
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: FadeTransition(
+                    opacity: _fade,
+                    child: SlideTransition(
+                      position: _slide,
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        physics: const ClampingScrollPhysics(),
+                        padding:
+                            const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Handle bar
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(bottom: 20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.border,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+
+                            // Animated content switcher
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 320),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeIn,
+                              transitionBuilder: (child, animation) =>
+                                  FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0.08, 0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              ),
+                              child: _showPinSetup
+                                  ? _PinSetupBody(
+                                      key: ValueKey('pin_$_onConfirmStep'),
+                                      sw: sw,
+                                      pinCtrl: _pinCtrl,
+                                      confirmCtrl: _confirmCtrl,
+                                      pinFocus: _pinFocus,
+                                      confirmFocus: _confirmFocus,
+                                      onConfirmStep: _onConfirmStep,
+                                      pinHasError: _pinHasError,
+                                      confirmHasError: _confirmHasError,
+                                      isLoading: state.isLoading,
+                                      errorMessage: state.errorMessage,
+                                      onPinChanged: (_) {
+                                        if (_pinHasError) {
+                                          setState(() => _pinHasError = false);
+                                        }
+                                      },
+                                      onConfirmChanged: (_) {
+                                        if (_confirmHasError) {
+                                          setState(
+                                              () => _confirmHasError = false);
+                                        }
+                                      },
+                                      onPinComplete: _advanceToConfirm,
+                                      onConfirmComplete: _savePin,
+                                      onPinSubmit: _advanceToConfirm,
+                                      onConfirmSubmit: _savePin,
+                                    )
+                                  : _InvitationBody(
+                                      key: const ValueKey('invite'),
+                                      sw: sw,
+                                      name: name,
+                                      role: state.role,
+                                      businessName: state.businessName,
+                                      isLoading: state.isLoading,
+                                      errorMessage: state.errorMessage,
+                                      onContinue: _continueAsTeamMember,
+                                      onStartOver: _startOver,
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -225,8 +377,6 @@ class _InvitationBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 20),
-
         // Invitation icon
         Container(
           width: 52,
@@ -242,14 +392,16 @@ class _InvitationBody extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(Icons.card_membership_rounded,
-              color: AppColors.navyPrimary, size: 26),
+          child: const Icon(
+            Icons.group_add_rounded,
+            color: AppColors.navyPrimary,
+            size: 26,
+          ),
         ),
         const SizedBox(height: 20),
-
         Text(
           sw ? 'Tumepata mwaliko wako 🎉' : 'We found your invitation 🎉',
-          style: const TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 26,
             fontWeight: FontWeight.w800,
             color: AppColors.navyPrimary,
@@ -262,7 +414,7 @@ class _InvitationBody extends StatelessWidget {
           sw
               ? 'Uliombwa kujiunga na biashara hii kama mwanachama wa timu.'
               : 'You\'ve been invited to join this business as a team member.',
-          style: const TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 14,
             color: AppColors.textMuted,
             height: 1.5,
@@ -288,7 +440,6 @@ class _InvitationBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Business name row
               Row(
                 children: [
                   Container(
@@ -332,8 +483,7 @@ class _InvitationBody extends StatelessWidget {
 
               if (role.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                Divider(
-                    height: 1, color: Colors.white.withValues(alpha: 0.12)),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.12)),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -369,8 +519,7 @@ class _InvitationBody extends StatelessWidget {
 
               if (name.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                Divider(
-                    height: 1, color: Colors.white.withValues(alpha: 0.12)),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.12)),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -406,12 +555,40 @@ class _InvitationBody extends StatelessWidget {
         ],
 
         // Primary CTA
-        OnboardingPrimaryButton(
-          label: sw
-              ? 'Endelea na akaunti hii'
-              : 'Continue with this account',
-          onPressed: isLoading ? null : onContinue,
-          isLoading: isLoading,
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 4,
+              shadowColor: AppColors.primary.withValues(alpha: 0.3),
+              minimumSize: const Size.fromHeight(52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: isLoading ? null : onContinue,
+            child: isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.navyPrimary,
+                    ),
+                  )
+                : Text(
+                    sw
+                        ? 'Endelea na akaunti hii'
+                        : 'Continue with this account',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+          ),
         ),
         const SizedBox(height: 12),
 
@@ -436,7 +613,7 @@ class _InvitationBody extends StatelessWidget {
   }
 }
 
-// ── PIN setup body (reused for both set + confirm steps) ─────────────────────
+// ── PIN setup body ────────────────────────────────────────────────────────────
 
 class _PinSetupBody extends StatelessWidget {
   const _PinSetupBody({
@@ -482,8 +659,6 @@ class _PinSetupBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 20),
-
         Container(
           width: 52,
           height: 52,
@@ -498,16 +673,18 @@ class _PinSetupBody extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(Icons.lock_rounded,
-              color: AppColors.yellowBrand, size: 26),
+          child: const Icon(
+            Icons.lock_rounded,
+            color: AppColors.yellowBrand,
+            size: 26,
+          ),
         ),
         const SizedBox(height: 20),
-
         Text(
           isConfirm
               ? (sw ? 'Thibitisha PIN yako ✓' : 'Confirm your PIN ✓')
               : (sw ? 'Weka PIN yako 🔐' : 'Set your PIN 🔐'),
-          style: const TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 26,
             fontWeight: FontWeight.w800,
             color: AppColors.navyPrimary,
@@ -524,7 +701,7 @@ class _PinSetupBody extends StatelessWidget {
               : (sw
                   ? 'Tengeneza PIN ya tarakimu 4 utakayotumia kuingia.'
                   : 'Create a 4-digit PIN to access your account.'),
-          style: const TextStyle(
+          style: GoogleFonts.poppins(
             fontSize: 14,
             color: AppColors.textMuted,
             height: 1.5,
@@ -539,7 +716,7 @@ class _PinSetupBody extends StatelessWidget {
                 isConfirm
                     ? (sw ? 'Thibitisha PIN' : 'Confirm PIN')
                     : (sw ? 'Ingiza PIN mpya' : 'Enter new PIN'),
-                style: const TextStyle(
+                style: GoogleFonts.poppins(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textMuted,
@@ -561,7 +738,9 @@ class _PinSetupBody extends StatelessWidget {
         if (pinHasError && !isConfirm) ...[
           const SizedBox(height: 16),
           OnboardingErrorBanner(
-              message: sw ? 'PIN lazima iwe tarakimu 4.' : 'PIN must be 4 digits.'),
+              message: sw
+                  ? 'PIN lazima iwe tarakimu 4.'
+                  : 'PIN must be 4 digits.'),
         ],
         if (confirmHasError && isConfirm) ...[
           const SizedBox(height: 16),
@@ -578,16 +757,45 @@ class _PinSetupBody extends StatelessWidget {
 
         const SizedBox(height: 36),
 
-        OnboardingPrimaryButton(
-          label: isConfirm
-              ? (isLoading
-                  ? (sw ? 'Inahifadhi...' : 'Saving...')
-                  : (sw ? 'Hifadhi & Endelea' : 'Save & Continue'))
-              : (sw ? 'Endelea' : 'Continue'),
-          onPressed: isLoading ? null : (isConfirm ? onConfirmSubmit : onPinSubmit),
-          isLoading: isLoading,
-          color: isConfirm ? AppColors.navyPrimary : AppColors.yellowBrand,
-          textColor: isConfirm ? Colors.white : AppColors.navyPrimary,
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  isConfirm ? AppColors.navyPrimary : AppColors.primary,
+              foregroundColor:
+                  isConfirm ? Colors.white : AppColors.navyPrimary,
+              elevation: 4,
+              shadowColor: isConfirm
+                  ? AppColors.navyPrimary.withValues(alpha: 0.3)
+                  : AppColors.primary.withValues(alpha: 0.3),
+              minimumSize: const Size.fromHeight(52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed:
+                isLoading ? null : (isConfirm ? onConfirmSubmit : onPinSubmit),
+            child: isLoading
+                ? SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: isConfirm ? Colors.white : AppColors.navyPrimary,
+                    ),
+                  )
+                : Text(
+                    isConfirm
+                        ? (sw ? 'Hifadhi & Endelea' : 'Save & Continue')
+                        : (sw ? 'Endelea' : 'Continue'),
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+          ),
         ),
         const SizedBox(height: 24),
       ],
@@ -681,7 +889,7 @@ class _StartFreshWarningSheet extends StatelessWidget {
           ),
           const SizedBox(height: 28),
 
-          // Confirm: create new account
+          // Confirm
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -695,7 +903,9 @@ class _StartFreshWarningSheet extends StatelessWidget {
                 elevation: 0,
               ),
               child: Text(
-                sw ? 'Ndiyo, anza akaunti mpya' : 'Yes, create a new account',
+                sw
+                    ? 'Ndiyo, anza akaunti mpya'
+                    : 'Yes, create a new account',
                 style: const TextStyle(
                     fontSize: 15, fontWeight: FontWeight.w700),
               ),
@@ -703,7 +913,7 @@ class _StartFreshWarningSheet extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Cancel: go back to claim invitation
+          // Cancel
           SizedBox(
             width: double.infinity,
             child: TextButton(

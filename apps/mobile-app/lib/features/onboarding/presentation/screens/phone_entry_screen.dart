@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/services/localization_service.dart';
@@ -130,7 +132,6 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     final s = ref.read(onboardingNotifierProvider);
     final saved = s.phone;
     if (saved.isNotEmpty) {
-      // Try to match dial code
       for (final c in _kCountries) {
         if (saved.startsWith(c.dial)) {
           _country = c;
@@ -160,7 +161,6 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     if (!_formKey.currentState!.validate()) return;
 
     final local = _phoneCtrl.text.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    // Strip leading zeros then prepend dial code
     final stripped = local.replaceFirst(RegExp(r'^0+'), '');
     final phone = '${_country.dial}$stripped';
 
@@ -200,8 +200,32 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     );
     if (picked != null && mounted) {
       setState(() => _country = picked);
-      // Re-validate with new country
       _formKey.currentState?.validate();
+    }
+  }
+
+  Future<void> _openWhatsAppHelp(bool sw) async {
+    final message = Uri.encodeComponent(
+      sw
+          ? 'Habari Mali App Help Desk, nahitaji msaada wa kujiandikisha.'
+          : 'Hello Mali App Help Desk, I need help with registration.',
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            sw
+                ? 'Hatukuweza kufungua WhatsApp sasa.'
+                : 'We could not open WhatsApp right now.',
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
     }
   }
 
@@ -209,132 +233,253 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
     final sw = state.isSwahili;
+    final mediaQuery = MediaQuery.of(context);
+    final topHeight = mediaQuery.size.height * 0.35;
 
-    return OnboardingScaffold(
-      onBack: widget.isSwitchAccount ? null : () => context.go(AppRoutes.intro),
-      child: FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(
-          position: _slide,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
+    final headingStyle = GoogleFonts.poppins(
+      fontSize: 28,
+      color: AppColors.textPrimary,
+      fontWeight: FontWeight.w800,
+      height: 1.15,
+      letterSpacing: -0.5,
+    );
+    final subtitleStyle = GoogleFonts.poppins(
+      color: AppColors.textSecondary,
+      fontSize: 14,
+      height: 1.5,
+      fontWeight: FontWeight.w400,
+    );
 
-                // ── Brand mark (switch-account context only) ──────────────
-                if (widget.isSwitchAccount) ...[
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppColors.navyPrimary,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.navyPrimary.withValues(alpha: 0.20),
-                          blurRadius: 16,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // Header image
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: topHeight,
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
+
+          // Top navigation bar
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (!widget.isSwitchAccount)
+                    IconButton(
+                      onPressed: () => context.go(AppRoutes.intro),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: 0.15),
+                        padding: const EdgeInsets.all(10),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 44),
+                  TextButton.icon(
+                    onPressed: () => _openWhatsAppHelp(sw),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: Colors.white,
+                      size: 15,
                     ),
-                    child: Center(
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: const BoxDecoration(
-                          color: AppColors.yellowBrand,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'M',
-                            style: TextStyle(
-                              color: AppColors.navyPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                            ),
+                    label: Text(
+                      sw ? 'Msaada' : 'Help',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Main content sheet
+          DraggableScrollableSheet(
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: FadeTransition(
+                    opacity: _fade,
+                    child: SlideTransition(
+                      position: _slide,
+                      child: Form(
+                        key: _formKey,
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          physics: const ClampingScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Handle bar
+                              Center(
+                                child: Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 20),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.border,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+
+                              // Title
+                              Center(
+                                child: Text(
+                                  OnboardingStrings.s(sw,
+                                      en: OnboardingStrings.phoneTitleEn,
+                                      sw: OnboardingStrings.phoneTitleSw),
+                                  textAlign: TextAlign.center,
+                                  style: headingStyle,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Subtitle
+                              Center(
+                                child: Text(
+                                  OnboardingStrings.s(sw,
+                                      en: OnboardingStrings.phoneSubEn,
+                                      sw: OnboardingStrings.phoneSubSw),
+                                  textAlign: TextAlign.center,
+                                  style: subtitleStyle,
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+
+                              // Phone input
+                              _PhoneInputRow(
+                                country: _country,
+                                controller: _phoneCtrl,
+                                focusNode: _phoneFocus,
+                                isSwahili: sw,
+                                validator: _validatePhone,
+                                onCountryTap: _pickCountry,
+                                onFieldSubmitted: (_) => _submit(),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Icon(Icons.lock_outline_rounded,
+                                      size: 12, color: AppColors.textMuted),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    OnboardingStrings.s(sw,
+                                        en: OnboardingStrings.phoneHelperEn,
+                                        sw: OnboardingStrings.phoneHelperSw),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: AppColors.textMuted),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+
+                              // Error banner
+                              if (state.errorMessage != null) ...[
+                                OnboardingErrorBanner(
+                                    message: state.errorMessage!),
+                                const SizedBox(height: 16),
+                              ],
+
+                              // CTA button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.navyPrimary,
+                                    elevation: 4,
+                                    shadowColor: AppColors.primary
+                                        .withValues(alpha: 0.3),
+                                    minimumSize: const Size.fromHeight(52),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: state.isLoading ? null : _submit,
+                                  child: state.isLoading
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: AppColors.navyPrimary,
+                                          ),
+                                        )
+                                      : Text(
+                                          OnboardingStrings.s(sw,
+                                              en: OnboardingStrings
+                                                  .phoneSendCtaEn,
+                                              sw: OnboardingStrings
+                                                  .phoneSendCtaSw),
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                            ],
                           ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                ],
-
-                // ── Title ─────────────────────────────────────────────────
-                Text(
-                  OnboardingStrings.s(sw,
-                      en: OnboardingStrings.phoneTitleEn,
-                      sw: OnboardingStrings.phoneTitleSw),
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyPrimary,
-                    height: 1.2,
-                    letterSpacing: -0.4,
-                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  OnboardingStrings.s(sw,
-                      en: OnboardingStrings.phoneSubEn,
-                      sw: OnboardingStrings.phoneSubSw),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textMuted,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 36),
-
-                // ── Combined country + phone input ────────────────────────
-                _PhoneInputRow(
-                  country: _country,
-                  controller: _phoneCtrl,
-                  focusNode: _phoneFocus,
-                  isSwahili: sw,
-                  validator: _validatePhone,
-                  onCountryTap: _pickCountry,
-                  onFieldSubmitted: (_) => _submit(),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.lock_outline_rounded,
-                        size: 12, color: AppColors.textMuted),
-                    const SizedBox(width: 5),
-                    Text(
-                      OnboardingStrings.s(sw,
-                          en: OnboardingStrings.phoneHelperEn,
-                          sw: OnboardingStrings.phoneHelperSw),
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.textMuted),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                // ── Error ─────────────────────────────────────────────────
-                if (state.errorMessage != null) ...[
-                  OnboardingErrorBanner(message: state.errorMessage!),
-                  const SizedBox(height: 16),
-                ],
-
-                // ── CTA ───────────────────────────────────────────────────
-                OnboardingPrimaryButton(
-                  label: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.phoneSendCtaEn,
-                      sw: OnboardingStrings.phoneSendCtaSw),
-                  onPressed: state.isLoading ? null : _submit,
-                  isLoading: state.isLoading,
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
+              );
+            },
           ),
-        ),
+        ],
       ),
     );
   }
@@ -495,16 +640,14 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                         fontWeight: FontWeight.w500,
                         color: AppColors.navyPrimary,
                       ),
-                      decoration: InputDecoration(
-                        hintText: widget.isSwahili
-                            ? '7XX XXX XXX'
-                            : '7XX XXX XXX',
-                        hintStyle: const TextStyle(
+                      decoration: const InputDecoration(
+                        hintText: '7XX XXX XXX',
+                        hintStyle: TextStyle(
                           fontSize: 15,
                           color: AppColors.textDisabled,
                         ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
+                        contentPadding: EdgeInsets.symmetric(
                             horizontal: 14, vertical: 15),
                       ),
                     ),

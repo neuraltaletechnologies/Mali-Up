@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
 
@@ -19,12 +21,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
   bool _isContinuing = false;
 
   late AnimationController _entranceCtrl;
-  late Animation<double> _headerFade;
-  late Animation<Offset> _headerSlide;
-  late Animation<double> _cardsFade;
-  late Animation<Offset> _cardsSlide;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
 
-  // Exit animation when navigating away
   late AnimationController _exitCtrl;
   late Animation<double> _exitFade;
 
@@ -42,7 +41,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     );
 
     _entranceCtrl = AnimationController(
-      duration: const Duration(milliseconds: 680),
+      duration: const Duration(milliseconds: 480),
       vsync: this,
     );
     _exitCtrl = AnimationController(
@@ -50,32 +49,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
       vsync: this,
     );
 
-    _headerFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _entranceCtrl,
-        curve: const Interval(0.0, 0.55, curve: Curves.easeOut),
-      ),
-    );
-    _headerSlide = Tween<Offset>(
-      begin: const Offset(0, 0.10),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entranceCtrl,
-      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
-    ));
-    _cardsFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _entranceCtrl,
-        curve: const Interval(0.35, 0.85, curve: Curves.easeOut),
-      ),
-    );
-    _cardsSlide = Tween<Offset>(
-      begin: const Offset(0, 0.12),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entranceCtrl,
-      curve: const Interval(0.35, 0.85, curve: Curves.easeOutCubic),
-    ));
+    _fade = CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(CurvedAnimation(
+            parent: _entranceCtrl, curve: Curves.easeOutCubic));
     _exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn),
     );
@@ -106,93 +83,86 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     if (mounted) widget.onLanguageSelected();
   }
 
+  Future<void> _openWhatsAppHelp() async {
+    final sw = _language == AppLanguage.swahili;
+    final message = Uri.encodeComponent(
+      sw
+          ? 'Habari Mali App Help Desk, nahitaji msaada.'
+          : 'Hello Mali App Help Desk, I need help.',
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final headerH = size.height * 0.42;
+    final topHeight = MediaQuery.of(context).size.height * 0.35;
+
+    final headingStyle = GoogleFonts.poppins(
+      fontSize: 28,
+      color: AppColors.textPrimary,
+      fontWeight: FontWeight.w800,
+      height: 1.15,
+      letterSpacing: -0.5,
+    );
+    final subtitleStyle = GoogleFonts.poppins(
+      color: AppColors.textSecondary,
+      fontSize: 14,
+      height: 1.5,
+      fontWeight: FontWeight.w400,
+    );
 
     return FadeTransition(
       opacity: _exitFade,
       child: Scaffold(
-        backgroundColor: AppColors.navyPrimary,
+        resizeToAvoidBottomInset: true,
+        backgroundColor: AppColors.background,
         body: Stack(
           children: [
-            // ── Navy header area ─────────────────────────────────────────────
+            // Header image
             Positioned(
-              top: 0,
               left: 0,
               right: 0,
-              height: headerH,
-              child: Container(
-                color: AppColors.navyPrimary,
-                child: Stack(
+              top: 0,
+              height: topHeight,
+              child: ClipRect(
+                child: Image.asset(
+                  'assets/Picture/sign_up.png',
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
+              ),
+            ),
+
+            // Top navigation bar (no back on first screen)
+            SafeArea(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // Decorative orbs
-                    Positioned(
-                      right: -70,
-                      top: -50,
-                      child: Container(
-                        width: 220,
-                        height: 220,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.tealAccent.withValues(alpha: 0.07),
+                    TextButton.icon(
+                      onPressed: _openWhatsAppHelp,
+                      icon: const Icon(
+                        Icons.headset_mic_outlined,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                      label: Text(
+                        _tr('Help', 'Msaada'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                    Positioned(
-                      left: -50,
-                      bottom: 30,
-                      child: Container(
-                        width: 160,
-                        height: 160,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.yellowBrand.withValues(alpha: 0.05),
-                        ),
-                      ),
-                    ),
-
-                    // Header content
-                    SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(28, 24, 28, 36),
-                        child: FadeTransition(
-                          opacity: _headerFade,
-                          child: SlideTransition(
-                            position: _headerSlide,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                            
-
-                                Text(
-                                  _tr('Welcome ', 'Karibu '),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.1,
-                                    letterSpacing: -0.6,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  _tr(
-                                    'Choose the language you\'re most comfortable with.',
-                                    'Chagua lugha ambayo unayostarehesha nayo zaidi',
-                                  ),
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.60),
-                                    fontSize: 15,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: 0.12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
                       ),
                     ),
@@ -201,97 +171,166 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
               ),
             ),
 
-            // ── White card sheet ─────────────────────────────────────────────
-            Positioned(
-              top: headerH - 28,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: FadeTransition(
-                    opacity: _cardsFade,
-                    child: SlideTransition(
-                      position: _cardsSlide,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Drag handle
-                            Center(
-                              child: Container(
-                                width: 36,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: AppColors.border,
-                                  borderRadius: BorderRadius.circular(99),
+            // Main content sheet
+            DraggableScrollableSheet(
+              initialChildSize: 0.68,
+              minChildSize: 0.68,
+              maxChildSize: 0.96,
+              builder: (context, scrollController) {
+                return Container(
+                  clipBehavior: Clip.hardEdge,
+                  decoration: const BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(28)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 20,
+                        offset: Offset(0, -5),
+                      ),
+                    ],
+                  ),
+                  child: NotificationListener<OverscrollIndicatorNotification>(
+                    onNotification: (overscroll) {
+                      overscroll.disallowIndicator();
+                      return true;
+                    },
+                    child: FadeTransition(
+                      opacity: _fade,
+                      child: SlideTransition(
+                        position: _slide,
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          physics: const ClampingScrollPhysics(),
+                          padding:
+                              const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Handle bar
+                              Center(
+                                child: Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 20),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.border,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 28),
 
-                            Text(
-                              _tr('Select language', 'Chagua lugha'),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.navyPrimary,
-                                letterSpacing: -0.2,
+                              // Title
+                              Center(
+                                child: Text(
+                                  _tr('Welcome', 'Karibu'),
+                                  textAlign: TextAlign.center,
+                                  style: headingStyle,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _tr(
-                                'You can change this anytime in Settings.',
-                                'Unaweza kubadilisha badaye kwenye Mipangilio.',
+                              const SizedBox(height: 8),
+                              Center(
+                                child: Text(
+                                  _tr(
+                                    'Choose the language you\'re most comfortable with.',
+                                    'Chagua lugha ambayo unayostarehesha nayo zaidi.',
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  style: subtitleStyle,
+                                ),
                               ),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textMuted,
+                              const SizedBox(height: 28),
+
+                              // Section label
+                              Text(
+                                _tr('Select language', 'Chagua lugha'),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navyPrimary,
+                                  letterSpacing: -0.2,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 20),
+                              const SizedBox(height: 4),
+                              Text(
+                                _tr(
+                                  'You can change this anytime in Settings.',
+                                  'Unaweza kubadilisha badaye kwenye Mipangilio.',
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
 
-                            // ── Language cards ─────────────────────────────────
-                            _LanguageCard(
-                              flag: '🇬🇧',
-                              name: 'English',
-                              nativeName: 'Continue in English',
-                              selected: _language == AppLanguage.english,
-                              enabled: !_isContinuing,
-                              onTap: () => _selectLanguage(AppLanguage.english),
-                            ),
-                            const SizedBox(height: 12),
-                            _LanguageCard(
-                              flag: '🇹🇿',
-                              name: 'Kiswahili',
-                              nativeName: 'Endelea kwa Kiswahili',
-                              selected: _language == AppLanguage.swahili,
-                              enabled: !_isContinuing,
-                              onTap: () => _selectLanguage(AppLanguage.swahili),
-                            ),
+                              // Language cards
+                              _LanguageCard(
+                                flag: '🇬🇧',
+                                name: 'English',
+                                nativeName: 'Continue in English',
+                                selected: _language == AppLanguage.english,
+                                enabled: !_isContinuing,
+                                onTap: () =>
+                                    _selectLanguage(AppLanguage.english),
+                              ),
+                              const SizedBox(height: 12),
+                              _LanguageCard(
+                                flag: '🇹🇿',
+                                name: 'Kiswahili',
+                                nativeName: 'Endelea kwa Kiswahili',
+                                selected: _language == AppLanguage.swahili,
+                                enabled: !_isContinuing,
+                                onTap: () =>
+                                    _selectLanguage(AppLanguage.swahili),
+                              ),
+                              const SizedBox(height: 32),
 
-                            const Spacer(),
-
-                            // Continue button
-                            _ContinueButton(
-                              label: _tr('Continue', 'Endelea'),
-                              isLoading: _isContinuing,
-                              onTap: _continue,
-                            ),
-                          ],
+                              // Continue button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.navyPrimary,
+                                    elevation: 4,
+                                    shadowColor: AppColors.primary
+                                        .withValues(alpha: 0.3),
+                                    minimumSize: const Size.fromHeight(52),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: _isContinuing ? null : _continue,
+                                  child: _isContinuing
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: AppColors.navyPrimary,
+                                          ),
+                                        )
+                                      : Text(
+                                          _tr('Continue', 'Endelea'),
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ],
         ),
@@ -300,7 +339,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
   }
 }
 
-// ─── Language Card — full-width horizontal row ────────────────────────────────
+// ─── Language Card ────────────────────────────────────────────────────────────
 
 class _LanguageCard extends StatefulWidget {
   final String flag;
@@ -362,14 +401,10 @@ class _LanguageCardState extends State<_LanguageCard>
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
           decoration: BoxDecoration(
-            color: widget.selected
-                ? AppColors.navyPrimary
-                : AppColors.surface,
+            color: widget.selected ? AppColors.navyPrimary : AppColors.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: widget.selected
-                  ? AppColors.navyPrimary
-                  : AppColors.border,
+              color: widget.selected ? AppColors.navyPrimary : AppColors.border,
               width: widget.selected ? 1.5 : 1.0,
             ),
             boxShadow: widget.selected
@@ -384,14 +419,8 @@ class _LanguageCardState extends State<_LanguageCard>
           ),
           child: Row(
             children: [
-              // Flag
-              Text(
-                widget.flag,
-                style: const TextStyle(fontSize: 26),
-              ),
+              Text(widget.flag, style: const TextStyle(fontSize: 26)),
               const SizedBox(width: 14),
-
-              // Text
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,8 +450,6 @@ class _LanguageCardState extends State<_LanguageCard>
                   ],
                 ),
               ),
-
-              // Check indicator
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 width: 28,
@@ -439,99 +466,6 @@ class _LanguageCardState extends State<_LanguageCard>
                     : null,
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Continue button ──────────────────────────────────────────────────────────
-
-class _ContinueButton extends StatefulWidget {
-  final String label;
-  final bool isLoading;
-  final VoidCallback onTap;
-
-  const _ContinueButton({
-    required this.label,
-    required this.isLoading,
-    required this.onTap,
-  });
-
-  @override
-  State<_ContinueButton> createState() => _ContinueButtonState();
-}
-
-class _ContinueButtonState extends State<_ContinueButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pressCtrl;
-  late Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressCtrl = AnimationController(
-      duration: const Duration(milliseconds: 100),
-      reverseDuration: const Duration(milliseconds: 200),
-      lowerBound: 0.96,
-      vsync: this,
-    );
-    _scale = _pressCtrl;
-  }
-
-  @override
-  void dispose() {
-    _pressCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _scale,
-      child: GestureDetector(
-        onTapDown: widget.isLoading ? null : (_) => _pressCtrl.reverse(),
-        onTapUp: widget.isLoading
-            ? null
-            : (_) {
-                _pressCtrl.forward();
-                widget.onTap();
-              },
-        onTapCancel: () => _pressCtrl.forward(),
-        child: Container(
-          width: double.infinity,
-          height: 56,
-          decoration: BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.navyPrimary.withValues(alpha: 0.25),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Center(
-            child: widget.isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    widget.label,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 0.1,
-                    ),
-                  ),
           ),
         ),
       ),

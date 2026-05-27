@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -55,7 +57,6 @@ const List<_BizType> _kBizTypes = [
 
 // ─── Tanzania location data ───────────────────────────────────────────────────
 
-// Maps region name → list of districts
 const Map<String, List<String>> _kTzRegions = {
   'Arusha': ['Arusha City', 'Arumeru', 'Karatu', 'Longido', 'Meru', 'Monduli', 'Ngorongoro'],
   'Dar es Salaam': ['Ilala', 'Kinondoni', 'Kigamboni', 'Temeke', 'Ubungo'],
@@ -108,7 +109,6 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
   String? _selectedTypeKey;
   bool _typeError = false;
 
-  // Location
   String _region = '';
   String _district = '';
 
@@ -150,7 +150,6 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     notifier.setBusinessType(_selectedTypeKey!);
     notifier.setBusinessRegion(_region);
     notifier.setBusinessDistrict(_district);
-    // city kept for backwards compat
     if (_region.isNotEmpty) notifier.setCity(_region);
     notifier.advanceFromBusinessDetails();
     context.go(AppRoutes.security);
@@ -191,7 +190,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     if (picked != null && mounted) {
       setState(() {
         _region = picked;
-        _district = ''; // reset district on region change
+        _district = '';
       });
     }
   }
@@ -215,6 +214,29 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     }
   }
 
+  Future<void> _openWhatsAppHelp(bool sw) async {
+    final message = Uri.encodeComponent(
+      sw
+          ? 'Habari Mali App Help Desk, nahitaji msaada wa maelezo ya biashara.'
+          : 'Hello Mali App Help Desk, I need help with my business details.',
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(sw
+              ? 'Hatukuweza kufungua WhatsApp sasa.'
+              : 'We could not open WhatsApp right now.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state     = ref.watch(onboardingNotifierProvider);
@@ -222,161 +244,323 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     final firstName = state.firstName.isNotEmpty
         ? state.firstName
         : (sw ? 'wewe' : 'there');
+    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
     final selectedType = _selectedTypeKey != null
         ? _kBizTypes.firstWhere((t) => t.key == _selectedTypeKey,
             orElse: () => _kBizTypes.last)
         : null;
 
-    return OnboardingScaffold(
-      onBack: () => context.go(AppRoutes.newUser),
-      child: FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(
-          position: _slide,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
+    final headingStyle = GoogleFonts.poppins(
+      fontSize: 26,
+      color: AppColors.textPrimary,
+      fontWeight: FontWeight.w800,
+      height: 1.2,
+      letterSpacing: -0.4,
+    );
+    final subtitleStyle = GoogleFonts.poppins(
+      color: AppColors.textSecondary,
+      fontSize: 14,
+      height: 1.5,
+      fontWeight: FontWeight.w400,
+    );
 
-                // ── Heading ───────────────────────────────────────────────
-                Text(
-                  OnboardingStrings.s(sw,
-                      en: OnboardingStrings.bizGreetEn(firstName),
-                      sw: OnboardingStrings.bizGreetSw(firstName)),
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyPrimary,
-                    height: 1.2,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  OnboardingStrings.s(sw,
-                      en: OnboardingStrings.bizSubEn,
-                      sw: OnboardingStrings.bizSubSw),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textMuted,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // ── Business name ─────────────────────────────────────────
-                OnboardingField(
-                  controller: _bizNameCtrl,
-                  label: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.bizNameLabelEn,
-                      sw: OnboardingStrings.bizNameLabelSw),
-                  hint: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.bizNameHintEn,
-                      sw: OnboardingStrings.bizNameHintSw),
-                  autofocus: true,
-                  prefix: const Icon(Icons.storefront_outlined,
-                      size: 18, color: AppColors.textMuted),
-                  validator: (v) => OnboardingValidator.validateBusinessName(
-                      v ?? '', isSwahili: sw),
-                ),
-                const SizedBox(height: 24),
-
-                // ── Business type selector ────────────────────────────────
-                _SectionLabel(
-                  label: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.bizTypeLabelEn,
-                      sw: OnboardingStrings.bizTypeLabelSw),
-                ),
-                const SizedBox(height: 8),
-                _TapSelector(
-                  icon: selectedType?.icon ?? Icons.category_rounded,
-                  value: selectedType != null
-                      ? (sw ? selectedType.sw : selectedType.en)
-                      : null,
-                  placeholder: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.bizTypeSelectPromptEn,
-                      sw: OnboardingStrings.bizTypeSelectPromptSw),
-                  hasError: _typeError,
-                  onTap: () => _pickType(sw),
-                ),
-                if (_typeError) ...[
-                  const SizedBox(height: 6),
-                  _FieldError(
-                    message: OnboardingStrings.s(sw,
-                        en: OnboardingStrings.bizTypeRequiredEn,
-                        sw: OnboardingStrings.bizTypeRequiredSw),
-                  ),
-                ],
-                const SizedBox(height: 28),
-
-                // ── Location section ──────────────────────────────────────
-                _SectionLabel(
-                  label: sw ? 'Mahali pa biashara' : 'Business location',
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  sw
-                      ? 'Saidia wateja kukupata.'
-                      : 'Helps customers and reports stay accurate.',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: 12),
-
-                // Country (fixed Tanzania for now)
-                _LocationRow(
-                  icon: Icons.public_rounded,
-                  label: sw ? 'Nchi' : 'Country',
-                  value: '🇹🇿  Tanzania',
-                  isFixed: true,
-                  onTap: null,
-                ),
-                const SizedBox(height: 10),
-
-                // Region
-                _LocationRow(
-                  icon: Icons.map_rounded,
-                  label: sw ? 'Mkoa' : 'Region',
-                  value: _region.isEmpty ? null : _region,
-                  placeholder: sw ? 'Chagua mkoa' : 'Select region',
-                  onTap: _pickRegion,
-                ),
-                const SizedBox(height: 10),
-
-                // District (only enabled after region selected)
-                _LocationRow(
-                  icon: Icons.location_city_rounded,
-                  label: sw ? 'Wilaya' : 'District',
-                  value: _district.isEmpty ? null : _district,
-                  placeholder: _region.isEmpty
-                      ? (sw ? 'Chagua mkoa kwanza' : 'Select region first')
-                      : (sw ? 'Chagua wilaya' : 'Select district'),
-                  disabled: _region.isEmpty,
-                  onTap: _region.isEmpty ? null : _pickDistrict,
-                ),
-                const SizedBox(height: 32),
-
-                // ── Error ─────────────────────────────────────────────────
-                if (state.errorMessage != null) ...[
-                  OnboardingErrorBanner(message: state.errorMessage!),
-                  const SizedBox(height: 16),
-                ],
-
-                // ── CTA ───────────────────────────────────────────────────
-                OnboardingPrimaryButton(
-                  label: OnboardingStrings.s(sw,
-                      en: OnboardingStrings.bizCtaEn,
-                      sw: OnboardingStrings.bizCtaSw),
-                  onPressed: _submit,
-                ),
-                const SizedBox(height: 24),
-              ],
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // Header image
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: topHeight,
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
             ),
           ),
-        ),
+
+          // Top navigation bar
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () => context.go(AppRoutes.newUser),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(10),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _openWhatsAppHelp(sw),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: Colors.white,
+                      size: 15,
+                    ),
+                    label: Text(
+                      sw ? 'Msaada' : 'Help',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Main content sheet
+          DraggableScrollableSheet(
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: FadeTransition(
+                    opacity: _fade,
+                    child: SlideTransition(
+                      position: _slide,
+                      child: Form(
+                        key: _formKey,
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          physics: const ClampingScrollPhysics(),
+                          padding:
+                              const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Handle bar
+                              Center(
+                                child: Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 20),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.border,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+
+                              // Title
+                              Center(
+                                child: Text(
+                                  OnboardingStrings.s(sw,
+                                      en: OnboardingStrings.bizGreetEn(
+                                          firstName),
+                                      sw: OnboardingStrings.bizGreetSw(
+                                          firstName)),
+                                  textAlign: TextAlign.center,
+                                  style: headingStyle,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Center(
+                                child: Text(
+                                  OnboardingStrings.s(sw,
+                                      en: OnboardingStrings.bizSubEn,
+                                      sw: OnboardingStrings.bizSubSw),
+                                  textAlign: TextAlign.center,
+                                  style: subtitleStyle,
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+
+                              // Business name
+                              OnboardingField(
+                                controller: _bizNameCtrl,
+                                label: OnboardingStrings.s(sw,
+                                    en: OnboardingStrings.bizNameLabelEn,
+                                    sw: OnboardingStrings.bizNameLabelSw),
+                                hint: OnboardingStrings.s(sw,
+                                    en: OnboardingStrings.bizNameHintEn,
+                                    sw: OnboardingStrings.bizNameHintSw),
+                                autofocus: true,
+                                prefix: const Icon(Icons.storefront_outlined,
+                                    size: 18, color: AppColors.textMuted),
+                                validator: (v) =>
+                                    OnboardingValidator.validateBusinessName(
+                                        v ?? '', isSwahili: sw),
+                              ),
+                              const SizedBox(height: 24),
+
+                              // Business type selector
+                              _SectionLabel(
+                                label: OnboardingStrings.s(sw,
+                                    en: OnboardingStrings.bizTypeLabelEn,
+                                    sw: OnboardingStrings.bizTypeLabelSw),
+                              ),
+                              const SizedBox(height: 8),
+                              _TapSelector(
+                                icon: selectedType?.icon ??
+                                    Icons.category_rounded,
+                                value: selectedType != null
+                                    ? (sw
+                                        ? selectedType.sw
+                                        : selectedType.en)
+                                    : null,
+                                placeholder: OnboardingStrings.s(sw,
+                                    en: OnboardingStrings
+                                        .bizTypeSelectPromptEn,
+                                    sw: OnboardingStrings
+                                        .bizTypeSelectPromptSw),
+                                hasError: _typeError,
+                                onTap: () => _pickType(sw),
+                              ),
+                              if (_typeError) ...[
+                                const SizedBox(height: 6),
+                                _FieldError(
+                                  message: OnboardingStrings.s(sw,
+                                      en: OnboardingStrings.bizTypeRequiredEn,
+                                      sw: OnboardingStrings.bizTypeRequiredSw),
+                                ),
+                              ],
+                              const SizedBox(height: 28),
+
+                              // Location section
+                              _SectionLabel(
+                                label: sw
+                                    ? 'Mahali pa biashara'
+                                    : 'Business location',
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                sw
+                                    ? 'Saidia wateja kukupata.'
+                                    : 'Helps customers and reports stay accurate.',
+                                style: const TextStyle(
+                                    fontSize: 12, color: AppColors.textMuted),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Country (fixed)
+                              _LocationRow(
+                                icon: Icons.public_rounded,
+                                label: sw ? 'Nchi' : 'Country',
+                                value: '🇹🇿  Tanzania',
+                                isFixed: true,
+                                onTap: null,
+                              ),
+                              const SizedBox(height: 10),
+
+                              // Region
+                              _LocationRow(
+                                icon: Icons.map_rounded,
+                                label: sw ? 'Mkoa' : 'Region',
+                                value: _region.isEmpty ? null : _region,
+                                placeholder:
+                                    sw ? 'Chagua mkoa' : 'Select region',
+                                onTap: _pickRegion,
+                              ),
+                              const SizedBox(height: 10),
+
+                              // District
+                              _LocationRow(
+                                icon: Icons.location_city_rounded,
+                                label: sw ? 'Wilaya' : 'District',
+                                value: _district.isEmpty ? null : _district,
+                                placeholder: _region.isEmpty
+                                    ? (sw
+                                        ? 'Chagua mkoa kwanza'
+                                        : 'Select region first')
+                                    : (sw
+                                        ? 'Chagua wilaya'
+                                        : 'Select district'),
+                                disabled: _region.isEmpty,
+                                onTap: _region.isEmpty ? null : _pickDistrict,
+                              ),
+                              const SizedBox(height: 28),
+
+                              // Error
+                              if (state.errorMessage != null) ...[
+                                OnboardingErrorBanner(
+                                    message: state.errorMessage!),
+                                const SizedBox(height: 16),
+                              ],
+
+                              // CTA button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.navyPrimary,
+                                    elevation: 4,
+                                    shadowColor: AppColors.primary
+                                        .withValues(alpha: 0.3),
+                                    minimumSize: const Size.fromHeight(52),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: _submit,
+                                  child: Text(
+                                    OnboardingStrings.s(sw,
+                                        en: OnboardingStrings.bizCtaEn,
+                                        sw: OnboardingStrings.bizCtaSw),
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -476,7 +660,7 @@ class _TapSelectorState extends State<_TapSelector>
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: hasValue ? AppColors.surface : AppColors.surface,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: widget.hasError
@@ -513,8 +697,7 @@ class _TapSelectorState extends State<_TapSelector>
                     ? Icons.check_circle_rounded
                     : Icons.keyboard_arrow_down_rounded,
                 size: 18,
-                color:
-                    hasValue ? AppColors.success : AppColors.textMuted,
+                color: hasValue ? AppColors.success : AppColors.textMuted,
               ),
             ],
           ),
@@ -555,11 +738,7 @@ class _LocationRow extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
-          color: disabled
-              ? AppColors.surfaceVariant
-              : hasValue
-                  ? AppColors.surface
-                  : AppColors.surface,
+          color: disabled ? AppColors.surfaceVariant : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: hasValue && !isFixed
@@ -731,7 +910,9 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
                 style: const TextStyle(
                     fontSize: 14, color: AppColors.navyPrimary),
                 decoration: InputDecoration(
-                  hintText: sw ? 'Tafuta aina ya biashara…' : 'Search business type…',
+                  hintText: sw
+                      ? 'Tafuta aina ya biashara…'
+                      : 'Search business type…',
                   hintStyle: const TextStyle(
                       fontSize: 14, color: AppColors.textDisabled),
                   prefixIcon: const Icon(Icons.search_rounded,
@@ -800,20 +981,18 @@ class _BizTypeTile extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: selected
-                    ? AppColors.navyPrimary
-                    : AppColors.surface,
+                color: selected ? AppColors.navyPrimary : AppColors.surface,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: selected ? AppColors.navyPrimary : AppColors.border,
+                  color:
+                      selected ? AppColors.navyPrimary : AppColors.border,
                 ),
               ),
               child: Icon(
                 type.icon,
                 size: 18,
-                color: selected
-                    ? AppColors.yellowBrand
-                    : AppColors.textMuted,
+                color:
+                    selected ? AppColors.yellowBrand : AppColors.textMuted,
               ),
             ),
             const SizedBox(width: 14),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -71,132 +73,311 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     if (s.isComplete) context.go(AppRoutes.success);
   }
 
+  Future<void> _openWhatsAppHelp(bool sw) async {
+    final message = Uri.encodeComponent(
+      sw
+          ? 'Habari Mali App Help Desk, nahitaji msaada wa kuingia.'
+          : 'Hello Mali App Help Desk, I need help with login.',
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(sw
+              ? 'Hatukuweza kufungua WhatsApp sasa.'
+              : 'We could not open WhatsApp right now.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
     final sw = state.isSwahili;
-    final name =
-        state.firstName.isNotEmpty ? state.firstName : '';
+    final name = state.firstName.isNotEmpty ? state.firstName : '';
+    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    return OnboardingScaffold(
-      onBack: () {
-        _pinCtrl.clear();
-        context.go(AppRoutes.phone);
-      },
-      child: FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(
-          position: _slide,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
+    final headingStyle = GoogleFonts.poppins(
+      fontSize: 26,
+      color: AppColors.textPrimary,
+      fontWeight: FontWeight.w800,
+      height: 1.2,
+      letterSpacing: -0.4,
+    );
+    final subtitleStyle = GoogleFonts.poppins(
+      color: AppColors.textSecondary,
+      fontSize: 14,
+      height: 1.5,
+      fontWeight: FontWeight.w400,
+    );
 
-              // ── Avatar ─────────────────────────────────────────────────
-              _UserAvatar(name: name),
-              const SizedBox(height: 20),
-
-              // ── Greeting ──────────────────────────────────────────────
-              Text(
-                name.isNotEmpty
-                    ? (sw
-                        ? 'Karibu tena, $name 👋'
-                        : 'Welcome back, $name 👋')
-                    : (sw ? 'Karibu tena 👋' : 'Welcome back 👋'),
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.navyPrimary,
-                  height: 1.2,
-                  letterSpacing: -0.4,
-                ),
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // Header image
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: topHeight,
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
               ),
-              const SizedBox(height: 6),
-              Text(
-                sw
-                    ? 'Biashara yako inakungoja.'
-                    : 'Your business is waiting for you.',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textMuted,
-                  height: 1.5,
-                ),
-              ),
+            ),
+          ),
 
-              // ── Business card ──────────────────────────────────────────
-              if (state.businessName.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                _BusinessCard(
-                  businessName: state.businessName,
-                  role: state.role,
-                  isSwahili: sw,
-                ),
-              ],
-
-              const SizedBox(height: 36),
-
-              // ── PIN dots ───────────────────────────────────────────────
-              Center(
-                child: Column(
-                  children: [
-                    Text(
-                      sw ? 'Ingiza PIN yako' : 'Enter your PIN',
+          // Top navigation bar
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      _pinCtrl.clear();
+                      context.go(AppRoutes.phone);
+                    },
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(10),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _openWhatsAppHelp(sw),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: Colors.white,
+                      size: 15,
+                    ),
+                    label: Text(
+                      sw ? 'Msaada' : 'Help',
                       style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textMuted,
-                        letterSpacing: 0.3,
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    PinDotsInput(
-                      controller: _pinCtrl,
-                      hasError: _hasError,
-                      onComplete: _submit,
-                      onChanged: (_) {
-                        if (_hasError) setState(() => _hasError = false);
-                      },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Main content sheet
+          DraggableScrollableSheet(
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
                     ),
                   ],
                 ),
-              ),
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: FadeTransition(
+                    opacity: _fade,
+                    child: SlideTransition(
+                      position: _slide,
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        physics: const ClampingScrollPhysics(),
+                        padding:
+                            const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Handle bar
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(bottom: 20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.border,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            // Greeting heading
+                            Center(
+                              child: Text(
+                                name.isNotEmpty
+                                    ? (sw
+                                        ? 'Karibu tena, $name 👋'
+                                        : 'Welcome back, $name 👋')
+                                    : (sw
+                                        ? 'Karibu tena 👋'
+                                        : 'Welcome back 👋'),
+                                textAlign: TextAlign.center,
+                                style: headingStyle,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Center(
+                              child: Text(
+                                sw
+                                    ? 'Biashara yako inakungoja.'
+                                    : 'Your business is waiting for you.',
+                                textAlign: TextAlign.center,
+                                style: subtitleStyle,
+                              ),
+                            ),
 
-              const SizedBox(height: 32),
+                            // Business card
+                            if (state.businessName.isNotEmpty) ...[
+                              const SizedBox(height: 24),
+                              _BusinessCard(
+                                businessName: state.businessName,
+                                role: state.role,
+                                isSwahili: sw,
+                              ),
+                            ],
 
-              // ── Error ─────────────────────────────────────────────────
-              if (state.errorMessage != null) ...[
-                OnboardingErrorBanner(message: state.errorMessage!),
-                const SizedBox(height: 16),
-              ],
+                            const SizedBox(height: 36),
 
-              // ── CTA ───────────────────────────────────────────────────
-              OnboardingPrimaryButton(
-                label: sw ? 'Ingia' : 'Sign in',
-                onPressed: state.isLoading ? null : _submit,
-                isLoading: state.isLoading,
-              ),
-              const SizedBox(height: 16),
+                            // PIN dots
+                            Center(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    sw ? 'Ingiza PIN yako' : 'Enter your PIN',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textMuted,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  PinDotsInput(
+                                    controller: _pinCtrl,
+                                    hasError: _hasError,
+                                    onComplete: _submit,
+                                    onChanged: (_) {
+                                      if (_hasError) {
+                                        setState(() => _hasError = false);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
 
-              // ── Forgot PIN ─────────────────────────────────────────────
-              Center(
-                child: TextButton(
-                  onPressed: state.isLoading
-                      ? null
-                      : () => _showForgotPin(context, sw),
-                  child: Text(
-                    sw ? 'Umesahau PIN yako?' : 'Forgot your PIN?',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.navySecondary,
+                            const SizedBox(height: 32),
+
+                            // Error
+                            if (state.errorMessage != null) ...[
+                              OnboardingErrorBanner(
+                                  message: state.errorMessage!),
+                              const SizedBox(height: 16),
+                            ],
+
+                            // CTA button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.navyPrimary,
+                                  elevation: 4,
+                                  shadowColor:
+                                      AppColors.primary.withValues(alpha: 0.3),
+                                  minimumSize: const Size.fromHeight(52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed:
+                                    state.isLoading ? null : _submit,
+                                child: state.isLoading
+                                    ? const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: AppColors.navyPrimary,
+                                        ),
+                                      )
+                                    : Text(
+                                        sw ? 'Ingia' : 'Sign in',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Forgot PIN
+                            Center(
+                              child: TextButton(
+                                onPressed: state.isLoading
+                                    ? null
+                                    : () => _showForgotPin(context, sw),
+                                child: Text(
+                                  sw
+                                      ? 'Umesahau PIN yako?'
+                                      : 'Forgot your PIN?',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.navySecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
+              );
+            },
           ),
-        ),
+        ],
       ),
     );
   }
@@ -455,7 +636,6 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
               ),
             ),
           ] else ...[
-            // Success state
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),

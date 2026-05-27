@@ -295,14 +295,14 @@ abstract final class OnboardingStrings {
   /// Personalised greeting shown at the top of Screen 5.
   /// [firstName] — user's first name from Screen 4B.
   static String bizGreetEn(String firstName) =>
-      'Hey $firstName, what business are we managing today?';
+      'Hey $firstName';
   static String bizGreetSw(String firstName) =>
-      'Habari $firstName, tunasimamia biashara gani leo?';
+      'Habari $firstName';
 
   static const bizSubEn =
-      'Just a few details to get your workspace ready.';
+      'What business are we managing today?';
   static const bizSubSw =
-      'Maelezo machache tu ili kutayarisha eneo lako la kazi.';
+      'Tunasimamia biashara gani leo?';
 
   static const bizNameLabelEn = 'Business name';
   static const bizNameLabelSw = 'Jina la biashara';
