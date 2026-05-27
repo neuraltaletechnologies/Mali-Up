@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,18 +9,19 @@ import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
+import '../../features/onboarding/providers/onboarding_notifier.dart';
 import 'mali_components.dart';
 
 
-class MainShellPage extends StatefulWidget {
+class MainShellPage extends ConsumerStatefulWidget {
   final Widget child;
   const MainShellPage({super.key, required this.child});
 
   @override
-  State<MainShellPage> createState() => _MainShellPageState();
+  ConsumerState<MainShellPage> createState() => _MainShellPageState();
 }
 
-class _MainShellPageState extends State<MainShellPage> with SingleTickerProviderStateMixin {
+class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTickerProviderStateMixin {
   User? _currentUser;
   late Future<Map<String, dynamic>?> _profileFuture;
   late final VoidCallback _languageListener;
@@ -159,6 +161,16 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
     await Future<void>.delayed(const Duration(milliseconds: 150));
     if (!rootContext.mounted) return;
     rootContext.go(route);
+  }
+
+  Future<void> _switchAccountAndSignOut(BuildContext dialogContext) async {
+    Navigator.of(dialogContext).pop();
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
+    await FirebaseAuth.instance.signOut();
+    ref.read(onboardingNotifierProvider.notifier).reset();
+    if (!mounted) return;
+    context.go(AppRoutes.phone, extra: {'switchAccount': true});
   }
 
   Future<void> _openNavigationPanel({
@@ -478,7 +490,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                               type: MaterialType.transparency,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
+                                onTap: () => _switchAccountAndSignOut(dialogContext),
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: AppColors.secondary.withValues(alpha: 0.06),

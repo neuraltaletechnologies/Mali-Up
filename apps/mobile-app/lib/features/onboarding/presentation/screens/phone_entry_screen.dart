@@ -96,7 +96,9 @@ const List<_Country> _kCountries = [
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 class PhoneEntryScreen extends ConsumerStatefulWidget {
-  const PhoneEntryScreen({super.key});
+  const PhoneEntryScreen({super.key, this.isSwitchAccount = false});
+
+  final bool isSwitchAccount;
 
   @override
   ConsumerState<PhoneEntryScreen> createState() => _PhoneEntryScreenState();
@@ -209,7 +211,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     final sw = state.isSwahili;
 
     return OnboardingScaffold(
-      onBack: () => context.go(AppRoutes.intro),
+      onBack: widget.isSwitchAccount ? null : () => context.go(AppRoutes.intro),
       child: FadeTransition(
         opacity: _fade,
         child: SlideTransition(
@@ -220,6 +222,46 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 8),
+
+                // ── Brand mark (switch-account context only) ──────────────
+                if (widget.isSwitchAccount) ...[
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: AppColors.navyPrimary,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.navyPrimary.withValues(alpha: 0.20),
+                          blurRadius: 16,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: const BoxDecoration(
+                          color: AppColors.yellowBrand,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'M',
+                            style: TextStyle(
+                              color: AppColors.navyPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 // ── Title ─────────────────────────────────────────────────
                 Text(

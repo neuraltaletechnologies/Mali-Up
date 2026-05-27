@@ -125,29 +125,45 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _scheduleNavigation() {
     _checkAuthAndRoute();
-    Future.delayed(const Duration(milliseconds: 4000), () {
+    Future.delayed(const Duration(milliseconds: 4500), () {
       if (mounted && !_hasNavigated) _route(authenticated: false);
     });
   }
 
   Future<void> _checkAuthAndRoute() async {
+    // currentUser is synchronously available after Firebase.initializeApp().
+    final user = PhoneAuthService.currentUser;
+
+    if (user != null) {
+      // User is already logged in. Start fetching their personalised landing
+      // path in parallel with the splash animation so there is no extra wait.
+      final pathFuture = _resolveLandingPath();
+
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted || _hasNavigated) return;
+
+      final path = await pathFuture;
+      if (!mounted || _hasNavigated) return;
+
+      _hasNavigated = true;
+      context.go(path);
+      return;
+    }
+
+    // No active session — show the full splash then send to onboarding.
     await Future.delayed(const Duration(milliseconds: 1900));
     if (!mounted || _hasNavigated) return;
+    _route(authenticated: false);
+  }
+
+  Future<String> _resolveLandingPath() async {
     try {
-      final loggedIn = await PhoneAuthService.isUserLoggedIn();
-      if (!mounted || _hasNavigated) return;
-      if (loggedIn && PhoneAuthService.currentUser != null) {
-        final path =
-            await DefaultContextRoutingService.resolveInitialAuthenticatedPath();
-        if (mounted && !_hasNavigated) {
-          _hasNavigated = true;
-          context.go(path ?? AppRouter.dashboardPath);
-        }
-      } else {
-        _route(authenticated: false);
-      }
+      final path = await DefaultContextRoutingService
+          .resolveInitialAuthenticatedPath()
+          .timeout(const Duration(milliseconds: 2500));
+      return path ?? AppRouter.dashboardPath;
     } catch (_) {
-      if (mounted && !_hasNavigated) _route(authenticated: false);
+      return AppRouter.dashboardPath;
     }
   }
 
