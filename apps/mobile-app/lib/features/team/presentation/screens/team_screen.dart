@@ -315,7 +315,7 @@ class _FilterPills extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 0),
+                    horizontal: 14),
                 decoration: BoxDecoration(
                   color: active
                       ? color.withValues(alpha: 0.12)
@@ -1535,7 +1535,7 @@ class _ActionCard extends StatelessWidget {
                 ),
               ),
               trailing ??
-                  Icon(Icons.chevron_right_rounded,
+                  const Icon(Icons.chevron_right_rounded,
                       color: AppColors.textMuted, size: 18),
             ],
           ),

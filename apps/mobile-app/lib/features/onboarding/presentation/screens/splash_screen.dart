@@ -254,7 +254,6 @@ class _SplashScreenState extends State<SplashScreen>
                                       shape: BoxShape.circle,
                                       border: Border.all(
                                         color: _yellow,
-                                        width: 1.0,
                                       ),
                                     ),
                                   ),

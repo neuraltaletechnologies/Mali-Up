@@ -30,11 +30,11 @@ class ProfitLossScreen extends ConsumerWidget {
           _tr('Profit & Loss', 'Faida na Hasara'),
           style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(52),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: const ReportDateRangeBar(),
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: ReportDateRangeBar(),
           ),
         ),
       ),
@@ -219,7 +219,7 @@ class _TrendCard extends StatelessWidget {
             height: 160,
             child: BarChart(BarChartData(
               barGroups: groups,
-              gridData: FlGridData(show: true, drawVerticalLine: false),
+              gridData: const FlGridData(drawVerticalLine: false),
               borderData: FlBorderData(show: false),
               titlesData: FlTitlesData(
                 bottomTitles: AxisTitles(
@@ -235,9 +235,9 @@ class _TrendCard extends StatelessWidget {
                     },
                   ),
                 ),
-                leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: const AxisTitles(),
+                topTitles: const AxisTitles(),
+                rightTitles: const AxisTitles(),
               ),
             )),
           ),
