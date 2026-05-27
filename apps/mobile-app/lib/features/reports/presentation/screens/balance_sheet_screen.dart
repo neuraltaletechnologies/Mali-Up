@@ -88,6 +88,8 @@ class BalanceSheetScreen extends ConsumerWidget {
           _BalanceSection(
             title: _tr('ASSETS', 'RASILIMALI'),
             color: AppColors.success,
+            total: formatCurrency(report.totalAssets),
+            totalLabel: _tr('TOTAL ASSETS', 'JUMLA YA RASILIMALI'),
             children: [
               _BSGroup(
                 title: _tr('Current Assets', 'Rasilimali za Sasa'),
@@ -99,8 +101,6 @@ class BalanceSheetScreen extends ConsumerWidget {
                 subtotal: formatCurrency(report.totalCurrentAssets),
               ),
             ],
-            total: formatCurrency(report.totalAssets),
-            totalLabel: _tr('TOTAL ASSETS', 'JUMLA YA RASILIMALI'),
           ),
           const SizedBox(height: 12),
 
@@ -108,6 +108,8 @@ class BalanceSheetScreen extends ConsumerWidget {
           _BalanceSection(
             title: _tr('LIABILITIES', 'MADENI'),
             color: AppColors.error,
+            total: formatCurrency(report.totalLiabilities),
+            totalLabel: _tr('TOTAL LIABILITIES', 'JUMLA YA MADENI'),
             children: [
               _BSGroup(
                 title: _tr('Current Liabilities', 'Madeni ya Sasa'),
@@ -117,8 +119,6 @@ class BalanceSheetScreen extends ConsumerWidget {
                 subtotal: formatCurrency(report.totalCurrentLiabilities),
               ),
             ],
-            total: formatCurrency(report.totalLiabilities),
-            totalLabel: _tr('TOTAL LIABILITIES', 'JUMLA YA MADENI'),
           ),
           const SizedBox(height: 12),
 

@@ -654,7 +654,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final name = widget.businessName ?? _tr('My Business', 'Biashara yangu');
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
-        ? '${_fmtCompactAmount(widget.totalCash)}'
+        ? _fmtCompactAmount(widget.totalCash)
         : '••••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
     final expText = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
@@ -1654,7 +1654,6 @@ class _RevStat extends StatelessWidget {
   const _RevStat({
     required this.label,
     required this.value,
-    this.highlight = false,
   });
 
   @override

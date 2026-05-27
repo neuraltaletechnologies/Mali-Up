@@ -28,7 +28,7 @@ pw.Widget _headerRow(String title, String period) {
     children: [
       pw.Text(
         'Mali Up — Financial Report',
-        style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+        style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
       ),
       pw.SizedBox(height: 4),
       pw.Text(
@@ -37,7 +37,7 @@ pw.Widget _headerRow(String title, String period) {
       ),
       pw.Text(
         'Period: $period',
-        style: pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
+        style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
       ),
       pw.Divider(color: PdfColors.grey300),
       pw.SizedBox(height: 8),
@@ -535,7 +535,7 @@ abstract final class ReportExportService {
       pageFormat: PdfPageFormat.a4,
       build: (ctx) => [
         _headerRow('Inventory Valuation Report', date),
-        _summaryRow('Total SKUs', '${report.totalSkus}', bold: false),
+        _summaryRow('Total SKUs', '${report.totalSkus}'),
         _summaryRow('Total Value', _fmt(report.totalValue), bold: true),
         pw.SizedBox(height: 12),
         _tableHeader(['Item', 'SKU', 'Stock', 'Unit Price', 'Total Value']),

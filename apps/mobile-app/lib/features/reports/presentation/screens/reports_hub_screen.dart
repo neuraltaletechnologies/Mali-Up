@@ -166,7 +166,7 @@ class _DateRangeBar extends ConsumerWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _periods.length,
-        separatorBuilder: (_, _i) => const SizedBox(width: 6),
+        separatorBuilder: (_, i) => const SizedBox(width: 6),
         itemBuilder: (_, i) {
           final period = _periods[i];
           final isSelected = range.period == period;

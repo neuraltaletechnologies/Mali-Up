@@ -273,9 +273,9 @@ class _DashboardIllustration extends StatelessWidget {
                 _Bar(height: 60, color: AppColors.tealAccent.withValues(alpha: 0.35)),
                 _Bar(height: 90, color: AppColors.tealAccent.withValues(alpha: 0.6)),
                 _Bar(height: 50, color: AppColors.tealAccent.withValues(alpha: 0.35)),
-                _Bar(height: 120, color: AppColors.navyPrimary),
+                const _Bar(height: 120, color: AppColors.navyPrimary),
                 _Bar(height: 75, color: AppColors.tealAccent.withValues(alpha: 0.5)),
-                _Bar(height: 100, color: AppColors.yellowBrand),
+                const _Bar(height: 100, color: AppColors.yellowBrand),
               ],
             ),
           ),
@@ -297,13 +297,13 @@ class _DashboardIllustration extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.trending_up_rounded,
+                  Icon(Icons.trending_up_rounded,
                       color: AppColors.yellowBrand, size: 14),
-                  const SizedBox(width: 5),
-                  const Text(
+                  SizedBox(width: 5),
+                  Text(
                     '+24%',
                     style: TextStyle(
                       color: Colors.white,
@@ -317,14 +317,14 @@ class _DashboardIllustration extends StatelessWidget {
           ),
 
           // Label dots
-          Positioned(
+          const Positioned(
             top: 22,
             left: 22,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _LabelDot(color: AppColors.navyPrimary, label: 'Revenue'),
-                const SizedBox(height: 5),
+                SizedBox(height: 5),
                 _LabelDot(color: AppColors.yellowBrand, label: 'Profit'),
               ],
             ),
@@ -465,13 +465,13 @@ class _AutomationIllustration extends StatelessWidget {
                         checked: item.$3,
                       )),
                   const SizedBox(height: 8),
-                  Divider(height: 1, color: AppColors.border),
+                  const Divider(height: 1, color: AppColors.border),
                   const SizedBox(height: 8),
                   // Total
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Total',
                         style: TextStyle(
                           fontSize: 12,
@@ -479,7 +479,7 @@ class _AutomationIllustration extends StatelessWidget {
                           color: AppColors.navyPrimary,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'TZS 87,500',
                         style: TextStyle(
                           fontSize: 12,
@@ -601,12 +601,12 @@ class _MobileIllustration extends StatelessWidget {
                       children: [
                         const SizedBox(height: 10),
                         // Status bar mock
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('9:41',
+                              Text('9:41',
                                   style: TextStyle(
                                       fontSize: 8,
                                       fontWeight: FontWeight.w700,
@@ -614,7 +614,7 @@ class _MobileIllustration extends StatelessWidget {
                               Row(children: [
                                 Icon(Icons.wifi_rounded,
                                     size: 8, color: AppColors.navyPrimary),
-                                const SizedBox(width: 2),
+                                SizedBox(width: 2),
                                 Icon(Icons.signal_cellular_alt_rounded,
                                     size: 8, color: AppColors.navyPrimary),
                               ]),
@@ -630,25 +630,25 @@ class _MobileIllustration extends StatelessWidget {
                             color: AppColors.navyPrimary,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Column(
+                          child: const Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Today',
+                              Text('Today',
                                   style: TextStyle(
                                       fontSize: 7,
                                       color: Colors.white54,
                                       fontWeight: FontWeight.w500)),
-                              const SizedBox(height: 3),
-                              const Text('TZS 124K',
+                              SizedBox(height: 3),
+                              Text('TZS 124K',
                                   style: TextStyle(
                                       fontSize: 11,
                                       color: AppColors.yellowBrand,
                                       fontWeight: FontWeight.w800)),
-                              const SizedBox(height: 2),
+                              SizedBox(height: 2),
                               Row(children: [
                                 Icon(Icons.arrow_upward_rounded,
                                     size: 8, color: AppColors.success),
-                                const Text(' +18%',
+                                Text(' +18%',
                                     style: TextStyle(
                                         fontSize: 7, color: AppColors.success)),
                               ]),
@@ -657,8 +657,8 @@ class _MobileIllustration extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         // Menu grid
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
