@@ -67,6 +67,8 @@ final class TeamMemberPending extends UserLookupResult {
     required this.businessName,
     required this.ownerUid,
     required this.businessId,
+    this.inviteId = '',
+    this.email = '',
   });
 
   /// Firestore document ID in the `team_members` subcollection.
@@ -87,9 +89,16 @@ final class TeamMemberPending extends UserLookupResult {
   /// Business document ID under the owner's tenant — needed to update status.
   final String businessId;
 
+  /// Document ID in the top-level `pendingInvites` collection.
+  /// Empty string when found via legacy `team_members` collectionGroup.
+  final String inviteId;
+
+  /// Email on file for this invite — used in PIN recovery flow.
+  final String email;
+
   @override
   String toString() =>
-      'TeamMemberPending(memberId: $memberId, name: $name, role: $role)';
+      'TeamMemberPending(memberId: $memberId, name: $name, role: $role, inviteId: $inviteId)';
 }
 
 /// No document exists for this phone — the user is registering for the first time.

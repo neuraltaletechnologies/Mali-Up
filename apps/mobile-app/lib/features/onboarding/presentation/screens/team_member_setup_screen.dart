@@ -62,9 +62,27 @@ class _TeamMemberSetupScreenState
     setState(() => _showPinSetup = true);
   }
 
-  void _startOver() {
-    ref.read(onboardingNotifierProvider.notifier).startOverFromTeamMember();
-    context.go(AppRoutes.newUser);
+  Future<void> _startOver() async {
+    final state = ref.read(onboardingNotifierProvider);
+    final sw = state.isSwahili;
+    final businessName = state.businessName;
+
+    // Show security warning modal before allowing a fresh account
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _StartFreshWarningSheet(
+        sw: sw,
+        businessName: businessName,
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      ref.read(onboardingNotifierProvider.notifier).startOverFromTeamMember();
+      context.go(AppRoutes.newUser);
+    }
   }
 
   void _advanceToConfirm() {
@@ -573,6 +591,137 @@ class _PinSetupBody extends StatelessWidget {
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+}
+
+// ── "Start fresh" security warning sheet ──────────────────────────────────────
+
+class _StartFreshWarningSheet extends StatelessWidget {
+  const _StartFreshWarningSheet({
+    required this.sw,
+    required this.businessName,
+  });
+
+  final bool sw;
+  final String businessName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        20,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 32,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Warning icon
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.warningBg,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.warning_amber_rounded,
+                color: AppColors.warning, size: 28),
+          ),
+          const SizedBox(height: 20),
+
+          Text(
+            sw
+                ? 'Nambari hii tayari imeunganishwa na akaunti'
+                : 'This number is already linked to an account',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+              height: 1.25,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          Text(
+            sw
+                ? 'Nambari hii ilipewa mwaliko kujiunga na '
+                    '${businessName.isNotEmpty ? businessName : "biashara hii"}. '
+                    'Kuanzisha akaunti mpya kutaunda wasifu tofauti — '
+                    'mwaliko utabaki wazi ukitaka kuudai baadaye.'
+                : 'This number has a pending invitation to join '
+                    '${businessName.isNotEmpty ? businessName : "a business"}. '
+                    'Creating a new account will build a separate profile — '
+                    'the invitation stays open if you want to claim it later.',
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textMuted,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // Confirm: create new account
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navyPrimary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              child: Text(
+                sw ? 'Ndiyo, anza akaunti mpya' : 'Yes, create a new account',
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Cancel: go back to claim invitation
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                sw
+                    ? 'Rudi kudai mwaliko wangu'
+                    : 'Go back and claim my invitation',
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

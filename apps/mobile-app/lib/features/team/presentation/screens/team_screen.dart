@@ -653,6 +653,10 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
       return;
     }
 
+    final rawPhone = _phoneCtrl.text.trim();
+    final normalizedPhone =
+        rawPhone.isNotEmpty ? _normalizePhone(rawPhone) : '';
+
     setState(() => _isSaving = true);
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -668,23 +672,48 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
           ? _customPerms
           : defaultPermissionsFor(_selectedRole);
 
-      await repo.addTeamMember(
+      final storedPhone =
+          normalizedPhone.isNotEmpty ? normalizedPhone : rawPhone;
+
+      // Write team_member record (for team management UI)
+      final memberRef = await repo.addTeamMember(
         uid: user.uid,
         context: ctx,
         data: {
           'name': name,
           'email': _emailCtrl.text.trim(),
-          'phone': _phoneCtrl.text.trim(),
+          'phone': storedPhone,
           'role': _selectedRole.name,
-          'customPermissions':
-              permsToStore.map((p) => p.name).toList(),
-          'status': 'active',
+          'customPermissions': permsToStore.map((p) => p.name).toList(),
+          'status': 'pending',
           'invitedAt': FieldValue.serverTimestamp(),
           'invitedBy': user.uid,
           if (_notesCtrl.text.trim().isNotEmpty)
             'notes': _notesCtrl.text.trim(),
         },
       );
+
+      // Write pendingInvite for fast phone-based lookup during staff login
+      if (normalizedPhone.isNotEmpty) {
+        final bizId = ctx.businessId ?? '';
+        final bizName = await repo.getBusinessName(uid: user.uid, context: ctx);
+        await repo.writePendingInvite(
+          inviteData: {
+            'businessId': bizId,
+            'businessName': bizName,
+            'fullName': name,
+            'phoneNumber': normalizedPhone,
+            'email': _emailCtrl.text.trim(),
+            'role': _selectedRole.name,
+            'invitedBy': user.uid,
+            'ownerUid': user.uid,
+            'memberId': memberRef.id,
+            'status': 'pending',
+            'pinCreated': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+        );
+      }
 
       navigator.pop();
       messenger.showSnackBar(SnackBar(
@@ -701,6 +730,18 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
               'Failed to add member. Try again.',
               'Imeshindikana. Jaribu tena.'))));
     }
+  }
+
+  /// Normalises any phone input to E.164 (defaults to Tanzania +255).
+  static String _normalizePhone(String raw) {
+    final phone = raw.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    if (phone.isEmpty) return phone;
+    if (phone.startsWith('+')) return phone;
+    if (phone.startsWith('255') && phone.length >= 12) return '+$phone';
+    if (phone.startsWith('0') && phone.length >= 9) {
+      return '+255${phone.substring(1)}';
+    }
+    return '+255$phone';
   }
 
   void _snack(String msg) => ScaffoldMessenger.of(context)

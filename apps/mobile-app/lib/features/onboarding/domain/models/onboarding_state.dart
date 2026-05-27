@@ -45,6 +45,8 @@ class OnboardingState {
     this.isTeamMember = false,
     this.teamMemberId = '',
     this.teamOwnerUid = '',
+    this.inviteId = '',
+    this.memberEmail = '',
 
     // Screen 4A/4B/4C — user profile
     this.firstName = '',
@@ -89,6 +91,13 @@ class OnboardingState {
 
   /// UID of the business owner who added this team member.
   final String teamOwnerUid;
+
+  /// Document ID in the top-level `pendingInvites` collection (empty if found
+  /// via legacy `team_members` collectionGroup).
+  final String inviteId;
+
+  /// Email stored on the invite — used in PIN recovery flow.
+  final String memberEmail;
 
   // ── Profile fields (populated by lookup or entered by new user) ───────────
   final String firstName;
@@ -140,6 +149,8 @@ class OnboardingState {
     bool? isTeamMember,
     String? teamMemberId,
     String? teamOwnerUid,
+    String? inviteId,
+    String? memberEmail,
     String? firstName,
     String? lastName,
     String? city,
@@ -167,6 +178,8 @@ class OnboardingState {
       isTeamMember: isTeamMember ?? this.isTeamMember,
       teamMemberId: teamMemberId ?? this.teamMemberId,
       teamOwnerUid: teamOwnerUid ?? this.teamOwnerUid,
+      inviteId: inviteId ?? this.inviteId,
+      memberEmail: memberEmail ?? this.memberEmail,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       city: city ?? this.city,
@@ -197,6 +210,8 @@ class OnboardingState {
         other.isTeamMember == isTeamMember &&
         other.teamMemberId == teamMemberId &&
         other.teamOwnerUid == teamOwnerUid &&
+        other.inviteId == inviteId &&
+        other.memberEmail == memberEmail &&
         other.firstName == firstName &&
         other.lastName == lastName &&
         other.city == city &&
@@ -218,7 +233,7 @@ class OnboardingState {
   int get hashCode => Object.hashAll([
         currentStep, language, phone,
         isReturningUser, existingUserId,
-        isTeamMember, teamMemberId, teamOwnerUid,
+        isTeamMember, teamMemberId, teamOwnerUid, inviteId, memberEmail,
         firstName, lastName, city, role,
         businessName, businessType, businessId,
         businessCountry, businessRegion, businessDistrict,

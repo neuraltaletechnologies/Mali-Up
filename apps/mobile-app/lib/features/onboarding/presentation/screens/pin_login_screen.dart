@@ -45,6 +45,16 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     super.dispose();
   }
 
+  void _showForgotPin(BuildContext ctx, bool sw) {
+    showModalBottomSheet<void>(
+      context: ctx,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ForgotPinSheet(sw: sw),
+    );
+  }
+
   Future<void> _submit() async {
     final pin = _pinCtrl.text.trim();
     final isSwahili = ref.read(onboardingNotifierProvider).isSwahili;
@@ -169,15 +179,18 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
 
               // ── Forgot PIN ─────────────────────────────────────────────
               Center(
-                child: Text(
-                  sw
-                      ? 'Umesahau PIN? Wasiliana na msaada.'
-                      : 'Forgot your PIN? Contact support.',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
+                child: TextButton(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => _showForgotPin(context, sw),
+                  child: Text(
+                    sw ? 'Umesahau PIN yako?' : 'Forgot your PIN?',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navySecondary,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ),
               const SizedBox(height: 24),
@@ -299,6 +312,201 @@ class _BusinessCard extends StatelessWidget {
           ),
           const Icon(Icons.verified_rounded,
               color: AppColors.success, size: 18),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Forgot PIN recovery sheet ─────────────────────────────────────────────────
+
+class _ForgotPinSheet extends ConsumerStatefulWidget {
+  const _ForgotPinSheet({required this.sw});
+  final bool sw;
+
+  @override
+  ConsumerState<_ForgotPinSheet> createState() => _ForgotPinSheetState();
+}
+
+class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
+  bool _isSending = false;
+  bool _sent = false;
+
+  Future<void> _sendRecovery() async {
+    setState(() => _isSending = true);
+    await ref.read(onboardingNotifierProvider.notifier).sendPinRecovery();
+    if (mounted) setState(() { _isSending = false; _sent = true; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sw = widget.sw;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24, 20, 24,
+        MediaQuery.of(context).viewInsets.bottom + 40,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Icon
+          Container(
+            width: 52, height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.navyPrimary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.lock_reset_rounded,
+                color: AppColors.navyPrimary, size: 28),
+          ),
+          const SizedBox(height: 20),
+
+          Text(
+            sw ? 'Msaada wa PIN 🔐' : 'PIN Recovery 🔐',
+            style: const TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary, letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          if (!_sent) ...[
+            Text(
+              sw
+                  ? 'Tutakutumia maelekezo ya kurejesha PIN yako. '
+                    'Hakikisha unaweza kufikia barua pepe au simu yako.'
+                  : 'We\'ll send recovery instructions so you can reset your PIN. '
+                    'Make sure you have access to your registered contact.',
+              style: const TextStyle(
+                fontSize: 14, color: AppColors.textMuted, height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.infoBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: AppColors.tealAccent.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded,
+                      color: AppColors.tealAccent, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      sw
+                          ? 'Baada ya kupokea ujumbe, fuata maelekezo '
+                            'kurejesha ufikiaji wako salama.'
+                          : 'After receiving the message, follow the link '
+                            'to securely restore your account access.',
+                      style: const TextStyle(
+                        fontSize: 12, color: AppColors.tealAccent, height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity, height: 52,
+              child: ElevatedButton(
+                onPressed: _isSending ? null : _sendRecovery,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navyPrimary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor:
+                      AppColors.navyPrimary.withValues(alpha: 0.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: _isSending
+                    ? const SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5, color: Colors.white),
+                      )
+                    : Text(
+                        sw ? 'Tuma Maelekezo' : 'Send Recovery Link',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+              ),
+            ),
+          ] else ...[
+            // Success state
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.successBg,
+                borderRadius: BorderRadius.circular(16),
+                border:
+                    Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.check_circle_rounded,
+                      color: AppColors.success, size: 40),
+                  const SizedBox(height: 12),
+                  Text(
+                    sw ? 'Imetumwa! ✓' : 'Sent! ✓',
+                    style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w800,
+                      color: AppColors.success,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    sw
+                        ? 'Maelekezo ya kurejesha PIN yametumwa. '
+                          'Angalia barua pepe yako na ufuate hatua zilizotolewa.'
+                        : 'Recovery instructions have been sent. '
+                          'Check your email and follow the steps provided.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13, color: AppColors.success, height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  sw ? 'Sawa, nimepokea' : 'Got it, close',
+                  style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
