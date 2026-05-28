@@ -221,17 +221,17 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                       topRight: Radius.circular(24),
                       bottomRight: Radius.circular(24),
                     ),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.08)),
+                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.12)),
                     boxShadow: AppTheme.modalShadow,
                   ),
                   child: Column(
                     children: [
-                      // Profile Header — glass
+                      // Profile Header — blue and white
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.05),
+                          color: AppColors.secondary,
                           border: Border(
-                            bottom: BorderSide(color: AppColors.primary.withValues(alpha: 0.08)),
+                            bottom: BorderSide(color: AppColors.secondary.withValues(alpha: 0.18)),
                           ),
                           borderRadius: const BorderRadius.only(topRight: Radius.circular(24)),
                         ),
@@ -248,12 +248,12 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                       width: 52,
                                       height: 52,
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary,
+                                        color: Colors.white,
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 2),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.28), width: 2),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: AppColors.primary.withValues(alpha: 0.25),
+                                            color: AppColors.secondary.withValues(alpha: 0.25),
                                             blurRadius: 12,
                                             offset: const Offset(0, 4),
                                           ),
@@ -263,7 +263,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                         child: Text(
                                           profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
                                           style: const TextStyle(
-                                            color: Colors.white,
+                                            color: AppColors.secondary,
                                             fontSize: 22,
                                             fontWeight: FontWeight.w800,
                                           ),
@@ -280,7 +280,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
-                                              color: AppColors.secondary,
+                                              color: Colors.white,
                                               fontSize: 16,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -291,7 +291,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
-                                              color: AppColors.textMuted,
+                                              color: Colors.white70,
                                               fontSize: 12,
                                               fontWeight: FontWeight.w400,
                                             ),
@@ -313,19 +313,19 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: AppColors.yellowBrand.withValues(alpha: 0.12),
+                                        color: Colors.white.withValues(alpha: 0.14),
                                         borderRadius: BorderRadius.circular(999),
-                                        border: Border.all(color: AppColors.yellowBrand.withValues(alpha: 0.4)),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.stars_rounded, size: 12, color: AppColors.yellowBrand),
+                                            const Icon(Icons.stars_rounded, size: 12, color: Colors.white),
                                           const SizedBox(width: 4),
                                           Text(
                                             _tr('Free', 'Bure'),
                                             style: const TextStyle(
-                                              color: AppColors.yellowBrand,
+                                                color: Colors.white,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -337,9 +337,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(alpha: 0.08),
+                                        color: Colors.white,
                                         borderRadius: BorderRadius.circular(999),
-                                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -347,13 +347,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                           const Icon(
                                             Icons.business_center_rounded,
                                             size: 12,
-                                            color: AppColors.primary,
+                                            color: AppColors.secondary,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
                                             _tr('Business', 'Biashara'),
                                             style: const TextStyle(
-                                              color: AppColors.primary,
+                                              color: AppColors.secondary,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -375,7 +375,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                           children: [
                             _DrawerItemLight(
                               icon: Icons.grid_view_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Hali ya biashara', 'Hali ya biashara'),
                               semanticsLabel: _tr('Dashboard, business overview', 'Hali ya biashara, muhtasari wa biashara'),
                               selected: isDashboard,
@@ -384,7 +384,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
                             _DrawerItemLight(
                               icon: Icons.receipt_long_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Tuma ankara', 'Tuma ankara'),
                               semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
                               selected: _isSelected(location, AppRouter.salesPath),
@@ -392,7 +392,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             ),
                             _DrawerItemLight(
                               icon: Icons.inventory_2_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Bidhaa zangu', 'Bidhaa zangu'),
                               semanticsLabel: _tr('My stock and inventory', 'Bidhaa zangu, usimamizi wa bidhaaa'),
                               selected: _isSelected(location, AppRouter.inventoryPath),
@@ -400,7 +400,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             ),
                             _DrawerItemLight(
                               icon: Icons.people_alt_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Wateja wangu', 'Wateja wangu'),
                               semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
                               selected: _isSelected(location, AppRouter.crmPath),
@@ -409,7 +409,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
                             _DrawerItemLight(
                               icon: Icons.account_balance_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Madeni', 'Madeni'),
                               semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
                               selected: _isSelected(location, AppRouter.debtPath),
@@ -417,7 +417,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             ),
                             _DrawerItemLight(
                               icon: Icons.payments_outlined,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Gharama zangu', 'Gharama zangu'),
                               semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
                               selected: _isSelected(location, AppRouter.expensesPath),
@@ -425,7 +425,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             ),
                             _DrawerItemLight(
                               icon: Icons.account_balance_wallet_outlined,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
                               semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
                               selected: _isSelected(location, AppRouter.cashFlowPath),
@@ -433,7 +433,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             ),
                             _DrawerItemLight(
                               icon: Icons.bar_chart_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Ripoti za Fedha', 'Ripoti za Fedha'),
                               semanticsLabel: _tr('Financial reports — P&L, Balance Sheet, VAT', 'Ripoti za fedha — P&L, Mizania, VAT'),
                               selected: _isSelected(location, AppRouter.reportsPath),
@@ -442,7 +442,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             _DrawerSectionLabel(label: _tr('TEAM', 'TIMU')),
                             _DrawerItemLight(
                               icon: Icons.group_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('My Team', 'Timu yangu'),
                               semanticsLabel: _tr('Team and role management', 'Timu yangu, usimamizi wa majukumu'),
                               selected: _isSelected(location, AppRouter.teamPath),
@@ -451,7 +451,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
                             _DrawerItemLight(
                               icon: Icons.storefront_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Simamia Biashara', 'Simamia Biashara'),
                               semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
                               selected: _isSelected(location, AppRouter.businessesPath),
@@ -459,64 +459,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             ),
                             _DrawerItemLight(
                               icon: Icons.settings_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Mipangilio', 'Mipangilio'),
                               semanticsLabel: _tr('App settings', 'Mipangilio ya programu'),
                               selected: _isSelected(location, AppRouter.settingsPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
                             ),
                           ],
-                        ),
-                      ),
-                      // Bottom actions — Switch Account
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.fromLTRB(12, 12, 12, MediaQuery.of(dialogContext).padding.bottom + 16),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.04),
-                          borderRadius: const BorderRadius.only(
-                            bottomRight: Radius.circular(24),
-                          ),
-                          border: Border(
-                            top: BorderSide(color: AppColors.primary.withValues(alpha: 0.08)),
-                          ),
-                        ),
-                        child: Semantics(
-                          button: true,
-                          label: _tr('Switch account or sign in to a different account', 'Badili akaunti au ingia akaunti nyingine'),
-                          child: SizedBox(
-                            height: 48,
-                            child: Material(
-                              type: MaterialType.transparency,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () => _switchAccountAndSignOut(dialogContext),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.secondary.withValues(alpha: 0.06),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.14)),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.swap_horiz_rounded, color: AppColors.secondary, size: 20),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        _tr('Switch Account', 'Badili Akaunti'),
-                                        style: const TextStyle(
-                                          color: AppColors.secondary,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
                         ),
                       ),
                     ],
@@ -1035,7 +984,7 @@ class _DrawerItemLight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const activeColor = AppColors.primary;
+    const activeColor = AppColors.secondary;
 
     return Semantics(
       button: true,
@@ -1053,10 +1002,10 @@ class _DrawerItemLight extends StatelessWidget {
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: selected ? activeColor.withValues(alpha: 0.07) : Colors.transparent,
+                color: selected ? activeColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 border: selected
-                    ? const Border(left: BorderSide(color: AppColors.primary, width: 3))
+                    ? Border(left: BorderSide(color: Colors.white.withValues(alpha: 0.7), width: 3))
                     : null,
               ),
               padding: EdgeInsets.only(left: selected ? 9 : 12, right: 16),
@@ -1067,14 +1016,14 @@ class _DrawerItemLight extends StatelessWidget {
                     height: 34,
                     decoration: BoxDecoration(
                       color: selected
-                          ? activeColor.withValues(alpha: 0.12)
-                          : iconColor.withValues(alpha: 0.09),
+                          ? Colors.white.withValues(alpha: 0.16)
+                          : AppColors.secondary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       icon,
                       size: 17,
-                      color: selected ? activeColor : iconColor,
+                      color: selected ? Colors.white : AppColors.secondary,
                     ),
                   ),
                   const SizedBox(width: 13),
@@ -1082,7 +1031,7 @@ class _DrawerItemLight extends StatelessWidget {
                     child: Text(
                       label,
                       style: TextStyle(
-                        color: selected ? activeColor : AppColors.textPrimary,
+                        color: selected ? Colors.white : AppColors.secondary,
                         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                         fontSize: 14,
                         letterSpacing: -0.1,
@@ -1094,7 +1043,7 @@ class _DrawerItemLight extends StatelessWidget {
                       width: 6,
                       height: 6,
                       decoration: const BoxDecoration(
-                        color: activeColor,
+                        color: Colors.white,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -1124,7 +1073,7 @@ class _DrawerSectionLabel extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: AppColors.textMuted,
+                color: AppColors.secondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,

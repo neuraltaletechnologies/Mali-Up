@@ -289,54 +289,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     else
                       const _DashboardHeroSkeleton(),
 
-                    const SizedBox(height: 16),
-
-                    // ── Revenue Overview ───────────────────────────────────
-                    if (_showHeavyContent)
-                      _RevenueOverviewCard(
-                        todayRevenue: todayRevenue,
-                        weekRevenue: weekRevenue,
-                        monthRevenue: monthRevenue,
-                      )
-                    else
-                      const _DashboardHeroSkeleton(),
-
-                    const SizedBox(height: 12),
-
-                    // ── Profit Snapshot + Receivables ─────────────────────
-                    if (_showHeavyContent)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _ProfitSnapshotCard(
-                              monthRevenue: monthRevenue,
-                              totalExpenses: totalExpenses,
-                              netProfit: netProfit,
-                              profitMargin: profitMargin,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _ReceivablesCard(
-                              totalOutstanding: totalOutstanding,
-                              invoiceCount: unpaidSales.length,
-                              overdueCount: overdueCount,
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      const Row(children: [
-                        Expanded(child: _DashboardHalfCardSkeleton()),
-                        SizedBox(width: 12),
-                        Expanded(child: _DashboardHalfCardSkeleton()),
-                      ]),
-
-                    if (_showHeavyContent && lowStockItems.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _LowStockAlertsSection(items: lowStockItems),
-                    ],
-
                     const SizedBox(height: 24),
 
                     // ── Quick access modules ───────────────────────────────
