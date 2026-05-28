@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
 import 'package:mali_up/core/services/localization_service.dart';
@@ -15,45 +16,61 @@ import 'package:mali_up/features/security/presentation/screens/pin_lock_screen.d
 import 'firebase_options.dart';
 
 const String _onboardingCompletedKey = 'onboarding_completed';
+const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (error) {
-    final message = error.toString();
-    if (!message.contains('duplicate-app')) {
-      rethrow;
-    }
-  }
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = _sentryDsn.isNotEmpty ? _sentryDsn : null;
+      options.tracesSampleRate = 1.0;
+      options.profilesSampleRate = 1.0;
+      options.sendDefaultPii = true;
+      options.debug = false;
+      options.environment = const String.fromEnvironment(
+        'SENTRY_ENVIRONMENT',
+        defaultValue: 'development',
+      );
+    },
+    appRunner: () async {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      } catch (error) {
+        final message = error.toString();
+        if (!message.contains('duplicate-app')) {
+          rethrow;
+        }
+      }
 
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-  );
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
 
-  final prefs = await SharedPreferences.getInstance();
-  await Future.wait([
-    LocalizationService.initializeWithPrefs(prefs),
-    MotionService.initializeWithPrefs(prefs),
-    SecurityService.initialize(),
-  ]);
+      final prefs = await SharedPreferences.getInstance();
+      await Future.wait([
+        LocalizationService.initializeWithPrefs(prefs),
+        MotionService.initializeWithPrefs(prefs),
+        SecurityService.initialize(),
+      ]);
 
-  final hasCompletedOnboarding =
-      prefs.getBool(_onboardingCompletedKey) ?? false;
-  final hasSelectedLanguage =
-      await LocalizationService.hasLanguageBeenSelected();
+      final hasCompletedOnboarding =
+          prefs.getBool(_onboardingCompletedKey) ?? false;
+      final hasSelectedLanguage =
+          await LocalizationService.hasLanguageBeenSelected();
 
-  runApp(
-    ProviderScope(
-      child: MaliUpApp(
-        hasCompletedOnboarding: hasCompletedOnboarding,
-        hasSelectedLanguage: hasSelectedLanguage,
-      ),
-    ),
+      runApp(
+        ProviderScope(
+          child: MaliUpApp(
+            hasCompletedOnboarding: hasCompletedOnboarding,
+            hasSelectedLanguage: hasSelectedLanguage,
+          ),
+        ),
+      );
+    },
   );
 }
 

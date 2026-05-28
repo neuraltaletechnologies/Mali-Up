@@ -15,7 +15,7 @@ class ApiService {
     if (configured.isNotEmpty) return configured;
 
     if (kDebugMode) {
-      if (Platform.isAndroid) return 'http://10.0.2.2:3001/api/v1';
+      if (Platform.isAndroid) return 'http://192.168.0.11:3001/api/v1';
       if (Platform.isIOS || Platform.isMacOS) return 'http://localhost:3001/api/v1';
       if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
         return 'http://localhost:3001/api/v1';
