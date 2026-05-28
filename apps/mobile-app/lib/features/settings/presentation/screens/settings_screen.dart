@@ -15,6 +15,7 @@ import '../../../../core/services/motion_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/services/security_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../config/routing.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
 import '../../../security/presentation/widgets/pin_setup_sheet.dart';
 import 'subscription_screen.dart';
@@ -282,7 +283,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await FirebaseAuth.instance.signOut();
     ref.read(onboardingNotifierProvider.notifier).reset();
     if (!mounted) return;
-    context.go(AppRouter.phone, extra: {'switchAccount': true});
+    context.go(AppRouter.phonePath, extra: {'switchAccount': true});
   }
 
   Future<void> _openExternalLink(String url) async {
