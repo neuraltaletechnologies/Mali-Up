@@ -1841,13 +1841,18 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final showProfit = _buyVal > 0 && _sellVal > 0;
     final profitAmt  = _profit(_buyVal, _sellVal);
     final marginAmt  = _margin(_buyVal, _sellVal);
+    final sheetWidth = MediaQuery.sizeOf(context).width;
 
-    return Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SizedBox(
+        width: sheetWidth,
+        child: Material(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
           // Handle + Header ────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
@@ -2172,8 +2177,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
               ),
             ),
           ),
-        ],
+            ],
+          ),
         ),
+      ),
     );
   }
 }
