@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/services/default_context_routing_service.dart';
-import '../../core/services/error_handling_service.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -27,8 +25,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
   User? _currentUser;
   late Future<Map<String, dynamic>?> _profileFuture;
   late final VoidCallback _languageListener;
-  bool _isOnline = true;
-  Timer? _presenceTimer;
 
   @override
   void initState() {
@@ -41,17 +37,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
       }
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
-    _refreshPresence();
-    _presenceTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _refreshPresence(),
-    );
   }
 
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
-    _presenceTimer?.cancel();
     super.dispose();
   }
 
@@ -66,12 +56,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
       _currentUser = FirebaseAuth.instance.currentUser;
       _profileFuture = _fetchUserProfile(_currentUser);
     });
-  }
-
-  Future<void> _refreshPresence() async {
-    final online = await ErrorHandlingService.checkConnectivity();
-    if (!mounted) return;
-    setState(() => _isOnline = online);
   }
 
   List<Map<String, dynamic>> _businessesFromProfile(Map<String, dynamic>? profile) {
@@ -631,7 +615,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                               selectedContext: selectedContext,
                               canSwitch: canSwitch,
                               businesses: businesses,
-                              isOnline: _isOnline,
                               onChanged: _switchFinanceContext,
                               onManageBusinesses: () => context.go(AppRouter.businessesPath),
                             ),
@@ -764,7 +747,6 @@ class _FinanceContextSwitcher extends StatelessWidget {
   final String selectedContext;
   final bool canSwitch;
   final List<Map<String, dynamic>> businesses;
-  final bool isOnline;
   final ValueChanged<String> onChanged;
   final VoidCallback onManageBusinesses;
 
@@ -772,7 +754,6 @@ class _FinanceContextSwitcher extends StatelessWidget {
     required this.selectedContext,
     required this.canSwitch,
     required this.businesses,
-    required this.isOnline,
     required this.onChanged,
     required this.onManageBusinesses,
   });
@@ -944,25 +925,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.business_center_rounded, size: 16, color: AppColors.primary),
-                Positioned(
-                  right: -1,
-                  bottom: -1,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: isOnline ? AppColors.success : AppColors.error,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.5),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            const Icon(Icons.business_center_rounded, size: 16, color: AppColors.primary),
             const SizedBox(width: 8),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 130),
