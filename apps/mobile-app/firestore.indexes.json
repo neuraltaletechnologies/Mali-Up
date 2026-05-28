@@ -66,32 +66,11 @@
       ]
     },
     {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "phone", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "businesses",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "pendingInvites",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "phoneNumber", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "team_members",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "phone", "order": "ASCENDING" }
       ]
     }
   ],
