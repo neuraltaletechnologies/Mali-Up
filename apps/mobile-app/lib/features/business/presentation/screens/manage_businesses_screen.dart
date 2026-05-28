@@ -310,10 +310,45 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     final workingHoursController =
         TextEditingController(text: (business?['workingHours'] as String?) ?? '');
     final facebookController =
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
+        TextEditingController(text: (business?['facebook'] as String?) ?? '');
+    final instagramController =
+        TextEditingController(text: (business?['instagram'] as String?) ?? '');
+    final tiktokController =
+        TextEditingController(text: (business?['tiktok'] as String?) ?? '');
+
+    String selectedBusinessType = () {
+      final stored = (business?['category'] as String?) ?? 'Retail';
+      return _businessTypes.any((t) => t['value'] == stored) ? stored : 'Retail';
+    }();
+    String? selectedCity = (business?['placeOfBusiness'] as String?)?.trim();
+    if (selectedCity != null &&
+        !_tanzaniaCities.any((c) => c['en'] == selectedCity)) {
+      selectedCity = null;
+    }
+
+    File? pickedLogoFile;
+    final existingLogoUrl = (business?['logoUrl'] as String?)?.trim();
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        bool localSaving = false;
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final currentName = nameController.text.trim();
+            final initial =
+                currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SafeArea(
                 top: false,
                 child: Padding(
                   padding: EdgeInsets.only(
@@ -1350,10 +1385,45 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                               ),
                             ),
                           ],
-                                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                        fontWeight: FontWeight.w800,
-                                                        color: AppColors.textPrimary,
-                                                      ),
+                        ],
+                      ),
+                      if (category.isNotEmpty || place.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          [
+                            if (category.isNotEmpty) category,
+                            if (place.isNotEmpty) place,
+                          ].join(' • '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.more_vert_rounded,
+                    color: AppColors.textMuted, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _profileFuture,
+      builder: (context, snapshot) {
+        final profile = snapshot.data;
+        final businesses = _businessesFromProfile(profile);
+        final selectedBusinessId = _selectedBusinessId(profile);
         final isLoading =
             snapshot.connectionState != ConnectionState.done && profile == null;
 
@@ -1371,16 +1441,35 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                         children: [
                           Text(
                             _tr('Your businesses', 'Biashara zako'),
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textPrimary,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                    ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '${businesses.length}',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       ...businesses.map(
-                        (b) => _buildBusinessCard(profile, b, selectedBusinessId),
+                        (b) =>
+                            _buildBusinessCard(profile, b, selectedBusinessId),
                       ),
                     ] else if (snapshot.connectionState ==
                         ConnectionState.done) ...[
