@@ -103,8 +103,8 @@ class OnboardingService {
       phone: state.phone,
       pin: state.pin,
     );
-    await _repository.saveUser(userId: uid, state: state);
     final bizId = await _repository.saveBusinessProfile(userId: uid, state: state);
+    await _repository.saveUser(userId: uid, state: state, businessId: bizId);
     await completeOnboarding();
     if (kDebugMode) debugPrint('[OnboardingService] new user saved uid=$uid');
     return bizId;

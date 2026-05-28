@@ -217,8 +217,8 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
   Future<void> _openWhatsAppHelp(bool sw) async {
     final message = Uri.encodeComponent(
       sw
-          ? 'Habari Mali App Help Desk, nahitaji msaada wa maelezo ya biashara.'
-          : 'Hello Mali App Help Desk, I need help with my business details.',
+          ? 'Habari Mali Up Help Desk, nahitaji msaada wa maelezo ya biashara.'
+          : 'Hello Mali Up Help Desk, I need help with my business details.',
     );
     final uri = Uri.parse('https://wa.me/255653520829?text=$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);

@@ -66,8 +66,8 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
   Future<void> _openWhatsAppHelp(bool sw) async {
     final message = Uri.encodeComponent(
       sw
-          ? 'Habari Mali App Help Desk, nahitaji msaada wa kusajili.'
-          : 'Hello Mali App Help Desk, I need help with registration.',
+          ? 'Habari Mali Up Help Desk, nahitaji msaada wa kusajili.'
+          : 'Hello Mali Up Help Desk, I need help with registration.',
     );
     final uri = Uri.parse('https://wa.me/255653520829?text=$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -296,6 +296,8 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                     Icons.alternate_email_rounded,
                                     size: 18,
                                     color: AppColors.textMuted),
+                                validator: (v) => OnboardingValidator.validateEmail(
+                                    v ?? '', isSwahili: sw, optional: true),
                                 onFieldSubmitted: (_) => _submit(),
                               ),
                               const SizedBox(height: 8),

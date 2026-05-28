@@ -131,8 +131,8 @@ class _TeamMemberSetupScreenState
   Future<void> _openWhatsAppHelp(bool sw) async {
     final message = Uri.encodeComponent(
       sw
-          ? 'Habari Mali App Help Desk, nahitaji msaada wa mwaliko wa timu.'
-          : 'Hello Mali App Help Desk, I need help with my team invitation.',
+          ? 'Habari Mali Up Help Desk, nahitaji msaada wa mwaliko wa timu.'
+          : 'Hello Mali Up Help Desk, I need help with my team invitation.',
     );
     final uri = Uri.parse('https://wa.me/255653520829?text=$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -728,6 +728,7 @@ class _PinSetupBody extends StatelessWidget {
                 controller: isConfirm ? confirmCtrl : pinCtrl,
                 focusNode: isConfirm ? confirmFocus : pinFocus,
                 hasError: isConfirm ? confirmHasError : pinHasError,
+                enabled: !isLoading,
                 onChanged: isConfirm ? onConfirmChanged : onPinChanged,
                 onComplete: isConfirm ? onConfirmComplete : onPinComplete,
               ),

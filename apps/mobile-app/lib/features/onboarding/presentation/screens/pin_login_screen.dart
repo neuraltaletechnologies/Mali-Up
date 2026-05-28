@@ -76,8 +76,8 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
   Future<void> _openWhatsAppHelp(bool sw) async {
     final message = Uri.encodeComponent(
       sw
-          ? 'Habari Mali App Help Desk, nahitaji msaada wa kuingia.'
-          : 'Hello Mali App Help Desk, I need help with login.',
+          ? 'Habari Mali Up Help Desk, nahitaji msaada wa kuingia.'
+          : 'Hello Mali Up Help Desk, I need help with login.',
     );
     final uri = Uri.parse('https://wa.me/255653520829?text=$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -291,6 +291,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                   PinDotsInput(
                                     controller: _pinCtrl,
                                     hasError: _hasError,
+                                    enabled: !state.isLoading,
                                     onComplete: _submit,
                                     onChanged: (_) {
                                       if (_hasError) {

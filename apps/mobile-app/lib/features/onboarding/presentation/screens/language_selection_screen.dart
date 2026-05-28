@@ -87,8 +87,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
     final sw = _language == AppLanguage.swahili;
     final message = Uri.encodeComponent(
       sw
-          ? 'Habari Mali App Help Desk, nahitaji msaada.'
-          : 'Hello Mali App Help Desk, I need help.',
+          ? 'Habari Mali Up Help Desk, nahitaji msaada.'
+          : 'Hello Mali Up Help Desk, I need help.',
     );
     final uri = Uri.parse('https://wa.me/255653520829?text=$message');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -233,8 +233,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                               Center(
                                 child: Text(
                                   _tr(
-                                    'Choose the language you\'re most comfortable with.',
-                                    'Chagua lugha ambayo unayostarehesha nayo zaidi.',
+                                    'Choose your preferred language.',
+                                    'Chagua lugha inayostarehesha.',
                                   ),
                                   textAlign: TextAlign.center,
                                   style: subtitleStyle,

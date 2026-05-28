@@ -391,6 +391,7 @@ class PinDotsInput extends StatefulWidget {
     this.focusNode,
     this.autofocus = true,
     this.hasError = false,
+    this.enabled = true,
     this.onChanged,
     this.onComplete,
     this.pinLength = 4,
@@ -400,6 +401,7 @@ class PinDotsInput extends StatefulWidget {
   final FocusNode? focusNode;
   final bool autofocus;
   final bool hasError;
+  final bool enabled;
   final ValueChanged<String>? onChanged;
   final VoidCallback? onComplete;
   final int pinLength;
@@ -463,7 +465,7 @@ class _PinDotsInputState extends State<PinDotsInput>
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onTap: () => FocusScope.of(context).requestFocus(_focus),
+      onTap: widget.enabled ? () => FocusScope.of(context).requestFocus(_focus) : null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -539,6 +541,7 @@ class _PinDotsInputState extends State<PinDotsInput>
               focusNode: _focus,
               controller: widget.controller,
               autofocus: widget.autofocus,
+              enabled: widget.enabled,
               keyboardType: TextInputType.number,
               maxLength: widget.pinLength,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
