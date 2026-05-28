@@ -295,7 +295,7 @@ abstract final class OnboardingStrings {
   /// Personalised greeting shown at the top of Screen 5.
   /// [firstName] — user's first name from Screen 4B.
   static String bizGreetEn(String firstName) =>
-      'Hey $firstName';
+      'Hellow $firstName';
   static String bizGreetSw(String firstName) =>
       'Habari $firstName';
 

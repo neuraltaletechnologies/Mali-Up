@@ -850,7 +850,7 @@ class _ProfileCard extends ConsumerWidget {
         : 'M';
     final name = displayName?.isNotEmpty == true
         ? displayName!
-        : tr('Mali App User', 'Mtumiaji wa Mali App');
+        : tr('Mali Up User', 'Mtumiaji wa Mali Up');
     final contact = (user?.phoneNumber?.trim().isNotEmpty == true
             ? user!.phoneNumber!
             : user?.email?.trim().isNotEmpty == true

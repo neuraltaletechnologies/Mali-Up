@@ -524,7 +524,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
             ? (profile?['name'] as String).trim()
             : ((user?.displayName?.trim().isNotEmpty ?? false)
                 ? user!.displayName!.trim()
-                : _tr('Mali App User', 'Mtumiaji wa Mali App'));
+                : _tr('Mali Up User', 'Mtumiaji wa Mali Up'));
 
     final authPhone = user?.phoneNumber?.trim();
     final profilePhone = (profile?['phone'] as String?)?.trim();

@@ -164,6 +164,28 @@ abstract final class OnboardingValidator {
     return null;
   }
 
+  // ─── EMAIL ──────────────────────────────────────────────────────────────
+
+  /// Validates an email address. If [optional] is true, empty values are
+  /// accepted (returns null). Otherwise an empty value returns an error.
+  static String? validateEmail(String email,
+      {bool isSwahili = false, bool optional = true}) {
+    final t = email.trim();
+    if (t.isEmpty) {
+      if (optional) return null;
+      return _t(isSwahili,
+          en: 'Email is required.', sw: 'Barua pepe inahitajika.');
+    }
+    // Simple but effective email pattern
+    final ok = RegExp(r"^[^\s@]+@[^\s@]+\.[^\s@]+$").hasMatch(t);
+    if (!ok) {
+      return _t(isSwahili,
+          en: 'Enter a valid email address.',
+          sw: 'Ingiza anwani sahihi ya barua pepe.');
+    }
+    return null;
+  }
+
   // ─── HELPERS ──────────────────────────────────────────────────────────────
 
   static String _strip(String input) =>

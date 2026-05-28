@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/customer_providers.dart';
@@ -449,6 +450,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         );
         if (mounted) {
           final messenger = ScaffoldMessenger.of(context);
+          ref.invalidate(customerListProvider);
           Navigator.pop(context);
           messenger.showSnackBar(
             SnackBar(
@@ -657,7 +659,10 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     }
 
     final repository = ref.read(contextFirestoreRepositoryProvider);
-    final financeContext = await repository.resolveContextForUser(user.uid);
+    final activeBusinessId = ref.read(currentBusinessIdProvider).valueOrNull?.trim() ?? '';
+    final financeContext = activeBusinessId.isNotEmpty
+      ? ResolvedFinanceContext.business(activeBusinessId)
+      : await repository.resolveContextForUser(user.uid);
 
     final customer = Customer(
       id: '',

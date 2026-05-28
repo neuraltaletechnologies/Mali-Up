@@ -149,8 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _openWhatsAppHelpDesk() async {
     final message = Uri.encodeComponent(
       _tr(
-        'Hello Mali App Help Desk, I need emergency support with login.',
-        'Habari Mali App Help Desk, nahitaji msaada wa dharura wa kuingia.',
+        'Hello Mali Up Help Desk, I need emergency support with login.',
+        'Habari Mali Up Help Desk, nahitaji msaada wa dharura wa kuingia.',
       ),
     );
     final uri = Uri.parse('https://wa.me/255653520829?text=$message');

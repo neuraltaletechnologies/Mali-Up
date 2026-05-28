@@ -244,10 +244,8 @@ service cloud.firestore {
       allow read, update, delete: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId) &&
         isValidUserCreate(request.resource.data);
-      // Allow unauthenticated phone lookups during onboarding (before auth).
-      // Limit <= 1 prevents full-collection scans.
-      allow list: if isSignedIn() ||
-        (request.auth == null && isLimitedLookup());
+      // Only authenticated users can list/query users.
+      allow list: if isSignedIn();
     }
 
     // =========================================================================
@@ -255,10 +253,8 @@ service cloud.firestore {
     // Path: businesses/{businessId}
     // =========================================================================
     match /businesses/{businessId} {
-      // Signed-in users can query their own business; unauthenticated phone
-      // lookups (returning-user flow) may run a limit-1 ownerId query.
-      allow list: if isSignedIn() ||
-        (request.auth == null && isLimitedLookup());
+      // Only signed-in users can query businesses.
+      allow list: if isSignedIn();
 
       // Direct document read: owner only.
       allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
@@ -273,13 +269,12 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // TEAM MEMBERS — collection group lookup (unauthenticated phone lookup)
+    // TEAM MEMBERS — collection group lookup
     // Path: tenants/{uid}/businesses/{bizId}/team_members/{memberId}
-    // The wildcard rule lets collectionGroup('team_members') run a limit-1
-    // phone query before the user has authenticated.
     // =========================================================================
     match /{path=**}/team_members/{memberId} {
-      allow list: if request.auth == null && isLimitedLookup();
+      // Require authentication for team member lookups.
+      allow list: if isSignedIn();
     }
 
     // =========================================================================

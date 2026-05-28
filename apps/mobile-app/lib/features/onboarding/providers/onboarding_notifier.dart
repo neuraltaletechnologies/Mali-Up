@@ -46,6 +46,13 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       );
     }
 
+    if (error is FirebaseAuthException && error.code == 'email-already-in-use') {
+      return _t(
+        en: 'This account already exists. Go back and sign in with your PIN.',
+        sw: 'Akaunti hii tayari ipo. Rudi nyuma uingie kwa PIN yako.',
+      );
+    }
+
     return _t(
       en: 'Could not create your account. Please try again.',
       sw: 'Imeshindwa kuunda akaunti yako. Tafadhali jaribu tena.',

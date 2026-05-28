@@ -110,8 +110,8 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
   Future<void> _openWhatsAppHelp(bool sw) async {
     final message = Uri.encodeComponent(
       sw
-          ? 'Habari Mali App Help Desk, nahitaji msaada wa kuweka PIN.'
-          : 'Hello Mali App Help Desk, I need help setting up my PIN.',
+          ? 'Habari Mali Up Help Desk, nahitaji msaada wa kuweka PIN.'
+          : 'Hello Mali Up Help Desk, I need help setting up my PIN.',
     );
     final uri = Uri.parse('https://wa.me/255653520829?text=$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -295,6 +295,7 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                                       controller: _pinCtrl,
                                       focusNode: _pinFocus,
                                       hasError: _pinHasError,
+                                      isLoading: state.isLoading,
                                       onChanged: (_) {
                                         if (_pinHasError) {
                                           setState(() => _pinHasError = false);
@@ -328,6 +329,7 @@ class _SetPinBody extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.hasError,
+    required this.isLoading,
     required this.onChanged,
     required this.onComplete,
     required this.onSubmit,
@@ -337,6 +339,7 @@ class _SetPinBody extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool hasError;
+  final bool isLoading;
   final ValueChanged<String> onChanged;
   final VoidCallback onComplete;
   final VoidCallback onSubmit;
@@ -386,6 +389,7 @@ class _SetPinBody extends StatelessWidget {
                 controller: controller,
                 focusNode: focusNode,
                 hasError: hasError,
+                enabled: !isLoading,
                 onChanged: onChanged,
                 onComplete: onComplete,
               ),
@@ -501,6 +505,7 @@ class _ConfirmPinBody extends StatelessWidget {
                 controller: controller,
                 focusNode: focusNode,
                 hasError: hasError,
+                enabled: !isLoading,
                 onChanged: onChanged,
                 onComplete: onComplete,
               ),

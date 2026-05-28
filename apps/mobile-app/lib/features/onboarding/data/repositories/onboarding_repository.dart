@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/onboarding_state.dart';
 import '../../domain/models/user_lookup_result.dart';
 import '../../../auth/presentation/utils/pin_auth_password.dart';
+import '../../../../core/services/api_service.dart';
 
 // ─── PROVIDER ────────────────────────────────────────────────────────────────
 
@@ -32,134 +33,48 @@ class OnboardingRepository {
 
   // ─── LOOKUP ───────────────────────────────────────────────────────────────
 
-  /// Searches for a document matching [phone].
-  ///
-  /// Priority:
-  ///   1. Found in `users`            → [ReturningUser]  (already has PIN)
-  ///   2. Found in `pendingInvites`   → [TeamMemberPending] (invite, no PIN yet)
-  ///   3. Found in `team_members`     → [TeamMemberPending] (legacy, no inviteId)
-  ///   4. Not found                   → [NewUser]
-  ///
-  /// On any Firestore error the method silently returns [NewUser] and logs.
+  /// Searches for a document matching [phone] via secure backend bridge.
   Future<UserLookupResult> lookupByPhone(String phone) async {
-    try {
-      // ── 1. Check users collection ────────────────────────────────────────
-      final userSnap = await _db
-          .collection('users')
-          .where('phone', isEqualTo: phone)
-          .limit(1)
-          .get();
+    // Propagate network/back-end errors so the UI can show an error quickly
+    // instead of silently treating failures as "new user" and waiting.
+    final response = await ApiService.post('/auth/lookup', {'phone': phone});
+    final type = response['type'] as String;
 
-      if (userSnap.docs.isNotEmpty) {
-        final userDoc = userSnap.docs.first;
-        final userData = userDoc.data();
-        final userId = userDoc.id;
+    if (type == 'RETURNING_USER') {
+      final user = response['user'] as Map<String, dynamic>;
+      final business = response['business'] as Map<String, dynamic>?;
+      final fullName = (user['name'] as String?) ?? '';
+      final parts = fullName.trim().split(RegExp(r'\s+'));
 
-        final bizSnap = await _db
-            .collection('businesses')
-            .where('ownerId', isEqualTo: userId)
-            .limit(1)
-            .get();
-
-        String bizName = '';
-        String bizType = '';
-        String bizId = '';
-
-        if (bizSnap.docs.isNotEmpty) {
-          final biz = bizSnap.docs.first;
-          bizName = (biz.data()['businessName'] as String?) ?? '';
-          bizType = (biz.data()['businessType'] as String?) ?? '';
-          bizId = biz.id;
-        }
-
-        final fullName = (userData['name'] as String?) ?? '';
-        final parts = fullName.trim().split(RegExp(r'\s+'));
-
-        return ReturningUser(
-          userId: userId,
-          name: fullName,
-          firstName: parts.isNotEmpty ? parts.first : '',
-          lastName: parts.length > 1 ? parts.skip(1).join(' ') : '',
-          phone: (userData['phone'] as String?) ?? phone,
-          city: (userData['city'] as String?) ?? '',
-          role: (userData['role'] as String?) ?? '',
-          businessName: bizName,
-          businessType: bizType,
-          businessId: bizId,
-        );
-      }
-
-      // ── 2. Check pendingInvites top-level collection (fast, no index needed)
-      final inviteSnap = await _db
-          .collection('pendingInvites')
-          .where('phoneNumber', isEqualTo: phone)
-          .where('status', isEqualTo: 'pending')
-          .limit(1)
-          .get();
-
-      if (inviteSnap.docs.isNotEmpty) {
-        final inviteDoc = inviteSnap.docs.first;
-        final invite = inviteDoc.data();
-
-        return TeamMemberPending(
-          memberId: (invite['memberId'] as String?) ?? '',
-          name: (invite['fullName'] as String?) ?? '',
-          role: (invite['role'] as String?) ?? '',
-          businessName: (invite['businessName'] as String?) ?? '',
-          ownerUid: (invite['ownerUid'] as String?) ?? '',
-          businessId: (invite['businessId'] as String?) ?? '',
-          inviteId: inviteDoc.id,
-          email: (invite['email'] as String?) ?? '',
-        );
-      }
-
-      // ── 3. Fallback: check team_members collectionGroup (legacy records) ──
-      final memberSnap = await _db
-          .collectionGroup('team_members')
-          .where('phone', isEqualTo: phone)
-          .limit(1)
-          .get();
-
-      if (memberSnap.docs.isNotEmpty) {
-        final memberDoc = memberSnap.docs.first;
-        final memberData = memberDoc.data();
-
-        // Path: tenants/{ownerUid}/businesses/{bizId}/team_members/{memberId}
-        final pathSegments = memberDoc.reference.path.split('/');
-        final ownerUid = pathSegments.length > 1 ? pathSegments[1] : '';
-        final bizId = pathSegments.length > 3 ? pathSegments[3] : '';
-
-        String bizName = '';
-        if (ownerUid.isNotEmpty && bizId.isNotEmpty) {
-          try {
-            final bizDoc = await _db
-                .collection('tenants')
-                .doc(ownerUid)
-                .collection('businesses')
-                .doc(bizId)
-                .get();
-            bizName = (bizDoc.data()?['businessName'] as String?) ?? '';
-          } catch (_) {}
-        }
-
-        return TeamMemberPending(
-          memberId: memberDoc.id,
-          name: (memberData['name'] as String?) ?? '',
-          role: (memberData['role'] as String?) ?? '',
-          businessName: bizName,
-          ownerUid: ownerUid,
-          businessId: bizId,
-          email: (memberData['email'] as String?) ?? '',
-        );
-      }
-
-      return const NewUser();
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[OnboardingRepository.lookupByPhone] $e\n$st');
-      }
-      return const NewUser();
+      return ReturningUser(
+        userId: user['id'] as String,
+        name: fullName,
+        firstName: parts.isNotEmpty ? parts.first : '',
+        lastName: parts.length > 1 ? parts.skip(1).join(' ') : '',
+        phone: (user['phone'] as String?) ?? phone,
+        city: (user['city'] as String?) ?? '',
+        role: (user['role'] as String?) ?? '',
+        businessName: business?['name'] as String? ?? '',
+        businessType: business?['type'] as String? ?? '',
+        businessId: business?['id'] as String? ?? '',
+      );
     }
+
+    if (type == 'TEAM_MEMBER_PENDING') {
+      final invite = response['invite'] as Map<String, dynamic>;
+      return TeamMemberPending(
+        memberId: (invite['memberId'] as String?) ?? '',
+        name: (invite['name'] as String?) ?? '',
+        role: (invite['role'] as String?) ?? '',
+        businessName: (invite['businessName'] as String?) ?? '',
+        ownerUid: (invite['ownerUid'] as String?) ?? '',
+        businessId: (invite['businessId'] as String?) ?? '',
+        inviteId: (invite['id'] as String?) ?? '',
+        email: (invite['email'] as String?) ?? '',
+      );
+    }
+
+    return const NewUser();
   }
 
   // ─── AUTH — EXISTING USER ────────────────────────────────────────────────
@@ -255,29 +170,15 @@ class OnboardingRepository {
 
   // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
 
-  /// Looks up the email stored against this phone number and sends a Firebase
-  /// Auth password-reset email to the derived auth address.
-  /// Returns the real email found (for display), or null if nothing was found.
+  /// Looks up the email stored against this phone number via backend bridge
+  /// and triggers a recovery flow.
+  /// Returns the obscured email found (for display), or null if nothing was found.
   Future<String?> sendPinRecovery({required String phone}) async {
     try {
-      // Fetch the real email stored in Firestore
-      final userSnap = await _db
-          .collection('users')
-          .where('phone', isEqualTo: phone)
-          .limit(1)
-          .get();
-
-      String? realEmail;
-      if (userSnap.docs.isNotEmpty) {
-        realEmail =
-            userSnap.docs.first.data()['email'] as String?;
-      }
-
-      // Send reset to the derived Firebase Auth email
-      final authEmail = _emailFromPhone(phone);
-      await _auth.sendPasswordResetEmail(email: authEmail);
-
-      return realEmail;
+      final response = await ApiService.post('/auth/recovery', {'phone': phone});
+      
+      // The backend handles the recovery logic and returns an obscured email
+      return response['email'] as String?;
     } catch (e) {
       if (kDebugMode) debugPrint('[sendPinRecovery] $e');
       return null;
@@ -290,7 +191,18 @@ class OnboardingRepository {
   Future<void> saveUser({
     required String userId,
     required OnboardingState state,
+    required String businessId,
   }) async {
+    final businesses = [
+      {
+        'id': businessId,
+        'name': state.businessName,
+        'category': state.businessType,
+        'placeOfBusiness': state.city,
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    ];
+
     await _db.collection('users').doc(userId).set({
       'phone': state.phone,
       'name': state.fullName,
@@ -299,6 +211,14 @@ class OnboardingRepository {
       'city': state.city,
       'role': state.role,
       'language': state.isSwahili ? 'sw' : 'en',
+      'businessName': state.businessName,
+      'businessType': state.businessType,
+      'defaultAccountType': 'business',
+      'accountTypes': ['business'],
+      'usagePreference': 'business',
+      'defaultContext': 'business:$businessId',
+      'selectedBusinessId': businessId,
+      'businesses': businesses,
       'createdAt': FieldValue.serverTimestamp(),
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
@@ -324,6 +244,28 @@ class OnboardingRepository {
       'createdAt': FieldValue.serverTimestamp(),
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
+
+    await _db
+        .collection('tenants')
+        .doc(userId)
+        .collection('businesses')
+        .doc(ref.id)
+        .set({
+          'id': ref.id,
+          'businessName': state.businessName,
+          'businessType': state.businessType,
+          'businessCategory': state.businessType,
+          'placeOfBusiness': state.city,
+          'ownerName': state.fullName,
+          'ownerUid': userId,
+          'accountType': 'business',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'plan': 'Trial',
+          'isActive': true,
+          'subscriptionStatus': 'trial',
+        });
+
     return ref.id;
   }
 
@@ -337,11 +279,20 @@ class OnboardingRepository {
   }) async {
     final email = _emailFromPhone(phone);
     final password = buildAuthPasswordFromPin(pin);
-    final cred = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    return cred.user!.uid;
+    try {
+      final cred = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return cred.user!.uid;
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'email-already-in-use') rethrow;
+      final cred = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return cred.user!.uid;
+    }
   }
 
   // ─── TOUCH ────────────────────────────────────────────────────────────────

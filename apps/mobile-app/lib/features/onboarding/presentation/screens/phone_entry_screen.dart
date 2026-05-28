@@ -207,8 +207,8 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   Future<void> _openWhatsAppHelp(bool sw) async {
     final message = Uri.encodeComponent(
       sw
-          ? 'Habari Mali App Help Desk, nahitaji msaada wa kujiandikisha.'
-          : 'Hello Mali App Help Desk, I need help with registration.',
+          ? 'Habari Mali Up Help Desk, nahitaji msaada wa kujiandikisha.'
+          : 'Hello Mali Up Help Desk, I need help with registration.',
     );
     final uri = Uri.parse('https://wa.me/255653520829?text=$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -401,6 +401,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                 controller: _phoneCtrl,
                                 focusNode: _phoneFocus,
                                 isSwahili: sw,
+                                enabled: !state.isLoading,
                                 validator: _validatePhone,
                                 onCountryTap: _pickCountry,
                                 onFieldSubmitted: (_) => _submit(),
@@ -493,6 +494,7 @@ class _PhoneInputRow extends StatefulWidget {
     required this.controller,
     required this.focusNode,
     required this.isSwahili,
+    required this.enabled,
     required this.validator,
     required this.onCountryTap,
     required this.onFieldSubmitted,
@@ -502,6 +504,7 @@ class _PhoneInputRow extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool isSwahili;
+  final bool enabled;
   final FormFieldValidator<String> validator;
   final VoidCallback onCountryTap;
   final ValueChanged<String> onFieldSubmitted;
@@ -578,7 +581,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                 children: [
                   // Country code selector
                   GestureDetector(
-                    onTap: widget.onCountryTap,
+                        onTap: widget.enabled ? widget.onCountryTap : null,
                     behavior: HitTestBehavior.opaque,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -624,6 +627,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                     child: TextFormField(
                       controller: widget.controller,
                       focusNode: widget.focusNode,
+                      enabled: widget.enabled,
                       keyboardType: TextInputType.phone,
                       textInputAction: TextInputAction.done,
                       autofocus: true,
