@@ -2013,6 +2013,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ),
                       const SizedBox(width: 8),
                       SizedBox(
+                        width: 48,
                         height: 48,
                         child: OutlinedButton(
                           onPressed: _scanSku,
