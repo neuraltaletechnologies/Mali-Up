@@ -105,6 +105,39 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
       body: Column(
         children: [
           _buildHeader(all.length, totalBalance, debtCount),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: _tr('Search by name, phone…', 'Tafuta kwa jina, simu…'),
+                hintStyle:
+                    GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    size: 20, color: AppColors.textMuted),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded,
+                            size: 18, color: AppColors.textMuted),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                isDense: true,
+                filled: true,
+                fillColor: AppColors.surfaceVariant,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              ),
+            ),
+          ),
           _FilterPills(
             selected: _segment,
             customers: all,
@@ -137,80 +170,47 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   Widget _buildHeader(int count, double totalBalance, int debtCount) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _tr('Customers', 'Wateja'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyPrimary),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.navyPrimary,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.18),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Stats row
-          Row(
-            children: [
-              _StatChip(
-                icon: Icons.people_rounded,
-                label: '$count ${_tr("clients", "wateja")}',
-                color: AppColors.navyPrimary,
-              ),
-              const SizedBox(width: 8),
-              _StatChip(
-                icon: Icons.account_balance_wallet_rounded,
-                label: 'TZS ${_fmtShort(totalBalance)}',
-                label2: _tr('receivable', 'inadaiwa'),
-                color: totalBalance > 0 ? AppColors.warning : AppColors.success,
-              ),
-              const SizedBox(width: 8),
-              _StatChip(
-                icon: Icons.warning_amber_rounded,
-                label: '$debtCount ${_tr("with debt", "wenye deni")}',
-                color: debtCount > 0 ? AppColors.error : AppColors.textMuted,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Search
-          TextField(
-            controller: _searchCtrl,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: _tr('Search by name, phone…', 'Tafuta kwa jina, simu…'),
-              hintStyle:
-                  GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
-              prefixIcon: const Icon(Icons.search_rounded,
-                  size: 20, color: AppColors.textMuted),
-              suffixIcon: _searchCtrl.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          size: 18, color: AppColors.textMuted),
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        setState(() {});
-                      },
-                    )
-                  : null,
-              isDense: true,
-              filled: true,
-              fillColor: AppColors.surfaceVariant,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              ],
+            ),
+            child: Row(
+              children: [
+                _StatChip(
+                  icon: Icons.people_rounded,
+                  label: '$count ${_tr("clients", "wateja")}',
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                _StatChip(
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: 'TZS ${_fmtShort(totalBalance)}',
+                  label2: _tr('receivable', 'inadaiwa'),
+                  color: totalBalance > 0 ? AppColors.warning : AppColors.success,
+                ),
+                const SizedBox(width: 8),
+                _StatChip(
+                  icon: Icons.warning_amber_rounded,
+                  label: '$debtCount ${_tr("with debt", "wenye deni")}',
+                  color: debtCount > 0 ? AppColors.error : Colors.white70,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
         ],
       ),
     );

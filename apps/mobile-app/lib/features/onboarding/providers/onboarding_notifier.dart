@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,6 +34,22 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   OnboardingState build() {
     _service = ref.read(onboardingServiceProvider);
     return const OnboardingState();
+  }
+
+  String _accountCreationErrorMessage(Object error) {
+    if (error is SocketException ||
+        (error is FirebaseAuthException &&
+            error.code == 'network-request-failed')) {
+      return _t(
+        en: 'No internet connection. Please connect to the internet to continue and try again.',
+        sw: 'Hakuna muunganisho wa intaneti. Tafadhali unganisha kwenye intaneti ili kuendelea na ujaribu tena.',
+      );
+    }
+
+    return _t(
+      en: 'Could not create your account. Please try again.',
+      sw: 'Imeshindwa kuunda akaunti yako. Tafadhali jaribu tena.',
+    );
   }
 
   // ─── SCREEN 1 — WELCOME + LANGUAGE ───────────────────────────────────────
@@ -229,18 +247,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     } on FirebaseAuthException catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: _t(
-          en: 'Could not create your account: ${e.message}',
-          sw: 'Imeshindwa kuunda akaunti yako. Jaribu tena.',
-        ),
+        errorMessage: _accountCreationErrorMessage(e),
       );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: _t(
-          en: 'Could not save your PIN. Please try again.',
-          sw: 'Imeshindwa kuhifadhi PIN yako. Jaribu tena.',
-        ),
+        errorMessage: _accountCreationErrorMessage(e),
       );
     }
   }
@@ -304,18 +316,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     } on FirebaseAuthException catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: _t(
-          en: 'Could not create your account: ${e.message ?? e.code}',
-          sw: 'Imeshindwa kuunda akaunti yako. Tafadhali jaribu tena.',
-        ),
+        errorMessage: _accountCreationErrorMessage(e),
       );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: _t(
-          en: 'Could not save your profile. Please try again.',
-          sw: 'Imeshindwa kuhifadhi wasifu wako. Tafadhali jaribu tena.',
-        ),
+        errorMessage: _accountCreationErrorMessage(e),
       );
     }
   }

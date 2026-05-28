@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'audit_log_screen.dart';
@@ -14,17 +15,18 @@ import '../../../../core/services/motion_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/services/security_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../onboarding/providers/onboarding_notifier.dart';
 import '../../../security/presentation/widgets/pin_setup_sheet.dart';
 import 'subscription_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const String _appWebsiteUrl = 'https://neuraltale.com/';
   static const Map<String, String> _socialLinks = {
     'Facebook': 'https://facebook.com/neuraltale',
@@ -276,6 +278,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _switchAccount() async {
+    await FirebaseAuth.instance.signOut();
+    ref.read(onboardingNotifierProvider.notifier).reset();
+    if (!mounted) return;
+    context.go(AppRouter.phone, extra: {'switchAccount': true});
+  }
+
   Future<void> _openExternalLink(String url) async {
     final uri = Uri.parse(url);
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -455,6 +464,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                   activeThumbColor: Colors.white,
                   activeTrackColor: AppColors.secondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ── Account ─────────────────────────────────────────────
+          _SectionHeader(label: _tr('Account', 'Akaunti')),
+          const SizedBox(height: 8),
+          _SettingCard(
+            children: [
+              _SettingTile(
+                icon: Icons.swap_horiz_rounded,
+                iconBg: AppColors.secondary.withValues(alpha: 0.07),
+                iconColor: AppColors.secondary,
+                title: _tr('Switch Account', 'Badili Akaunti'),
+                subtitle: _tr(
+                  'Sign out and use a different account',
+                  'Toka na utumie akaunti nyingine',
+                ),
+                onTap: _switchAccount,
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textMuted,
                 ),
               ),
             ],
