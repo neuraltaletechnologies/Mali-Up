@@ -206,7 +206,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 12),
                 children: [
-                  _OriginalInvoiceBanner(
+                    _InvoiceSummaryCard(
                       invoice: widget.originalInvoice),
                   const SizedBox(height: 16),
                   _SectionHeader(
@@ -295,10 +295,10 @@ class _ReturnLine {
 // Widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _OriginalInvoiceBanner extends StatelessWidget {
+class _InvoiceSummaryCard extends StatelessWidget {
   final Map<String, dynamic> invoice;
 
-  const _OriginalInvoiceBanner({required this.invoice});
+  const _InvoiceSummaryCard({required this.invoice});
 
   @override
   Widget build(BuildContext context) {
@@ -307,58 +307,217 @@ class _OriginalInvoiceBanner extends StatelessWidget {
     final customer =
         invoice['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
     final total = parseNumericAmount(invoice['totalAmount']);
+    final status = invoice['status']?.toString().toLowerCase() ?? 'posted';
+    final itemCount = invoice['lineItems'] is List
+        ? (invoice['lineItems'] as List).length
+        : 0;
+    final invoiceDate = _readInvoiceDate(invoice['invoiceDate']) ??
+        _readInvoiceDate(invoice['createdAt']);
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.08),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.receipt_long_rounded,
-                size: 20, color: AppColors.warning),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tr('Original Invoice', 'Ankara ya Asili'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 11, color: AppColors.warning),
-                ),
-                Text(
-                  number,
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  customer,
-                  style: GoogleFonts.dmSans(
-                      fontSize: 12, color: AppColors.textMuted),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            'TZS ${_fmtNum(total)}',
-            style: GoogleFonts.jetBrainsMono(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 6,
+            offset: Offset(0, 2),
           ),
         ],
       ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          number,
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _tr('ORIG', 'ASILI'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      customer,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _StatusChip(status: status),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _SummaryMeta(
+                  label: _tr('Date', 'Tarehe'),
+                  value: invoiceDate == null ? '-' : _fmt(invoiceDate),
+                  icon: Icons.calendar_today_rounded,
+                ),
+              ),
+              Expanded(
+                child: _SummaryMeta(
+                  label: _tr('Items', 'Bidhaa'),
+                  value: '$itemCount',
+                  icon: Icons.inventory_2_rounded,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                'TZS ${_fmtNum(total)}',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _tr('Source invoice', 'Ankara chanzo'),
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String status;
+
+  const _StatusChip({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = status.toLowerCase();
+    final isPaid = normalized == 'paid';
+    final isCancelled = normalized == 'cancelled';
+    final isDraft = normalized == 'draft';
+    final color = isPaid
+        ? AppColors.success
+        : isCancelled
+            ? AppColors.error
+            : isDraft
+                ? AppColors.warning
+                : AppColors.tealAccent;
+    final label = isPaid
+        ? _tr('Paid', 'Imelipwa')
+        : isCancelled
+            ? _tr('Cancelled', 'Imefutwa')
+            : isDraft
+                ? _tr('Draft', 'Rasimu')
+                : _tr('Posted', 'Imechapishwa');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.dmSans(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryMeta extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _SummaryMeta({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 11, color: AppColors.textMuted),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 10,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }
@@ -844,4 +1003,18 @@ String _fmtNum(double v) {
     buf.write(s[i]);
   }
   return buf.toString();
+}
+
+DateTime? _readInvoiceDate(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  if (value is String) return DateTime.tryParse(value);
+  return null;
+}
+
+String _fmt(DateTime date) {
+  final d = date.day.toString().padLeft(2, '0');
+  final m = date.month.toString().padLeft(2, '0');
+  final y = date.year.toString();
+  return '$d/$m/$y';
 }
