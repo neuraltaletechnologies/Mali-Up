@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "export",
+  // "output: export" removed — admin portal requires SSR (NextAuth API routes + dynamic server components)
   typescript: {
     ignoreBuildErrors: true,
   },
