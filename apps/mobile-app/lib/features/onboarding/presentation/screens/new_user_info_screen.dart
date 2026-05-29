@@ -297,7 +297,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                     size: 18,
                                     color: AppColors.textMuted),
                                 validator: (v) => OnboardingValidator.validateEmail(
-                                    v ?? '', isSwahili: sw, optional: true),
+                                    v ?? '', isSwahili: sw),
                                 onFieldSubmitted: (_) => _submit(),
                               ),
                               const SizedBox(height: 8),

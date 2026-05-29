@@ -555,9 +555,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
 
       for (final contact in selectedContacts) {
         final name = contact.displayName.trim();
-        final phone = contact.phones.isNotEmpty
-            ? contact.phones.first.number.trim()
-            : '';
+        final phone = await _resolveImportPhone(contact);
         if (name.isEmpty || phone.isEmpty) {
           done++;
           continue;
@@ -695,6 +693,22 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       tinNumber: tinNumber,
       address: address,
     );
+  }
+
+  Future<String> _resolveImportPhone(Contact contact) async {
+    try {
+      if (contact.phones.isNotEmpty) {
+        final phone = contact.phones.first.number.trim();
+        if (phone.isNotEmpty) {
+          return phone;
+        }
+      }
+
+      final full = await FlutterContacts.getContact(contact.id);
+      return full?.phones.firstOrNull?.number.trim() ?? '';
+    } catch (_) {
+      return '';
+    }
   }
 
   void _showSnackBar(String message, Color backgroundColor) {

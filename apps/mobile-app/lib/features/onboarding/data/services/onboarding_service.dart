@@ -103,11 +103,22 @@ class OnboardingService {
       phone: state.phone,
       pin: state.pin,
     );
-    final bizId = await _repository.saveBusinessProfile(userId: uid, state: state);
-    await _repository.saveUser(userId: uid, state: state, businessId: bizId);
-    await completeOnboarding();
-    if (kDebugMode) debugPrint('[OnboardingService] new user saved uid=$uid');
-    return bizId;
+    try {
+      final bizId = await _repository.saveBusinessProfile(
+        userId: uid,
+        state: state,
+      );
+      await _repository.saveUser(userId: uid, state: state, businessId: bizId);
+      await completeOnboarding();
+      if (kDebugMode) debugPrint('[OnboardingService] new user saved uid=$uid');
+      return bizId;
+    } catch (e) {
+      await _repository.deleteCurrentAuthUser();
+      if (kDebugMode) {
+        debugPrint('[OnboardingService] rolling back new user uid=$uid: $e');
+      }
+      rethrow;
+    }
   }
 
   // ─── COMPLETION ──────────────────────────────────────────────────────────

@@ -521,10 +521,22 @@ class _CustomerCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      customer.phone,
+                      customer.displaySubtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.dmSans(
                           fontSize: 12, color: AppColors.textMuted),
                     ),
+                    if (customer.address.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        customer.address,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 11, color: AppColors.textMuted),
+                      ),
+                    ],
                     if (customer.tags.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Wrap(

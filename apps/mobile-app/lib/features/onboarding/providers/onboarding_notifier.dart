@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,6 +46,22 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         en: 'No internet connection. Please connect to the internet to continue and try again.',
         sw: 'Hakuna muunganisho wa intaneti. Tafadhali unganisha kwenye intaneti ili kuendelea na ujaribu tena.',
       );
+    }
+
+    if (error is FirebaseException) {
+      if (error.code == 'permission-denied') {
+        return _t(
+          en: 'Your account was created, but the app could not save your profile data. Please try again.',
+          sw: 'Akaunti yako imeundwa, lakini app haikuweza kuhifadhi taarifa zako. Tafadhali jaribu tena.',
+        );
+      }
+
+      if (error.code == 'unavailable' || error.code == 'deadline-exceeded') {
+        return _t(
+          en: 'Firestore is temporarily unavailable. Please try again.',
+          sw: 'Firestore haipatikani kwa sasa. Tafadhali jaribu tena.',
+        );
+      }
     }
 
     if (error is FirebaseAuthException && error.code == 'email-already-in-use') {
