@@ -234,7 +234,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                 child: Text(
                                   _tr(
                                     'Choose your preferred language.',
-                                    'Chagua lugha inayostarehesha.',
+                                    'Chagua lugha inayokustarehesha.',
                                   ),
                                   textAlign: TextAlign.center,
                                   style: subtitleStyle,

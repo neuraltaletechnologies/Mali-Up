@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../../../config/routing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
 
@@ -22,6 +27,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   late VoidCallback _langListener;
   late AppLanguage _language;
+  late final AnimationController _sheetCtrl;
+  late final Animation<double> _sheetFade;
+  late final Animation<Offset> _sheetSlide;
 
   // ── Slide data ──────────────────────────────────────────────────────────────
 
@@ -72,44 +80,271 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       }
     };
     LocalizationService.languageNotifier.addListener(_langListener);
+
+    _sheetCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+    _sheetFade = CurvedAnimation(parent: _sheetCtrl, curve: Curves.easeOut);
+    _sheetSlide = Tween<Offset>(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _sheetCtrl, curve: Curves.easeOutCubic));
+
+    _sheetCtrl.forward();
   }
 
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_langListener);
     _pageCtrl.dispose();
+    _sheetCtrl.dispose();
     super.dispose();
   }
 
   bool get _sw => _language == AppLanguage.swahili;
 
+  String _tr(String en, String sw) => _sw ? sw : en;
+
+  bool get _isLastSlide => _current == _slides.length - 1;
+
+  Future<void> _openWhatsAppHelp() async {
+    final message = Uri.encodeComponent(
+      _sw
+          ? 'Habari Mali Up Help Desk, nahitaji msaada wa kuendelea.'
+          : 'Hello Mali Up Help Desk, I need help getting started.',
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _goBack() {
+    context.go(AppRoutes.welcome);
+  }
+
   void _onPageChanged(int index) {
-    if (index == _slides.length) {
+    setState(() => _current = index);
+  }
+
+  Future<void> _onPrimaryAction() async {
+    if (_isLastSlide) {
       widget.onOnboardingComplete();
       return;
     }
-    setState(() => _current = index);
+    await _pageCtrl.nextPage(
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: PageView.builder(
-          controller: _pageCtrl,
-          onPageChanged: _onPageChanged,
-          itemCount: _slides.length + 1,
-          itemBuilder: (context, index) {
-            if (index == _slides.length) return const SizedBox.shrink();
-            return _SlidePage(
-              slide: _slides[index],
-              isSwahili: _sw,
-              isCurrent: index == _current,
-            );
-          },
-        ),
+      body: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: MediaQuery.of(context).size.height * 0.35,
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: _goBack,
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(10),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _openWhatsAppHelp,
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: Colors.white,
+                      size: 15,
+                    ),
+                    label: Text(
+                      _tr('Help', 'Msaada'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          DraggableScrollableSheet(
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: FadeTransition(
+                  opacity: _sheetFade,
+                  child: SlideTransition(
+                    position: _sheetSlide,
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      physics: const ClampingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              margin: const EdgeInsets.only(bottom: 20),
+                              decoration: BoxDecoration(
+                                color: AppColors.border,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          Center(
+                            child: Text(
+                              _tr('Welcome', 'Karibu'),
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                fontSize: 28,
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                                height: 1.15,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Text(
+                              _tr(
+                                'Swipe through three quick highlights.',
+                                'Pitia vivutio vitatu vifupi.',
+                              ),
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                color: AppColors.textSecondary,
+                                fontSize: 14,
+                                height: 1.5,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.43,
+                            child: PageView.builder(
+                              controller: _pageCtrl,
+                              onPageChanged: _onPageChanged,
+                              itemCount: _slides.length,
+                              itemBuilder: (context, index) {
+                                return _SlidePage(
+                                  slide: _slides[index],
+                                  isSwahili: _sw,
+                                  isCurrent: index == _current,
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(_slides.length, (index) {
+                              final active = index == _current;
+                              return AnimatedContainer(
+                                duration: const Duration(milliseconds: 220),
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                width: active ? 22 : 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: active
+                                      ? AppColors.navyPrimary
+                                      : AppColors.border,
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                              );
+                            }),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: _onPrimaryAction,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.navyPrimary,
+                                foregroundColor: Colors.white,
+                                elevation: 4,
+                                shadowColor:
+                                    AppColors.navyPrimary.withValues(alpha: 0.3),
+                                minimumSize: const Size.fromHeight(52),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                _isLastSlide
+                                    ? _tr("Let's get started", 'Tuanze sasa')
+                                    : _tr('Next', 'Endelea'),
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -170,629 +405,40 @@ class _SlidePageState extends State<_SlidePage>
       opacity: _fade,
       child: SlideTransition(
         position: _slide,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-
-              // Illustration
-              Expanded(
-                flex: 5,
-                child: Center(
-                  child: _Illustration(index: widget.slide.illustrationIndex),
-                ),
-              ),
-
-              // Text content
-              Expanded(
-                flex: 4,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.navyPrimary,
-                        height: 1.2,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      body,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textMuted,
-                        height: 1.6,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Abstract geometric illustrations (no external assets needed) ───────────────
-
-class _Illustration extends StatelessWidget {
-  final int index;
-  const _Illustration({required this.index});
-
-  @override
-  Widget build(BuildContext context) {
-    return switch (index) {
-      0 => const _DashboardIllustration(),
-      1 => const _AutomationIllustration(),
-      _ => const _MobileIllustration(),
-    };
-  }
-}
-
-/// Slide 1 — bar chart representing business clarity
-class _DashboardIllustration extends StatelessWidget {
-  const _DashboardIllustration();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 260,
-      height: 240,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Background card
-          Container(
-            width: 240,
-            height: 210,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
-            ),
-          ),
-
-          // Chart bars
-          Positioned(
-            bottom: 30,
-            left: 34,
-            right: 34,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _Bar(height: 60, color: AppColors.tealAccent.withValues(alpha: 0.35)),
-                _Bar(height: 90, color: AppColors.tealAccent.withValues(alpha: 0.6)),
-                _Bar(height: 50, color: AppColors.tealAccent.withValues(alpha: 0.35)),
-                const _Bar(height: 120, color: AppColors.navyPrimary),
-                _Bar(height: 75, color: AppColors.tealAccent.withValues(alpha: 0.5)),
-                const _Bar(height: 100, color: AppColors.yellowBrand),
-              ],
-            ),
-          ),
-
-          // Top stat card
-          Positioned(
-            top: 22,
-            right: 22,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.navyPrimary,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.navyPrimary.withValues(alpha: 0.25),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.trending_up_rounded,
-                      color: AppColors.yellowBrand, size: 14),
-                  SizedBox(width: 5),
-                  Text(
-                    '+24%',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Label dots
-          const Positioned(
-            top: 22,
-            left: 22,
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _LabelDot(color: AppColors.navyPrimary, label: 'Revenue'),
-                SizedBox(height: 5),
-                _LabelDot(color: AppColors.yellowBrand, label: 'Profit'),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 27,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                    height: 1.18,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textMuted,
+                    height: 1.55,
+                  ),
+                ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Bar extends StatelessWidget {
-  final double height;
-  final Color color;
-  const _Bar({required this.height, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: 22,
-        height: height,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(6),
         ),
-      );
-}
-
-class _LabelDot extends StatelessWidget {
-  final Color color;
-  final String label;
-  const _LabelDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              color: AppColors.textMuted,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      );
-}
-
-/// Slide 2 — document/invoice automation
-class _AutomationIllustration extends StatelessWidget {
-  const _AutomationIllustration();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 260,
-      height: 240,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Back card
-          Positioned(
-            top: 10,
-            left: 10,
-            child: Transform.rotate(
-              angle: -0.06,
-              child: Container(
-                width: 185,
-                height: 220,
-                decoration: BoxDecoration(
-                  color: AppColors.tealAccent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                      color: AppColors.tealAccent.withValues(alpha: 0.18)),
-                ),
-              ),
-            ),
-          ),
-
-          // Main document card
-          Container(
-            width: 195,
-            height: 225,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: AppColors.yellowBrand,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.receipt_rounded,
-                            size: 15, color: AppColors.navyPrimary),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Invoice #0042',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Line items
-                  ...[
-                    ('Product A', 'TZS 45,000', true),
-                    ('Service B', 'TZS 30,000', true),
-                    ('Item C', 'TZS 12,500', false),
-                  ].map((item) => _InvoiceLine(
-                        label: item.$1,
-                        amount: item.$2,
-                        checked: item.$3,
-                      )),
-                  const SizedBox(height: 8),
-                  const Divider(height: 1, color: AppColors.border),
-                  const SizedBox(height: 8),
-                  // Total
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary,
-                        ),
-                      ),
-                      Text(
-                        'TZS 87,500',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navyPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppColors.success,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '✓  Sent automatically',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
-    );
-  }
-}
-
-class _InvoiceLine extends StatelessWidget {
-  final String label;
-  final String amount;
-  final bool checked;
-  const _InvoiceLine(
-      {required this.label, required this.amount, required this.checked});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(
-            checked ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-            size: 14,
-            color: checked ? AppColors.success : AppColors.border,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textSecondary),
-            ),
-          ),
-          Text(
-            amount,
-            style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.navyPrimary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Slide 3 — mobile-first, African businesses
-class _MobileIllustration extends StatelessWidget {
-  const _MobileIllustration();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 260,
-      height: 240,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Phone frame
-          Container(
-            width: 130,
-            height: 225,
-            decoration: BoxDecoration(
-              color: AppColors.navyPrimary,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.30),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Screen
-                Positioned.fill(
-                  top: 14,
-                  bottom: 14,
-                  left: 8,
-                  right: 8,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 10),
-                        // Status bar mock
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('9:41',
-                                  style: TextStyle(
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.navyPrimary)),
-                              Row(children: [
-                                Icon(Icons.wifi_rounded,
-                                    size: 8, color: AppColors.navyPrimary),
-                                SizedBox(width: 2),
-                                Icon(Icons.signal_cellular_alt_rounded,
-                                    size: 8, color: AppColors.navyPrimary),
-                              ]),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        // Mini dashboard
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.navyPrimary,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Today',
-                                  style: TextStyle(
-                                      fontSize: 7,
-                                      color: Colors.white54,
-                                      fontWeight: FontWeight.w500)),
-                              SizedBox(height: 3),
-                              Text('TZS 124K',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.yellowBrand,
-                                      fontWeight: FontWeight.w800)),
-                              SizedBox(height: 2),
-                              Row(children: [
-                                Icon(Icons.arrow_upward_rounded,
-                                    size: 8, color: AppColors.success),
-                                Text(' +18%',
-                                    style: TextStyle(
-                                        fontSize: 7, color: AppColors.success)),
-                              ]),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        // Menu grid
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _AppIcon(icon: Icons.storefront_rounded, label: 'Sales'),
-                              _AppIcon(icon: Icons.inventory_2_rounded, label: 'Stock'),
-                              _AppIcon(icon: Icons.people_rounded, label: 'CRM'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Home bar
-                Positioned(
-                  bottom: 18,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Floating offline badge
-          Positioned(
-            top: 20,
-            right: 14,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.success,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  const Text(
-                    'Works offline',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.navyPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Floating language badge
-          Positioned(
-            bottom: 24,
-            left: 14,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.yellowBrand,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.yellowBrand.withValues(alpha: 0.30),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: const Text(
-                '🇹🇿 Kiswahili',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navyPrimary,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AppIcon extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _AppIcon({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            color: AppColors.navyPrimary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Icon(icon, size: 12, color: AppColors.navyPrimary),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 7, color: AppColors.textMuted),
-        ),
-      ],
     );
   }
 }
