@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../config/routing.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../providers/onboarding_notifier.dart';
-import '../../../../config/routing.dart';
 
 class OnboardingSuccessScreen extends ConsumerStatefulWidget {
   const OnboardingSuccessScreen({super.key});
@@ -15,8 +18,7 @@ class OnboardingSuccessScreen extends ConsumerStatefulWidget {
       _OnboardingSuccessScreenState();
 }
 
-class _OnboardingSuccessScreenState
-    extends ConsumerState<OnboardingSuccessScreen>
+class _OnboardingSuccessScreenState extends ConsumerState<OnboardingSuccessScreen>
     with TickerProviderStateMixin {
   late final AnimationController _checkCtrl;
   late final AnimationController _ringCtrl;
@@ -32,6 +34,13 @@ class _OnboardingSuccessScreenState
   @override
   void initState() {
     super.initState();
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
 
     _checkCtrl = AnimationController(
       vsync: this,
@@ -49,8 +58,10 @@ class _OnboardingSuccessScreenState
     _checkScale = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(parent: _checkCtrl, curve: Curves.elasticOut),
     );
-    _checkOpacity =
-        CurvedAnimation(parent: _checkCtrl, curve: const Interval(0, 0.4));
+    _checkOpacity = CurvedAnimation(
+      parent: _checkCtrl,
+      curve: const Interval(0, 0.4),
+    );
 
     _ringScale = Tween<double>(begin: 0.6, end: 1.5).animate(
       CurvedAnimation(parent: _ringCtrl, curve: Curves.easeOut),
@@ -59,14 +70,17 @@ class _OnboardingSuccessScreenState
       CurvedAnimation(parent: _ringCtrl, curve: Curves.easeOut),
     );
 
-    _contentFade =
-        CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOut);
-    _contentSlide =
-        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+    _contentFade = CurvedAnimation(
+      parent: _contentCtrl,
+      curve: Curves.easeOut,
+    );
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(
       CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOutCubic),
     );
 
-    // Stagger: check → ring pulse → content
     _checkCtrl.forward().whenComplete(() {
       if (mounted) {
         _ringCtrl.forward();
@@ -83,227 +97,305 @@ class _OnboardingSuccessScreenState
     super.dispose();
   }
 
+  Future<void> _openWhatsAppHelp(bool sw) async {
+    final message = Uri.encodeComponent(
+      sw
+          ? 'Habari Mali Up Help Desk, nimekamilisha usajili wangu.'
+          : 'Hello Mali Up Help Desk, I have completed onboarding.',
+    );
+    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final state       = ref.watch(onboardingNotifierProvider);
-    final sw          = state.isSwahili;
-    final firstName   = state.firstName;
-    final bizName     = state.businessName;
+    final state = ref.watch(onboardingNotifierProvider);
+    final sw = state.isSwahili;
+    final firstName = state.firstName;
+    final bizName = state.businessName;
+    final topHeight = MediaQuery.of(context).size.height * 0.35;
+
+    final headingStyle = GoogleFonts.poppins(
+      fontSize: 28,
+      color: AppColors.textPrimary,
+      fontWeight: FontWeight.w800,
+      height: 1.15,
+      letterSpacing: -0.5,
+    );
+    final subtitleStyle = GoogleFonts.poppins(
+      color: AppColors.textSecondary,
+      fontSize: 14,
+      height: 1.5,
+      fontWeight: FontWeight.w400,
+    );
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // ── Decorative background orbs ─────────────────────────────────
-            Positioned(
-              top: -40,
-              right: -40,
-              child: Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.yellowBrand.withValues(alpha: 0.06),
-                ),
+      body: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: topHeight,
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
               ),
             ),
-            Positioned(
-              bottom: 80,
-              left: -60,
-              child: Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.tealAccent.withValues(alpha: 0.05),
-                ),
-              ),
-            ),
-
-            // ── Main content ───────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const Spacer(flex: 2),
-
-                  // ── Animated check + ring pulse ──────────────────────────
-                  SizedBox(
-                    width: 160,
-                    height: 160,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Expanding ring
-                        FadeTransition(
-                          opacity: _ringOpacity,
-                          child: ScaleTransition(
-                            scale: _ringScale,
-                            child: Container(
-                              width: 96,
-                              height: 96,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.yellowBrand,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Check circle
-                        ScaleTransition(
-                          scale: _checkScale,
-                          child: FadeTransition(
-                            opacity: _checkOpacity,
-                            child: Container(
-                              width: 96,
-                              height: 96,
-                              decoration: BoxDecoration(
-                                color: AppColors.yellowBrand,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.yellowBrand
-                                        .withValues(alpha: 0.38),
-                                    blurRadius: 32,
-                                    spreadRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.check_rounded,
-                                size: 52,
-                                color: AppColors.navyPrimary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                  TextButton.icon(
+                    onPressed: () => _openWhatsAppHelp(sw),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: Colors.white,
+                      size: 15,
                     ),
-                  ),
-                  const SizedBox(height: 36),
-
-                  // ── Title + subtitle ─────────────────────────────────────
-                  FadeTransition(
-                    opacity: _contentFade,
-                    child: SlideTransition(
-                      position: _contentSlide,
-                      child: Column(
-                        children: [
-                          Text(
-                            firstName.isNotEmpty
-                                ? OnboardingStrings.s(sw,
-                                    en: OnboardingStrings
-                                        .successTitleEn(firstName),
-                                    sw: OnboardingStrings
-                                        .successTitleSw(firstName))
-                                : OnboardingStrings.s(sw,
-                                    en: "You're all set! 🎉",
-                                    sw: 'Umewekwa vizuri! 🎉'),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.navyPrimary,
-                              height: 1.15,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            OnboardingStrings.s(sw,
-                                en: OnboardingStrings.successBodyEn,
-                                sw: OnboardingStrings.successBodySw),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              color: AppColors.textMuted,
-                              height: 1.55,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // ── Feature pills ──────────────────────────────────
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _FeaturePill(
-                                icon: Icons.point_of_sale_rounded,
-                                label: sw ? 'Mauzo' : 'Sales',
-                              ),
-                              const SizedBox(width: 8),
-                              _FeaturePill(
-                                icon: Icons.inventory_rounded,
-                                label: sw ? 'Stoo' : 'Stock',
-                              ),
-                              const SizedBox(width: 8),
-                              _FeaturePill(
-                                icon: Icons.receipt_long_rounded,
-                                label: sw ? 'Risiti' : 'Invoices',
-                              ),
-                            ],
-                          ),
-
-                          // ── Business name card ─────────────────────────────
-                          if (bizName.isNotEmpty) ...[
-                            const SizedBox(height: 24),
-                            _BusinessReadyCard(
-                              businessName: bizName,
-                              isSwahili: sw,
-                            ),
-                          ],
-                        ],
+                    label: Text(
+                      sw ? 'Msaada' : 'Help',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                     ),
                   ),
-
-                  const Spacer(flex: 3),
-
-                  // ── Welcome tag + CTA ────────────────────────────────────
-                  FadeTransition(
-                    opacity: _contentFade,
-                    child: Column(
-                      children: [
-                        Text(
-                          OnboardingStrings.s(sw,
-                              en: OnboardingStrings.successWelcomeTagEn,
-                              sw: OnboardingStrings.successWelcomeTagSw),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                            fontStyle: FontStyle.italic,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: _GoToDashboardButton(
-                            label: OnboardingStrings.s(sw,
-                                en: OnboardingStrings.successCtaEn,
-                                sw: OnboardingStrings.successCtaSw),
-                            onPressed: () => context.go(AppRoutes.dashboard),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          DraggableScrollableSheet(
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: FadeTransition(
+                    opacity: _contentFade,
+                    child: SlideTransition(
+                      position: _contentSlide,
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        physics: const ClampingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(bottom: 20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.border,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            Center(
+                              child: Text(
+                                firstName.isNotEmpty
+                                    ? OnboardingStrings.s(
+                                        sw,
+                                        en: OnboardingStrings.successTitleEn(firstName),
+                                        sw: OnboardingStrings.successTitleSw(firstName),
+                                      )
+                                    : OnboardingStrings.s(
+                                        sw,
+                                        en: "You're all set! 🎉",
+                                        sw: 'Umewekwa vizuri! 🎉',
+                                      ),
+                                textAlign: TextAlign.center,
+                                style: headingStyle,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                OnboardingStrings.s(
+                                  sw,
+                                  en: OnboardingStrings.successBodyEn,
+                                  sw: OnboardingStrings.successBodySw,
+                                ),
+                                textAlign: TextAlign.center,
+                                style: subtitleStyle,
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            Center(
+                              child: SizedBox(
+                                width: 160,
+                                height: 160,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    FadeTransition(
+                                      opacity: _ringOpacity,
+                                      child: ScaleTransition(
+                                        scale: _ringScale,
+                                        child: Container(
+                                          width: 96,
+                                          height: 96,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: AppColors.yellowBrand,
+                                              width: 2,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    ScaleTransition(
+                                      scale: _checkScale,
+                                      child: FadeTransition(
+                                        opacity: _checkOpacity,
+                                        child: Container(
+                                          width: 96,
+                                          height: 96,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.yellowBrand,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppColors.yellowBrand.withValues(alpha: 0.38),
+                                                blurRadius: 32,
+                                                spreadRadius: 4,
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Icon(
+                                            Icons.check_rounded,
+                                            size: 52,
+                                            color: AppColors.navyPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _FeaturePill(
+                                  icon: Icons.point_of_sale_rounded,
+                                  label: sw ? 'Mauzo' : 'Sales',
+                                ),
+                                const SizedBox(width: 8),
+                                _FeaturePill(
+                                  icon: Icons.inventory_rounded,
+                                  label: sw ? 'Stoo' : 'Stock',
+                                ),
+                                const SizedBox(width: 8),
+                                _FeaturePill(
+                                  icon: Icons.receipt_long_rounded,
+                                  label: sw ? 'Risiti' : 'Invoices',
+                                ),
+                              ],
+                            ),
+                            if (bizName.isNotEmpty) ...[
+                              const SizedBox(height: 24),
+                              _BusinessReadyCard(
+                                businessName: bizName,
+                                isSwahili: sw,
+                              ),
+                            ],
+                            const SizedBox(height: 32),
+                            Text(
+                              OnboardingStrings.s(
+                                sw,
+                                en: OnboardingStrings.successWelcomeTagEn,
+                                sw: OnboardingStrings.successWelcomeTagSw,
+                              ),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                                fontStyle: FontStyle.italic,
+                                height: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.navyPrimary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 4,
+                                  shadowColor: AppColors.navyPrimary.withValues(alpha: 0.3),
+                                  minimumSize: const Size.fromHeight(52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: () => context.go(AppRoutes.dashboard),
+                                child: Text(
+                                  OnboardingStrings.s(
+                                    sw,
+                                    en: OnboardingStrings.successCtaEn,
+                                    sw: OnboardingStrings.successCtaSw,
+                                  ),
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 }
-
-// ── Feature pill ──────────────────────────────────────────────────────────────
 
 class _FeaturePill extends StatelessWidget {
   const _FeaturePill({required this.icon, required this.label});
@@ -338,8 +430,6 @@ class _FeaturePill extends StatelessWidget {
     );
   }
 }
-
-// ── Business ready card ───────────────────────────────────────────────────────
 
 class _BusinessReadyCard extends StatelessWidget {
   const _BusinessReadyCard({
@@ -405,8 +495,7 @@ class _BusinessReadyCard extends StatelessWidget {
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: AppColors.successBg,
               borderRadius: BorderRadius.circular(99),
@@ -421,90 +510,6 @@ class _BusinessReadyCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ── Go to Dashboard button with press animation ───────────────────────────────
-
-class _GoToDashboardButton extends StatefulWidget {
-  const _GoToDashboardButton({
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  State<_GoToDashboardButton> createState() => _GoToDashboardButtonState();
-}
-
-class _GoToDashboardButtonState extends State<_GoToDashboardButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pressCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 80),
-      reverseDuration: const Duration(milliseconds: 180),
-      lowerBound: 0.97,
-    );
-  }
-
-  @override
-  void dispose() {
-    _pressCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _pressCtrl,
-      child: GestureDetector(
-        onTapDown: (_) => _pressCtrl.reverse(),
-        onTapUp: (_) {
-          _pressCtrl.forward();
-          widget.onPressed();
-        },
-        onTapCancel: () => _pressCtrl.forward(),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: AppColors.navyPrimary,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.navyPrimary.withValues(alpha: 0.28),
-                blurRadius: 16,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                widget.label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward_rounded,
-                  color: AppColors.yellowBrand, size: 18),
-            ],
-          ),
-        ),
       ),
     );
   }

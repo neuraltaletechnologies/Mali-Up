@@ -377,28 +377,6 @@ class _InvitationBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Invitation icon
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: AppColors.yellowBrand,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.yellowBrand.withValues(alpha: 0.30),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.group_add_rounded,
-            color: AppColors.navyPrimary,
-            size: 26,
-          ),
-        ),
-        const SizedBox(height: 20),
         Text(
           sw ? 'Tumepata mwaliko wako 🎉' : 'We found your invitation 🎉',
           style: GoogleFonts.poppins(
