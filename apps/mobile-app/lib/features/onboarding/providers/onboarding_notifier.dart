@@ -114,9 +114,15 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   Future<void> lookupPhone() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final result = await _service.lookupPhone(phone: state.phone);
+      // Explicit internet connection check
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isEmpty || result[0].rawAddress.isEmpty) {
+        throw const SocketException('No internet connection');
+      }
 
-      switch (result) {
+      final lookupResult = await _service.lookupPhone(phone: state.phone);
+
+      switch (lookupResult) {
         case final ReturningUser r:
           state = state.copyWith(
             isReturningUser: true,
