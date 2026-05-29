@@ -35,7 +35,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   static const _slides = [
     _SlideData(
-      illustrationIndex: 0,
+      iconData: Icons.analytics_rounded,
       titleEn: 'Make confident\nbusiness decisions',
       titleSw: 'Fanya maamuzi ya\nbiashara kwa ujasiri',
       bodyEn:
@@ -44,7 +44,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Elewa pesa yako, mauzo, na utendaji wa biashara kwa uwazi.',
     ),
     _SlideData(
-      illustrationIndex: 1,
+      iconData: Icons.receipt_long_rounded,
       titleEn: 'Spend less time\nwriting things down',
       titleSw: 'Tumia muda mchache\nkuandika mambo',
       bodyEn:
@@ -53,7 +53,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Otomatisha ankara, masasisho ya hifadhi, na ufuatiliaji wa malipo.',
     ),
     _SlideData(
-      illustrationIndex: 2,
+      iconData: Icons.public_rounded,
       titleEn: 'Built for\nAfrican businesses',
       titleSw: 'Imeundwa kwa\nbiashara za Afrika',
       bodyEn:
@@ -413,7 +413,22 @@ class _SlidePageState extends State<_SlidePage>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 16),
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Icon(
+                      widget.slide.iconData,
+                      size: 32,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   title,
                   style: const TextStyle(
@@ -446,14 +461,14 @@ class _SlidePageState extends State<_SlidePage>
 // ── Slide data model ───────────────────────────────────────────────────────────
 
 class _SlideData {
-  final int illustrationIndex;
+  final IconData iconData;
   final String titleEn;
   final String titleSw;
   final String bodyEn;
   final String bodySw;
 
   const _SlideData({
-    required this.illustrationIndex,
+    required this.iconData,
     required this.titleEn,
     required this.titleSw,
     required this.bodyEn,

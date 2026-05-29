@@ -18,60 +18,66 @@ import 'firebase_options.dart';
 const String _onboardingCompletedKey = 'onboarding_completed';
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 
+Future<void> _startApp() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (error) {
+    final message = error.toString();
+    if (!message.contains('duplicate-app')) {
+      rethrow;
+    }
+  }
+
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
+
+  final prefs = await SharedPreferences.getInstance();
+  await Future.wait([
+    LocalizationService.initializeWithPrefs(prefs),
+    MotionService.initializeWithPrefs(prefs),
+    SecurityService.initialize(),
+  ]);
+
+  final hasCompletedOnboarding =
+      prefs.getBool(_onboardingCompletedKey) ?? false;
+  final hasSelectedLanguage =
+      await LocalizationService.hasLanguageBeenSelected();
+
+  runApp(
+    ProviderScope(
+      child: MaliUpApp(
+        hasCompletedOnboarding: hasCompletedOnboarding,
+        hasSelectedLanguage: hasSelectedLanguage,
+      ),
+    ),
+  );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await SentryFlutter.init(
-    (options) {
-      options.dsn = _sentryDsn.isNotEmpty ? _sentryDsn : null;
-      options.tracesSampleRate = 1.0;
-      options.profilesSampleRate = 1.0;
-      options.sendDefaultPii = true;
-      options.debug = false;
-      options.environment = const String.fromEnvironment(
-        'SENTRY_ENVIRONMENT',
-        defaultValue: 'development',
-      );
-    },
-    appRunner: () async {
-      try {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
+  if (_sentryDsn.isEmpty) {
+    await _startApp();
+  } else {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = _sentryDsn;
+        options.tracesSampleRate = 1.0;
+        options.profilesSampleRate = 1.0;
+        options.sendDefaultPii = true;
+        options.debug = false;
+        options.environment = const String.fromEnvironment(
+          'SENTRY_ENVIRONMENT',
+          defaultValue: 'development',
         );
-      } catch (error) {
-        final message = error.toString();
-        if (!message.contains('duplicate-app')) {
-          rethrow;
-        }
-      }
-
-      FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: true,
-        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-      );
-
-      final prefs = await SharedPreferences.getInstance();
-      await Future.wait([
-        LocalizationService.initializeWithPrefs(prefs),
-        MotionService.initializeWithPrefs(prefs),
-        SecurityService.initialize(),
-      ]);
-
-      final hasCompletedOnboarding =
-          prefs.getBool(_onboardingCompletedKey) ?? false;
-      final hasSelectedLanguage =
-          await LocalizationService.hasLanguageBeenSelected();
-
-      runApp(
-        ProviderScope(
-          child: MaliUpApp(
-            hasCompletedOnboarding: hasCompletedOnboarding,
-            hasSelectedLanguage: hasSelectedLanguage,
-          ),
-        ),
-      );
-    },
-  );
+      },
+      appRunner: _startApp,
+    );
+  }
 }
 
 class MaliUpApp extends StatefulWidget {
