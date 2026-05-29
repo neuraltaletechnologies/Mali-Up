@@ -437,19 +437,19 @@ abstract final class OnboardingStrings {
 
   /// [firstName] — personalised success heading.
   static String successTitleEn(String firstName) =>
-      "You're all set, $firstName!";
+      "You're in, $firstName!";
   static String successTitleSw(String firstName) =>
-      'Umewekwa vizuri, $firstName!';
+      'Umeingia, $firstName!';
 
   static const successBodyEn =
-      'Your business workspace is ready. Time to make every shilling count.';
+      'Your workspace is ready.';
   static const successBodySw =
-      'Eneo lako la biashara liko tayari. Ni wakati wa kuhesabu kila shilingi.';
+      'Eneo lako liko tayari.';
 
   static const successWelcomeTagEn =
-      'Welcome to Mali Up — where every shilling counts.';
+      'Let’s get started.';
   static const successWelcomeTagSw =
-      'Karibu Mali Up — mahali ambapo kila shilingi inahesabiwa.';
+      'Tuanze sasa.';
 
   static const successCtaEn = 'Go to Dashboard';
   static const successCtaSw = 'Nenda kwenye Dashibodi';
