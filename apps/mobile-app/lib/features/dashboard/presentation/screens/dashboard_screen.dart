@@ -35,7 +35,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   int _entryRewardTrigger = 0;
   bool _showEntryReward = false;
-  bool _showHeavyContent = false;
   Timer? _clockTimer;
   Future<Map<String, dynamic>?> _profileFuture = Future.value();
 
@@ -50,13 +49,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _showFirstEntryRewardIfNeeded();
       _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
         if (mounted) setState(() {});
-      });
-      Future<void>.delayed(const Duration(milliseconds: 120), () {
-        if (mounted) {
-          setState(() {
-            _showHeavyContent = true;
-          });
-        }
       });
     });
   }
@@ -135,24 +127,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customers = _showHeavyContent
-      ? ref.watch(customerListProvider)
-      : const AsyncLoading<List<Customer>>();
-    final customerCount = _showHeavyContent
-      ? customers.maybeWhen(data: (items) => items.length, orElse: () => 0)
-      : 0;
-    final AsyncValue<List<Expense>> expenses = _showHeavyContent
-      ? ref.watch(expenseListProvider)
-      : const AsyncLoading<List<Expense>>();
-    final AsyncValue<List<CashAccount>> cashAccounts = _showHeavyContent
-      ? ref.watch(cashAccountListProvider)
-      : const AsyncLoading<List<CashAccount>>();
-    final expenseItems = _showHeavyContent
-      ? expenses.maybeWhen(data: (items) => items, orElse: () => const [])
-      : const [];
-    final cashAccountItems = _showHeavyContent
-      ? cashAccounts.maybeWhen(data: (items) => items, orElse: () => const [])
-      : const [];
+    final customers = ref.watch(customerListProvider);
+    final customerCount = customers.maybeWhen(data: (items) => items.length, orElse: () => 0);
+    final AsyncValue<List<Expense>> expenses = ref.watch(expenseListProvider);
+    final AsyncValue<List<CashAccount>> cashAccounts = ref.watch(cashAccountListProvider);
+    final expenseItems = expenses.maybeWhen(data: (items) => items, orElse: () => const []);
+    final cashAccountItems = cashAccounts.maybeWhen(data: (items) => items, orElse: () => const []);
     final totalExpenses = expenseItems.fold<double>(
       0,
       (total, item) => total + _numericValue(item.amount),
@@ -161,18 +141,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       0,
       (total, item) => total + _numericValue(item.balance),
     );
-    final salesItems = _showHeavyContent
-        ? ref.watch(salesInvoiceListProvider).maybeWhen(
+    final salesItems = ref.watch(salesInvoiceListProvider).maybeWhen(
             data: (items) => items,
             orElse: () => const <Map<String, dynamic>>[],
-          )
-        : const <Map<String, dynamic>>[];
-    final inventoryItems = _showHeavyContent
-        ? ref.watch(inventoryItemListProvider).maybeWhen(
+          );
+    final inventoryItems = ref.watch(inventoryItemListProvider).maybeWhen(
             data: (items) => items,
             orElse: () => const <Map<String, dynamic>>[],
-          )
-        : const <Map<String, dynamic>>[];
+          );
     final todayRevenue = _revenueForPeriod(salesItems, 0);
     final weekRevenue = _revenueForPeriod(salesItems, 6);
     final monthRevenue = _monthRevenue(salesItems);
@@ -278,16 +254,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     const SizedBox(height: 20),
 
                     // ── Hero card ──────────────────────────────────────────
-                    if (_showHeavyContent)
-                      _UnifiedHeroCard(
-                        totalCash: totalCash,
-                        totalExpenses: totalExpenses,
-                        customerCount: customerCount,
-                        businessName: _getBusinessName(snapshot.data),
-                        logoUrl: _getBusinessLogoUrl(snapshot.data),
-                      )
-                    else
-                      const _DashboardHeroSkeleton(),
+                    _UnifiedHeroCard(
+                      totalCash: totalCash,
+                      totalExpenses: totalExpenses,
+                      customerCount: customerCount,
+                      businessName: _getBusinessName(snapshot.data),
+                      logoUrl: _getBusinessLogoUrl(snapshot.data),
+                    ),
 
                     const SizedBox(height: 24),
 
@@ -306,7 +279,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    _ModuleGrid(showHeavyContent: _showHeavyContent),
+                    const _ModuleGrid(showHeavyContent: true),
 
                     const SizedBox(height: 28),
 
@@ -355,10 +328,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (_showHeavyContent)
-                      const _ChartLegendRow()
-                    else
-                      const _DashboardLoadingPillRow(),
+                    const _ChartLegendRow(),
                     const SizedBox(height: 14),
                     Container(
                       height: 220,
@@ -368,29 +338,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         border: Border.all(color: AppColors.border),
                       ),
                       padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-                      child: _showHeavyContent
-                          ? _SalesLineChart(
-                              salesItems: salesItems,
-                            )
-                          : const _DashboardChartPlaceholder(),
+                      child: _SalesLineChart(
+                        salesItems: salesItems,
+                      ),
                     ),
 
                     const SizedBox(height: 28),
 
                     // ── Top Performers ─────────────────────────────────────
-                    if (_showHeavyContent && salesItems.isNotEmpty) ...[
+                    if (salesItems.isNotEmpty) ...[
                       _TopPerformersSection(salesItems: salesItems),
                       const SizedBox(height: 28),
                     ],
 
                     // ── Recent Activity ────────────────────────────────────
-                    _showHeavyContent
-                        ? _RecentTransactionsList(
-                            title: _tr('Recent Activity', 'Shughuli za Karibuni'),
-                            expenses: expenseItems,
-                            salesItems: salesItems,
-                          )
-                        : const _DashboardLoadingList(),
+                    _RecentTransactionsList(
+                      title: _tr('Recent Activity', 'Shughuli za Karibuni'),
+                      expenses: expenseItems,
+                      salesItems: salesItems,
+                    ),
                   ],
                 ),
               );
