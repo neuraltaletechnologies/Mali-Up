@@ -107,6 +107,19 @@ class _OnboardingSuccessScreenState extends ConsumerState<OnboardingSuccessScree
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  void _goBack() {
+    final state = ref.read(onboardingNotifierProvider);
+    if (state.isTeamMember) {
+      context.go(AppRoutes.teamSetup);
+      return;
+    }
+    if (state.isReturningUser) {
+      context.go(AppRoutes.pinLogin);
+      return;
+    }
+    context.go(AppRoutes.security);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
@@ -152,8 +165,20 @@ class _OnboardingSuccessScreenState extends ConsumerState<OnboardingSuccessScree
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  IconButton(
+                    onPressed: _goBack,
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(10),
+                    ),
+                  ),
                   TextButton.icon(
                     onPressed: () => _openWhatsAppHelp(sw),
                     icon: const Icon(
