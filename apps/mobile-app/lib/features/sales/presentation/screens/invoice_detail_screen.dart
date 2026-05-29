@@ -64,325 +64,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   bool get _isQuotation =>
       (_inv['type'] ?? '').toString().toLowerCase() == 'quotation';
-
-  double get _total => parseNumericAmount(_inv['totalAmount']);
-  double get _subtotal => parseNumericAmount(_inv['subtotal']);
-  double get _discount => parseNumericAmount(_inv['discountAmount']);
-  double get _vat => parseNumericAmount(_inv['vatAmount']);
-
-  String get _invoiceNumber =>
-      _inv['invoiceNumber']?.toString() ?? _inv['id']?.toString() ?? '—';
-
-  String get _customerName =>
-      _inv['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
-  String get _customerPhone => _inv['customerPhone']?.toString() ?? '';
-
-  DateTime? get _invoiceDate =>
-      readTimestamp(_inv['invoiceDate'] ?? _inv['createdAt']);
-  DateTime? get _dueDate => readTimestamp(_inv['dueDate']);
-
-  List<Map<String, dynamic>> get _lineItems {
-    final raw = _inv['lineItems'];
-    if (raw is List) return raw.whereType<Map<String, dynamic>>().toList();
-    return [];
-  }
-
-  // ── Actions ─────────────────────────────────────────────────────────────────
-
-  Future<void> _updateStatus(String newStatus) async {
-    setState(() => _updating = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      final col = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'sales_invoices');
-      await col.doc(_inv['id'] as String).update({
-        'status': newStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (newStatus == 'paid')
-          'paidAt': FieldValue.serverTimestamp(),
-      });
-      setState(() {
-        _inv = {..._inv, 'status': newStatus};
-        _updating = false;
-      });
-    } catch (e) {
-      _showSnack(_tr('Update failed: $e', 'Imeshindwa kusasisha: $e'));
-      setState(() => _updating = false);
-    }
-  }
-
-  Future<void> _convertToInvoice() async {
-    await _updateStatus('sent');
-    setState(() => _inv = {..._inv, 'type': 'invoice'});
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final repo = ref.read(contextFirestoreRepositoryProvider);
-    final ctx = await repo.resolveContextForUser(user.uid);
-    final col = repo.scopeCollection(
-        uid: user.uid, context: ctx, childCollection: 'sales_invoices');
-    await col.doc(_inv['id'] as String).update({'type': 'invoice'});
-    _showSnack(
-        _tr('Converted to invoice', 'Imebadilishwa kuwa ankara'));
-  }
-
-  void _openEdit() {
-    Navigator.of(context).push(MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => CreateInvoiceScreen(
-        isQuotation: _isQuotation,
-        invoiceToEdit: _inv,
-      ),
-    ));
-  }
-
-  void _openReturn() {
-    // Navigates to sales return screen (created separately)
-    Navigator.of(context).pushNamed('/sales-return', arguments: _inv);
-  }
-
-  Future<void> _recordPayment() async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _RecordPaymentSheet(
-        outstanding: _total,
-        invoiceId: _inv['id'] as String,
-      ),
-    );
-
-    if (result != null && result['paid'] == true) {
-      await _updateStatus('paid');
-    }
-  }
-
-  void _shareWhatsApp() async {
-    final text = _buildShareText();
-    final url = 'https://wa.me/?text=${Uri.encodeComponent(text)}';
-    if (_customerPhone.isNotEmpty) {
-      final phone = _customerPhone.replaceAll(RegExp(r'[^0-9+]'), '');
-      final directUrl =
-          'https://wa.me/$phone?text=${Uri.encodeComponent(text)}';
-      await launchUrl(Uri.parse(directUrl),
-          mode: LaunchMode.externalApplication);
-    } else {
-      await launchUrl(Uri.parse(url),
-          mode: LaunchMode.externalApplication);
-    }
-  }
-
-  void _shareEmail() async {
-    final text = _buildShareText();
-    final subject =
-        Uri.encodeComponent(_tr('Invoice $_invoiceNumber', 'Ankara $_invoiceNumber'));
-    final body = Uri.encodeComponent(text);
-    final customerEmail =
-        (_inv['customerEmail'] ?? '').toString();
-    final to = customerEmail.isNotEmpty
-        ? Uri.encodeComponent(customerEmail)
-        : '';
-    await launchUrl(
-        Uri.parse('mailto:$to?subject=$subject&body=$body'));
-  }
-
-  void _copyText() {
-    Clipboard.setData(ClipboardData(text: _buildShareText()));
-    _showSnack(_tr('Copied to clipboard', 'Imenakiliwa'));
-  }
-
-  String _buildShareText() {
-    final type = _isQuotation
-        ? _tr('QUOTATION', 'NUKUU')
-        : _tr('INVOICE', 'ANKARA');
-    final lines = StringBuffer();
-    lines.writeln('*$type — $_invoiceNumber*');
-    lines.writeln('━━━━━━━━━━━━━━━━━━━━━');
-    if (_customerName.isNotEmpty) {
-      lines.writeln('${_tr('To:', 'Kwa:')} *$_customerName*');
-    }
-    if (_invoiceDate != null) {
-      lines.writeln('${_tr('Date:', 'Tarehe:')} ${_fmt(_invoiceDate!)}');
-    }
-    if (_dueDate != null) {
-      lines.writeln('${_tr('Due:', 'Mwisho:')} ${_fmt(_dueDate!)}');
-    }
-    lines.writeln();
-    lines.writeln(_tr('Items:', 'Bidhaaa:'));
-    for (final item in _lineItems) {
-      final name = item['productName']?.toString() ?? '';
-      final qty = item['qty']?.toString() ?? '1';
-      final price = _fmtNum(parseNumericAmount(item['unitPrice']));
-      final total = _fmtNum(parseNumericAmount(item['lineTotal']));
-      lines.writeln('• $name × $qty @ TZS $price = *TZS $total*');
-    }
-    lines.writeln('━━━━━━━━━━━━━━━━━━━━━');
-    if (_discount > 0) {
-      lines.writeln(
-          '${_tr('Discount:', 'Punguzo:')} -TZS ${_fmtNum(_discount)}');
-    }
-    if (_vat > 0) {
-      lines.writeln(
-          '${_tr('VAT (18%):', 'VAT (18%):')} TZS ${_fmtNum(_vat)}');
-    }
-    lines.writeln(
-        '*${_tr('TOTAL:', 'JUMLA:')} TZS ${_fmtNum(_total)}*');
-
-    final notes = _inv['notes']?.toString() ?? '';
-    if (notes.isNotEmpty) {
-      lines.writeln();
-      lines.writeln('_${notes}_');
-    }
-    return lines.toString();
-  }
-
-  void _showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  // ── UI ──────────────────────────────────────────────────────────────────────
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: _buildAppBar(),
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: ListView(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          children: [
-            _HeroCard(
-              invoiceNumber: _invoiceNumber,
-              total: _total,
-              status: _status,
-              isQuotation: _isQuotation,
-              customerName: _customerName,
-              invoiceDate: _invoiceDate,
-              dueDate: _dueDate,
-            ),
-            const SizedBox(height: 16),
-            _ShareRow(
-              onWhatsApp: _shareWhatsApp,
-              onEmail: _shareEmail,
-              onCopy: _copyText,
-            ),
-            const SizedBox(height: 16),
-            _LineItemsCard(items: _lineItems),
-            const SizedBox(height: 16),
-            _SummaryCard(
-              subtotal: _subtotal,
-              discount: _discount,
-              vatAmount: _vat,
-              total: _total,
-              applyVat: _inv['vatApplied'] as bool? ?? _vat > 0,
-            ),
-            if (_inv['paymentMethod'] != null) ...[
-              const SizedBox(height: 16),
-              _PaymentInfoCard(invoice: _inv),
-            ],
-            if ((_inv['notes'] ?? '').toString().isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _NotesCard(notes: _inv['notes'].toString()),
-            ],
-            const SizedBox(height: 16),
-            _ActionsCard(
-              status: _status,
-              isQuotation: _isQuotation,
-              updating: _updating,
-              onMarkPaid: () => _updateStatus('paid'),
-              onMarkSent: () => _updateStatus('sent'),
-              onCancel: () => _confirmCancel(),
-              onConvert: _convertToInvoice,
-              onEdit: _openEdit,
-              onReturn: _openReturn,
-              onRecordPayment: _recordPayment,
-            ),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: AppColors.navyPrimary,
-      foregroundColor: Colors.white,
-      elevation: 0,
-      title: Text(
-        _isQuotation
-            ? _tr('Quotation', 'Nukuu')
-            : _tr('Invoice', 'Ankara'),
-        style: GoogleFonts.dmSans(
-            fontWeight: FontWeight.w700,
-            fontSize: 17,
-            color: Colors.white),
-      ),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-        onPressed: () => Navigator.of(context).pop(),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_rounded, size: 20),
-          tooltip: _tr('Edit', 'Hariri'),
-          onPressed: _openEdit,
-        ),
-      ],
-    );
-  }
-
-  void _confirmCancel() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(_tr('Cancel Invoice?', 'Futa Ankara?'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
-        content: Text(
-            _tr('This action cannot be undone.',
-                'Hatua hii haiwezi kutenduliwa.'),
-            style: GoogleFonts.dmSans()),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(_tr('Back', 'Rudi'),
-                  style: GoogleFonts.dmSans())),
-          FilledButton(
-            style:
-                FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () {
-              Navigator.of(context).pop();
-              _updateStatus('cancelled');
-            },
-            child: Text(_tr('Cancel Invoice', 'Futa Ankara'),
-                style: GoogleFonts.dmSans()),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-widgets
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _HeroCard extends StatelessWidget {
+class _InvoiceSummaryCard extends StatelessWidget {
   final String invoiceNumber;
   final double total;
   final String status;
@@ -390,8 +72,10 @@ class _HeroCard extends StatelessWidget {
   final String customerName;
   final DateTime? invoiceDate;
   final DateTime? dueDate;
+  final int itemCount;
+  final double outstanding;
 
-  const _HeroCard({
+  const _InvoiceSummaryCard({
     required this.invoiceNumber,
     required this.total,
     required this.status,
@@ -399,42 +83,340 @@ class _HeroCard extends StatelessWidget {
     required this.customerName,
     required this.invoiceDate,
     required this.dueDate,
+    required this.itemCount,
+    required this.outstanding,
   });
 
   @override
   Widget build(BuildContext context) {
+    final overdue = dueDate != null &&
+        dueDate!.isBefore(DateTime.now()) &&
+        status != 'paid' &&
+        status != 'cancelled';
+
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.navyPrimary,
-            AppColors.navyPrimary.withValues(alpha: 0.85),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppTheme.cardShadow,
       ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (invoiceNumber.isNotEmpty)
+                            Text(
+                              invoiceNumber,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navyPrimary,
+                              ),
+                            ),
+                          if (isQuotation) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                _tr('QUO', 'NUK'),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textMuted,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        customerName,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                PaymentStatusChip(status: status),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _SummaryMeta(
+                    label: _tr('Date', 'Tarehe'),
+                    value: invoiceDate == null ? '-' : _fmt(invoiceDate!),
+                    icon: Icons.calendar_today_rounded,
+                  ),
+                ),
+                Expanded(
+                  child: _SummaryMeta(
+                    label: _tr('Due', 'Mwisho'),
+                    value: dueDate == null ? '-' : _fmt(dueDate!),
+                    icon: Icons.event_rounded,
+                    warn: overdue,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  'TZS ${_fmtNum(total)}',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (itemCount > 0)
+                  Text(
+                    '· $itemCount ${_tr(itemCount == 1 ? 'item' : 'items', itemCount == 1 ? 'kitu' : 'vitu')}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                const Spacer(),
+                if (outstanding > 0 && status != 'paid' && status != 'cancelled')
+                  Text(
+                    '${_tr('Due', 'Baki')}: TZS ${_fmtNum(outstanding)}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.error,
+                    ),
+                  ),
+              ],
+            ),
+            if (overdue) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.schedule_rounded,
+                      size: 12, color: AppColors.error),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_tr('Due was', 'Malipo ilikuwa')} ${_fmt(dueDate!)} ${dueDate!.year}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryMeta extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool warn;
+
+  const _SummaryMeta({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.warn = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = warn ? AppColors.error : AppColors.textSecondary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 11, color: AppColors.textMuted),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 10,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+                                        ),
+                                      if (isQuotation) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surfaceVariant,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            _tr('QUO', 'NUK'),
+                                            style: GoogleFonts.dmSans(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textMuted,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    customerName,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.navyPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+        ],
+      ),
+                            ),
+                            PaymentStatusChip(status: status),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _SummaryMeta(
+                                label: _tr('Date', 'Tarehe'),
+                                value: invoiceDate == null ? '-' : _fmt(invoiceDate!),
+                                icon: Icons.calendar_today_rounded,
+                              ),
+                            ),
+                            Expanded(
+                              child: _SummaryMeta(
+                                label: _tr('Due', 'Mwisho'),
+                                value: dueDate == null ? '-' : _fmt(dueDate!),
+                                icon: Icons.event_rounded,
+                                warn: dueDate != null &&
+                                    dueDate!.isBefore(DateTime.now()) &&
+                                    status != 'paid' &&
+                                    status != 'cancelled',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(height: 1, color: AppColors.border),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Text(
+                              'TZS ${_fmtNum(total)}',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (itemCount > 0)
+                              Text(
+                                '· $itemCount ${_tr(itemCount == 1 ? 'item' : 'items', itemCount == 1 ? 'kitu' : 'vitu')}',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            const Spacer(),
+                            if (outstanding > 0 && status != 'paid' && status != 'cancelled')
+                              Text(
+                                '${_tr('Due', 'Baki')}: TZS ${_fmtNum(outstanding)}',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.error,
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (outstanding > 0 && status != 'paid' && status != 'cancelled' &&
+                            dueDate != null) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.schedule_rounded,
+                                  size: 12, color: AppColors.error),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_tr('Due was', 'Malipo ilikuwa')} ${_fmt(dueDate!)} ${dueDate!.year}',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  color: AppColors.error,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+              class _SummaryMeta extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        isQuotation
+                const _SummaryMeta({
                             ? _tr('QUOTATION', 'NUKUU')
                             : _tr('INVOICE', 'ANKARA'),
                         style: GoogleFonts.dmSans(
@@ -449,11 +431,11 @@ class _HeroCard extends StatelessWidget {
                       invoiceNumber,
                       style: GoogleFonts.jetBrainsMono(
                           fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          Icon(icon, size: 11, color: AppColors.textMuted),
                           color: Colors.white),
                     ),
                   ],
-                ),
+                                  fontSize: 10, color: AppColors.textMuted)),
               ),
               PaymentStatusChip(status: status),
             ],
