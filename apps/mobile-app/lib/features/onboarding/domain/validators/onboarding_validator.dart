@@ -177,7 +177,7 @@ abstract final class OnboardingValidator {
           en: 'Email is required.', sw: 'Barua pepe inahitajika.');
     }
     // Simple but effective email pattern
-    final ok = RegExp(r"^[^\s@]+@[^\s@]+\.[^\s@]+$").hasMatch(t);
+    final ok = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(t);
     if (!ok) {
       return _t(isSwahili,
           en: 'Enter a valid email address.',

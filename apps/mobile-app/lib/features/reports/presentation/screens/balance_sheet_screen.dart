@@ -93,12 +93,12 @@ class BalanceSheetScreen extends ConsumerWidget {
             children: [
               _BSGroup(
                 title: _tr('Current Assets', 'Rasilimali za Sasa'),
+                subtotal: formatCurrency(report.totalCurrentAssets),
                 children: [
                   _BSRow(label: _tr('Cash & Bank Accounts', 'Pesa & Akaunti za Benki'), value: formatCurrency(report.cashAndEquivalents)),
                   _BSRow(label: _tr('Accounts Receivable', 'Madai ya Wateja'), value: formatCurrency(report.accountsReceivable)),
                   _BSRow(label: _tr('Inventory (at cost)', 'Hisa (kwa gharama)'), value: formatCurrency(report.inventoryValue)),
                 ],
-                subtotal: formatCurrency(report.totalCurrentAssets),
               ),
             ],
           ),
@@ -113,10 +113,10 @@ class BalanceSheetScreen extends ConsumerWidget {
             children: [
               _BSGroup(
                 title: _tr('Current Liabilities', 'Madeni ya Sasa'),
+                subtotal: formatCurrency(report.totalCurrentLiabilities),
                 children: [
                   _BSRow(label: _tr('Accounts Payable (pending expenses)', 'Madeni ya Wasambazaji (gharama zinazosimama)'), value: formatCurrency(report.accountsPayable)),
                 ],
-                subtotal: formatCurrency(report.totalCurrentLiabilities),
               ),
             ],
           ),

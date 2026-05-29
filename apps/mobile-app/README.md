@@ -1,40 +1,31 @@
 # Mali Up Mobile
 
-The current Mali Up B v1.0 app is a business-only Flutter product for Tanzanian small business owners. It uses a premium fintech white UI, Swahili-first labels, and Riverpod from day one.
+Mali Up Mobile is a Swahili-first Flutter app for Tanzanian SMEs.
 
-## Current MVP Modules
+## Current Stack
 
-- Hali ya biashara
-- Tuma ankara
-- Wateja wangu
-- Gharama zangu
-- Bidhaa zangu
+- Flutter + Riverpod UI
+- Firebase Auth for identity
+- Cloud Firestore for onboarding, business, customer, and app state
+- Firebase Storage for media
+- Sentry for crash reporting
 
-## Architecture
+## Authentication Model
 
-| Layer | Responsibility |
-| --- | --- |
-| Presentation | Screens, widgets, forms, and view state |
-| Domain | Models, repository interfaces, and use cases |
-| Data | FirestoreService, AuthService, and repository implementations |
+The app is Firebase-only for onboarding and sign-in.
 
-The data layer is repository-driven so the app can move to Cloud Functions or service-backed APIs later without rewriting the UI.
+- Phone lookup reads directly from Firestore.
+- Returning users sign in with Firebase Auth and their PIN-derived password.
+- New users complete onboarding and are provisioned in Firebase Auth + Firestore.
+- PIN recovery uses Firebase Auth password reset.
 
-## State Management
+There is no custom auth backend in the mobile app flow.
 
-Riverpod is the primary state system.
+## Data Layer
 
-- `authStateProvider`
-- `currentUserIdProvider`
-- `isLoggedInProvider`
-- `userProfileProvider`
-- `dashboardDataProvider`
-- `invoicesProvider`
-- `customerProvider`
-- `expenseProvider`
-- `inventoryProvider`
-
-Form state should use small `StateNotifier` classes, while simple and live state should use `StateProvider` and `StreamProvider`.
+- Onboarding data is stored in Firestore under the active tenant/business scope.
+- Repository classes keep the UI isolated from persistence details.
+- The generic HTTP helper only exists for explicit API URLs that you pass in yourself.
 
 ## UI Direction
 
@@ -46,19 +37,11 @@ The app uses the Premium Fintech White system:
 - `surfaceLight` `#F8F9FC`
 - `cardWhite` `#FFFFFF`
 
-Core components include `MaliCard`, `PrimaryButton`, `SecondaryButton`, `GhostButton`, `AmountDisplay`, `StatusChip`, `EmptyState`, and `HeroCard`.
-
 ## Getting Started
 
 ```bash
 flutter pub get
 flutter run
 ```
-
-Localization should stay Swahili-first with English as fallback.
-
-## Note
-
-Personal finance features, context switching, and advanced business modules are intentionally out of scope for the current MVP and are planned for later phases.
 
 Part of the [Mali Up](../../README.md) suite.
