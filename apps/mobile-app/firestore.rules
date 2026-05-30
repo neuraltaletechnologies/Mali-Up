@@ -429,6 +429,22 @@ service cloud.firestore {
             isValidExpenseTemplate(request.resource.data);
         }
 
+        // Product categories — business-scoped
+        // Path: tenants/{uid}/businesses/{bizId}/categories/{categoryId}
+        match /categories/{categoryId} {
+          allow read: if isSignedIn() && isOwner(tenantId);
+          allow create: if isSignedIn() && isOwner(tenantId) &&
+            request.resource.data.keys().hasAll(['name']) &&
+            request.resource.data.name is string &&
+            request.resource.data.name.size() > 0 &&
+            request.resource.data.name.size() <= 100;
+          allow update: if isSignedIn() && isOwner(tenantId) &&
+            request.resource.data.name is string &&
+            request.resource.data.name.size() > 0 &&
+            request.resource.data.name.size() <= 100;
+          allow delete: if isSignedIn() && isOwner(tenantId);
+        }
+
         // Explicit team_members rule (owner full access; unauthenticated lookup
         // is handled by the wildcard /{path=**}/team_members rule above).
         match /team_members/{memberId} {
