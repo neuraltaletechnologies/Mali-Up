@@ -317,7 +317,7 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 64, 16, 10),
             child: _AgingFilterPills(
               selected: _filterBucket,
               onSelect: (b) => setState(() =>

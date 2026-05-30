@@ -1432,7 +1432,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
           body: isLoading
               ? const Center(child: CircularProgressIndicator())
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+                  padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 62, 20, 40),
                   children: [
                     _buildAddHero(profile),
                     if (businesses.isNotEmpty) ...[

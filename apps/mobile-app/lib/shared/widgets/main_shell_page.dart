@@ -10,8 +10,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
 import '../../features/onboarding/providers/onboarding_notifier.dart';
-import 'mali_components.dart';
-
 
 class MainShellPage extends ConsumerStatefulWidget {
   final Widget child;
@@ -551,15 +549,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     final currentUser = _currentUser;
-    final isDashboard = _isSelected(location, AppRouter.dashboardPath);
 
     return FutureBuilder<Map<String, dynamic>?>(
       future: _profileFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done && snapshot.data == null) {
-          return const SkeletonScreen(hasHeader: false, listItems: 6);
-        }
-
         final profileData = snapshot.data;
         final profile = _buildProfileData(currentUser, profileData);
         final businesses = _businessesFromProfile(profileData);
@@ -627,14 +620,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
               ),
             ),
           ),
-          body: Padding(
-            padding: EdgeInsets.only(top: isDashboard ? 0 : 50 + MediaQuery.of(context).padding.top),
-            child: Column(
-              children: [
-                Expanded(child: widget.child),
-              ],
-            ),
-          ),
+          body: widget.child,
           bottomNavigationBar: SafeArea(
             bottom: false,
             child: Padding(
