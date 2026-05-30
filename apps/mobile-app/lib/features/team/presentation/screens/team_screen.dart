@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/team_providers.dart';
@@ -142,10 +143,14 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                         itemCount: filtered.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 10),
-                        itemBuilder: (ctx, i) => _MemberCard(
-                          member: filtered[i],
-                          onTap: () =>
-                              _showMemberSheet(context, filtered[i]),
+                        itemBuilder: (ctx, i) => ListSwipeCard(
+                          itemKey: ValueKey(filtered[i].id),
+                          onEdit: () => _showMemberSheet(context, filtered[i]),
+                          onDelete: () => _removeMember(context, ref, filtered[i]),
+                          child: _MemberCard(
+                            member: filtered[i],
+                            onTap: () => _showMemberSheet(context, filtered[i]),
+                          ),
                         ),
                       ),
               ),
@@ -165,6 +170,55 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       useSafeArea: true,
       builder: (_) => const _InviteMemberSheet(),
     );
+  }
+
+  Future<void> _removeMember(BuildContext context, WidgetRef ref, TeamMember member) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_tr('Remove Member', 'Ondoa Mwanachama'),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        content: Text(_tr(
+          'Remove ${member.name} from the team? This cannot be undone.',
+          'Ondoa ${member.name} kutoka timu? Haiwezi kurejeshwa.',
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_tr('Cancel', 'Ghairi')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: Text(_tr('Remove', 'Ondoa')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx2 = await repo.resolveContextForUser(user.uid);
+      await repo.deleteTeamMember(uid: user.uid, context: ctx2, memberId: member.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_tr('${member.name} removed.', '${member.name} ameondolewa.')),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(_tr(
+            'Could not remove member. Please try again.',
+            'Imeshindikana kuondoa mwanachama. Jaribu tena.',
+          )),
+        ));
+      }
+    }
   }
 
   void _showMemberSheet(BuildContext ctx, TeamMember member) {

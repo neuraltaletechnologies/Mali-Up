@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
@@ -564,28 +565,10 @@ class _ExpenseCard extends StatelessWidget {
     final isPending = expense.status == 'pending';
     final isRejected = expense.status == 'rejected';
 
-    return Dismissible(
-      key: ValueKey(expense.id),
-      confirmDismiss: (dir) async {
-        if (dir == DismissDirection.startToEnd) {
-          onEdit();
-          return false;
-        }
-        onDelete();
-        return false;
-      },
-      background: _swipeHint(
-        icon: Icons.edit_rounded,
-        color: AppColors.navyPrimary,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-      ),
-      secondaryBackground: _swipeHint(
-        icon: Icons.delete_outline_rounded,
-        color: AppColors.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-      ),
+    return ListSwipeCard(
+      itemKey: ValueKey(expense.id),
+      onEdit: onEdit,
+      onDelete: onDelete,
       child: GestureDetector(
         onTap: onTap,
         child: Container(
@@ -701,22 +684,6 @@ class _ExpenseCard extends StatelessWidget {
     );
   }
 
-  Widget _swipeHint({
-    required IconData icon,
-    required Color color,
-    required Alignment alignment,
-    required EdgeInsets padding,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      alignment: alignment,
-      padding: padding,
-      child: Icon(icon, color: color, size: 22),
-    );
-  }
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -1370,23 +1337,9 @@ class _RecurringCard extends StatelessWidget {
     final cat = _CatX.fromKey(template.category);
     final amount = double.tryParse(template.amount) ?? 0;
 
-    return Dismissible(
-      key: ValueKey(template.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        onDelete();
-        return false;
-      },
-      background: Container(
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline_rounded,
-            color: AppColors.error, size: 22),
-      ),
+    return ListSwipeCard(
+      itemKey: ValueKey(template.id),
+      onDelete: onDelete,
       child: Container(
         decoration: BoxDecoration(
           color: template.isActive ? Colors.white : AppColors.surfaceVariant,

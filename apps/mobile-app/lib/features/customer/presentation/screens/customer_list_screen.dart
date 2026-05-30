@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/customer_providers.dart';
 import '../../domain/models/customer.dart';
@@ -382,25 +383,23 @@ class _CustomerCard extends ConsumerWidget {
     final hasBalance = balance > 0;
     final accent = _accentColor;
 
-    return Dismissible(
-      key: ValueKey(customer.id),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          await showModalBottomSheet<void>(
-            context: context,
-            useRootNavigator: true,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            useSafeArea: true,
-            builder: (_) => _EditCustomerSheet(customer: customer),
-          );
-          return false;
-        }
+    return ListSwipeCard(
+      itemKey: ValueKey(customer.id),
+      onEdit: () async {
+        await showModalBottomSheet<void>(
+          context: context,
+          useRootNavigator: true,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          useSafeArea: true,
+          builder: (_) => _EditCustomerSheet(customer: customer),
+        );
+      },
+      onDelete: () async {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Text(_tr('Delete Customer?', 'Futa Mteja?'),
                 style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
             content: Text(
@@ -423,27 +422,8 @@ class _CustomerCard extends ConsumerWidget {
             ],
           ),
         );
-        if (confirmed == true) {
-          // ignore: use_build_context_synchronously
-          await _delete(context, ref);
-          return true;
-        }
-        return false;
+        if (confirmed == true) await _delete(context, ref);
       },
-      background: _swipeHint(
-        icon: Icons.edit_rounded,
-        label: _tr('Edit', 'Hariri'),
-        color: AppColors.navyPrimary,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-      ),
-      secondaryBackground: _swipeHint(
-        icon: Icons.delete_outline_rounded,
-        label: _tr('Delete', 'Futa'),
-        color: AppColors.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-      ),
       child: GestureDetector(
         onTap: () {
           Navigator.of(context).push(MaterialPageRoute(
@@ -608,32 +588,6 @@ class _CustomerCard extends ConsumerWidget {
     return AppColors.navySecondary;
   }
 
-  Widget _swipeHint({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Alignment alignment,
-    required EdgeInsets padding,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      alignment: alignment,
-      padding: padding,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 4),
-          Text(label,
-              style: GoogleFonts.dmSans(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-        ],
-      ),
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../customer/data/customer_providers.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 import 'add_debt_screen.dart';
@@ -341,9 +344,14 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
               delegate: SliverChildBuilderDelegate(
                 (ctx, i) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _DebtCard(
-                    debt: filtered[i],
-                    onTap: () => widget.onTap(filtered[i]),
+                  child: ListSwipeCard(
+                    itemKey: ValueKey(filtered[i].id),
+                    onEdit: () => widget.onTap(filtered[i]),
+                    onDelete: () => _deleteDebt(ctx, ref, filtered[i]),
+                    child: _DebtCard(
+                      debt: filtered[i],
+                      onTap: () => widget.onTap(filtered[i]),
+                    ),
                   ),
                 ),
                 childCount: filtered.length,
@@ -414,7 +422,12 @@ class _PayablesTab extends ConsumerWidget {
                 ),
                 ...overdue.map((d) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      child: ListSwipeCard(
+                        itemKey: ValueKey(d.id),
+                        onEdit: () => onTap(d),
+                        onDelete: () => _deleteDebt(context, ref, d),
+                        child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      ),
                     )),
               ],
               if (dueSoon.isNotEmpty) ...[
@@ -425,7 +438,12 @@ class _PayablesTab extends ConsumerWidget {
                 ),
                 ...dueSoon.map((d) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      child: ListSwipeCard(
+                        itemKey: ValueKey(d.id),
+                        onEdit: () => onTap(d),
+                        onDelete: () => _deleteDebt(context, ref, d),
+                        child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      ),
                     )),
               ],
               if (upcoming.isNotEmpty) ...[
@@ -436,7 +454,12 @@ class _PayablesTab extends ConsumerWidget {
                 ),
                 ...upcoming.map((d) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      child: ListSwipeCard(
+                        itemKey: ValueKey(d.id),
+                        onEdit: () => onTap(d),
+                        onDelete: () => _deleteDebt(context, ref, d),
+                        child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      ),
                     )),
               ],
             ]),
@@ -980,6 +1003,57 @@ class _WriteOffTile extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(_tr('Delete Entry', 'Futa Rekodi'),
+          style: const TextStyle(fontWeight: FontWeight.w700)),
+      content: Text(_tr(
+        'This cannot be undone. All payment records will also be deleted.',
+        'Haiwezi kurejeshwa. Rekodi zote za malipo pia zitafutwa.',
+      )),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(_tr('Cancel', 'Ghairi')),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: TextButton.styleFrom(foregroundColor: AppColors.error),
+          child: Text(_tr('Delete', 'Futa')),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final repo = ref.read(contextFirestoreRepositoryProvider);
+    final ctx2 = await repo.resolveContextForUser(user.uid);
+    await repo
+        .scopeCollection(uid: user.uid, context: ctx2, childCollection: 'debts')
+        .doc(debt.id)
+        .delete();
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: AppColors.error,
+        content: Text(_tr(
+          'Could not delete entry. Please try again.',
+          'Imeshindwa kufuta rekodi. Jaribu tena.',
+        )),
+      ));
+    }
   }
 }
 
