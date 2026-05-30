@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/services/sentry_metrics_service.dart';
 
 /// Single-scan mode: returns the raw barcode string via Navigator.pop, or null.
 class BarcodeScannerScreen extends StatefulWidget {
@@ -54,6 +55,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
     _scanned = true;
     HapticFeedback.mediumImpact();
     SystemSound.play(SystemSoundType.click);
+    SentryMetricsService.scannerAttempt(success: true);
     Navigator.of(context).pop(value);
   }
 
@@ -217,6 +219,7 @@ class _PosScannerScreenState extends State<PosScannerScreen>
 
     _processing = true;
     _lastScanTime[value] = now;
+  final scanTimer = Stopwatch()..start();
 
     HapticFeedback.mediumImpact();
 
@@ -241,12 +244,15 @@ class _PosScannerScreenState extends State<PosScannerScreen>
         // Play success animation on the overlay indicator.
         _successAnim.forward(from: 0);
         SystemSound.play(SystemSoundType.click);
+        SentryMetricsService.scannerAttempt(success: true);
+        SentryMetricsService.scanToCartTime(scanTimer.elapsed);
         await Future<void>.delayed(const Duration(milliseconds: 1400));
         if (mounted) setState(() => _lastScannedName = null);
       } else {
         // Not found — brief error haptic.
         HapticFeedback.heavyImpact();
         SystemSound.play(SystemSoundType.alert);
+        SentryMetricsService.scannerAttempt(success: false);
       }
     } finally {
       _processing = false;

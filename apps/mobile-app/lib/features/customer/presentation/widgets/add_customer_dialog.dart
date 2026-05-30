@@ -661,7 +661,6 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     final financeContext = activeBusinessId.isNotEmpty
       ? ResolvedFinanceContext.business(activeBusinessId)
       : await repository.resolveContextForUser(user.uid);
-
     final customer = Customer(
       id: '',
       name: name,
