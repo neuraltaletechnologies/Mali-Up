@@ -1,9 +1,8 @@
 import { fetchUser, fetchBusinesses } from "@/lib/admin-api";
-import { auth } from "@/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Smartphone, Calendar, Building2, Mail, Phone } from "lucide-react";
-import { PageHeader } from "@/components/admin/layout/PageHeader";
+// PageHeader intentionally not used in this view
 import { StatusBadge } from "@/components/admin/shared/StatusBadge";
 import { PlanBadge } from "@/components/admin/shared/PlanBadge";
 import { formatDate, formatDateTime, timeAgo, formatPhone } from "@/lib/admin-utils";

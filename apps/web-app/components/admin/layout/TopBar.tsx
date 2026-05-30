@@ -11,8 +11,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ title, subtitle }: TopBarProps) {
-  const { globalSearch, setGlobalSearch, notifications, clearNotification } =
-    useAdminStore();
+  const { globalSearch, setGlobalSearch, notifications } = useAdminStore();
 
   return (
     <header className="h-14 border-b border-slate-200 bg-white flex items-center px-6 gap-4 sticky top-0 z-20">

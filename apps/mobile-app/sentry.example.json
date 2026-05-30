@@ -1,0 +1,7 @@
+{
+  "SENTRY_DSN": "https://YOUR_KEY@o0.ingest.sentry.io/0",
+  "SENTRY_ENVIRONMENT": "development",
+  "SENTRY_RELEASE": "maliup-mobile@1.1.0+2",
+  "SENTRY_DIST": "1",
+  "SENTRY_TEST_EVENT": "false"
+}

@@ -44,4 +44,29 @@ flutter pub get
 flutter run
 ```
 
+## Sentry (Full Setup)
+
+The app initializes Sentry only when `SENTRY_DSN` is provided via
+`--dart-define` / `--dart-define-from-file`.
+
+1. Copy `sentry.example.json` to `sentry.local.json`.
+2. Put your real DSN in `SENTRY_DSN`.
+3. Run with Sentry enabled:
+
+```bash
+flutter run --dart-define-from-file=sentry.local.json
+```
+
+Windows helper:
+
+```bash
+run_with_sentry.bat
+```
+
+Optional one-time verification:
+
+- Set `"SENTRY_TEST_EVENT": "true"` in `sentry.local.json`.
+- Start the app once. A startup test message is sent.
+- Set it back to `"false"` afterward.
+
 Part of the [Mali Up](../../README.md) suite.

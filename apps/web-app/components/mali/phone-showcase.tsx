@@ -61,7 +61,7 @@ const tabs = [
 
 export function PhoneShowcase() {
   const [active, setActive]         = useState(0)
-  const [prevActive, setPrevActive] = useState(0)
+  const [, setPrevActive] = useState(0)
   const [animating, setAnimating]   = useState(false)
   const sectionRef = useRef<HTMLDivElement>(null)
 

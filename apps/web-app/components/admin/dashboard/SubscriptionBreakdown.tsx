@@ -87,7 +87,7 @@ export function SubscriptionBreakdown({ kpis }: SubscriptionBreakdownProps) {
           <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-            formatter={(value, entry) => {
+            formatter={(value, _entry) => {
               const item = chartData.find((d) => d.name === value);
               return (
                 <span className="text-slate-600">
