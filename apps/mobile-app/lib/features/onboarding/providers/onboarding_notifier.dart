@@ -169,16 +169,16 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       state = state.copyWith(
         isLoading: false,
         errorMessage: _t(
-          en: 'The lookup server is taking too long. Check your connection or API host and try again.',
-          sw: 'Seva ya kutafuta inachukua muda mrefu. Angalia muunganiko wako au API host kisha ujaribu tena.',
+          en: 'The server is taking too long. Check your connection and try again.',
+          sw: 'Seva inachukua muda mrefu. Angalia muunganiko wako na ujaribu tena.',
         ),
       );
     } on SocketException {
       state = state.copyWith(
         isLoading: false,
         errorMessage: _t(
-          en: 'Unable to reach the lookup server. Check your network or API host and try again.',
-          sw: 'Imeshindikana kufikia seva ya kutafuta. Angalia mtandao wako au API host kisha ujaribu tena.',
+          en: 'Unable to reach the server. Check your network and try again.',
+          sw: 'Imeshindikana kufikia seva . Angalia mtandao wako na ujaribu tena.',
         ),
       );
     } catch (e) {
