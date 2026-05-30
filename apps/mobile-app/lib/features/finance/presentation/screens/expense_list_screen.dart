@@ -139,23 +139,26 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen>
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: NestedScrollView(
-        headerSliverBuilder: (_, __) => [
-          _buildSliverHeader(month, total, pendingCount, withReceipt, isLoading),
-          SliverToBoxAdapter(child: _buildTabBar()),
-        ],
-        body: TabBarView(
-          controller: _tabCtrl,
-          children: [
-            _ExpensesTab(
-              filterCat: _filterCat,
-              onFilterChanged: (c) => setState(() => _filterCat = c),
-              onTap: _openDetail,
-              onEdit: (e) => _openAdd(edit: e),
-            ),
-            const _BudgetTab(),
-            const _RecurringTab(),
+      body: Padding(
+        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 50),
+        child: NestedScrollView(
+          headerSliverBuilder: (_, __) => [
+            _buildSliverHeader(month, total, pendingCount, withReceipt, isLoading),
+            SliverToBoxAdapter(child: _buildTabBar()),
           ],
+          body: TabBarView(
+            controller: _tabCtrl,
+            children: [
+              _ExpensesTab(
+                filterCat: _filterCat,
+                onFilterChanged: (c) => setState(() => _filterCat = c),
+                onTap: _openDetail,
+                onEdit: (e) => _openAdd(edit: e),
+              ),
+              const _BudgetTab(),
+              const _RecurringTab(),
+            ],
+          ),
         ),
       ),
       floatingActionButton: _tabCtrl.index == 0

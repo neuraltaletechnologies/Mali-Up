@@ -247,6 +247,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 );
                 return Column(
                   children: [
+                    SizedBox(height: MediaQuery.of(context).padding.top + 50),
                     // ── Stats strip ──────────────────────────────────────
                     _StatsStrip(items: items),
 

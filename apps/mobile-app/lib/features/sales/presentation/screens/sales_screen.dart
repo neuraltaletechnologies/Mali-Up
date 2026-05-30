@@ -248,7 +248,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             children: [
               // ── Header row
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 12, 0),
+                padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 66, 12, 0),
                 child: Row(
                   children: [
                     Expanded(

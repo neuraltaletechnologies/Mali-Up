@@ -106,6 +106,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
       backgroundColor: AppColors.surface,
       body: Column(
         children: [
+          SizedBox(height: MediaQuery.of(context).padding.top + 50),
           _buildHeader(all.length, totalBalance, debtCount),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),

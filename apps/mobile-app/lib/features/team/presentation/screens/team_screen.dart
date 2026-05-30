@@ -109,7 +109,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 66, 24, 0),
                 child: Text(
                   _tr('My Team', 'Timu Yangu'),
                   style: GoogleFonts.dmSans(

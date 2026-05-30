@@ -408,7 +408,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 66, 20, 40),
         children: [
           // ── Profile card ────────────────────────────────────
           _ProfileCard(tr: _tr),

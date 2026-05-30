@@ -90,7 +90,7 @@ class _CashFlowHeader extends ConsumerWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+              padding: const EdgeInsets.fromLTRB(20, 62, 12, 0),
               child: Row(
                 children: [
                   Expanded(
