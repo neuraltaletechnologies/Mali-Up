@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../product/data/category_providers.dart';
@@ -663,111 +664,51 @@ class _ProductRow extends ConsumerWidget {
     final health  = _healthLevel(item);
     final hColor  = _healthColor(health);
 
-    return Dismissible(
-      key: ValueKey(item['id'] ?? name),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          // Right swipe → Edit
-          final mq = MediaQuery.of(context).size;
-          await showModalBottomSheet<void>(
-            context: context,
-            useRootNavigator: true,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            useSafeArea: true,
-            constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
-            builder: (_) => _ProductFormSheet(
-              existingItem: item,
-              existingId: (item['id'] as String?) ?? '',
-            ),
-          );
-          return false;
-        } else {
-          // Left swipe → Delete confirmation
-          final confirmed = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text(
-                _tr('Delete Product?', 'Futa Bidhaaa?'),
-                style: GoogleFonts.dmSans(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navyPrimary,
-                ),
-              ),
-              content: Text(
-                _tr(
-                  'Delete "$name"? This cannot be undone.',
-                  'Futa "$name"? Hii haiwezi kutenduliwa.',
-                ),
-                style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textSecondary),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: Text(
-                    _tr('Cancel', 'Ghairi'),
-                    style: GoogleFonts.dmSans(color: AppColors.textMuted, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                  child: Text(
-                    _tr('Delete', 'Futa'),
-                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-          );
-          if (confirmed == true) {
-            await _deleteItem(context, ref);
-            return true;
-          }
-          return false;
-        }
+    return ListSwipeCard(
+      itemKey: ValueKey(item['id'] ?? name),
+      onEdit: () async {
+        final mq = MediaQuery.of(context).size;
+        await showModalBottomSheet<void>(
+          context: context,
+          useRootNavigator: true,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          useSafeArea: true,
+          constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
+          builder: (_) => _ProductFormSheet(
+            existingItem: item,
+            existingId: (item['id'] as String?) ?? '',
+          ),
+        );
       },
-      background: Container(
-        color: AppColors.tealAccent.withValues(alpha: 0.08),
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.edit_rounded, color: AppColors.tealAccent, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              _tr('Edit', 'Hariri'),
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.tealAccent,
-              ),
+      onDelete: () async {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(
+              _tr('Delete Product?', 'Futa Bidhaa?'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, color: AppColors.navyPrimary),
             ),
-          ],
-        ),
-      ),
-      secondaryBackground: Container(
-        color: AppColors.error.withValues(alpha: 0.08),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              _tr('Delete', 'Futa'),
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.error,
-              ),
+            content: Text(
+              _tr('Delete "$name"? This cannot be undone.', 'Futa "$name"? Hii haiwezi kutenduliwa.'),
+              style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textSecondary),
             ),
-          ],
-        ),
-      ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(_tr('Cancel', 'Ghairi'), style: GoogleFonts.dmSans(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: Text(_tr('Delete', 'Futa'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true) await _deleteItem(context, ref);
+      },
       child: GestureDetector(
         onTap: () {
           final mq = MediaQuery.of(context).size;

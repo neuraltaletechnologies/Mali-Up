@@ -12,6 +12,7 @@ import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
@@ -163,6 +164,51 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       _SalesFilter.cancelled:
           items.where((i) => _normalizeStatus(i) == 'cancelled').length,
     };
+  }
+
+  Future<void> _deleteSale(BuildContext context, WidgetRef ref, Map<String, dynamic> sale) async {
+    final id = (sale['id'] as String?)?.trim() ?? '';
+    if (id.isEmpty) return;
+    final saleNo = (sale['invoiceNumber'] ?? sale['id'] ?? '').toString();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(_tr('Delete Invoice?', 'Futa Ankara?'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, color: AppColors.navyPrimary)),
+        content: Text(_tr('Delete $saleNo? This cannot be undone.', 'Futa $saleNo? Haiwezi kurejeshwa.'),
+            style: GoogleFonts.dmSans(fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_tr('Cancel', 'Ghairi')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: Text(_tr('Delete', 'Futa'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx2 = await repo.resolveContextForUser(user.uid);
+      await repo
+          .scopeCollection(uid: user.uid, context: ctx2, childCollection: 'sales_invoices')
+          .doc(id)
+          .delete();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(_tr('Could not delete invoice. Please try again.', 'Imeshindwa kufuta ankara. Jaribu tena.')),
+        ));
+      }
+    }
   }
 
   Future<void> _showNewSaleSheet(BuildContext ctx) async {
@@ -361,20 +407,30 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             const SizedBox(height: 10),
                         itemBuilder: (ctx, i) {
                           final item = filtered[i];
-                          return _InvoiceCard(
-                            item: item,
-                            onTap: () => Navigator.of(ctx).push(
+                          return ListSwipeCard(
+                            itemKey: ValueKey(item['id'] ?? i),
+                            onEdit: () => Navigator.of(ctx).push(
                               MaterialPageRoute(
                                 builder: (_) => InvoiceDetailScreen(
                                   invoice: Map<String, dynamic>.from(item),
                                 ),
                               ),
                             ),
-                            onReceiptAction: () =>
-                                _openReceiptActions(
-                              context: ctx,
-                              sale: item,
-                              ref: ref,
+                            onDelete: () => _deleteSale(ctx, ref, item),
+                            child: _InvoiceCard(
+                              item: item,
+                              onTap: () => Navigator.of(ctx).push(
+                                MaterialPageRoute(
+                                  builder: (_) => InvoiceDetailScreen(
+                                    invoice: Map<String, dynamic>.from(item),
+                                  ),
+                                ),
+                              ),
+                              onReceiptAction: () => _openReceiptActions(
+                                context: ctx,
+                                sale: item,
+                                ref: ref,
+                              ),
                             ),
                           );
                         },
