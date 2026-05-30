@@ -69,6 +69,17 @@ Optional one-time verification:
 - Start the app once. A startup test message is sent.
 - Set it back to `"false"` afterward.
 
+## Session Replay
+
+Session Replay is enabled in [lib/main.dart](lib/main.dart) with:
+
+- `options.replay.sessionSampleRate = 1.0`
+- `options.replay.onErrorSampleRate = 1.0`
+- `options.privacy.maskAllText = true`
+- `options.privacy.maskAllImages = true`
+
+Use `1.0` while testing so every session is captured. Lower `sessionSampleRate` before production if needed.
+
 ## Application Metrics
 
 The app now emits a few basic metrics through `Sentry.metrics`:

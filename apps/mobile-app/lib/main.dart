@@ -80,6 +80,10 @@ Future<void> main() async {
         options.dsn = _sentryDsn;
         options.tracesSampleRate = 1.0;
         options.profilesSampleRate = 1.0;
+        options.replay.sessionSampleRate = 1.0;
+        options.replay.onErrorSampleRate = 1.0;
+        options.privacy.maskAllText = true;
+        options.privacy.maskAllImages = true;
         options.sendDefaultPii = true;
         options.debug = false;
         options.environment = _sentryEnvironment;
@@ -192,21 +196,23 @@ class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
             return ValueListenableBuilder<bool>(
               valueListenable: MotionService.reducedMotionNotifier,
               builder: (context, reducedMotion, child) {
-                return MaterialApp.router(
-                  title: 'Mali Up',
-                  debugShowCheckedModeBanner: false,
-                  theme: AppTheme.lightTheme,
-                  locale: Locale(language.code),
-                  supportedLocales: const [
-                    Locale('en'),
-                    Locale('sw'),
-                  ],
-                  localizationsDelegates: const [
-                    GlobalMaterialLocalizations.delegate,
-                    GlobalWidgetsLocalizations.delegate,
-                    GlobalCupertinoLocalizations.delegate,
-                  ],
-                  routerConfig: _router,
+                return SentryWidget(
+                  child: MaterialApp.router(
+                    title: 'Mali Up',
+                    debugShowCheckedModeBanner: false,
+                    theme: AppTheme.lightTheme,
+                    locale: Locale(language.code),
+                    supportedLocales: const [
+                      Locale('en'),
+                      Locale('sw'),
+                    ],
+                    localizationsDelegates: const [
+                      GlobalMaterialLocalizations.delegate,
+                      GlobalWidgetsLocalizations.delegate,
+                      GlobalCupertinoLocalizations.delegate,
+                    ],
+                    routerConfig: _router,
+                  ),
                 );
               },
             );

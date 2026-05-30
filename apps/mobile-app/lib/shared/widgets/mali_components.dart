@@ -624,14 +624,12 @@ class SkeletonList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        itemCount,
-        (i) => Padding(
-          padding: EdgeInsets.only(bottom: i == itemCount - 1 ? 0 : 10),
-          child: const SkeletonListItem(),
-        ),
-      ),
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      physics: const BouncingScrollPhysics(),
+      itemCount: itemCount,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, __) => const SkeletonListItem(),
     );
   }
 }
@@ -666,7 +664,7 @@ class SkeletonScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
               ],
-              SkeletonList(itemCount: listItems),
+              Expanded(child: SkeletonList(itemCount: listItems)),
             ],
           ),
         ),
@@ -1174,7 +1172,7 @@ class PlanBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         gradient: isPremium
             ? const LinearGradient(
@@ -1185,12 +1183,15 @@ class PlanBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: isPremium ? null : Border.all(color: AppColors.border),
       ),
-      child: Text(
-        isPremium ? '★ Premium' : 'Bure',
-        style: GoogleFonts.dmSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: isPremium ? AppColors.navyPrimary : AppColors.textMuted,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          isPremium ? '★ Premium' : 'Bure',
+          style: GoogleFonts.dmSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: isPremium ? AppColors.navyPrimary : AppColors.textMuted,
+          ),
         ),
       ),
     );

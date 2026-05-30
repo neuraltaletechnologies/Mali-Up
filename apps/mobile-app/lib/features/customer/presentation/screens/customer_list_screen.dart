@@ -55,15 +55,12 @@ extension _SegmentX on _Segment {
       };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class CustomerListScreen extends ConsumerStatefulWidget {
   const CustomerListScreen({super.key});
 
   @override
-  ConsumerState<CustomerListScreen> createState() => _CustomerListScreenState();
+  ConsumerState<CustomerListScreen> createState() =>
+      _CustomerListScreenState();
 }
 
 class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
@@ -93,11 +90,16 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   @override
   Widget build(BuildContext context) {
     final customersAsync = ref.watch(customerListProvider);
-    final all = customersAsync.maybeWhen(data: (d) => d, orElse: () => <Customer>[]);
+    final all = customersAsync.maybeWhen(
+      data: (d) => d,
+      orElse: () => <Customer>[],
+    );
     final filtered = _filter(all);
 
     final totalBalance = all.fold<double>(
-        0, (s, c) => s + (double.tryParse(c.balance) ?? 0));
+      0,
+      (s, c) => s + (double.tryParse(c.balance) ?? 0),
+    );
     final debtCount = all.where((c) => (double.tryParse(c.balance) ?? 0) > 0).length;
 
     return Scaffold(
@@ -112,8 +114,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: _tr('Search by name, phone…', 'Tafuta kwa jina, simu…'),
-                hintStyle:
-                    GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
+                hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
                 prefixIcon: const Icon(Icons.search_rounded,
                     size: 20, color: AppColors.textMuted),
                 suffixIcon: _searchCtrl.text.isNotEmpty
@@ -152,8 +153,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                         itemCount: filtered.length,
                         separatorBuilder: (_, i) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) =>
-                            _CustomerCard(customer: filtered[i]),
+                        itemBuilder: (_, i) => _CustomerCard(customer: filtered[i]),
                       ),
           ),
         ],
