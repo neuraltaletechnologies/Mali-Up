@@ -11,7 +11,11 @@ final inventoryItemListProvider = StreamProvider<List<Map<String, dynamic>>>((re
     yield const <Map<String, dynamic>>[];
     return;
   }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  final businessAsync = ref.watch(currentBusinessIdProvider);
+  if (businessAsync.isLoading) {
+    return;
+  }
+  final bizId = businessAsync.valueOrNull;
   if (bizId == null || bizId.isEmpty) {
     yield const <Map<String, dynamic>>[];
     return;

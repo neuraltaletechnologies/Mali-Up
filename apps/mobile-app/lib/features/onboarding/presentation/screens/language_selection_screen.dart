@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/constants/onboarding_strings.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
   final VoidCallback onLanguageSelected;
@@ -90,7 +91,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
           ? 'Habari Mali Up Help Desk, nahitaji msaada.'
           : 'Hello Mali Up Help Desk, I need help.',
     );
-    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 

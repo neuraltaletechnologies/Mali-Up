@@ -59,6 +59,7 @@ class OnboardingState {
     this.businessCountry = 'TZ',
     this.businessRegion = '',
     this.businessDistrict = '',
+    this.email = '',
 
     // Screen 6 — PIN setup
     this.pin = '',
@@ -112,6 +113,7 @@ class OnboardingState {
   final String businessCountry;  // ISO-2 code, default 'TZ'
   final String businessRegion;
   final String businessDistrict;
+  final String email;
 
   // ── Screen 6 ──────────────────────────────────────────────────────────────
   final String pin;
@@ -161,6 +163,7 @@ class OnboardingState {
     String? businessCountry,
     String? businessRegion,
     String? businessDistrict,
+    String? email,
     String? pin,
     String? confirmPin,
     bool? isLoading,
@@ -190,6 +193,7 @@ class OnboardingState {
       businessCountry: businessCountry ?? this.businessCountry,
       businessRegion: businessRegion ?? this.businessRegion,
       businessDistrict: businessDistrict ?? this.businessDistrict,
+      email: email ?? this.email,
       pin: pin ?? this.pin,
       confirmPin: confirmPin ?? this.confirmPin,
       isLoading: isLoading ?? this.isLoading,
@@ -222,6 +226,7 @@ class OnboardingState {
         other.businessCountry == businessCountry &&
         other.businessRegion == businessRegion &&
         other.businessDistrict == businessDistrict &&
+        other.email == email &&
         other.pin == pin &&
         other.confirmPin == confirmPin &&
         other.isLoading == isLoading &&
@@ -236,7 +241,7 @@ class OnboardingState {
         isTeamMember, teamMemberId, teamOwnerUid, inviteId, memberEmail,
         firstName, lastName, city, role,
         businessName, businessType, businessId,
-        businessCountry, businessRegion, businessDistrict,
+        businessCountry, businessRegion, businessDistrict, email,
         pin, confirmPin, isLoading, errorMessage, isComplete,
       ]);
 }
