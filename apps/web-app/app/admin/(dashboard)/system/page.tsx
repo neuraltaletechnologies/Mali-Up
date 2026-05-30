@@ -1,7 +1,7 @@
 import { fetchServiceHealth } from "@/lib/admin-api";
 import { PageHeader } from "@/components/admin/layout/PageHeader";
 import { SystemCharts } from "./SystemCharts";
-import { CheckCircle2, AlertTriangle, XCircle, Clock, Zap, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, AlertCircle } from "lucide-react";
 import type { ServiceHealth } from "@/types/admin";
 
 export const dynamic = "force-dynamic";

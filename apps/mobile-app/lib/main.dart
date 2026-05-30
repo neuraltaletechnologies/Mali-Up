@@ -17,6 +17,16 @@ import 'firebase_options.dart';
 
 const String _onboardingCompletedKey = 'onboarding_completed';
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
+const String _sentryEnvironment = String.fromEnvironment(
+  'SENTRY_ENVIRONMENT',
+  defaultValue: 'development',
+);
+const String _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
+const String _sentryDist = String.fromEnvironment('SENTRY_DIST');
+const bool _sentryTestEvent = bool.fromEnvironment(
+  'SENTRY_TEST_EVENT',
+  defaultValue: false,
+);
 
 Future<void> _startApp() async {
   try {
@@ -70,12 +80,20 @@ Future<void> main() async {
         options.profilesSampleRate = 1.0;
         options.sendDefaultPii = true;
         options.debug = false;
-        options.environment = const String.fromEnvironment(
-          'SENTRY_ENVIRONMENT',
-          defaultValue: 'development',
-        );
+        options.environment = _sentryEnvironment;
+        if (_sentryRelease.isNotEmpty) {
+          options.release = _sentryRelease;
+        }
+        if (_sentryDist.isNotEmpty) {
+          options.dist = _sentryDist;
+        }
       },
-      appRunner: _startApp,
+      appRunner: () async {
+        await _startApp();
+        if (_sentryTestEvent) {
+          await Sentry.captureMessage('Mali Up mobile Sentry test event');
+        }
+      },
     );
   }
 }
