@@ -192,11 +192,12 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
 
   Future<void> _pickCountry() async {
     HapticFeedback.selectionClick();
+    final sw = ref.read(onboardingNotifierProvider).isSwahili;
     final picked = await showModalBottomSheet<_Country>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _CountryPickerSheet(countries: _kCountries),
+      builder: (_) => _CountryPickerSheet(countries: _kCountries, isSwahili: sw),
     );
     if (picked != null && mounted) {
       setState(() => _country = picked);
@@ -688,8 +689,9 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
 // ─── Country picker bottom sheet ──────────────────────────────────────────────
 
 class _CountryPickerSheet extends StatefulWidget {
-  const _CountryPickerSheet({required this.countries});
+  const _CountryPickerSheet({required this.countries, required this.isSwahili});
   final List<_Country> countries;
+  final bool isSwahili;
 
   @override
   State<_CountryPickerSheet> createState() => _CountryPickerSheetState();
@@ -755,13 +757,13 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
           const SizedBox(height: 16),
 
           // Title
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
                 Text(
-                  'Select country',
-                  style: TextStyle(
+                  widget.isSwahili ? 'Chagua nchi' : 'Select country',
+                  style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: AppColors.navyPrimary,
@@ -788,17 +790,17 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
                   fontSize: 14,
                   color: AppColors.navyPrimary,
                 ),
-                decoration: const InputDecoration(
-                  hintText: 'Search country or code…',
-                  hintStyle: TextStyle(
+                decoration: InputDecoration(
+                  hintText: widget.isSwahili ? 'Tafuta nchi au nambari…' : 'Search country or code…',
+                  hintStyle: const TextStyle(
                     fontSize: 14,
                     color: AppColors.textDisabled,
                   ),
-                  prefixIcon: Icon(Icons.search_rounded,
+                  prefixIcon: const Icon(Icons.search_rounded,
                       size: 18, color: AppColors.textMuted),
                   border: InputBorder.none,
                   contentPadding:
-                      EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
               ),
             ),

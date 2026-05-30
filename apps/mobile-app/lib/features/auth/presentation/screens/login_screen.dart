@@ -314,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen> {
           'Incorrect PIN. Please try again.',
           'PIN si sahihi. Jaribu tena.',
         ),
-        'user-not-found' => _tr('Account not found.', 'Akaunti haijapatikana.'),
+        'user-not-found' => _tr('Account not found. Please go back and check your phone number.', 'Akaunti haijapatikana. Rudi nyuma na uangalie namba yako ya simu.'),
         _ => _tr(
           'Login failed. Please check your PIN.',
           'Uingiaji umeshindikana. Hakiki PIN yako.',
@@ -328,8 +328,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await _NotificationHelper.showError(
         context,
         _tr(
-          'An unexpected error occurred.',
-          'Hitilafu isiyotarajiwa imetokea.',
+          'Something went wrong. Please try again or contact support if it continues.',
+          'Kuna tatizo. Tafadhali jaribu tena au wasiliana na msaada ikiwa litaendelea.',
         ),
       );
     }

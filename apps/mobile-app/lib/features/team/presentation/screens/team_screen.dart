@@ -726,9 +726,10 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
       if (!mounted) return;
       setState(() => _isSaving = false);
       messenger.showSnackBar(SnackBar(
-          content: Text(_tr(
-              'Failed to add member. Try again.',
-              'Imeshindikana. Jaribu tena.'))));
+        backgroundColor: AppColors.error,
+        content: Text(_tr(
+            'Could not add team member. Please try again.',
+            'Imeshindikana kuongeza mwanachama. Jaribu tena.'))));
     }
   }
 
@@ -948,7 +949,8 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       if (!mounted) return;
       setState(() => _isSaving = false);
       messenger.showSnackBar(SnackBar(
-          content: Text(_tr('Update failed.', 'Imeshindikana.'))));
+        backgroundColor: AppColors.error,
+        content: Text(_tr('Could not update role. Please try again.', 'Imeshindikana kusasisha jukumu. Jaribu tena.'))));
     }
   }
 
@@ -991,7 +993,8 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       ));
     } catch (_) {
       messenger.showSnackBar(SnackBar(
-          content: Text(_tr('Failed to remove.', 'Imeshindikana.'))));
+        backgroundColor: AppColors.error,
+        content: Text(_tr('Could not remove member. Please try again.', 'Imeshindikana kuondoa mwanachama. Jaribu tena.'))));
     }
   }
 

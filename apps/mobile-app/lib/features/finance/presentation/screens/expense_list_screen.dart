@@ -1269,7 +1269,13 @@ class _RecurringTab extends ConsumerWidget {
 
     return templatesAsync.when(
       loading: () => const SkeletonList(itemCount: 4),
-      error: (e, _) => Center(child: Text('$e')),
+      error: (e, _) => EmptyState(
+        icon: Icons.wifi_off_rounded,
+        title: _tr('Could not load recurring expenses', 'Imeshindwa kupakia matumizi ya kujirudia'),
+        subtitle: _tr('Check your connection and try again.', 'Angalia muunganiko wako na ujaribu tena.'),
+        actionLabel: _tr('Try again', 'Jaribu tena'),
+        onAction: () => ref.invalidate(recurringTemplateListProvider),
+      ),
       data: (templates) {
         if (templates.isEmpty) {
           return _EmptyState(

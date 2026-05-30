@@ -369,7 +369,8 @@ class _CustomerCard extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('Delete failed', 'Imeshindwa kufuta')),
+          backgroundColor: AppColors.error,
+          content: Text(_tr('Could not delete customer. Please try again.', 'Imeshindwa kufuta mteja. Jaribu tena.')),
         ));
       }
     }
@@ -768,7 +769,8 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
       if (!mounted) return;
       setState(() => _isSaving = false);
       msg.showSnackBar(SnackBar(
-        content: Text(_tr('Failed to update', 'Imeshindwa kusasisha')),
+        backgroundColor: AppColors.error,
+        content: Text(_tr('Could not save changes. Please try again.', 'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.')),
       ));
     }
   }
