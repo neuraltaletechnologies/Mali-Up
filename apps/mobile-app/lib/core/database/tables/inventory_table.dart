@@ -24,6 +24,10 @@ class InventoryTable extends Table {
   TextColumn get imageUrl => text().withDefault(const Constant(''))();
   IntColumn get isActive => integer().withDefault(const Constant(1))();
   TextColumn get createdBy => text().withDefault(const Constant(''))();
+  // JSON blob for fields not directly queryable (categoryId, categoryName,
+  // supplier, lastRestocked, expiryDate, batchNumber, warrantyPeriod, brand).
+  // Added in schema v2.
+  TextColumn get metadata => text().withDefault(const Constant('{}'))();
 
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
