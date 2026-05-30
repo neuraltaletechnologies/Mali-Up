@@ -1865,6 +1865,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           final id = await addCategory(
             uid: user.uid,
             bizId: bizId,
+            businessType: ref.read(currentBusinessTypeProvider).valueOrNull ?? '',
             name: name,
             repo: repo,
           );

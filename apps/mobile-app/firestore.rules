@@ -244,8 +244,8 @@ service cloud.firestore {
       allow read, update, delete: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId) &&
         isValidUserCreate(request.resource.data);
-      // Only authenticated users can list/query users.
-      allow list: if isSignedIn();
+      // Allow anonymous single-result phone lookups for login/onboarding.
+      allow list: if isSignedIn() || (!isSignedIn() && isLimitedLookup());
     }
 
     // =========================================================================
@@ -253,8 +253,8 @@ service cloud.firestore {
     // Path: businesses/{businessId}
     // =========================================================================
     match /businesses/{businessId} {
-      // Only signed-in users can query businesses.
-      allow list: if isSignedIn();
+      // Allow anonymous single-result owner lookups during login/onboarding.
+      allow list: if isSignedIn() || (!isSignedIn() && isLimitedLookup());
 
       // Direct document read: owner only.
       allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
@@ -337,6 +337,10 @@ service cloud.firestore {
         allow read, update, delete: if isSignedIn() && isOwner(tenantId);
         allow create: if isSignedIn() && isOwner(tenantId) &&
           isValidCustomer(request.resource.data);
+
+        match /notes/{noteId} {
+          allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+        }
       }
 
       match /sales_invoices/{invoiceId} {
@@ -391,6 +395,10 @@ service cloud.firestore {
           allow read, update, delete: if isSignedIn() && isOwner(tenantId);
           allow create: if isSignedIn() && isOwner(tenantId) &&
             isValidCustomer(request.resource.data);
+
+          match /notes/{noteId} {
+            allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+          }
         }
 
         match /sales_invoices/{invoiceId} {
