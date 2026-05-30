@@ -94,7 +94,9 @@ Future<void> main() async {
         await _startApp();
         SentryMetricsService.appLaunched(sentryEnabled: true);
         if (_sentryTestEvent) {
-          await Sentry.captureMessage('Mali Up mobile Sentry test event');
+          await Sentry.captureException(
+            StateError('This is test exception'),
+          );
         }
       },
     );

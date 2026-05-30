@@ -6,6 +6,7 @@ import '../../../features/finance/domain/models/cash_account.dart';
 import '../../../features/finance/domain/models/cash_transaction.dart';
 import '../../../features/finance/domain/models/daily_reconciliation.dart';
 import '../../../features/finance/domain/models/expense.dart';
+import '../../services/sentry_metrics_service.dart';
 import '../../../features/team/domain/models/team_member.dart';
 
 
