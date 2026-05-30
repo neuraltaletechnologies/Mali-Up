@@ -1478,28 +1478,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     });
   }
 
-  Future<void> _scanBarcode(int index) async {
-    final entry = _items[index];
-    final scanned = await BarcodeScannerScreen.show(context,
-        title: _tr('Scan Product', 'Skani Bidhaaa'));
-    if (scanned == null || scanned.isEmpty || !mounted) return;
-
-    final inventory = ref.read(inventoryItemListProvider).value ?? [];
-    final matched = inventory.firstWhere(
-      (item) =>
-          (item['sku'] ?? '').toString().toLowerCase() ==
-          scanned.toLowerCase(),
-      orElse: () => <String, dynamic>{},
-    );
-
-    if (matched.isNotEmpty) {
-      _selectProduct(entry, matched);
-    } else {
-      _snack(_tr('No product found for barcode: $scanned',
-          'Hakuna bidhaaa kwa nambari: $scanned'));
-    }
-  }
-
   /// Opens the continuous POS scanner. Each successful scan auto-adds an
   /// item row (or increments qty if the product is already in the list).
   Future<void> _openPosScanner() async {
@@ -2110,8 +2088,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                       : IconButton(
                           icon: const Icon(Icons.qr_code_scanner_rounded,
                               size: 22, color: AppColors.tealAccent),
-                          tooltip: _tr('Scan barcode', 'Skani nambari'),
-                          onPressed: () => _scanBarcode(index),
+                          tooltip: _tr('Scan mode', 'Hali ya skani'),
+                          onPressed: _openPosScanner,
                         )),
             ),
           ),

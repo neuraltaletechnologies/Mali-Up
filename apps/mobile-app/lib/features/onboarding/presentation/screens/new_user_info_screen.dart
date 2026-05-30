@@ -59,6 +59,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
     final notifier = ref.read(onboardingNotifierProvider.notifier);
     notifier.setFirstName(_firstNameCtrl.text.trim());
     notifier.setLastName(_lastNameCtrl.text.trim());
+    notifier.setEmail(_emailCtrl.text.trim());
     notifier.advanceFromPersonalInfo();
     context.go(AppRoutes.business);
   }
@@ -69,7 +70,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
           ? 'Habari Mali Up Help Desk, nahitaji msaada wa kusajili.'
           : 'Hello Mali Up Help Desk, I need help with registration.',
     );
-    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
@@ -79,7 +80,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
           ? 'Habari Mali Up Help Desk, nahitaji msaada wa kuingia.'
           : 'Hello Mali Up Help Desk, I need help with login.',
     );
-    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

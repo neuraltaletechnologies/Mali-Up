@@ -220,7 +220,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
           ? 'Habari Mali Up Help Desk, nahitaji msaada wa maelezo ya biashara.'
           : 'Hello Mali Up Help Desk, I need help with my business details.',
     );
-    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -314,6 +314,8 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       state = state.copyWith(city: v, clearError: true);
   void setRole(String v) =>
       state = state.copyWith(role: v, clearError: true);
+  void setEmail(String v) =>
+      state = state.copyWith(email: v, clearError: true);
 
   void advanceFromPersonalInfo() {
     state = state.copyWith(

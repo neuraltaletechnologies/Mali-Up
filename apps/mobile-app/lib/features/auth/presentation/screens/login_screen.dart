@@ -10,6 +10,7 @@ import '../../../../shared/widgets/pin_digit_box.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/constants/onboarding_strings.dart';
 import '../utils/pin_auth_password.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -153,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
         'Habari Mali Up Help Desk, nahitaji msaada wa dharura wa kuingia.',
       ),
     );
-    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       await _NotificationHelper.showError(

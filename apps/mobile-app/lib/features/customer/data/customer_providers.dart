@@ -29,7 +29,11 @@ final customerListProvider = StreamProvider<List<Customer>>((ref) async* {
     yield const <Customer>[];
     return;
   }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  final businessAsync = ref.watch(currentBusinessIdProvider);
+  if (businessAsync.isLoading) {
+    return;
+  }
+  final bizId = businessAsync.valueOrNull;
   if (bizId == null || bizId.isEmpty) {
     yield const <Customer>[];
     return;
@@ -49,7 +53,11 @@ final customerInvoicesProvider =
     yield const [];
     return;
   }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  final businessAsync = ref.watch(currentBusinessIdProvider);
+  if (businessAsync.isLoading) {
+    return;
+  }
+  final bizId = businessAsync.valueOrNull;
   if (bizId == null || bizId.isEmpty) {
     yield const [];
     return;
@@ -75,7 +83,11 @@ final customerNotesProvider =
     yield const [];
     return;
   }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  final businessAsync = ref.watch(currentBusinessIdProvider);
+  if (businessAsync.isLoading) {
+    return;
+  }
+  final bizId = businessAsync.valueOrNull;
   if (bizId == null || bizId.isEmpty) {
     yield const [];
     return;

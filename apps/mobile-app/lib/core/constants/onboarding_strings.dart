@@ -485,4 +485,6 @@ abstract final class OnboardingStrings {
   static String stepOfEn(int current, int total) => 'Step $current of $total';
   static String stepOfSw(int current, int total) =>
       'Hatua $current kati ya $total';
+
+  static const helpDeskUrl = 'https://wa.me/255653520829?text=';
 }

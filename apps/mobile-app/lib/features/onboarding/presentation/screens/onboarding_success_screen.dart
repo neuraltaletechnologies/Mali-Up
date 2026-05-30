@@ -103,7 +103,7 @@ class _OnboardingSuccessScreenState extends ConsumerState<OnboardingSuccessScree
           ? 'Habari Mali Up Help Desk, nimekamilisha usajili wangu.'
           : 'Hello Mali Up Help Desk, I have completed onboarding.',
     );
-    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 

@@ -53,6 +53,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
     if (value == null || value.isEmpty) return;
     _scanned = true;
     HapticFeedback.mediumImpact();
+    SystemSound.play(SystemSoundType.click);
     Navigator.of(context).pop(value);
   }
 
@@ -239,11 +240,13 @@ class _PosScannerScreenState extends State<PosScannerScreen>
         });
         // Play success animation on the overlay indicator.
         _successAnim.forward(from: 0);
+        SystemSound.play(SystemSoundType.click);
         await Future<void>.delayed(const Duration(milliseconds: 1400));
         if (mounted) setState(() => _lastScannedName = null);
       } else {
         // Not found — brief error haptic.
         HapticFeedback.heavyImpact();
+        SystemSound.play(SystemSoundType.alert);
       }
     } finally {
       _processing = false;
