@@ -1,0 +1,38 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/providers/business_id_provider.dart';
+import '../../../../core/providers/database_provider.dart';
+import '../../data/repositories/sync_inventory_repository.dart';
+import '../../domain/models/inventory_item.dart';
+
+final inventoryRepositoryProvider =
+    Provider<SyncInventoryRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  return SyncInventoryRepository(db: db, uid: uid, businessId: bizId);
+});
+
+/// Live stream of all active non-deleted inventory items, ordered by name.
+/// Backed by Drift — works fully offline.
+final inventoryProvider = StreamProvider<List<InventoryItem>>((ref) {
+  return ref.watch(inventoryRepositoryProvider).watchAll();
+});
+
+final lowStockItemsProvider = StreamProvider<List<InventoryItem>>((ref) {
+  return ref.watch(inventoryRepositoryProvider).watchLowStock();
+});
+
+final lowStockCountProvider = Provider<int>((ref) {
+  return ref.watch(lowStockItemsProvider).valueOrNull?.length ?? 0;
+});
+
+final totalInventoryValueProvider = FutureProvider<double>((ref) {
+  return ref.watch(inventoryRepositoryProvider).getTotalInventoryValue();
+});
+
+final inventoryItemProvider =
+    FutureProvider.family<InventoryItem?, String>((ref, id) {
+  return ref.watch(inventoryRepositoryProvider).getById(id);
+});

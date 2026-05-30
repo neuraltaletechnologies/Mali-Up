@@ -41,9 +41,10 @@ Future<void> _startApp() async {
     }
   }
 
+  // Drift is the source of truth for offline data — Firestore's own
+  // persistence cache is disabled to prevent a dual-cache inconsistency.
   FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    persistenceEnabled: false,
   );
 
   final prefs = await SharedPreferences.getInstance();

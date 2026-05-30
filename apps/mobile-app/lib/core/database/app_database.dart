@@ -43,17 +43,23 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
-          // Create performance indexes after schema creation
           await _createIndexes();
         },
         onUpgrade: (m, from, to) async {
-          // Future migrations go here
+          if (from < 2) {
+            // Add metadata JSON column for extended InventoryItem fields
+            // (categoryId, categoryName, supplier, expiryDate, etc.)
+            await customStatement(
+              'ALTER TABLE inventory_items '
+              "ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'",
+            );
+          }
         },
         beforeOpen: (details) async {
           // Enforce foreign key constraints

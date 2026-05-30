@@ -3938,6 +3938,18 @@ class $InventoryTableTable extends InventoryTable
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _metadataMeta = const VerificationMeta(
+    'metadata',
+  );
+  @override
+  late final GeneratedColumn<String> metadata = GeneratedColumn<String>(
+    'metadata',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4025,6 +4037,7 @@ class $InventoryTableTable extends InventoryTable
     imageUrl,
     isActive,
     createdBy,
+    metadata,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -4152,6 +4165,12 @@ class $InventoryTableTable extends InventoryTable
         createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
       );
     }
+    if (data.containsKey('metadata')) {
+      context.handle(
+        _metadataMeta,
+        metadata.isAcceptableOrUnknown(data['metadata']!, _metadataMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4271,6 +4290,10 @@ class $InventoryTableTable extends InventoryTable
         DriftSqlType.string,
         data['${effectivePrefix}created_by'],
       )!,
+      metadata: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}metadata'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -4322,6 +4345,7 @@ class InventoryTableData extends DataClass
   final String imageUrl;
   final int isActive;
   final String createdBy;
+  final String metadata;
   final int createdAt;
   final int updatedAt;
   final int? serverUpdatedAt;
@@ -4345,6 +4369,7 @@ class InventoryTableData extends DataClass
     required this.imageUrl,
     required this.isActive,
     required this.createdBy,
+    required this.metadata,
     required this.createdAt,
     required this.updatedAt,
     this.serverUpdatedAt,
@@ -4371,6 +4396,7 @@ class InventoryTableData extends DataClass
     map['image_url'] = Variable<String>(imageUrl);
     map['is_active'] = Variable<int>(isActive);
     map['created_by'] = Variable<String>(createdBy);
+    map['metadata'] = Variable<String>(metadata);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || serverUpdatedAt != null) {
@@ -4400,6 +4426,7 @@ class InventoryTableData extends DataClass
       imageUrl: Value(imageUrl),
       isActive: Value(isActive),
       createdBy: Value(createdBy),
+      metadata: Value(metadata),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
@@ -4433,6 +4460,7 @@ class InventoryTableData extends DataClass
       imageUrl: serializer.fromJson<String>(json['imageUrl']),
       isActive: serializer.fromJson<int>(json['isActive']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
+      metadata: serializer.fromJson<String>(json['metadata']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
@@ -4461,6 +4489,7 @@ class InventoryTableData extends DataClass
       'imageUrl': serializer.toJson<String>(imageUrl),
       'isActive': serializer.toJson<int>(isActive),
       'createdBy': serializer.toJson<String>(createdBy),
+      'metadata': serializer.toJson<String>(metadata),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
@@ -4487,6 +4516,7 @@ class InventoryTableData extends DataClass
     String? imageUrl,
     int? isActive,
     String? createdBy,
+    String? metadata,
     int? createdAt,
     int? updatedAt,
     Value<int?> serverUpdatedAt = const Value.absent(),
@@ -4510,6 +4540,7 @@ class InventoryTableData extends DataClass
     imageUrl: imageUrl ?? this.imageUrl,
     isActive: isActive ?? this.isActive,
     createdBy: createdBy ?? this.createdBy,
+    metadata: metadata ?? this.metadata,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     serverUpdatedAt: serverUpdatedAt.present
@@ -4545,6 +4576,7 @@ class InventoryTableData extends DataClass
       imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      metadata: data.metadata.present ? data.metadata.value : this.metadata,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       serverUpdatedAt: data.serverUpdatedAt.present
@@ -4579,6 +4611,7 @@ class InventoryTableData extends DataClass
           ..write('imageUrl: $imageUrl, ')
           ..write('isActive: $isActive, ')
           ..write('createdBy: $createdBy, ')
+          ..write('metadata: $metadata, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -4607,6 +4640,7 @@ class InventoryTableData extends DataClass
     imageUrl,
     isActive,
     createdBy,
+    metadata,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -4634,6 +4668,7 @@ class InventoryTableData extends DataClass
           other.imageUrl == this.imageUrl &&
           other.isActive == this.isActive &&
           other.createdBy == this.createdBy &&
+          other.metadata == this.metadata &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
@@ -4659,6 +4694,7 @@ class InventoryTableCompanion extends UpdateCompanion<InventoryTableData> {
   final Value<String> imageUrl;
   final Value<int> isActive;
   final Value<String> createdBy;
+  final Value<String> metadata;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> serverUpdatedAt;
@@ -4683,6 +4719,7 @@ class InventoryTableCompanion extends UpdateCompanion<InventoryTableData> {
     this.imageUrl = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.metadata = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
@@ -4708,6 +4745,7 @@ class InventoryTableCompanion extends UpdateCompanion<InventoryTableData> {
     this.imageUrl = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.metadata = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.serverUpdatedAt = const Value.absent(),
@@ -4737,6 +4775,7 @@ class InventoryTableCompanion extends UpdateCompanion<InventoryTableData> {
     Expression<String>? imageUrl,
     Expression<int>? isActive,
     Expression<String>? createdBy,
+    Expression<String>? metadata,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? serverUpdatedAt,
@@ -4762,6 +4801,7 @@ class InventoryTableCompanion extends UpdateCompanion<InventoryTableData> {
       if (imageUrl != null) 'image_url': imageUrl,
       if (isActive != null) 'is_active': isActive,
       if (createdBy != null) 'created_by': createdBy,
+      if (metadata != null) 'metadata': metadata,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
@@ -4789,6 +4829,7 @@ class InventoryTableCompanion extends UpdateCompanion<InventoryTableData> {
     Value<String>? imageUrl,
     Value<int>? isActive,
     Value<String>? createdBy,
+    Value<String>? metadata,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? serverUpdatedAt,
@@ -4814,6 +4855,7 @@ class InventoryTableCompanion extends UpdateCompanion<InventoryTableData> {
       imageUrl: imageUrl ?? this.imageUrl,
       isActive: isActive ?? this.isActive,
       createdBy: createdBy ?? this.createdBy,
+      metadata: metadata ?? this.metadata,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
@@ -4875,6 +4917,9 @@ class InventoryTableCompanion extends UpdateCompanion<InventoryTableData> {
     if (createdBy.present) {
       map['created_by'] = Variable<String>(createdBy.value);
     }
+    if (metadata.present) {
+      map['metadata'] = Variable<String>(metadata.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -4918,6 +4963,7 @@ class InventoryTableCompanion extends UpdateCompanion<InventoryTableData> {
           ..write('imageUrl: $imageUrl, ')
           ..write('isActive: $isActive, ')
           ..write('createdBy: $createdBy, ')
+          ..write('metadata: $metadata, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -9488,6 +9534,7 @@ typedef $$InventoryTableTableCreateCompanionBuilder =
       Value<String> imageUrl,
       Value<int> isActive,
       Value<String> createdBy,
+      Value<String> metadata,
       required int createdAt,
       required int updatedAt,
       Value<int?> serverUpdatedAt,
@@ -9514,6 +9561,7 @@ typedef $$InventoryTableTableUpdateCompanionBuilder =
       Value<String> imageUrl,
       Value<int> isActive,
       Value<String> createdBy,
+      Value<String> metadata,
       Value<int> createdAt,
       Value<int> updatedAt,
       Value<int?> serverUpdatedAt,
@@ -9609,6 +9657,11 @@ class $$InventoryTableTableFilterComposer
 
   ColumnFilters<String> get createdBy => $composableBuilder(
     column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get metadata => $composableBuilder(
+    column: $table.metadata,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9732,6 +9785,11 @@ class $$InventoryTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get metadata => $composableBuilder(
+    column: $table.metadata,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -9828,6 +9886,9 @@ class $$InventoryTableTableAnnotationComposer
   GeneratedColumn<String> get createdBy =>
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
 
+  GeneratedColumn<String> get metadata =>
+      $composableBuilder(column: $table.metadata, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -9906,6 +9967,7 @@ class $$InventoryTableTableTableManager
                 Value<String> imageUrl = const Value.absent(),
                 Value<int> isActive = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<String> metadata = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -9930,6 +9992,7 @@ class $$InventoryTableTableTableManager
                 imageUrl: imageUrl,
                 isActive: isActive,
                 createdBy: createdBy,
+                metadata: metadata,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
@@ -9956,6 +10019,7 @@ class $$InventoryTableTableTableManager
                 Value<String> imageUrl = const Value.absent(),
                 Value<int> isActive = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<String> metadata = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -9980,6 +10044,7 @@ class $$InventoryTableTableTableManager
                 imageUrl: imageUrl,
                 isActive: isActive,
                 createdBy: createdBy,
+                metadata: metadata,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
