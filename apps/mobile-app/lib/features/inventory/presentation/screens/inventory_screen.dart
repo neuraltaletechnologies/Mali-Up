@@ -235,11 +235,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           Expanded(
             child: inventoryAsync.when(
               loading: () => const InventoryPageSkeleton(),
-              error: (e, _) => Center(
-                child: Text(
-                  _tr('Unable to load inventory.', 'Imeshindikana kupakia stoo.'),
-                  style: GoogleFonts.dmSans(color: AppColors.textMuted),
-                ),
+              error: (e, _) => EmptyState(
+                icon: Icons.wifi_off_rounded,
+                title: _tr('Could not load inventory', 'Imeshindikana kupakia stoo'),
+                subtitle: _tr('Check your connection and try again.', 'Angalia muunganiko wako na ujaribu tena.'),
+                actionLabel: _tr('Try again', 'Jaribu tena'),
+                onAction: () => ref.invalidate(inventoryItemListProvider),
               ),
               data: (items) {
                 final filtered = _applyFiltersAndSort(
@@ -1863,7 +1864,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       msg.showSnackBar(SnackBar(
-        content: Text(_tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.')),
+        backgroundColor: AppColors.error,
+        content: Text(_tr('Could not save product. Please try again.', 'Imeshindikana kuhifadhi bidhaa. Jaribu tena.')),
       ));
     }
   }

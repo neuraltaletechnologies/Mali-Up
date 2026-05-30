@@ -239,10 +239,10 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
     if (invoices.isEmpty) {
       return EmptyState(
         icon: Icons.receipt_long,
-        title: 'No invoices found',
+        title: LocalizationService.tr(en: 'No invoices found', sw: 'Hakuna ankara zilizopatikana'),
         subtitle: _searchController.text.isNotEmpty
-            ? 'Try adjusting your search or filters'
-            : 'Create your first invoice to get started',
+            ? LocalizationService.tr(en: 'Try adjusting your search or filters', sw: 'Jaribu kubadilisha utafutaji au vichujio vyako')
+            : LocalizationService.tr(en: 'Create your first invoice to get started', sw: 'Unda ankara yako ya kwanza kuanza'),
         actionText: 'Create Invoice',
         onAction: () => _navigateToCreateInvoice(),
       );
@@ -490,8 +490,11 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open WhatsApp'),
+          SnackBar(
+            content: Text(LocalizationService.tr(
+              en: 'Could not open WhatsApp. Make sure it\'s installed.',
+              sw: 'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
+            )),
             backgroundColor: Colors.red,
           ),
         );
@@ -523,7 +526,9 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? 'Invoice marked as paid' : 'Failed to update invoice'),
+            content: Text(success
+                ? LocalizationService.tr(en: 'Invoice marked as paid', sw: 'Ankara imewekwa kama imelipwa')
+                : LocalizationService.tr(en: 'Could not update invoice. Please try again.', sw: 'Imeshindwa kusasisha ankara. Jaribu tena.')),
             backgroundColor: success ? Colors.green : Colors.red,
           ),
         );
