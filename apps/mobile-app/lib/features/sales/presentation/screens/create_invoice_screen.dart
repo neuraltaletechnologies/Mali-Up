@@ -1037,29 +1037,75 @@ class _SuggestionList extends StatelessWidget {
         children: items.map((inv) {
           final price = parseNumericAmount(
               inv['sellingPrice'] ?? inv['unitPrice']);
+          final stock = parseStock(inv['currentStock'] ?? inv['stock']);
+          final isOut  = stock <= 0;
+          final isLow  = !isOut && stock <= parseStock(inv['reorderPoint'] ?? 5);
+          final productType = (inv['productType'] as String?) ?? '';
+          final isService    = productType == 'service';
+
           return InkWell(
             onTap: () => onTap(inv),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
-                  const Icon(Icons.inventory_2_rounded,
-                      size: 16, color: AppColors.textMuted),
+                  Icon(
+                    isService
+                        ? Icons.design_services_rounded
+                        : Icons.inventory_2_rounded,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      inv['name']?.toString() ?? '',
-                      style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          inv['name']?.toString() ?? '',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        if (!isService) ...[
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: isOut
+                                      ? AppColors.errorBg
+                                      : isLow
+                                          ? AppColors.warningBg
+                                          : AppColors.successBg,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  isOut
+                                      ? _tr('Out of stock', 'Imekwisha')
+                                      : _tr('Stock', 'Stoo') + ': $stock',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: isOut
+                                        ? AppColors.error
+                                        : isLow
+                                            ? AppColors.warning
+                                            : AppColors.success,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   Text(
                     'TZS ${_fmtNum(price)}',
                     style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12,
-                        color: AppColors.textSecondary),
+                        fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),
