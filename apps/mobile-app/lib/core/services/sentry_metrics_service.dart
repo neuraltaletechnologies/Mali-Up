@@ -33,7 +33,7 @@ class SentryMetricsService {
   static void distribution(
     String name,
     num value, {
-    SentryMetricUnit? unit,
+    String? unit,
     Map<String, SentryAttribute>? attributes,
   }) {
     if (!_enabled) return;
