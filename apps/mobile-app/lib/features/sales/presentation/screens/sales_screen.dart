@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -551,6 +552,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       businessName: meta['businessName'] ?? 'Business',
       printedBy: meta['printedBy'] ?? 'User',
     );
+    SentryMetricsService.invoicePrinted(surface: 'receipt_sheet');
     if (!context.mounted) return;
 
     await showModalBottomSheet<void>(
@@ -1655,6 +1657,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         if (notes.isNotEmpty) 'notes': notes,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      SentryMetricsService.salesCreated(
+        amount: _grandTotal,
+        status: statusStr,
+      );
 
       for (final e in _items) {
         if (e.selectedItem != null) {

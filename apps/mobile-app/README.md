@@ -69,4 +69,19 @@ Optional one-time verification:
 - Start the app once. A startup test message is sent.
 - Set it back to `"false"` afterward.
 
+## Application Metrics
+
+The app now emits a few basic metrics through `Sentry.metrics`:
+
+- `app_launch` when the app starts with Sentry enabled.
+- `barcode_scan` for barcode scanner success and miss events.
+- `scan_to_cart_time_ms` for the time from accepted barcode to cart add.
+- `sales_created` and `sales_created_amount` when an invoice is saved.
+- `invoice_printed` when the receipt/share sheet is opened.
+- `customer_added` when a customer is persisted through the repository.
+
+Metrics can be extended from `lib/core/services/sentry_metrics_service.dart`.
+Use `count`, `gauge`, and `distribution` there when you want to track anything
+that should help you debug product behavior.
+
 Part of the [Mali Up](../../README.md) suite.

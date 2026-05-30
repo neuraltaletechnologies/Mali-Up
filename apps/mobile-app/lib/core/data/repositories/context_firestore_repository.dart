@@ -100,12 +100,14 @@ class ContextFirestoreRepository {
     required String uid,
     required ResolvedFinanceContext context,
     required Customer customer,
-  }) {
-    return _scopeCollection(
+  }) async {
+    final ref = await _scopeCollection(
       uid: uid,
       context: context,
       childCollection: 'customers',
     ).add(customer.toFirestore());
+    SentryMetricsService.customerAdded(source: 'repository');
+    return ref;
   }
 
   Stream<List<Debt>> watchDebts({
