@@ -1218,76 +1218,42 @@ class _InvoiceCard extends StatelessWidget {
 
 class _EmptySalesState extends StatelessWidget {
   final _SalesFilter filter;
-
   const _EmptySalesState({required this.filter});
 
   @override
   Widget build(BuildContext context) {
-    final ({IconData icon, String title, String subtitle}) content =
+    final (IconData icon, String title, String subtitle) content =
         switch (filter) {
       _SalesFilter.paid => (
-        icon: Icons.check_circle_outline_rounded,
-        title: _tr('No paid invoices', 'Hakuna ankara zilizolipwa'),
-        subtitle: _tr('Paid invoices will appear here.',
+        Icons.check_circle_outline_rounded,
+        _tr('All paid up', 'Yote yalilipwa'),
+        _tr('Paid invoices will show up here once customers settle.',
             'Ankara zilizolipwa zitaonekana hapa.'),
       ),
       _SalesFilter.overdue => (
-        icon: Icons.schedule_rounded,
-        title: _tr('No overdue invoices', 'Hakuna ankara zilizochelewa'),
-        subtitle:
-            _tr('Great — nothing overdue!', 'Vizuri — hakuna iliyochelewa!'),
+        Icons.hourglass_empty_rounded,
+        _tr('Nothing overdue — nice!', 'Hakuna zilizochelewa — vizuri!'),
+        _tr('All your invoices are on track.',
+            'Ankara zako zote ziko sawa.'),
       ),
       _SalesFilter.draft => (
-        icon: Icons.edit_note_rounded,
-        title: _tr('No drafts', 'Hakuna rasimu'),
-        subtitle: _tr('Saved drafts will appear here.',
-            'Rasimu zilizohifadhiwa zitaonekana hapa.'),
+        Icons.edit_note_rounded,
+        _tr('No drafts saved', 'Hakuna rasimu zilizohifadhiwa'),
+        _tr('Unfinished sales will be saved here as drafts.',
+            'Mauzo ambayo hayajakamilika yatahifadhiwa hapa kama rasimu.'),
       ),
       _ => (
-        icon: Icons.receipt_long_outlined,
-        title: _tr('No sales yet', 'Bado hakuna mauzo'),
-        subtitle:
-            _tr('Tap New Sale to get started.', 'Bonyeza Mauzo Mapya kuanza.'),
+        Icons.receipt_long_outlined,
+        _tr('Your first sale is waiting!', 'Mauzo yako ya kwanza yanangoja!'),
+        _tr('Tap New Sale to record a payment.',
+            'Bonyeza Mauzo Mapya kurekodi malipo.'),
       ),
     };
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Icon(content.icon,
-                  size: 32, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              content.title,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              content.subtitle,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted, height: 1.5),
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: content.$1,
+      title: content.$2,
+      subtitle: content.$3,
     );
   }
 }

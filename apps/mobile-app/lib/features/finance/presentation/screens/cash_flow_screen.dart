@@ -303,25 +303,13 @@ class _OverviewTab extends ConsumerWidget {
           const SizedBox(height: 8),
 
           if (recentTxns.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  children: [
-                    const Icon(Icons.receipt_long_outlined,
-                        size: 52, color: AppColors.textMuted),
-                    const SizedBox(height: 12),
-                    Text(
-                      _tr(
-                        'No transactions this month.',
-                        'Hakuna miamala mwezi huu.',
-                      ),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
+            EmptyState(
+              icon: Icons.swap_horiz_rounded,
+              title: _tr('No transactions this month',
+                  'Hakuna miamala mwezi huu'),
+              subtitle: _tr(
+                'Record a deposit or withdrawal to see it here.',
+                'Rekodi amana au kutoa ili ione hapa.',
               ),
             )
           else
@@ -359,21 +347,13 @@ class _TransactionsTab extends ConsumerWidget {
         _MonthNavigator(month: month),
         Expanded(
           child: txns.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.receipt_long_outlined,
-                          size: 48, color: AppColors.textMuted),
-                      const SizedBox(height: 12),
-                      Text(
-                        _tr('No transactions this month.', 'Hakuna miamala mwezi huu.'),
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: AppColors.textMuted),
-                      ),
-                    ],
+              ? EmptyState(
+                  icon: Icons.swap_horiz_rounded,
+                  title: _tr('No transactions this month',
+                      'Hakuna miamala mwezi huu'),
+                  subtitle: _tr(
+                    'Record a deposit or withdrawal to see it here.',
+                    'Rekodi amana au kutoa ili ione hapa.',
                   ),
                 )
               : ListView.separated(

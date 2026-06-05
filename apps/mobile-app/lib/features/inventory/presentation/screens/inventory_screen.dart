@@ -582,38 +582,19 @@ class _EmptyPlaceholder extends StatelessWidget {
   const _EmptyPlaceholder({required this.hasQuery});
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            hasQuery ? Icons.search_off_rounded : Icons.inventory_2_outlined,
-            size: 40,
-            color: AppColors.border,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            hasQuery
-                ? _tr('No products match', 'Hakuna bidhaaa inayolingana')
-                : _tr('No products yet', 'Bado hakuna bidhaaa'),
-            style: GoogleFonts.dmSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            hasQuery
-                ? _tr('Try a different search or filter', 'Jaribu utafutaji tofauti')
-                : _tr('Tap + to add your first product', 'Bonyeza + kuongeza bidhaaa ya kwanza'),
-            style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => EmptyState(
+        icon: hasQuery
+            ? Icons.search_off_rounded
+            : Icons.inventory_2_outlined,
+        title: hasQuery
+            ? _tr('No matches found', 'Hakuna inayolingana')
+            : _tr('Your shelves are empty', 'Rafu zako ziko tupu'),
+        subtitle: hasQuery
+            ? _tr('Try a different search or remove a filter.',
+                'Jaribu utafutaji tofauti au ondoa kichujio.')
+            : _tr('Tap + to add your first product.',
+                'Bonyeza + kuongeza bidhaa yako ya kwanza.'),
+      );
 }
 
 // ── Product Row ───────────────────────────────────────────────────────────────

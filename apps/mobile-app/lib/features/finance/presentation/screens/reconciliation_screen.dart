@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
 import '../../domain/models/daily_reconciliation.dart';
@@ -224,20 +225,13 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                   ),
                   const SizedBox(height: 12),
                   if (dayTxns.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(
-                          _t(
-                            'No transactions recorded for this date.',
-                            'Hakuna miamala iliyorekodiwa kwa tarehe hii.',
-                          ),
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: AppColors.textDisabled),
-                          textAlign: TextAlign.center,
-                        ),
+                    EmptyState(
+                      icon: Icons.check_circle_outline_rounded,
+                      title: _t('All clear for this day',
+                          'Hakuna shughuli siku hii'),
+                      subtitle: _t(
+                        'No transactions recorded for this date.',
+                        'Hakuna miamala iliyorekodiwa kwa tarehe hii.',
                       ),
                     )
                   else

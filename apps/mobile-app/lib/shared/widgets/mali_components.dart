@@ -478,14 +478,27 @@ class StatusChip extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EmptyState — icon + title + subtitle + optional action
+// EmptyState — canonical empty / no-data placeholder
+//
+// Usage:
+//   EmptyState(
+//     icon: Icons.receipt_long_outlined,
+//     title: 'No sales yet',
+//     subtitle: 'Tap New Sale to record your first transaction.',
+//     actionLabel: 'New Sale',   // optional
+//     onAction: () { ... },      // optional
+//   )
 // ─────────────────────────────────────────────────────────────────────────────
 
 class EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+
+  /// Label for the optional primary CTA button.
   final String? actionLabel;
+
+  /// Called when the CTA is tapped.
   final VoidCallback? onAction;
 
   const EmptyState({
@@ -497,50 +510,75 @@ class EmptyState extends StatelessWidget {
     this.onAction,
   });
 
+  /// Pastel icon tint — soft steel-blue that stays invisible against content.
+  static const _iconColor = Color(0xFFB0C4DE);
+
+  /// Icon container background — near-white slate.
+  static const _containerColor = Color(0xFFF1F5F9);
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ── Icon container ─────────────────────────────────────────────
             Container(
-              width: 80,
-              height: 80,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
+                color: _containerColor,
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(icon, size: 36, color: AppColors.textMuted),
+              child: Icon(icon, size: 32, color: _iconColor),
             ),
             const SizedBox(height: 20),
+
+            // ── Title ──────────────────────────────────────────────────────
             Text(
               title,
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
-                fontSize: 17,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: AppColors.navyPrimary,
+                height: 1.3,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
+
+            // ── Subtitle ───────────────────────────────────────────────────
             Text(
               subtitle,
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
-                fontSize: 14,
+                fontSize: 13,
                 color: AppColors.textMuted,
-                height: 1.5,
+                height: 1.55,
               ),
             ),
+
+            // ── CTA button ─────────────────────────────────────────────────
             if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 24),
-              PrimaryButton(
-                label: actionLabel!,
-                onPressed: onAction,
-                width: 200,
+              const SizedBox(height: 22),
+              SizedBox(
+                width: 220,
+                height: 44,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.navyPrimary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11)),
+                    textStyle: GoogleFonts.dmSans(
+                        fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                  onPressed: onAction,
+                  child: Text(actionLabel!),
+                ),
               ),
             ],
           ],

@@ -374,13 +374,17 @@ class _ExpensesTab extends ConsumerWidget {
         ),
         Expanded(
           child: filtered.isEmpty
-              ? _EmptyState(
-                  icon: Icons.receipt_long_rounded,
-                  message: filterCat == null
+              ? EmptyState(
+                  icon: Icons.receipt_outlined,
+                  title: filterCat == null
                       ? _tr('No expenses this month',
                           'Hakuna matumizi mwezi huu')
                       : _tr('No ${filterCat!.label} expenses',
                           'Hakuna matumizi ya ${filterCat!.label}'),
+                  subtitle: _tr(
+                    'Tap + to log a purchase or bill.',
+                    'Bonyeza + kurekodi ununuzi au bili.',
+                  ),
                 )
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -1245,11 +1249,11 @@ class _RecurringTab extends ConsumerWidget {
       ),
       data: (templates) {
         if (templates.isEmpty) {
-          return _EmptyState(
-            icon: Icons.repeat_rounded,
-            message: _tr(
-                'No recurring expenses yet.\nTap + to set up auto-logged expenses.',
-                'Hakuna matumizi ya kujirudia bado.\nBonyeza + kuweka.'),
+          return const EmptyState(
+            icon: Icons.autorenew_rounded,
+            title: 'No recurring expenses yet',
+            subtitle:
+                'Set up auto-logged expenses for bills that repeat every month.',
           );
         }
         return ListView.separated(
@@ -1728,32 +1732,6 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String message;
-
-  const _EmptyState({required this.icon, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: AppColors.textDisabled),
-            const SizedBox(height: 12),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, color: AppColors.textMuted)),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _OutlineField extends StatelessWidget {
   final TextEditingController controller;

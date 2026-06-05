@@ -1114,9 +1114,10 @@ class _InvoicesTab extends ConsumerWidget {
       error: (e, _) => Center(child: Text('$e')),
       data: (invoices) {
         if (invoices.isEmpty) {
-          return _EmptyState(
-            icon: Icons.receipt_long_rounded,
-            message: _tr('No invoices yet', 'Hakuna ankara bado'),
+          return const EmptyState(
+            icon: Icons.receipt_long_outlined,
+            title: 'No invoices with this customer yet',
+            subtitle: 'Record a sale to see invoices here.',
           );
         }
 
@@ -1306,10 +1307,14 @@ class _NotesTab extends ConsumerWidget {
       data: (notes) => Stack(
         children: [
           notes.isEmpty
-              ? _EmptyState(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  message: _tr('No notes yet — log a call, reminder or note',
-                      'Hakuna logi bado — andika simu, kumbusho au kumbukumbu'),
+              ? EmptyState(
+                  icon: Icons.sticky_note_2_outlined,
+                  title: _tr('No notes or activity yet',
+                      'Hakuna maelezo au shughuli bado'),
+                  subtitle: _tr(
+                    'Log a call, reminder, or note for this customer.',
+                    'Rekodi simu, kumbusho, au maelezo kwa mteja huyu.',
+                  ),
                 )
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -1954,32 +1959,6 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String message;
-
-  const _EmptyState({required this.icon, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 52, color: AppColors.textDisabled),
-            const SizedBox(height: 12),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, color: AppColors.textMuted)),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Individual / Organisation toggle (duplicated from customer_list_screen)

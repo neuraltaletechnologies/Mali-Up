@@ -60,6 +60,9 @@ class OnboardingState {
     this.businessRegion = '',
     this.businessDistrict = '',
     this.email = '',
+    this.websiteUrl = '',
+    this.hasWebsite = false,
+    this.websiteInterest = false,
 
     // Screen 6 — PIN setup
     this.pin = '',
@@ -114,6 +117,9 @@ class OnboardingState {
   final String businessRegion;
   final String businessDistrict;
   final String email;
+  final String websiteUrl;
+  final bool hasWebsite;
+  final bool websiteInterest;
 
   // ── Screen 6 ──────────────────────────────────────────────────────────────
   final String pin;
@@ -164,6 +170,9 @@ class OnboardingState {
     String? businessRegion,
     String? businessDistrict,
     String? email,
+    String? websiteUrl,
+    bool? hasWebsite,
+    bool? websiteInterest,
     String? pin,
     String? confirmPin,
     bool? isLoading,
@@ -194,6 +203,9 @@ class OnboardingState {
       businessRegion: businessRegion ?? this.businessRegion,
       businessDistrict: businessDistrict ?? this.businessDistrict,
       email: email ?? this.email,
+      websiteUrl: websiteUrl ?? this.websiteUrl,
+      hasWebsite: hasWebsite ?? this.hasWebsite,
+      websiteInterest: websiteInterest ?? this.websiteInterest,
       pin: pin ?? this.pin,
       confirmPin: confirmPin ?? this.confirmPin,
       isLoading: isLoading ?? this.isLoading,
@@ -227,6 +239,9 @@ class OnboardingState {
         other.businessRegion == businessRegion &&
         other.businessDistrict == businessDistrict &&
         other.email == email &&
+        other.websiteUrl == websiteUrl &&
+        other.hasWebsite == hasWebsite &&
+        other.websiteInterest == websiteInterest &&
         other.pin == pin &&
         other.confirmPin == confirmPin &&
         other.isLoading == isLoading &&
@@ -242,6 +257,7 @@ class OnboardingState {
         firstName, lastName, city, role,
         businessName, businessType, businessId,
         businessCountry, businessRegion, businessDistrict, email,
+        websiteUrl, hasWebsite, websiteInterest,
         pin, confirmPin, isLoading, errorMessage, isComplete,
       ]);
 }

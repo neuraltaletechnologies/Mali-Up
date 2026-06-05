@@ -198,67 +198,30 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
     }
 
     if (error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              _tr('Error loading inventory', 'Hitilafu ya kupakia akiba'),
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              error,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () async {
-                // Refresh logic can be implemented here
-              },
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
+      return EmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: _tr('Could not load inventory', 'Imeshindwa kupakia bidhaa'),
+        subtitle: _tr('Check your connection and try again.',
+            'Angalia muunganiko wako na ujaribu tena.'),
       );
     }
 
     if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              _searchController.text.isNotEmpty
-                  ? _tr('No items found', 'Hakuna bidhaaa zilizopatikana')
-                  : _tr('No inventory items', 'Hakuna bidhaaa za akiba'),
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _searchController.text.isNotEmpty
-                  ? _tr('Try different search terms', 'Jaribu masharti mengine ya utafutaji')
-                  : _tr(
-                      'Add your first inventory item to get started',
-                      'Ongeza bidhaaa yako ya kwanza ya akiba kuanza',
-                    ),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[500]),
-            ),
-            if (_searchController.text.isEmpty) ...[
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => _showAddItemDialog(context),
-                child: const Text('Add Item'),
-              ),
-            ],
-          ],
-        ),
+      final hasSearch = _searchController.text.isNotEmpty;
+      return EmptyState(
+        icon: hasSearch
+            ? Icons.search_off_rounded
+            : Icons.inventory_2_outlined,
+        title: hasSearch
+            ? _tr('No matches found', 'Hakuna inayolingana')
+            : _tr('Your shelves are empty', 'Rafu zako ziko tupu'),
+        subtitle: hasSearch
+            ? _tr('Try different search terms.',
+                'Jaribu maneno tofauti ya utafutaji.')
+            : _tr('Add your first item to start tracking stock.',
+                'Ongeza bidhaa yako ya kwanza ili uanze kufuatilia akiba.'),
+        actionLabel: hasSearch ? null : _tr('Add Item', 'Ongeza Bidhaa'),
+        onAction: hasSearch ? null : () => _showAddItemDialog(context),
       );
     }
 

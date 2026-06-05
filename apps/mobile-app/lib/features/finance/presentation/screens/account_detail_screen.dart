@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
 import '../../data/cash_flow_providers.dart';
@@ -52,39 +53,12 @@ class AccountDetailScreen extends ConsumerWidget {
           // Transaction list
           Expanded(
             child: transactions.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(40),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.receipt_long_outlined,
-                              size: 48, color: AppColors.textMuted),
-                          const SizedBox(height: 12),
-                          Text(
-                            _t(
-                              'No transactions yet',
-                              'Hakuna miamala bado',
-                            ),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(color: AppColors.textMuted),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _t(
-                              'Tap + to record a deposit or withdrawal.',
-                              'Bonyeza + kurekodi amana au kutoa.',
-                            ),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: AppColors.textDisabled),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
+                ? EmptyState(
+                    icon: Icons.swap_horiz_rounded,
+                    title: _t('No transactions yet', 'Hakuna miamala bado'),
+                    subtitle: _t(
+                      'Tap + to record a deposit or withdrawal.',
+                      'Bonyeza + kurekodi amana au kutoa.',
                     ),
                   )
                 : ListView.separated(
