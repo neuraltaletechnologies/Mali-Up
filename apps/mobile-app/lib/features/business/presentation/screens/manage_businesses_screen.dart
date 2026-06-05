@@ -388,32 +388,31 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                   BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -4)),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // ── Handle ───────────────────────────────────────────────
-                  const SizedBox(height: 14),
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.border,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    24, 20, 24,
+                    MediaQuery.of(dlgCtx).viewInsets.bottom +
+                        MediaQuery.of(dlgCtx).padding.bottom + 24,
                   ),
-                  // ── Scrollable body ───────────────────────────────────────
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        24, 20, 24,
-                        MediaQuery.of(dlgCtx).viewInsets.bottom +
-                            MediaQuery.of(dlgCtx).padding.bottom + 24,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Handle ─────────────────────────────────────────────
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                      const SizedBox(height: 16),
 
                           // ── Header ────────────────────────────────────────
                           Row(
@@ -861,11 +860,9 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             );
           },

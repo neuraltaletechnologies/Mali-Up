@@ -1238,18 +1238,17 @@ class _WebsiteInterestSheetState extends State<_WebsiteInterestSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 280),
-      child: _showForm
-          ? _WebsiteRequirementsForm(
-              key: const ValueKey('form'),
-              onDone: () => Navigator.of(context).pop(),
-            )
-          : _WebsiteNudgeBanner(
-              key: const ValueKey('nudge'),
-              onGetStarted: () => setState(() => _showForm = true),
-              onDismiss: () => Navigator.of(context).pop(),
-            ),
+    // Use a stable Container as the modal root — AnimatedSwitcher as a bare
+    // root causes renderObject.child mismatches when the modal route sees
+    // two overlapping children during the transition.
+    if (_showForm) {
+      return _WebsiteRequirementsForm(
+        onDone: () => Navigator.of(context).pop(),
+      );
+    }
+    return _WebsiteNudgeBanner(
+      onGetStarted: () => setState(() => _showForm = true),
+      onDismiss: () => Navigator.of(context).pop(),
     );
   }
 }
@@ -1258,7 +1257,6 @@ class _WebsiteInterestSheetState extends State<_WebsiteInterestSheet> {
 
 class _WebsiteNudgeBanner extends StatelessWidget {
   const _WebsiteNudgeBanner({
-    super.key,
     required this.onGetStarted,
     required this.onDismiss,
   });
@@ -1393,7 +1391,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
 // ── Requirements form ─────────────────────────────────────────────────────────
 
 class _WebsiteRequirementsForm extends StatefulWidget {
-  const _WebsiteRequirementsForm({super.key, required this.onDone});
+  const _WebsiteRequirementsForm({required this.onDone});
 
   final VoidCallback onDone;
 
