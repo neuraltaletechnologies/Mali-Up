@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
@@ -103,14 +104,16 @@ class BusinessDetailsScreen extends ConsumerStatefulWidget {
 
 class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     with SingleTickerProviderStateMixin {
-  final _formKey    = GlobalKey<FormState>();
-  final _bizNameCtrl = TextEditingController();
+  final _formKey      = GlobalKey<FormState>();
+  final _bizNameCtrl  = TextEditingController();
+  final _websiteCtrl  = TextEditingController();
 
   String? _selectedTypeKey;
   bool _typeError = false;
 
-  String _region = '';
+  String _region   = '';
   String _district = '';
+  bool _websiteInterest = false;
 
   late final AnimationController _animCtrl;
   late final Animation<double> _fade;
@@ -127,16 +130,19 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     _animCtrl.forward();
 
     final s = ref.read(onboardingNotifierProvider);
-    _bizNameCtrl.text = s.businessName;
-    _selectedTypeKey = s.businessType.isNotEmpty ? s.businessType : null;
-    _region = s.businessRegion;
-    _district = s.businessDistrict;
+    _bizNameCtrl.text  = s.businessName;
+    _websiteCtrl.text  = s.websiteUrl;
+    _selectedTypeKey   = s.businessType.isNotEmpty ? s.businessType : null;
+    _region            = s.businessRegion;
+    _district          = s.businessDistrict;
+    _websiteInterest   = s.websiteInterest;
   }
 
   @override
   void dispose() {
     _animCtrl.dispose();
     _bizNameCtrl.dispose();
+    _websiteCtrl.dispose();
     super.dispose();
   }
 
@@ -145,12 +151,20 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     if (_selectedTypeKey == null) setState(() => _typeError = true);
     if (!formValid || _selectedTypeKey == null) return;
 
-    final notifier = ref.read(onboardingNotifierProvider.notifier);
+    final notifier   = ref.read(onboardingNotifierProvider.notifier);
+    final websiteUrl = _websiteCtrl.text.trim();
     notifier.setBusinessName(_bizNameCtrl.text.trim());
     notifier.setBusinessType(_selectedTypeKey!);
     notifier.setBusinessRegion(_region);
     notifier.setBusinessDistrict(_district);
     if (_region.isNotEmpty) notifier.setCity(_region);
+    notifier.setWebsiteUrl(websiteUrl);
+    notifier.setHasWebsite(websiteUrl.isNotEmpty);
+    notifier.setWebsiteInterest(_websiteInterest);
+    if (_websiteInterest) {
+      SharedPreferences.getInstance()
+          .then((p) => p.setBool('pending_website_interest', true));
+    }
     notifier.advanceFromBusinessDetails();
     context.go(AppRoutes.security);
   }
@@ -511,6 +525,119 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                         : 'Select district'),
                                 disabled: _region.isEmpty,
                                 onTap: _region.isEmpty ? null : _pickDistrict,
+                              ),
+                              const SizedBox(height: 28),
+
+                              // ── Online presence ──────────────────────────
+                              _SectionLabel(
+                                label: sw
+                                    ? 'Mtandao wa Biashara'
+                                    : 'Online Presence',
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                sw
+                                    ? 'Ongeza tovuti yako kama una moja (si lazima).'
+                                    : 'Add your website if you have one (optional).',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _websiteCtrl,
+                                keyboardType: TextInputType.url,
+                                textInputAction: TextInputAction.done,
+                                autocorrect: false,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  color: AppColors.navyPrimary,
+                                ),
+                                decoration: InputDecoration(
+                                  labelText: sw
+                                      ? 'Tovuti ya Biashara (Si lazima)'
+                                      : 'Business Website (Optional)',
+                                  hintText: 'https://mybusiness.com',
+                                  prefixIcon: const Icon(
+                                    Icons.language_rounded,
+                                    size: 18,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  filled: true,
+                                  fillColor: AppColors.surface,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(
+                                        color: AppColors.border),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: const BorderSide(
+                                        color: AppColors.border),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: BorderSide(
+                                      color: AppColors.navyPrimary
+                                          .withValues(alpha: 0.4),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  labelStyle: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              GestureDetector(
+                                onTap: () => setState(
+                                  () => _websiteInterest = !_websiteInterest,
+                                ),
+                                behavior: HitTestBehavior.opaque,
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: Checkbox(
+                                        value: _websiteInterest,
+                                        onChanged: (v) => setState(
+                                          () => _websiteInterest =
+                                              v ?? false,
+                                        ),
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        activeColor: AppColors.navyPrimary,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        side: const BorderSide(
+                                          color: AppColors.border,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      sw
+                                          ? 'Nifanyie tovuti'
+                                          : 'Build me one',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textMuted,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 28),
 

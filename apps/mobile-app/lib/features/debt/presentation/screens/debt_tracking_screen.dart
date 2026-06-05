@@ -332,10 +332,11 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
         if (isLoading)
           const SliverDebtListSkeleton()
         else if (filtered.isEmpty)
-          SliverToBoxAdapter(child: _EmptyState(
+          SliverToBoxAdapter(child: EmptyState(
             icon: Icons.check_circle_outline_rounded,
-            title: _tr('All settled!', 'Yote yalilipwa!'),
-            subtitle: _tr('No outstanding receivables.', 'Hakuna wadai waliobaki.'),
+            title: _tr("You're all settled up!", 'Umesawazishwa kikamilifu!'),
+            subtitle: _tr('No outstanding amounts owed to you right now.',
+                'Hakuna kiasi kinachokudaiwa kwa sasa.'),
           ))
         else
           SliverPadding(
@@ -398,8 +399,8 @@ class _PayablesTab extends ConsumerWidget {
     } else if (payables.isEmpty) {
       body = KeyedSubtree(
         key: const ValueKey('empty'),
-        child: _EmptyState(
-          icon: Icons.task_alt_rounded,
+        child: EmptyState(
+          icon: Icons.handshake_outlined,
           title: _tr('No outstanding bills', 'Hakuna bili zilizo wazi'),
           subtitle: _tr('All your supplier payments are up to date.',
               'Malipo yote ya wasambazaji yamekamilika.'),
@@ -1376,46 +1377,4 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 72, horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: AppColors.border),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: GoogleFonts.dmSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 

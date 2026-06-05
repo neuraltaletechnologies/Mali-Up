@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/sales_providers.dart';
 
@@ -542,23 +543,15 @@ class _SectionHeader extends StatelessWidget {
 
 class _EmptyItems extends StatelessWidget {
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Center(
-        child: Text(
-          _tr('No line items on this invoice',
-              'Hakuna bidhaaa kwenye ankara hii'),
-          style: GoogleFonts.dmSans(color: AppColors.textMuted),
+  Widget build(BuildContext context) => EmptyState(
+        icon: Icons.receipt_long_outlined,
+        title: _tr('No items on this invoice',
+            'Hakuna bidhaa kwenye ankara hii'),
+        subtitle: _tr(
+          'This invoice has no line items to return.',
+          'Ankara hii haina bidhaa za kurudisha.',
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _ReturnItemCard extends StatelessWidget {

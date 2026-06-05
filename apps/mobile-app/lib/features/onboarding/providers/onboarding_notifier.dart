@@ -336,6 +336,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       state = state.copyWith(businessRegion: v, clearError: true);
   void setBusinessDistrict(String v) =>
       state = state.copyWith(businessDistrict: v, clearError: true);
+  void setWebsiteUrl(String v) =>
+      state = state.copyWith(websiteUrl: v, clearError: true);
+  void setHasWebsite(bool v) =>
+      state = state.copyWith(hasWebsite: v, clearError: true);
+  void setWebsiteInterest(bool v) =>
+      state = state.copyWith(websiteInterest: v, clearError: true);
 
   void advanceFromBusinessDetails() {
     state = state.copyWith(

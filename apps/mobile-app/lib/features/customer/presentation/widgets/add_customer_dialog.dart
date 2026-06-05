@@ -61,374 +61,347 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     super.dispose();
   }
 
+  InputDecoration _field(String label, IconData icon, {String? hint}) =>
+      InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, size: 18, color: AppColors.textMuted),
+        filled: true,
+        fillColor: AppColors.surface,
+        labelStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: AppColors.navyPrimary.withValues(alpha: 0.5),
+            width: 1.5,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      );
+
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 12,
-            bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -4)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          const SizedBox(height: 14),
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
           ),
-          child: Form(
-            key: _formKey,
+          Flexible(
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.black12,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _tr('Add New Customer', 'Ongeza Mteja Mpya'),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.secondary,
-                        ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Type toggle: Individual / Organisation
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    child: Row(
+              padding: EdgeInsets.fromLTRB(
+                24, 20, 24,
+                24 + MediaQuery.of(context).viewInsets.bottom +
+                    MediaQuery.of(context).padding.bottom,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Header ──────────────────────────────────────────────
+                    Row(
                       children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _isOrganisation = false),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: !_isOrganisation
-                                    ? AppColors.secondary
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.person_outline_rounded,
-                                    size: 16,
-                                    color: !_isOrganisation
-                                        ? Colors.white
-                                        : AppColors.textMuted,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    _tr('Individual', 'Mtu Binafsi'),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                      color: !_isOrganisation
-                                          ? Colors.white
-                                          : AppColors.textMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.navyPrimary,
+                            borderRadius: BorderRadius.circular(13),
                           ),
+                          child: const Icon(Icons.person_add_alt_1_rounded,
+                              size: 22, color: AppColors.yellowBrand),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 14),
                         Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _isOrganisation = true),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: _isOrganisation
-                                    ? AppColors.secondary
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _tr('Add New Customer', 'Ongeza Mteja Mpya'),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.navyPrimary,
+                                  letterSpacing: -0.3,
+                                ),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.business_outlined,
-                                    size: 16,
-                                    color: _isOrganisation
-                                        ? Colors.white
-                                        : AppColors.textMuted,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    _tr('Organisation', 'Shirika'),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                      color: _isOrganisation
-                                          ? Colors.white
-                                          : AppColors.textMuted,
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                _tr('Fill in the details below.',
+                                    'Jaza maelezo hapa chini.'),
+                                style: const TextStyle(
+                                    fontSize: 12, color: AppColors.textMuted),
                               ),
-                            ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading || _isImportingContact
-                          ? null
-                          : _addFromContacts,
-                      icon: _isImportingContact
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.contacts_outlined),
-                      label: Text(
-                        _isImportingContact
-                            ? _tr('Opening contacts...', 'Inafungua mawasiliano...')
-                            : _tr('Add from Contacts', 'Ongeza kutoka Mawasiliano'),
+                    // ── Type toggle ──────────────────────────────────────────
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        children: [
+                          _TypeTab(
+                            label: _tr('Individual', 'Mtu Binafsi'),
+                            icon: Icons.person_outline_rounded,
+                            active: !_isOrganisation,
+                            onTap: () => setState(() => _isOrganisation = false),
+                          ),
+                          const SizedBox(width: 4),
+                          _TypeTab(
+                            label: _tr('Organisation', 'Shirika'),
+                            icon: Icons.business_outlined,
+                            active: _isOrganisation,
+                            onTap: () => setState(() => _isOrganisation = true),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          _tr('or', 'au'),
-                          style: Theme.of(context).textTheme.labelMedium,
+                    const SizedBox(height: 16),
+
+                    // ── Import from Contacts ─────────────────────────────────
+                    GestureDetector(
+                      onTap: (_isLoading || _isImportingContact)
+                          ? null
+                          : _addFromContacts,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 13),
+                        decoration: BoxDecoration(
+                          color: AppColors.navyPrimary.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.navyPrimary.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _isImportingContact
+                                ? const SizedBox(
+                                    width: 18, height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.navyPrimary,
+                                    ),
+                                  )
+                                : const Icon(Icons.contacts_outlined,
+                                    size: 18, color: AppColors.navyPrimary),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isImportingContact
+                                  ? _tr('Opening contacts…', 'Inafungua mawasiliano…')
+                                  : _tr('Import from Contacts',
+                                      'Ingiza kutoka Mawasiliano'),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.navyPrimary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                    ),
+                    const SizedBox(height: 16),
 
-                  TextFormField(
-                    controller: _nameController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(
-                      labelText: _isOrganisation
-                          ? _tr('Organisation Name *', 'Jina la Shirika *')
-                          : _tr('Customer Name *', 'Jina la Mteja *'),
-                      prefixIcon: Icon(
+                    // ── OR divider ───────────────────────────────────────────
+                    Row(
+                      children: [
+                        const Expanded(
+                            child: Divider(color: AppColors.border)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            _tr('or enter manually', 'au weka mwenyewe'),
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.textMuted),
+                          ),
+                        ),
+                        const Expanded(
+                            child: Divider(color: AppColors.border)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Fields ───────────────────────────────────────────────
+                    TextFormField(
+                      controller: _nameController,
+                      textCapitalization: TextCapitalization.words,
+                      style: const TextStyle(
+                          fontSize: 15, color: AppColors.navyPrimary),
+                      decoration: _field(
+                        _isOrganisation
+                            ? _tr('Organisation Name *', 'Jina la Shirika *')
+                            : _tr('Customer Name *', 'Jina la Mteja *'),
                         _isOrganisation
                             ? Icons.business_outlined
                             : Icons.person_outline_rounded,
-                        size: 20,
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? _tr('Name is required', 'Jina linahitajika')
+                          : null,
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return _tr('Please enter a name', 'Tafadhali weka jina');
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: _tr('Phone Number *', 'Namba ya Simu *'),
-                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return _tr(
-                          'Please enter phone number',
-                          'Tafadhali weka namba ya simu',
-                        );
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 14),
-
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: _tr('Email (Optional)', 'Barua pepe (Hiari)'),
-                      prefixIcon: const Icon(Icons.email_outlined, size: 20),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  if (_isOrganisation) ...[
-                    const SizedBox(height: 14),
                     TextFormField(
-                      controller: _tinController,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: InputDecoration(
-                        labelText: _tr('TIN Number (Optional)', 'Namba ya TIN (Hiari)'),
-                        hintText: 'e.g. 100-123-456',
-                        prefixIcon:
-                            const Icon(Icons.numbers_outlined, size: 20),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: AppColors.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                            color: AppColors.primary,
-                            width: 2,
-                          ),
-                        ),
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      style: const TextStyle(
+                          fontSize: 15, color: AppColors.navyPrimary),
+                      decoration: _field(
+                        _tr('Phone Number *', 'Namba ya Simu *'),
+                        Icons.phone_outlined,
+                        hint: '+255 7XX XXX XXX',
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? _tr('Phone number is required',
+                              'Namba ya simu inahitajika')
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(
+                          fontSize: 15, color: AppColors.navyPrimary),
+                      decoration: _field(
+                        _tr('Email (Optional)', 'Barua pepe (Hiari)'),
+                        Icons.email_outlined,
                       ),
                     ),
-                  ],
 
-                  const SizedBox(height: 14),
-                  TextFormField(
-                    controller: _addressController,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(
-                      labelText: _tr('Address (Optional)', 'Anwani (Hiari)'),
-                      prefixIcon:
-                          const Icon(Icons.location_on_outlined, size: 20),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed:
-                              _isLoading ? null : () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: Text(_tr('Cancel', 'Ghairi')),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _addCustomer,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.secondary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: AppColors.secondary,
-                                  ),
-                                )
-                              : Text(
-                                  _tr('Add Customer', 'Ongeza Mteja'),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                    if (_isOrganisation) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _tinController,
+                        textCapitalization: TextCapitalization.characters,
+                        style: const TextStyle(
+                            fontSize: 15, color: AppColors.navyPrimary),
+                        decoration: _field(
+                          _tr('TIN Number (Optional)', 'Namba ya TIN (Hiari)'),
+                          Icons.numbers_outlined,
+                          hint: 'e.g. 100-123-456',
                         ),
                       ),
                     ],
-                  ),
-                ],
+
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _addressController,
+                      textCapitalization: TextCapitalization.sentences,
+                      style: const TextStyle(
+                          fontSize: 15, color: AppColors.navyPrimary),
+                      decoration: _field(
+                        _tr('Address (Optional)', 'Anwani (Hiari)'),
+                        Icons.location_on_outlined,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // ── Actions ──────────────────────────────────────────────
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _isLoading
+                                ? null
+                                : () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              foregroundColor: AppColors.navyPrimary,
+                              side: const BorderSide(color: AppColors.border),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: Text(_tr('Cancel', 'Ghairi')),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _addCustomer,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.navyPrimary,
+                              elevation: 3,
+                              shadowColor:
+                                  AppColors.primary.withValues(alpha: 0.35),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20, height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: AppColors.navyPrimary,
+                                    ),
+                                  )
+                                : Text(
+                                    _tr('Add Customer', 'Ongeza Mteja'),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 15),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -467,12 +440,25 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${_tr("Error", "Kosa")}: ${e.toString()}'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          final msg = e.toString().toLowerCase().contains('unavailable') ||
+                  e.toString().toLowerCase().contains('network') ||
+                  e.toString().toLowerCase().contains('offline')
+              ? _tr(
+                  'Saved offline — will sync when connected.',
+                  'Imehifadhiwa bila mtandao — itasawazishwa ukiunganika.',
+                )
+              : _tr(
+                  'Could not add customer. Please try again.',
+                  'Imeshindwa kuongeza mteja. Tafadhali jaribu tena.',
+                );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(msg),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+          ));
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -1045,4 +1031,52 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
       ),
     );
   }
+}
+
+// ─── Type tab (Individual / Organisation toggle) ──────────────────────────────
+
+class _TypeTab extends StatelessWidget {
+  const _TypeTab({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: active ? AppColors.navyPrimary : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon,
+                    size: 15,
+                    color: active ? Colors.white : AppColors.textMuted),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: active ? Colors.white : AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 }

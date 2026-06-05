@@ -850,15 +850,13 @@ class _PaymentHistoryCard extends ConsumerWidget {
               ),
             ),
             data: (payments) => payments.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Center(
-                      child: Text(
-                        _tr('No payments recorded yet.',
-                            'Hakuna malipo yaliyorekodiwa bado.'),
-                        style: GoogleFonts.dmSans(
-                            fontSize: 13, color: AppColors.textDisabled),
-                      ),
+                ? EmptyState(
+                    icon: Icons.payments_outlined,
+                    title: _tr('No payments recorded yet',
+                        'Hakuna malipo yaliyorekodiwa bado'),
+                    subtitle: _tr(
+                      'Add a payment to start tracking repayments.',
+                      'Ongeza malipo ili uanze kufuatilia marejesho.',
                     ),
                   )
                 : Column(

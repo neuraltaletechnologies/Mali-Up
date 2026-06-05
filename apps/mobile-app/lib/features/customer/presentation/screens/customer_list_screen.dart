@@ -104,41 +104,132 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
     final debtCount = all.where((c) => (double.tryParse(c.balance) ?? 0) > 0).length;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top + 50),
-          _buildHeader(all.length, totalBalance, debtCount),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: _tr('Search by name, phone…', 'Tafuta kwa jina, simu…'),
-                hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
-                prefixIcon: const Icon(Icons.search_rounded,
-                    size: 20, color: AppColors.textMuted),
-                suffixIcon: _searchCtrl.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.close_rounded,
-                            size: 18, color: AppColors.textMuted),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          setState(() {});
-                        },
-                      )
-                    : null,
-                isDense: true,
-                filled: true,
-                fillColor: AppColors.surfaceVariant,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+          // ── Top bar ────────────────────────────────────────────────────────
+          Container(
+            color: Colors.white,
+            padding: EdgeInsets.fromLTRB(
+              20,
+              MediaQuery.of(context).padding.top + 14,
+              20,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.navyPrimary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.people_alt_rounded,
+                          size: 18, color: AppColors.yellowBrand),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _tr('Contacts', 'Mawasiliano'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.navyPrimary,
+                              height: 1.2,
+                            ),
+                          ),
+                          Text(
+                            _tr('Manage your customers', 'Simamia wateja wako'),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 12, color: AppColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => _showAddDialog(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.navyPrimary,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.add_rounded,
+                                size: 16, color: AppColors.yellowBrand),
+                            const SizedBox(width: 4),
+                            Text(
+                              _tr('Add', 'Ongeza'),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.yellowBrand,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              ),
+                const SizedBox(height: 16),
+                _buildStatsRow(all.length, totalBalance, debtCount),
+                const SizedBox(height: 14),
+                // Search bar
+                TextField(
+                  controller: _searchCtrl,
+                  onChanged: (_) => setState(() {}),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14, color: AppColors.navyPrimary),
+                  decoration: InputDecoration(
+                    hintText:
+                        _tr('Search by name, phone…', 'Tafuta kwa jina, simu…'),
+                    hintStyle: GoogleFonts.dmSans(
+                        fontSize: 14, color: AppColors.textMuted),
+                    prefixIcon: const Icon(Icons.search_rounded,
+                        size: 19, color: AppColors.textMuted),
+                    suffixIcon: _searchCtrl.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close_rounded,
+                                size: 17, color: AppColors.textMuted),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              setState(() {});
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: AppColors.navyPrimary, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 2),
+              ],
             ),
           ),
           _FilterPills(
@@ -152,66 +243,54 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                 : filtered.isEmpty
                     ? _Empty(query: _searchCtrl.text, segment: _segment)
                     : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                        padding:
+                            const EdgeInsets.fromLTRB(16, 10, 16, 100),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, i) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _CustomerCard(customer: filtered[i]),
+                        separatorBuilder: (ctx, i) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (_, i) =>
+                            _CustomerCard(customer: filtered[i]),
                       ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddDialog(context),
-        backgroundColor: AppColors.navyPrimary,
-        child: const Icon(Icons.person_add_alt_1_rounded,
-            color: AppColors.yellowBrand),
-      ),
     );
   }
 
-  Widget _buildHeader(int count, double totalBalance, int debtCount) {
+  Widget _buildStatsRow(int count, double totalBalance, int debtCount) {
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.navyPrimary,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navyPrimary.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.navyPrimary,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.18),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                _StatChip(
-                  icon: Icons.people_rounded,
-                  label: '$count ${_tr("clients", "wateja")}',
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 8),
-                _StatChip(
-                  icon: Icons.account_balance_wallet_rounded,
-                  label: 'TZS ${_fmtShort(totalBalance)}',
-                  label2: _tr('receivable', 'inadaiwa'),
-                  color: totalBalance > 0 ? AppColors.warning : AppColors.success,
-                ),
-                const SizedBox(width: 8),
-                _StatChip(
-                  icon: Icons.warning_amber_rounded,
-                  label: '$debtCount ${_tr("with debt", "wenye deni")}',
-                  color: debtCount > 0 ? AppColors.error : Colors.white70,
-                ),
-              ],
-            ),
+          _StatChip(
+            icon: Icons.people_rounded,
+            label: '$count ${_tr("clients", "wateja")}',
+            color: Colors.white,
+          ),
+          const SizedBox(width: 8),
+          _StatChip(
+            icon: Icons.account_balance_wallet_rounded,
+            label: 'TZS ${_fmtShort(totalBalance)}',
+            label2: _tr('receivable', 'inadaiwa'),
+            color: totalBalance > 0 ? AppColors.warning : AppColors.success,
+          ),
+          const SizedBox(width: 8),
+          _StatChip(
+            icon: Icons.warning_amber_rounded,
+            label: '$debtCount ${_tr("with debt", "wenye deni")}',
+            color: debtCount > 0 ? AppColors.error : Colors.white70,
           ),
         ],
       ),
@@ -422,7 +501,7 @@ class _CustomerCard extends ConsumerWidget {
             ],
           ),
         );
-        if (confirmed == true) await _delete(context, ref);
+        if (confirmed == true && context.mounted) await _delete(context, ref);
       },
       child: GestureDetector(
         onTap: () {
@@ -597,37 +676,34 @@ class _CustomerCard extends ConsumerWidget {
 class _Empty extends StatelessWidget {
   final String query;
   final _Segment segment;
-
   const _Empty({required this.query, required this.segment});
 
   @override
   Widget build(BuildContext context) {
-    final msg = query.isNotEmpty
-        ? _tr('No results for "$query"', 'Hakuna matokeo ya "$query"')
-        : _tr('No customers in this group',
-            'Hakuna wateja katika kikundi hiki');
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              query.isNotEmpty
-                  ? Icons.search_off_rounded
-                  : Icons.group_off_rounded,
-              size: 56,
-              color: AppColors.textDisabled,
-            ),
-            const SizedBox(height: 12),
-            Text(msg,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, color: AppColors.textMuted)),
-          ],
-        ),
-      ),
+    final hasQuery = query.isNotEmpty;
+    final isFiltered = segment != _Segment.all;
+    return EmptyState(
+      icon: hasQuery
+          ? Icons.search_off_rounded
+          : isFiltered
+              ? Icons.filter_list_off_rounded
+              : Icons.people_outline_rounded,
+      title: hasQuery
+          ? _tr('No results for "$query"', 'Hakuna matokeo ya "$query"')
+          : isFiltered
+              ? _tr('No customers in this group',
+                  'Hakuna wateja katika kikundi hiki')
+              : _tr('Your customer list is empty',
+                  'Orodha yako ya wateja iko tupu'),
+      subtitle: hasQuery
+          ? _tr('Check the spelling or try a shorter search.',
+              'Angalia tahajia au jaribu utafutaji mfupi.')
+          : isFiltered
+              ? _tr('Try a different filter to see more customers.',
+                  'Jaribu kichujio tofauti kuona wateja zaidi.')
+              : _tr(
+                  'Add a customer to start tracking sales and balances.',
+                  'Ongeza mteja ili uanze kufuatilia mauzo na salio.'),
     );
   }
 }

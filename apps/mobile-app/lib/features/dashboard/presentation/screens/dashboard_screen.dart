@@ -47,6 +47,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _profileFuture = _fetchUserProfile();
       });
       _showFirstEntryRewardIfNeeded();
+      _checkWebsiteInterestNudge();
       _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
         if (mounted) setState(() {});
       });
@@ -82,6 +83,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await Future.delayed(const Duration(milliseconds: 1300));
     if (!mounted) return;
     setState(() => _showEntryReward = false);
+  }
+
+  Future<void> _checkWebsiteInterestNudge() async {
+    final prefs   = await SharedPreferences.getInstance();
+    final pending = prefs.getBool('pending_website_interest') ?? false;
+    if (!pending || !mounted) return;
+    await prefs.remove('pending_website_interest');
+    await Future.delayed(const Duration(milliseconds: 2200));
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _WebsiteInterestSheet(),
+    );
   }
 
   Future<Map<String, dynamic>?> _fetchUserProfile() async {
@@ -581,10 +597,13 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final netColor = net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
 
     // Standard ISO credit card ratio: 85.6mm × 53.98mm
-    return AspectRatio(
-      aspectRatio: 1.586,
-      child: Container(
-        width: double.infinity,
+    // Width is capped so the card doesn't deform on large screens.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: AspectRatio(
+          aspectRatio: 1.586,
+          child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
@@ -832,7 +851,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
           ],
         ),
       ),
-    );
+        ),   // AspectRatio
+      ),     // ConstrainedBox
+    );       // Center
   }
 }
 
@@ -960,9 +981,6 @@ class _ModuleGrid extends StatelessWidget {
   const _ModuleGrid({required this.showHeavyContent});
 
   static const _modules = [
-    (icon: Icons.receipt_long_rounded, labelEn: 'Tuma ankara', labelSw: 'Tuma ankara', color: Color(0xFF003153), route: AppRouter.salesPath),
-    (icon: Icons.inventory_2_rounded, labelEn: 'Bidhaa zangu', labelSw: 'Bidhaa zangu', color: Color(0xFF1A6E8A), route: AppRouter.inventoryPath),
-    (icon: Icons.people_alt_rounded, labelEn: 'Wateja wangu', labelSw: 'Wateja wangu', color: Color(0xFF059669), route: AppRouter.crmPath),
     (icon: Icons.payments_rounded, labelEn: 'Gharama zangu', labelSw: 'Gharama zangu', color: Color(0xFFD97706), route: AppRouter.expensesPath),
     (icon: Icons.account_balance_rounded, labelEn: 'Madeni', labelSw: 'Madeni', color: Color(0xFFDC2626), route: AppRouter.debtPath),
     (icon: Icons.account_balance_wallet_rounded, labelEn: 'Mtiririko wa Fedha', labelSw: 'Mtiririko wa Fedha', color: Color(0xFF7C3AED), route: AppRouter.cashFlowPath),
@@ -1200,6 +1218,382 @@ class _SalesLineChart extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Website Interest Nudge ───────────────────────────────────────────────────
+
+class _WebsiteInterestSheet extends StatefulWidget {
+  const _WebsiteInterestSheet();
+
+  @override
+  State<_WebsiteInterestSheet> createState() => _WebsiteInterestSheetState();
+}
+
+class _WebsiteInterestSheetState extends State<_WebsiteInterestSheet> {
+  bool _showForm = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 280),
+      child: _showForm
+          ? _WebsiteRequirementsForm(
+              key: const ValueKey('form'),
+              onDone: () => Navigator.of(context).pop(),
+            )
+          : _WebsiteNudgeBanner(
+              key: const ValueKey('nudge'),
+              onGetStarted: () => setState(() => _showForm = true),
+              onDismiss: () => Navigator.of(context).pop(),
+            ),
+    );
+  }
+}
+
+// ── Nudge banner ──────────────────────────────────────────────────────────────
+
+class _WebsiteNudgeBanner extends StatelessWidget {
+  const _WebsiteNudgeBanner({
+    super.key,
+    required this.onGetStarted,
+    required this.onDismiss,
+  });
+
+  final VoidCallback onGetStarted;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 24, offset: Offset(0, -4)),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        20,
+        24,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+
+          // Icon badge
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.navyPrimary,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.language_rounded,
+              color: AppColors.yellowBrand,
+              size: 26,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Headline
+          Text(
+            _tr(
+              "Let's build you a website for your business?",
+              'Tujenge tovuti ya biashara yako?',
+            ),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+              height: 1.25,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Body
+          Text(
+            _tr(
+              'Get a professional website designed for your business and start reaching more customers online.',
+              'Pata tovuti ya kitaalamu iliyoundwa kwa biashara yako na uanze kufikia wateja zaidi mtandaoni.',
+            ),
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // Primary CTA
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navyPrimary,
+                foregroundColor: AppColors.yellowBrand,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: onGetStarted,
+              child: Text(
+                _tr('Get Started', 'Anza Sasa'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Dismiss link
+          Center(
+            child: TextButton(
+              onPressed: onDismiss,
+              child: Text(
+                _tr('Maybe Later', 'Labda Baadaye'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Requirements form ─────────────────────────────────────────────────────────
+
+class _WebsiteRequirementsForm extends StatefulWidget {
+  const _WebsiteRequirementsForm({super.key, required this.onDone});
+
+  final VoidCallback onDone;
+
+  @override
+  State<_WebsiteRequirementsForm> createState() =>
+      _WebsiteRequirementsFormState();
+}
+
+class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
+  final _notesCtrl = TextEditingController();
+  bool _submitting = false;
+  bool _submitted  = false;
+
+  @override
+  void dispose() {
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      widget.onDone();
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('websiteRequests')
+          .doc(user.uid)
+          .set({
+        'uid': user.uid,
+        'notes': _notesCtrl.text.trim(),
+        'requestedAt': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      }, SetOptions(merge: true));
+      if (mounted) setState(() { _submitting = false; _submitted = true; });
+      await Future.delayed(const Duration(milliseconds: 1600));
+      if (mounted) widget.onDone();
+    } catch (_) {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 24, offset: Offset(0, -4)),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        20,
+        24,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+
+          if (_submitted) ...[
+            const Center(
+              child: Icon(Icons.check_circle_rounded,
+                  color: AppColors.success, size: 48),
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: Text(
+                _tr("We'll be in touch!", 'Tutawasiliana nawe hivi karibuni!'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
+                ),
+              ),
+            ),
+          ] else ...[
+            Text(
+              _tr('Tell us what you need', 'Tuambie unachohitaji'),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _tr(
+                'Any requirements or ideas for your website? (optional)',
+                'Je, una mahitaji au mawazo yoyote kwa tovuti yako? (si lazima)',
+              ),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textMuted,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _notesCtrl,
+              maxLines: 4,
+              minLines: 3,
+              textInputAction: TextInputAction.newline,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.navyPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: _tr(
+                  'e.g. I sell clothing and want an online store…',
+                  'mfano Nauza nguo na nataka duka la mtandaoni…',
+                ),
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textDisabled,
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: AppColors.navyPrimary.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.all(14),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navyPrimary,
+                  foregroundColor: AppColors.yellowBrand,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.yellowBrand,
+                        ),
+                      )
+                    : Text(
+                        _tr('Submit', 'Wasilisha'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: widget.onDone,
+                child: Text(
+                  _tr('Cancel', 'Ghairi'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

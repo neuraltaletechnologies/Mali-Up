@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/team_providers.dart';
@@ -604,54 +605,28 @@ class _MemberCard extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final _TeamFilter filter;
-
   const _EmptyState({required this.filter});
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
+  Widget build(BuildContext context) => EmptyState(
+        icon: filter == _TeamFilter.all
+            ? Icons.group_outlined
+            : Icons.manage_accounts_outlined,
+        title: filter == _TeamFilter.all
+            ? _tr('Your team is just you for now',
+                'Timu yako ni wewe tu kwa sasa')
+            : _tr('No members in this group',
+                'Hakuna wanachama katika kundi hili'),
+        subtitle: filter == _TeamFilter.all
+            ? _tr(
+                'Tap "Add Member" to invite your first team member.',
+                'Bonyeza "Ongeza Mwanachama" kukaribisha mwanachama wako wa kwanza.',
+              )
+            : _tr(
+                'Try a different permission group to find members.',
+                'Jaribu kundi tofauti la ruhusa kupata wanachama.',
               ),
-              child: const Icon(Icons.group_outlined,
-                  size: 32, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              filter == _TeamFilter.all
-                  ? _tr('No team members yet', 'Bado hakuna wanachama')
-                  : _tr('No members in this group',
-                      'Hakuna wanachama katika kundi hili'),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _tr('Tap "Add Member" to invite your first team member.',
-                  'Bonyeza "Ongeza Mwanachama" kukaribisha mwanachama wako wa kwanza.'),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted, height: 1.5),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+      );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
