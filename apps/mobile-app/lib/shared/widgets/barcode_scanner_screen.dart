@@ -146,7 +146,7 @@ class PosScannerScreen extends StatefulWidget {
     super.key,
     required this.onScanned,
     this.title = 'Scan Items',
-    this.scanCooldown = const Duration(milliseconds: 1800),
+    this.scanCooldown = const Duration(milliseconds: 600),
   });
 
   static Future<List<PosCartEntry>> show(
@@ -169,9 +169,10 @@ class PosScannerScreen extends StatefulWidget {
 
 class _PosScannerScreenState extends State<PosScannerScreen>
     with SingleTickerProviderStateMixin {
-  final MobileScannerController _ctrl = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-  );
+  // Default DetectionSpeed.normal allows re-detection of the same barcode in
+  // successive frames — required for consecutive identical products.
+  // Accidental double-reads are filtered by the software cooldown below.
+  final MobileScannerController _ctrl = MobileScannerController();
 
   final List<PosCartEntry> _cart = [];
   final Map<String, DateTime> _lastScanTime = {};
