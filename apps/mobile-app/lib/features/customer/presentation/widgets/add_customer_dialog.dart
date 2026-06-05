@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../../../../config/routing.dart';
 import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -423,7 +425,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         );
         if (mounted) {
           final messenger = ScaffoldMessenger.of(context);
-          ref.invalidate(customerListProvider);
+          // StreamProvider auto-updates on Firestore writes — invalidate not needed
           Navigator.pop(context);
           messenger.showSnackBar(
             SnackBar(
@@ -434,6 +436,10 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                 ),
               ),
               backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              margin: const EdgeInsets.all(16),
             ),
           );
           widget.onAdded?.call(customer);
@@ -573,18 +579,24 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
 
       if (!mounted) return;
       messenger.hideCurrentSnackBar();
+      // Close the dialog first, then navigate to the contacts screen
+      final router = GoRouter.of(context);
       Navigator.pop(context);
+      router.go(AppRouter.crmPath);
       messenger.showSnackBar(SnackBar(
         content: Text(_tr(
           done == 1
-              ? '1 customer added from contacts'
-              : '$done customers added from contacts',
+              ? '1 contact imported'
+              : '$done contacts imported',
           done == 1
-              ? 'Mteja 1 ameongezwa kutoka mawasiliano'
-              : 'Wateja $done wameongezwa kutoka mawasiliano',
+              ? 'Mawasiliano 1 yameingizwa'
+              : 'Mawasiliano $done yameingizwa',
         )),
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
       ));
     } catch (e) {
       _showSnackBar(

@@ -105,6 +105,13 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddDialog(context),
+        backgroundColor: AppColors.navyPrimary,
+        tooltip: _tr('Add customer', 'Ongeza mteja'),
+        child: const Icon(Icons.person_add_alt_1_rounded,
+            color: AppColors.yellowBrand),
+      ),
       body: Column(
         children: [
           // ── Top bar ────────────────────────────────────────────────────────
@@ -151,33 +158,6 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                                 fontSize: 12, color: AppColors.textMuted),
                           ),
                         ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => _showAddDialog(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.navyPrimary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.add_rounded,
-                                size: 16, color: AppColors.yellowBrand),
-                            const SizedBox(width: 4),
-                            Text(
-                              _tr('Add', 'Ongeza'),
-                              style: GoogleFonts.dmSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.yellowBrand,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
@@ -513,12 +493,7 @@ class _CustomerCard extends ConsumerWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border(
-              left: BorderSide(color: accent, width: 3.5),
-              right: const BorderSide(color: AppColors.border),
-              top: const BorderSide(color: AppColors.border),
-              bottom: const BorderSide(color: AppColors.border),
-            ),
+            border: Border.all(color: AppColors.border),
             boxShadow: const [
               BoxShadow(
                   color: AppColors.shadowCard,
@@ -526,11 +501,20 @@ class _CustomerCard extends ConsumerWidget {
                   offset: Offset(0, 2))
             ],
           ),
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              // Avatar
-              CircleAvatar(
+          clipBehavior: Clip.antiAlias,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Left accent bar — replaces the illegal non-uniform border side
+                Container(width: 4, color: accent),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 14, 14, 14),
+                    child: Row(
+                      children: [
+                        // Avatar
+                        CircleAvatar(
                 radius: 22,
                 backgroundColor: accent.withValues(alpha: 0.1),
                 child: Text(
@@ -650,13 +634,18 @@ class _CustomerCard extends ConsumerWidget {
                   const SizedBox(height: 4),
                   const Icon(Icons.chevron_right_rounded,
                       size: 16, color: AppColors.textDisabled),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+                    ],           // Column (balance)
+                  ),
+                ],               // inner content Row children
+              ),                 // inner content Row
+            ),                   // Padding
+          ),                     // Expanded
+        ],                       // outer accent+content Row children
+      ),                         // outer Row
+      ),                         // IntrinsicHeight
+      ),                         // Container
+    ),                           // GestureDetector
+  );                             // ListSwipeCard
   }
 
   Color _tagColor(String tag) {

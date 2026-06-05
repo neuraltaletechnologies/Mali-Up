@@ -992,26 +992,27 @@ class _InvoiceCard extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border(
-              left: BorderSide(color: sColor, width: 3.5),
-              top: const BorderSide(color: AppColors.border),
-              right: const BorderSide(color: AppColors.border),
-              bottom: const BorderSide(color: AppColors.border),
-            ),
+            border: Border.all(color: AppColors.border),
             boxShadow: AppTheme.cardShadow,
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Container(width: 4, color: sColor),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 12, 14, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                 // Row 1: invoice number + date + status chip
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1205,12 +1206,16 @@ class _InvoiceCard extends StatelessWidget {
                     ],
                   ),
                 ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+                      ],    // Column children
+                    ),      // Column
+                  ),        // Padding
+                ),          // Expanded
+              ],            // Row children
+            ),              // Row
+          ),                // IntrinsicHeight
+        ),                  // Ink
+      ),                    // InkWell
+    );                      // Material return
   }
 }
 
