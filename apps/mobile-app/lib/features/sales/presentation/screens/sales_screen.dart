@@ -2118,14 +2118,20 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Widget _buildItemRow(int index) {
     final entry = _items[index];
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
             color: entry.isOutOfStock
                 ? AppColors.error.withValues(alpha: 0.4)
                 : AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard,
+              blurRadius: 6,
+              offset: Offset(0, 1)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2314,94 +2320,127 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Widget _buildProductSuggestions(int index) {
     final entry = _items[index];
     return Container(
-      margin: const EdgeInsets.only(top: 4),
+      margin: const EdgeInsets.only(top: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
+              color: AppColors.shadowCard,
               blurRadius: 12,
-              offset: const Offset(0, 3)),
+              offset: Offset(0, 3)),
         ],
       ),
-      child: Column(
-        children: entry.suggs.asMap().entries.map((e) {
-          final isLast = e.key == entry.suggs.length - 1;
-          final item = e.value;
-          final name = (item['name'] ?? '') as String;
-          final price =
-              parseUnitPrice(item['unitPrice'] ?? item['price'] ?? 0);
-          final stock =
-              parseStock(item['currentStock'] ?? item['stock'] ?? 0);
-          final oos = stock <= 0;
-          return Column(
-            children: [
-              InkWell(
-                onTap: oos ? null : () => _selectProduct(entry, item),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                  child: Row(
-                    children: [
-                      Icon(Icons.inventory_2_rounded,
-                          size: 16,
-                          color: oos ? AppColors.error : AppColors.primary),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          children: entry.suggs.asMap().entries.map((e) {
+            final isLast = e.key == entry.suggs.length - 1;
+            final item = e.value;
+            final name = (item['name'] ?? '') as String;
+            final category = (item['category'] ?? '') as String;
+            final price = parseUnitPrice(item['unitPrice'] ?? item['price'] ?? 0);
+            final stock = parseStock(item['currentStock'] ?? item['stock'] ?? 0);
+            final isService = (item['productType'] as String?) == 'service';
+            final oos = !isService && stock <= 0;
+            final isLow = !isService && !oos && stock <= parseStock(item['reorderPoint'] ?? 5);
+            final stockColor = oos
+                ? AppColors.error
+                : isLow
+                    ? AppColors.warning
+                    : AppColors.success;
+            final iconData = isService
+                ? Icons.design_services_rounded
+                : Icons.inventory_2_outlined;
+
+            return Column(
+              children: [
+                InkWell(
+                  onTap: oos ? null : () => _selectProduct(entry, item),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        // Inventory-style tinted icon
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: stockColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(iconData,
+                              size: 18, color: stockColor),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name,
+                                  style: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: oos
+                                          ? AppColors.textMuted
+                                          : AppColors.navyPrimary)),
+                              if (category.isNotEmpty)
+                                Text(category,
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 11,
+                                        color: AppColors.textMuted)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(name,
-                                style: GoogleFonts.dmSans(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: oos
-                                        ? AppColors.textMuted
-                                        : AppColors.navyPrimary)),
                             Text(
-                              oos
-                                  ? _tr('Out of Stock', 'Haipatikani')
-                                  : 'TSh ${price.toStringAsFixed(0)} · $stock ${_tr("in stock", "stokuni")}',
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 11,
-                                  color: oos
-                                      ? AppColors.error
-                                      : AppColors.textMuted),
+                              'TZS ${price.toStringAsFixed(0)}',
+                              style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navyPrimary),
                             ),
+                            const SizedBox(height: 3),
+                            if (!isService)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: stockColor.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: stockColor.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(
+                                  oos
+                                      ? _tr('Out', 'Imekwisha')
+                                      : '$stock ${_tr("left", "zimebaki")}',
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: stockColor),
+                                ),
+                              ),
                           ],
                         ),
-                      ),
-                      if (oos)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6)),
-                          child: Text(_tr('Out', 'Imekwisha'),
-                              style: const TextStyle(
-                                  fontSize: 9,
-                                  color: AppColors.error,
-                                  fontWeight: FontWeight.w700)),
-                        )
-                      else
-                        const Icon(Icons.north_west_rounded,
-                            size: 13, color: AppColors.textMuted),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              if (!isLast)
-                const Divider(
-                    height: 1,
-                    indent: 12,
-                    endIndent: 12,
-                    color: AppColors.border),
-            ],
-          );
-        }).toList(),
+                if (!isLast)
+                  const Divider(
+                      height: 1,
+                      indent: 14,
+                      endIndent: 14,
+                      color: AppColors.border),
+              ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }

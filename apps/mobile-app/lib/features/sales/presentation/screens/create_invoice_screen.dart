@@ -867,9 +867,15 @@ class _LineItemCardState extends State<_LineItemCard> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard,
+              blurRadius: 6,
+              offset: Offset(0, 1)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1021,20 +1027,24 @@ class _SuggestionList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 4),
+      margin: const EdgeInsets.only(top: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 4)),
+              color: AppColors.shadowCard,
+              blurRadius: 12,
+              offset: Offset(0, 3)),
         ],
       ),
-      child: Column(
-        children: items.map((inv) {
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+        children: items.asMap().entries.map((e) {
+          final isLast = e.key == items.length - 1;
+          final inv = e.value;
           final price = parseNumericAmount(
               inv['sellingPrice'] ?? inv['unitPrice']);
           final stock = parseStock(inv['currentStock'] ?? inv['stock']);
@@ -1042,21 +1052,38 @@ class _SuggestionList extends StatelessWidget {
           final isLow  = !isOut && stock <= parseStock(inv['reorderPoint'] ?? 5);
           final productType = (inv['productType'] as String?) ?? '';
           final isService    = productType == 'service';
+          final category = (inv['category'] as String?) ?? '';
+          final stockColor = isService
+              ? AppColors.tealAccent
+              : isOut
+                  ? AppColors.error
+                  : isLow
+                      ? AppColors.warning
+                      : AppColors.success;
 
-          return InkWell(
+          return Column(children: [
+          InkWell(
             onTap: () => onTap(inv),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  Icon(
-                    isService
-                        ? Icons.design_services_rounded
-                        : Icons.inventory_2_rounded,
-                    size: 16,
-                    color: AppColors.textMuted,
+                  // Inventory-style tinted icon
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: stockColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isService
+                          ? Icons.design_services_rounded
+                          : Icons.inventory_2_outlined,
+                      size: 18,
+                      color: stockColor,
+                    ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1064,54 +1091,66 @@ class _SuggestionList extends StatelessWidget {
                         Text(
                           inv['name']?.toString() ?? '',
                           style: GoogleFonts.dmSans(
-                              fontSize: 13, fontWeight: FontWeight.w600),
+                              fontSize: 13, fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary),
                         ),
-                        if (!isService) ...[
+                        if (category.isNotEmpty) ...[
                           const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: isOut
-                                      ? AppColors.errorBg
-                                      : isLow
-                                          ? AppColors.warningBg
-                                          : AppColors.successBg,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  isOut
-                                      ? _tr('Out of stock', 'Imekwisha')
-                                      : '${_tr('Stock', 'Stoo')}: $stock',
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: isOut
-                                        ? AppColors.error
-                                        : isLow
-                                            ? AppColors.warning
-                                            : AppColors.success,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          Text(category,
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 11, color: AppColors.textMuted)),
                         ],
                       ],
                     ),
                   ),
-                  Text(
-                    'TZS ${_fmtNum(price)}',
-                    style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12, color: AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'TZS ${_fmtNum(price)}',
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary),
+                      ),
+                      if (!isService) ...[
+                        const SizedBox(height: 3),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: stockColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: stockColor.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            isOut
+                                ? _tr('Out', 'Imekwisha')
+                                : '$stock ${_tr("left", "zimebaki")}',
+                            style: GoogleFonts.dmSans(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: stockColor),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
-          );
+          ),
+          if (!isLast)
+            const Divider(
+                height: 1,
+                indent: 14,
+                endIndent: 14,
+                color: AppColors.border),
+          ]);
         }).toList(),
+        ),
       ),
     );
   }
