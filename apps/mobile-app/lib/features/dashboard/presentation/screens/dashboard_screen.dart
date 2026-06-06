@@ -1469,12 +1469,19 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
         phone: phone,
         notes: notes,
       );
-      final waUrl = Uri.parse(
-        'https://wa.me/255653520829?text=${Uri.encodeComponent(whatsappMsg)}',
-      );
-      try {
-        await launchUrl(waUrl, mode: LaunchMode.externalApplication);
-      } catch (_) {}
+      final opened = await _launchWhatsAppRequest(whatsappMsg);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _tr(
+                'Could not open WhatsApp. Please make sure it is installed.',
+                'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
+              ),
+            ),
+          ),
+        );
+      }
 
       await Future.delayed(const Duration(milliseconds: 1600));
       if (mounted) widget.onDone();
@@ -1519,6 +1526,27 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
     buffer.writeln();
     buffer.writeln(_tr('Thank you.', 'Asante.'));
     return buffer.toString().trim();
+  }
+
+  Future<bool> _launchWhatsAppRequest(String message) async {
+    const phone = '255653520829';
+    final primaryUrl = Uri.https('wa.me', '/$phone', {'text': message});
+    final fallbackUrl = Uri.https('api.whatsapp.com', '/send', {
+      'phone': phone,
+      'text': message,
+    });
+
+    try {
+      if (await launchUrl(primaryUrl, mode: LaunchMode.externalApplication)) {
+        return true;
+      }
+    } catch (_) {}
+
+    try {
+      return await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
   }
 
   @override

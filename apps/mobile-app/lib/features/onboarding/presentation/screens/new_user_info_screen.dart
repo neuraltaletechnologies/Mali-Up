@@ -309,8 +309,8 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                   const SizedBox(width: 5),
                                   Text(
                                     sw
-                                        ? 'Barua pepe inatumika kwa arifa na ubadilishaji wa nenosiri.'
-                                        : 'Email is used for notifications and password recovery.',
+                                        ? 'Inatumika kwa arifa na nenosiri.'
+                                        : 'Used for notifications and password.',
                                     style: const TextStyle(
                                         fontSize: 12,
                                         color: AppColors.textMuted),
