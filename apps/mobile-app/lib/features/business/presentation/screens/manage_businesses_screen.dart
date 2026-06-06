@@ -649,7 +649,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                           ),
                           const SizedBox(height: 10),
 
-                          // "Build me one" checkbox
+                          // "Build me my website" checkbox
                           GestureDetector(
                             onTap: () => setS(() => websiteInterest = !websiteInterest),
                             behavior: HitTestBehavior.opaque,
@@ -669,7 +669,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  _tr('Build me one', 'Nifanyie tovuti'),
+                                  _tr('Build me my website', 'Nitengeneze Tovuti Yangu'),
                                   style: const TextStyle(
                                     fontSize: 13,
                                     color: AppColors.textMuted,

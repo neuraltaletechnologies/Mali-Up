@@ -628,8 +628,8 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                     const SizedBox(width: 8),
                                     Text(
                                       sw
-                                          ? 'Nifanyie tovuti'
-                                          : 'Build me one',
+                                          ? 'Nitengeneze Tovuti Yangu'
+                                          : 'Build me my website',
                                       style: const TextStyle(
                                         fontSize: 13,
                                         color: AppColors.textMuted,
