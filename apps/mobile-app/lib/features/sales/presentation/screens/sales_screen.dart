@@ -1605,6 +1605,15 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       }
     }
 
+    // Require a customer when payment is not fully settled
+    if (_payStatus != _PayStatus.paid && _selectedCustomer == null) {
+      _snack(_tr(
+        'Please select a customer before recording a debt.',
+        'Tafadhali chagua mteja kabla ya kurekodi deni.',
+      ));
+      return;
+    }
+
     double amountPaid;
     if (_payStatus == _PayStatus.paid) {
       amountPaid = _grandTotal;
@@ -1721,6 +1730,29 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             'balance': FieldValue.increment(outstanding),
           });
         } catch (_) {}
+
+        // Create a debt record when sale is not fully paid
+        if (outstanding > 0 && _payStatus != _PayStatus.paid) {
+          try {
+            await repo
+                .scopeCollection(
+                    uid: user.uid, context: ctx, childCollection: 'debts')
+                .add({
+              'customerId': _selectedCustomer!.id,
+              'customerName': _selectedCustomer!.name,
+              'customerPhone': _selectedCustomer!.phone,
+              'invoiceNumber': invoiceNumber,
+              'originalAmount': _grandTotal,
+              'amountPaid': amountPaid,
+              'outstandingAmount': outstanding,
+              'status': _payStatus == _PayStatus.partial ? 'partial' : 'unpaid',
+              'type': 'sale',
+              if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          } catch (_) {}
+        }
       }
 
       navigator.pop();
@@ -1846,14 +1878,37 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   }
 
   Widget _buildCustomerSection() {
+    final needsCustomer =
+        _payStatus != _PayStatus.paid && _selectedCustomer == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_tr('Customer', 'Mteja'),
-            style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textMuted)),
+        Row(
+          children: [
+            Text(_tr('Customer', 'Mteja'),
+                style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: needsCustomer ? AppColors.warning : AppColors.textMuted)),
+            if (needsCustomer) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _tr('Required for debt', 'Inahitajika kwa deni'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.warning),
+                ),
+              ),
+            ],
+          ],
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _customerCtrl,
@@ -2551,16 +2606,36 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
   Widget _buildSaveButton() {
     final hasOutOfStock = _items.any((e) => e.isOutOfStock);
+    final needsCustomer =
+        _payStatus != _PayStatus.paid && _selectedCustomer == null;
+    final isDisabled = _isSaving || hasOutOfStock || needsCustomer;
+
+    String buttonLabel;
+    if (hasOutOfStock) {
+      buttonLabel = _tr('Item out of stock', 'Bidhaaa imekwisha');
+    } else if (needsCustomer) {
+      buttonLabel = _tr('Select a customer first', 'Chagua mteja kwanza');
+    } else {
+      buttonLabel = _tr('Save Sale', 'Hifadhi Mauzo');
+    }
+
+    Color disabledBg;
+    if (hasOutOfStock) {
+      disabledBg = AppColors.error.withValues(alpha: 0.6);
+    } else if (needsCustomer) {
+      disabledBg = AppColors.warning.withValues(alpha: 0.5);
+    } else {
+      disabledBg = AppColors.primary.withValues(alpha: 0.5);
+    }
+
     return SizedBox(
       height: 52,
       child: ElevatedButton(
-        onPressed: (_isSaving || hasOutOfStock) ? null : _save,
+        onPressed: isDisabled ? null : _save,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.navyPrimary,
-          disabledBackgroundColor: hasOutOfStock
-              ? AppColors.error.withValues(alpha: 0.6)
-              : AppColors.primary.withValues(alpha: 0.5),
+          disabledBackgroundColor: disabledBg,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16)),
           elevation: 0,
@@ -2572,9 +2647,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 child: CircularProgressIndicator(
                     strokeWidth: 2.5, color: AppColors.navyPrimary))
             : Text(
-                hasOutOfStock
-                    ? _tr('Item out of stock', 'Bidhaaa imekwisha')
-                    : _tr('Save Sale', 'Hifadhi Mauzo'),
+                buttonLabel,
                 style: GoogleFonts.dmSans(
                     fontSize: 15, fontWeight: FontWeight.w700)),
       ),

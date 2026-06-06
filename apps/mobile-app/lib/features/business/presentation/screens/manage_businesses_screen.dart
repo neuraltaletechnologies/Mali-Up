@@ -343,13 +343,18 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     final result = await showModalBottomSheet<bool>(
       context: context,
       useRootNavigator: true,
+      useSafeArea: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
         bool   localSaving     = false;
         bool   websiteInterest = (business?['websiteInterest'] as bool?) ?? false;
 
-        return StatefulBuilder(
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetCtx).height * 0.90,
+          ),
+          child: StatefulBuilder(
           builder: (dlgCtx, setS) {
             final currentName = nameCtrl.text.trim();
             final initial     = currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
@@ -393,8 +398,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                 child: SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(
                     24, 20, 24,
-                    MediaQuery.of(dlgCtx).viewInsets.bottom +
-                        MediaQuery.of(dlgCtx).padding.bottom + 24,
+                    MediaQuery.viewInsetsOf(dlgCtx).bottom + 24,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -866,6 +870,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
               ),
             );
           },
+        ),
         );
       },
     );
