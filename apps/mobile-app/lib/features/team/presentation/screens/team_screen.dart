@@ -60,16 +60,33 @@ class TeamScreen extends ConsumerStatefulWidget {
 
 class _TeamScreenState extends ConsumerState<TeamScreen> {
   _TeamFilter _filter = _TeamFilter.all;
+  final _searchCtrl = TextEditingController();
 
-  List<TeamMember> _applyFilter(List<TeamMember> all) => switch (_filter) {
-        _TeamFilter.all => all,
-        _TeamFilter.active =>
-          all.where((m) => m.status == 'active').toList(),
-        _TeamFilter.pending =>
-          all.where((m) => m.status == 'pending').toList(),
-        _TeamFilter.suspended =>
-          all.where((m) => m.status == 'suspended').toList(),
-      };
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<TeamMember> _applyFilter(List<TeamMember> all) {
+    final query = _searchCtrl.text.toLowerCase().trim();
+    var result = switch (_filter) {
+      _TeamFilter.all => all,
+      _TeamFilter.active => all.where((m) => m.status == 'active').toList(),
+      _TeamFilter.pending => all.where((m) => m.status == 'pending').toList(),
+      _TeamFilter.suspended =>
+        all.where((m) => m.status == 'suspended').toList(),
+    };
+    if (query.isNotEmpty) {
+      result = result
+          .where((m) =>
+              m.name.toLowerCase().contains(query) ||
+              m.email.toLowerCase().contains(query) ||
+              m.phone.contains(query))
+          .toList();
+    }
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,14 +144,20 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _StatsCard(members: members),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
+              // Search bar
+              AppSearchBar(
+                controller: _searchCtrl,
+                hintText: _tr('Search by name, email…', 'Tafuta kwa jina, barua pepe…'),
+                onChanged: (_) => setState(() {}),
+              ),
               // Filter pills
               _FilterPills(
                 selected: _filter,
                 counts: counts,
                 onSelect: (f) => setState(() => _filter = f),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               // List
               Expanded(
                 child: filtered.isEmpty
@@ -143,7 +166,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                         padding: const EdgeInsets.fromLTRB(24, 4, 24, 120),
                         itemCount: filtered.length,
                         separatorBuilder: (_, _) =>
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 12),
                         itemBuilder: (ctx, i) => ListSwipeCard(
                           itemKey: ValueKey(filtered[i].id),
                           onEdit: () => _showMemberSheet(context, filtered[i]),

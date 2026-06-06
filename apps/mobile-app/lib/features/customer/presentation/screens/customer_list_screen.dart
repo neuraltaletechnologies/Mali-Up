@@ -164,51 +164,14 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildStatsRow(all.length, totalBalance, debtCount),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 // Search bar
-                TextField(
+                AppSearchBar(
                   controller: _searchCtrl,
+                  hintText: _tr('Search by name, phone…', 'Tafuta kwa jina, simu…'),
                   onChanged: (_) => setState(() {}),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14, color: AppColors.navyPrimary),
-                  decoration: InputDecoration(
-                    hintText:
-                        _tr('Search by name, phone…', 'Tafuta kwa jina, simu…'),
-                    hintStyle: GoogleFonts.dmSans(
-                        fontSize: 14, color: AppColors.textMuted),
-                    prefixIcon: const Icon(Icons.search_rounded,
-                        size: 19, color: AppColors.textMuted),
-                    suffixIcon: _searchCtrl.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.close_rounded,
-                                size: 17, color: AppColors.textMuted),
-                            onPressed: () {
-                              _searchCtrl.clear();
-                              setState(() {});
-                            },
-                          )
-                        : null,
-                    isDense: true,
-                    filled: true,
-                    fillColor: AppColors.surfaceVariant,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                          color: AppColors.navyPrimary, width: 1.5),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                 ),
-                const SizedBox(height: 2),
               ],
             ),
           ),
@@ -227,7 +190,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                             const EdgeInsets.fromLTRB(16, 10, 16, 100),
                         itemCount: filtered.length,
                         separatorBuilder: (ctx, i) =>
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 12),
                         itemBuilder: (_, i) =>
                             _CustomerCard(customer: filtered[i]),
                       ),
