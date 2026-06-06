@@ -577,111 +577,125 @@ class _ExpenseCard extends StatelessWidget {
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: isRejected
-                ? AppColors.errorBg
-                : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border(
-              left: BorderSide(color: cat.color, width: 3.5),
-              right: const BorderSide(color: AppColors.border),
-              top: const BorderSide(color: AppColors.border),
-              bottom: const BorderSide(color: AppColors.border),
-            ),
+            color: isRejected ? AppColors.errorBg : AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                  color: AppColors.shadowCard,
+                  blurRadius: 6,
+                  offset: Offset(0, 1)),
+            ],
           ),
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              // Category icon
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: cat.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(cat.icon, size: 20, color: cat.color),
-              ),
-              const SizedBox(width: 12),
-              // Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+          clipBehavior: Clip.antiAlias,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Left stripe — category color indicator
+                Container(width: 3.5, color: cat.color),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
                       children: [
+                        // Category icon
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: cat.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(cat.icon, size: 20, color: cat.color),
+                        ),
+                        const SizedBox(width: 12),
+                        // Details
                         Expanded(
-                          child: Text(
-                            expense.note.isNotEmpty
-                                ? expense.note
-                                : cat.label,
-                            style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: isRejected
-                                    ? AppColors.error
-                                    : AppColors.textPrimary),
-                            overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      expense.note.isNotEmpty
+                                          ? expense.note
+                                          : cat.label,
+                                      style: GoogleFonts.dmSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: isRejected
+                                              ? AppColors.error
+                                              : AppColors.textPrimary),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isPending)
+                                    _StatusBadge(
+                                        label: _tr('Pending', 'Inasubiri'),
+                                        color: AppColors.warning),
+                                  if (isRejected)
+                                    _StatusBadge(
+                                        label: _tr('Rejected', 'Imekataliwa'),
+                                        color: AppColors.error),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Text(
+                                    cat.label,
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 11,
+                                        color: AppColors.textMuted),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text('·',
+                                      style: GoogleFonts.dmSans(
+                                          fontSize: 11,
+                                          color: AppColors.textDisabled)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _fmtDate(expense.date),
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 11,
+                                        color: AppColors.textMuted),
+                                  ),
+                                  if (expense.receiptUrl.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.receipt_rounded,
+                                        size: 11,
+                                        color: AppColors.tealAccent),
+                                  ],
+                                  if (expense.isRecurring) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.repeat_rounded,
+                                        size: 11,
+                                        color: AppColors.textMuted),
+                                  ],
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        if (isPending)
-                          _StatusBadge(
-                              label: _tr('Pending', 'Inasubiri'),
-                              color: AppColors.warning),
-                        if (isRejected)
-                          _StatusBadge(
-                              label: _tr('Rejected', 'Imekataliwa'),
-                              color: AppColors.error),
+                        const SizedBox(width: 12),
+                        // Amount
+                        Text(
+                          'TZS ${_fmtNum(amount)}',
+                          style: GoogleFonts.jetBrainsMono(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: isRejected
+                                  ? AppColors.error
+                                  : AppColors.navyPrimary),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Text(
-                          cat.label,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              color: AppColors.textMuted),
-                        ),
-                        const SizedBox(width: 6),
-                        Text('·',
-                            style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                color: AppColors.textDisabled)),
-                        const SizedBox(width: 6),
-                        Text(
-                          _fmtDate(expense.date),
-                          style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              color: AppColors.textMuted),
-                        ),
-                        if (expense.receiptUrl.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.receipt_rounded,
-                              size: 11,
-                              color: AppColors.tealAccent),
-                        ],
-                        if (expense.isRecurring) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.repeat_rounded,
-                              size: 11, color: AppColors.textMuted),
-                        ],
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Amount
-              Text(
-                'TZS ${_fmtNum(amount)}',
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isRejected
-                        ? AppColors.error
-                        : AppColors.textPrimary),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -1086,31 +1086,24 @@ class _DebtCard extends StatelessWidget {
 
     return Ink(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard, blurRadius: 8, offset: Offset(0, 2))
+              color: AppColors.shadowCard, blurRadius: 6, offset: Offset(0, 1))
         ],
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         splashColor: AppColors.navyPrimary.withValues(alpha: 0.06),
         highlightColor: AppColors.navyPrimary.withValues(alpha: 0.04),
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Colored left stripe
-              Container(
-                width: 4,
-                decoration: BoxDecoration(
-                  color: _ageColor,
-                  borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(14)),
-                ),
-              ),
+              // Colored left stripe — age indicator
+              Container(width: 4, color: _ageColor),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),

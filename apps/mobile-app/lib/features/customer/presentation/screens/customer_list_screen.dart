@@ -454,14 +454,14 @@ class _CustomerCard extends ConsumerWidget {
         },
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
             boxShadow: const [
               BoxShadow(
                   color: AppColors.shadowCard,
                   blurRadius: 6,
-                  offset: Offset(0, 2))
+                  offset: Offset(0, 1))
             ],
           ),
           clipBehavior: Clip.antiAlias,
@@ -469,7 +469,6 @@ class _CustomerCard extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Left accent bar — replaces the illegal non-uniform border side
                 Container(width: 4, color: accent),
                 Expanded(
                   child: Padding(

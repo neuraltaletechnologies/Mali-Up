@@ -473,21 +473,31 @@ class _MemberCard extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border(
-              left: BorderSide(color: rc, width: 3.5),
-              top: const BorderSide(color: AppColors.border),
-              right: const BorderSide(color: AppColors.border),
-              bottom: const BorderSide(color: AppColors.border),
-            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                  color: AppColors.shadowCard,
+                  blurRadius: 6,
+                  offset: Offset(0, 1)),
+            ],
           ),
-          child: Padding(
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Left stripe — role color
+                Container(width: 4, color: rc),
+                Expanded(
+                  child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Row(
               children: [
@@ -618,9 +628,13 @@ class _MemberCard extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
+                ),   // Expanded
+              ],     // outer Row children
+            ),       // outer Row
+          ),         // IntrinsicHeight
+        ),           // Ink
+      ),             // InkWell
+    );               // Material
   }
 }
 
