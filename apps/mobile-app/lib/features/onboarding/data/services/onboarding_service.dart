@@ -98,11 +98,30 @@ class OnboardingService {
   /// Creates a Firebase Auth account (email = phone@mali.up, password derived
   /// from PIN), writes user + business profiles to Firestore, marks complete.
   /// Returns the auto-generated business document ID.
+  ///
+  /// Guard: if the Firebase Auth email already existed AND the user document
+  /// already exists in Firestore, we skip all writes and just complete
+  /// onboarding — preventing duplicate business documents and profile overwrites
+  /// for returning users who accidentally re-entered the registration flow.
   Future<String> saveAndCompleteNewUser(OnboardingState state) async {
     final uid = await _repository.createNewUserAccount(
       phone: state.phone,
       pin: state.pin,
     );
+
+    // Check whether this uid already has a fully-set-up Firestore profile.
+    final existingBizId = await _repository.getExistingBusinessId(uid);
+    if (existingBizId != null) {
+      if (kDebugMode) {
+        debugPrint(
+          '[OnboardingService] returning user re-entered new-user flow — '
+          'skipping writes, completing onboarding. uid=$uid biz=$existingBizId',
+        );
+      }
+      await completeOnboarding();
+      return existingBizId;
+    }
+
     try {
       final bizId = await _repository.saveBusinessProfile(
         userId: uid,

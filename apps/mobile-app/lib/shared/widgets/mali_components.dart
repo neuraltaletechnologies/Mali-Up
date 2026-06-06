@@ -666,8 +666,8 @@ class SkeletonList extends StatelessWidget {
       padding: EdgeInsets.zero,
       physics: const BouncingScrollPhysics(),
       itemCount: itemCount,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, __) => const SkeletonListItem(),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (_, _) => const SkeletonListItem(),
     );
   }
 }
@@ -1334,6 +1334,201 @@ class PaymentStatusChip extends StatelessWidget {
               letterSpacing: 0.2,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AppSearchBar — standard inventory-style search bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+class AppSearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final ValueChanged<String>? onChanged;
+  final VoidCallback? onClear;
+  final EdgeInsetsGeometry padding;
+  final FocusNode? focusNode;
+
+  const AppSearchBar({
+    super.key,
+    required this.controller,
+    required this.hintText,
+    this.onChanged,
+    this.onClear,
+    this.focusNode,
+    this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (_, value, _) {
+          return TextField(
+            controller: controller,
+            focusNode: focusNode,
+            style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
+              prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textMuted),
+              suffixIcon: value.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+                      onPressed: () {
+                        controller.clear();
+                        onClear?.call();
+                        onChanged?.call('');
+                      },
+                    )
+                  : null,
+              isDense: true,
+              filled: true,
+              fillColor: AppColors.card,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.navyPrimary, width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AppFilterChip — pill-style filter button for horizontal filter bars
+// ─────────────────────────────────────────────────────────────────────────────
+
+class AppFilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final int? count;
+
+  const AppFilterChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.count,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.navyPrimary : AppColors.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.navyPrimary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : AppColors.textMuted,
+              ),
+            ),
+            if (count != null) ...[
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AppSectionHeader — consistent section title with optional trailing action
+// ─────────────────────────────────────────────────────────────────────────────
+
+class AppSectionHeader extends StatelessWidget {
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final EdgeInsetsGeometry padding;
+
+  const AppSectionHeader({
+    super.key,
+    required this.title,
+    this.actionLabel,
+    this.onAction,
+    this.padding = const EdgeInsets.fromLTRB(24, 20, 24, 8),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          if (actionLabel != null && onAction != null)
+            GestureDetector(
+              onTap: onAction,
+              child: Text(
+                actionLabel!,
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.tealAccent,
+                ),
+              ),
+            ),
         ],
       ),
     );

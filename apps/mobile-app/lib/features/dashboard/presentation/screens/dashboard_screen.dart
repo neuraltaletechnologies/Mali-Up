@@ -7,12 +7,12 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/shimmer.dart';
-import '../../../customer/domain/models/customer.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../debt/presentation/screens/debt_tracking_screen.dart';
 import '../../../finance/data/finance_providers.dart';
@@ -1419,21 +1419,106 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
     }
     setState(() => _submitting = true);
     try {
+      // Load user profile for WhatsApp message
+      String personName = '';
+      String businessName = '';
+      String businessType = '';
+      String phone = '';
+
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final data = doc.data() ?? {};
+        personName = ((data['displayName'] ?? data['name']) as String?)?.trim() ?? '';
+        phone = (data['phone'] as String?)?.trim() ?? user.phoneNumber ?? '';
+
+        final businesses = data['businesses'];
+        if (businesses is List && businesses.isNotEmpty) {
+          final biz = businesses.first as Map;
+          businessName = (biz['name'] as String?)?.trim() ?? '';
+          businessType = (biz['category'] as String?)?.trim() ?? '';
+        }
+      } catch (_) {}
+
+      final notes = _notesCtrl.text.trim();
+
+      // Store lead in Firestore
       await FirebaseFirestore.instance
           .collection('websiteRequests')
           .doc(user.uid)
           .set({
         'uid': user.uid,
-        'notes': _notesCtrl.text.trim(),
+        'personName': personName,
+        'businessName': businessName,
+        'businessType': businessType,
+        'phone': phone,
+        'notes': notes,
         'requestedAt': FieldValue.serverTimestamp(),
         'status': 'pending',
       }, SetOptions(merge: true));
+
       if (mounted) setState(() { _submitting = false; _submitted = true; });
+
+      // Build and launch WhatsApp message
+      final whatsappMsg = _buildWhatsAppMessage(
+        personName: personName.isNotEmpty ? personName : _tr('Business Owner', 'Mmiliki wa Biashara'),
+        businessName: businessName,
+        businessType: businessType,
+        phone: phone,
+        notes: notes,
+      );
+      final waUrl = Uri.parse(
+        'https://wa.me/255653520829?text=${Uri.encodeComponent(whatsappMsg)}',
+      );
+      try {
+        await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+
       await Future.delayed(const Duration(milliseconds: 1600));
       if (mounted) widget.onDone();
     } catch (_) {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  String _buildWhatsAppMessage({
+    required String personName,
+    required String businessName,
+    required String businessType,
+    required String phone,
+    required String notes,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln(_tr(
+      'Hello Neuraltale Technologies Team,',
+      'Habari Timu ya Neuraltale Technologies,',
+    ));
+    buffer.writeln();
+    buffer.writeln(_tr(
+      'I would like assistance creating a website for my business.',
+      'Ningependa msaada wa kuunda tovuti kwa biashara yangu.',
+    ));
+    buffer.writeln();
+    buffer.writeln('${_tr("Name", "Jina")}: $personName');
+    if (businessName.isNotEmpty) {
+      buffer.writeln('${_tr("Business", "Biashara")}: $businessName');
+    }
+    if (businessType.isNotEmpty) {
+      buffer.writeln('${_tr("Business Type", "Aina ya Biashara")}: $businessType');
+    }
+    if (phone.isNotEmpty) {
+      buffer.writeln('${_tr("Phone", "Simu")}: $phone');
+    }
+    if (notes.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('${_tr("Additional Notes", "Maelezo ya Ziada")}:');
+      buffer.writeln(notes);
+    }
+    buffer.writeln();
+    buffer.writeln(_tr('Thank you.', 'Asante.'));
+    return buffer.toString().trim();
   }
 
   @override

@@ -247,7 +247,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
       body: FadeTransition(
         opacity: _fadeAnim,
         child: NestedScrollView(
-          headerSliverBuilder: (_, __) => [
+          headerSliverBuilder: (_, _) => [
             _buildSliverAppBar(),
             SliverToBoxAdapter(child: _buildTabBar()),
           ],
@@ -1169,7 +1169,7 @@ class _InvoicesTab extends ConsumerWidget {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 60),
                 itemCount: invoices.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (_, i) => _InvoiceTile(invoice: invoices[i]),
               ),
             ),
@@ -1319,7 +1319,7 @@ class _NotesTab extends ConsumerWidget {
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                   itemCount: notes.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (_, i) => _NoteTile(note: notes[i]),
                 ),
           // FAB-style add button

@@ -1813,7 +1813,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(
             primary: AppColors.navyPrimary,
-            onPrimary: Colors.white,
             onSurface: AppColors.textPrimary,
           ),
         ),
@@ -1987,10 +1986,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                     children: [
 
                       // Product name
-                      _FormLabel(BusinessProductConfig.productNameLabel(
+                      _FormLabel('${BusinessProductConfig.productNameLabel(
                         bizType,
                         isSwahili: LocalizationService.isSwahili,
-                      ) + ' *'),
+                      )} *'),
                       const SizedBox(height: 6),
                       _FormField(
                         ctrl: _nameCtrl,
@@ -2089,8 +2088,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       // Batch number (pharmacy / health)
                       if (config.showBatchNumber) ...[
                         const SizedBox(height: 14),
-                        _FormLabel(_tr('Batch Number', 'Nambari ya Kundi') +
-                            ' (${_tr("optional", "hiari")})'),
+                        _FormLabel('${_tr('Batch Number', 'Nambari ya Kundi')} (${_tr("optional", "hiari")})'),
                         const SizedBox(height: 6),
                         _FormField(
                           ctrl: _batchCtrl,
@@ -2102,8 +2100,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       // Brand (electronics / pharmacy)
                       if (config.showBrand) ...[
                         const SizedBox(height: 14),
-                        _FormLabel(_tr('Brand', 'Chapa') +
-                            ' (${_tr("optional", "hiari")})'),
+                        _FormLabel('${_tr('Brand', 'Chapa')} (${_tr("optional", "hiari")})'),
                         const SizedBox(height: 6),
                         _FormField(
                           ctrl: _brandCtrl,
@@ -2115,13 +2112,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       // Warranty period (electronics)
                       if (config.showWarrantyPeriod) ...[
                         const SizedBox(height: 14),
-                        _FormLabel(_tr('Warranty Period', 'Kipindi cha Dhamana') +
-                            ' (${_tr("optional", "hiari")})'),
+                        _FormLabel('${_tr('Warranty Period', 'Kipindi cha Dhamana')} (${_tr("optional", "hiari")})'),
                         const SizedBox(height: 6),
                         _FormField(
                           ctrl: _warrantyCtrl,
                           hint: _tr('e.g. 12 months', 'k.m. miezi 12'),
-                          caps: TextCapitalization.none,
                         ),
                       ],
 
