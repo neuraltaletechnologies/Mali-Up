@@ -142,7 +142,7 @@ void main() {
 
   group('cancelForEntity', () {
     test('cancels all pending entries for a given entity', () async {
-      await dao.enqueue(makeEntry(entityId: 'inv-1'));
+      await dao.enqueue(makeEntry());
       await dao.enqueue(makeEntry(operationId: 'op-2'));
       await dao.enqueue(makeEntry(operationId: 'op-3', entityId: 'inv-2'));
 
