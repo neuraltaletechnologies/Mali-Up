@@ -1350,6 +1350,7 @@ class AppSearchBar extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final VoidCallback? onClear;
   final EdgeInsetsGeometry padding;
+  final FocusNode? focusNode;
 
   const AppSearchBar({
     super.key,
@@ -1357,6 +1358,7 @@ class AppSearchBar extends StatelessWidget {
     required this.hintText,
     this.onChanged,
     this.onClear,
+    this.focusNode,
     this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
   });
 
@@ -1369,6 +1371,7 @@ class AppSearchBar extends StatelessWidget {
         builder: (_, value, _) {
           return TextField(
             controller: controller,
+            focusNode: focusNode,
             style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
             onChanged: onChanged,
             decoration: InputDecoration(
