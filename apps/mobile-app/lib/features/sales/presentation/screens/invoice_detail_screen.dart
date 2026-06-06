@@ -684,135 +684,130 @@ class _LineItemsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Text(
-              _tr('Items', 'Bidhaaa'),
-              style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 0, 10),
+          child: Text(
+            _tr('Items', 'Bidhaaa'),
+            style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.3),
           ),
-          // Column headers
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: Text(
-                    _tr('ITEM', 'BIDHAA'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted,
-                        letterSpacing: 0.5),
+        ),
+        ...items.asMap().entries.map((e) {
+          final i = e.key;
+          final item = e.value;
+          final isLast = i == items.length - 1;
+          final productName = item['productName']?.toString() ?? '—';
+          final unit = (item['unit'] ?? '').toString();
+          final unitPrice = parseNumericAmount(item['unitPrice']);
+          final lineTotal = parseNumericAmount(item['lineTotal']);
+          final qty = item['qty']?.toString() ?? '1';
+          final isService = (item['productType'] as String?) == 'service';
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+                boxShadow: const [
+                  BoxShadow(
+                      color: AppColors.shadowCard,
+                      blurRadius: 6,
+                      offset: Offset(0, 1)),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Icon with tinted background — inventory card style
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.navyPrimary.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isService
+                          ? Icons.design_services_rounded
+                          : Icons.inventory_2_outlined,
+                      size: 20,
+                      color: AppColors.navyPrimary,
+                    ),
                   ),
-                ),
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    _tr('QTY', 'IDI'),
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted,
-                        letterSpacing: 0.5),
-                  ),
-                ),
-                SizedBox(
-                  width: 90,
-                  child: Text(
-                    _tr('TOTAL', 'JUMLA'),
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted,
-                        letterSpacing: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 8, color: AppColors.border),
-          ...items.asMap().entries.map((e) {
-            final i = e.key;
-            final item = e.value;
-            final isLast = i == items.length - 1;
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['productName']?.toString() ?? '—',
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary),
-                            ),
-                            if ((item['unit'] ?? '').toString().isNotEmpty)
-                              Text(
-                                '${item['unit']} · TZS ${_fmtNum(parseNumericAmount(item['unitPrice']))}',
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    color: AppColors.textMuted),
-                              ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          '×${item['qty']?.toString() ?? '1'}',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 13,
-                              color: AppColors.textSecondary),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 90,
-                        child: Text(
-                          'TZS ${_fmtNum(parseNumericAmount(item['lineTotal']))}',
-                          textAlign: TextAlign.right,
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 13,
+                  const SizedBox(width: 14),
+                  // Name + unit · price per unit
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          productName,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary),
+                              color: AppColors.navyPrimary),
+                        ),
+                        if (unit.isNotEmpty || unitPrice > 0) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            [
+                              if (unit.isNotEmpty) unit,
+                              if (unitPrice > 0)
+                                'TZS ${_fmtNum(unitPrice)} ${_tr("each", "kila")}',
+                            ].join(' · '),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                color: AppColors.textMuted),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Qty × total
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'TZS ${_fmtNum(lineTotal)}',
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.navyPrimary.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: AppColors.navyPrimary.withValues(alpha: 0.15)),
+                        ),
+                        child: Text(
+                          '×$qty',
+                          style: GoogleFonts.jetBrainsMono(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary),
                         ),
                       ),
                     ],
                   ),
-                ),
-                if (!isLast)
-                  const Divider(height: 1, color: AppColors.border),
-              ],
-            );
-          }),
-          const SizedBox(height: 4),
-        ],
-      ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 }

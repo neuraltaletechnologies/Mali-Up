@@ -321,12 +321,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     final businessId = business?['id'] as String?;
 
     final nameCtrl    = TextEditingController(text: (business?['name'] as String?) ?? '');
-    final phoneCtrl   = TextEditingController(text: (business?['phone'] as String?) ?? '');
-    final hoursCtrl   = TextEditingController(text: (business?['workingHours'] as String?) ?? '');
     final websiteCtrl = TextEditingController(text: (business?['websiteUrl'] as String?) ?? '');
-    final fbCtrl      = TextEditingController(text: (business?['facebook'] as String?) ?? '');
-    final igCtrl      = TextEditingController(text: (business?['instagram'] as String?) ?? '');
-    final ttCtrl      = TextEditingController(text: (business?['tiktok'] as String?) ?? '');
 
     String selectedType = () {
       final stored = (business?['category'] as String?) ?? '';
@@ -343,13 +338,18 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     final result = await showModalBottomSheet<bool>(
       context: context,
       useRootNavigator: true,
+      useSafeArea: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
         bool   localSaving     = false;
         bool   websiteInterest = (business?['websiteInterest'] as bool?) ?? false;
 
-        return StatefulBuilder(
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetCtx).height * 0.90,
+          ),
+          child: StatefulBuilder(
           builder: (dlgCtx, setS) {
             final currentName = nameCtrl.text.trim();
             final initial     = currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
@@ -393,8 +393,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                 child: SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(
                     24, 20, 24,
-                    MediaQuery.of(dlgCtx).viewInsets.bottom +
-                        MediaQuery.of(dlgCtx).padding.bottom + 24,
+                    MediaQuery.viewInsetsOf(dlgCtx).bottom + 24,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -518,10 +517,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                           ),
                           const SizedBox(height: 28),
 
-                          // ── Section: Basic info ───────────────────────────
-                          _FormSectionLabel(label: _tr('BASIC INFO', 'TAARIFA ZA MSINGI')),
-                          const SizedBox(height: 10),
-
                           // Business name
                           TextField(
                             controller: nameCtrl,
@@ -533,9 +528,11 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                               icon: Icons.storefront_outlined,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 24),
 
-                          // Business type — styled tap-selector
+                          // ── Business type ─────────────────────────────────
+                          _FormSectionLabel(label: _tr('Business type', 'Aina ya biashara')),
+                          const SizedBox(height: 8),
                           _FormTapSelector(
                             icon: () {
                               final t = _businessTypes.firstWhere(
@@ -573,9 +570,19 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                               }
                             },
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 24),
 
-                          // City / Region — styled tap-selector
+                          // ── Business location ─────────────────────────────
+                          _FormSectionLabel(label: _tr('Business location', 'Mahali pa biashara')),
+                          const SizedBox(height: 4),
+                          Text(
+                            _tr(
+                              'Helps customers and reports stay accurate.',
+                              'Husaidia wateja na ripoti kuwa sahihi.',
+                            ),
+                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: 12),
                           _FormTapSelector(
                             icon: Icons.location_on_outlined,
                             value: selectedCity == null ? null : () {
@@ -604,38 +611,19 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                               }
                             },
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 24),
 
-                          // Phone
-                          TextField(
-                            controller: phoneCtrl,
-                            keyboardType: TextInputType.phone,
-                            style: const TextStyle(fontSize: 15, color: AppColors.navyPrimary),
-                            decoration: fieldDeco(
-                              label: _tr('Phone number (optional)', 'Nambari ya simu (hiari)'),
-                              hint: '+255 700 000 000',
-                              icon: Icons.phone_outlined,
+                          // ── Online presence ───────────────────────────────
+                          _FormSectionLabel(label: _tr('Online presence', 'Uwepo wa mtandao')),
+                          const SizedBox(height: 4),
+                          Text(
+                            _tr(
+                              'Add your website if you have one (optional).',
+                              'Ongeza tovuti yako kama una moja (si lazima).',
                             ),
-                          ),
-                          const SizedBox(height: 28),
-
-                          // ── Section: Online presence ──────────────────────
-                          _FormSectionLabel(label: _tr('ONLINE PRESENCE', 'UWEPO WA MTANDAO')),
-                          const SizedBox(height: 10),
-
-                          // Working hours
-                          TextField(
-                            controller: hoursCtrl,
-                            style: const TextStyle(fontSize: 15, color: AppColors.navyPrimary),
-                            decoration: fieldDeco(
-                              label: _tr('Working hours (optional)', 'Muda wa kazi (hiari)'),
-                              hint: _tr('Mon – Sat: 8:00 AM – 6:00 PM', 'Jumatatu – Jumamosi: 8:00 – 18:00'),
-                              icon: Icons.access_time_rounded,
-                            ),
+                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                           ),
                           const SizedBox(height: 12),
-
-                          // Website URL
                           TextField(
                             controller: websiteCtrl,
                             keyboardType: TextInputType.url,
@@ -677,47 +665,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-
-                          // ── Section: Social media ─────────────────────────
-                          _FormSectionLabel(label: _tr('SOCIAL MEDIA', 'MITANDAO YA KIJAMII')),
-                          const SizedBox(height: 10),
-
-                          TextField(
-                            controller: fbCtrl,
-                            keyboardType: TextInputType.url,
-                            autocorrect: false,
-                            style: const TextStyle(fontSize: 15, color: AppColors.navyPrimary),
-                            decoration: fieldDeco(
-                              label: 'Facebook',
-                              hint: 'facebook.com/yourbusiness',
-                              icon: Icons.facebook_rounded,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          TextField(
-                            controller: igCtrl,
-                            keyboardType: TextInputType.url,
-                            autocorrect: false,
-                            style: const TextStyle(fontSize: 15, color: AppColors.navyPrimary),
-                            decoration: fieldDeco(
-                              label: 'Instagram',
-                              hint: '@yourbusiness',
-                              icon: Icons.camera_alt_outlined,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          TextField(
-                            controller: ttCtrl,
-                            keyboardType: TextInputType.url,
-                            autocorrect: false,
-                            style: const TextStyle(fontSize: 15, color: AppColors.navyPrimary),
-                            decoration: fieldDeco(
-                              label: 'TikTok',
-                              hint: '@yourbusiness',
-                              icon: Icons.music_note_rounded,
                             ),
                           ),
                           const SizedBox(height: 32),
@@ -824,13 +771,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                             name: nameCtrl.text.trim(),
                                             category: selectedType,
                                             place: selectedCity ?? '',
-                                            phone: phoneCtrl.text.trim(),
-                                            workingHours: hoursCtrl.text.trim(),
+                                            phone: (business?['phone'] as String?) ?? '',
+                                            workingHours: (business?['workingHours'] as String?) ?? '',
                                             websiteUrl: websiteCtrl.text.trim(),
                                             websiteInterest: websiteInterest,
-                                            facebook: fbCtrl.text.trim(),
-                                            instagram: igCtrl.text.trim(),
-                                            tiktok: ttCtrl.text.trim(),
+                                            facebook: (business?['facebook'] as String?) ?? '',
+                                            instagram: (business?['instagram'] as String?) ?? '',
+                                            tiktok: (business?['tiktok'] as String?) ?? '',
                                             existingBusiness: business,
                                             pickedLogoFile: pickedLogoFile,
                                             existingLogoUrl: existingLogoUrl,
@@ -866,17 +813,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
               ),
             );
           },
+        ),
         );
       },
     );
 
     nameCtrl.dispose();
-    phoneCtrl.dispose();
-    hoursCtrl.dispose();
     websiteCtrl.dispose();
-    fbCtrl.dispose();
-    igCtrl.dispose();
-    ttCtrl.dispose();
 
     if (result == true && mounted) {
       setState(() => _profileFuture = _loadProfile());
@@ -1605,16 +1548,13 @@ class _FormSectionLabel extends StatelessWidget {
   const _FormSectionLabel({required this.label});
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 4, bottom: 2),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: AppColors.navyPrimary,
-            letterSpacing: 1.1,
-          ),
+  Widget build(BuildContext context) => Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.navyPrimary,
+          letterSpacing: 0.1,
         ),
       );
 }

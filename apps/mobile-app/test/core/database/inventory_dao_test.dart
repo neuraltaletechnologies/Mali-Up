@@ -57,7 +57,7 @@ void main() {
 
   group('getByBarcode', () {
     test('finds item by barcode within the same business', () async {
-      await dao.upsert(makeItem(id: 'item-1', barcode: '111'));
+      await dao.upsert(makeItem(barcode: '111'));
       await dao.upsert(makeItem(id: 'item-2', barcode: '222'));
 
       final result = await dao.getByBarcode('biz-1', '111');
@@ -66,7 +66,7 @@ void main() {
     });
 
     test('returns null for barcode in a different business', () async {
-      await dao.upsert(makeItem(id: 'item-1', businessId: 'biz-1'));
+      await dao.upsert(makeItem());
 
       final result = await dao.getByBarcode('biz-2', '1234567890');
       expect(result, isNull);
@@ -75,11 +75,11 @@ void main() {
 
   group('watchLowStock', () {
     test('returns items at or below their low stock threshold', () async {
-      await dao.upsert(makeItem(id: 'ok', quantity: 50, lowStockThreshold: 20));
+      await dao.upsert(makeItem(id: 'ok', quantity: 50));
       await dao.upsert(makeItem(
-          id: 'low', quantity: 15, lowStockThreshold: 20));
+          id: 'low', quantity: 15));
       await dao.upsert(makeItem(
-          id: 'exact', quantity: 20, lowStockThreshold: 20));
+          id: 'exact', quantity: 20));
 
       final result = await dao.watchLowStock('biz-1').first;
       final ids = result.map((r) => r.id).toSet();
@@ -90,7 +90,7 @@ void main() {
 
   group('adjustQuantity', () {
     test('decreases quantity and accumulates negative delta', () async {
-      await dao.upsert(makeItem(quantity: 100));
+      await dao.upsert(makeItem());
       await dao.adjustQuantity('item-1', -10);
 
       final result = await dao.getById('item-1');
@@ -99,7 +99,7 @@ void main() {
     });
 
     test('increases quantity and accumulates positive delta', () async {
-      await dao.upsert(makeItem(quantity: 100));
+      await dao.upsert(makeItem());
       await dao.adjustQuantity('item-1', 50);
 
       final result = await dao.getById('item-1');
@@ -108,7 +108,7 @@ void main() {
     });
 
     test('accumulates multiple adjustments in delta', () async {
-      await dao.upsert(makeItem(quantity: 100));
+      await dao.upsert(makeItem());
       await dao.adjustQuantity('item-1', -10);
       await dao.adjustQuantity('item-1', -5);
 
@@ -129,7 +129,7 @@ void main() {
 
   group('clearQuantityDelta', () {
     test('resets delta to 0 and sets merged quantity', () async {
-      await dao.upsert(makeItem(quantity: 100));
+      await dao.upsert(makeItem());
       await dao.adjustQuantity('item-1', -25);
 
       // Simulates ConflictResolver applying delta on top of server quantity

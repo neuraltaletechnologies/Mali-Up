@@ -55,7 +55,7 @@ void main() {
 
   group('watchAll', () {
     test('returns customers for the given business only', () async {
-      await dao.upsert(makeCustomer(id: 'c1', businessId: 'biz-1'));
+      await dao.upsert(makeCustomer(id: 'c1'));
       await dao.upsert(makeCustomer(id: 'c2', businessId: 'biz-2'));
 
       final result = await dao.watchAll('biz-1').first;
@@ -84,7 +84,7 @@ void main() {
 
   group('search', () {
     test('finds customers by partial name', () async {
-      await dao.upsert(makeCustomer(id: 'c1', name: 'Amina Saleh'));
+      await dao.upsert(makeCustomer(id: 'c1'));
       await dao.upsert(makeCustomer(id: 'c2', name: 'Juma Bakari'));
 
       final result = await dao.search('biz-1', 'amina');
@@ -93,7 +93,7 @@ void main() {
     });
 
     test('finds customers by phone number', () async {
-      await dao.upsert(makeCustomer(id: 'c1', phone: '0712345678'));
+      await dao.upsert(makeCustomer(id: 'c1'));
       await dao.upsert(makeCustomer(id: 'c2', phone: '0754000000'));
 
       final result = await dao.search('biz-1', '0754');

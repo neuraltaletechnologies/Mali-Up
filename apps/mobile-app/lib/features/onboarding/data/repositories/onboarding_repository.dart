@@ -58,7 +58,7 @@ class OnboardingRepository {
 
       final userSnap = results[0] as QuerySnapshot<Map<String, dynamic>>;
       final inviteSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
-      final memberSnap = results[2] as QuerySnapshot<Map<String, dynamic>>?;
+      final memberSnap = results[2];
 
       if (userSnap.docs.isNotEmpty) {
         final userDoc = userSnap.docs[0];
@@ -139,8 +139,6 @@ class OnboardingRepository {
           businessName: businessName,
           ownerUid: ownerUid,
           businessId: bizId,
-          inviteId: '',
-          email: '',
         );
       }
 
@@ -149,7 +147,9 @@ class OnboardingRepository {
       if (kDebugMode) {
         debugPrint('[OnboardingRepository.lookupByPhone] $e\n$st');
       }
-      return const NewUser();
+      // Rethrow so the notifier can show an error message rather than silently
+      // routing returning users into the new-account creation flow.
+      rethrow;
     }
   }
 
@@ -410,6 +410,26 @@ class OnboardingRepository {
     return '$digits@mali.up';
   }
 
+  // ─── GUARD ────────────────────────────────────────────────────────────────
+
+  /// Returns the existing `selectedBusinessId` for [uid] if the user document
+  /// already exists in Firestore, or null if this is a genuinely new user.
+  /// Used to prevent overwriting data when a returning user accidentally
+  /// reaches the new-user registration flow.
+  Future<String?> getExistingBusinessId(String uid) async {
+    try {
+      final doc = await _db.collection('users').doc(uid).get();
+      if (!doc.exists) return null;
+      final bizId = doc.data()?['selectedBusinessId'] as String?;
+      return (bizId != null && bizId.isNotEmpty) ? bizId : null;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[OnboardingRepository.getExistingBusinessId] $e');
+      }
+      return null;
+    }
+  }
+
   Future<QuerySnapshot<Map<String, dynamic>>?> _lookupTeamMemberByPhone(
     String phone,
   ) async {
@@ -420,10 +440,13 @@ class OnboardingRepository {
           .limit(1)
           .get();
     } on FirebaseException catch (e) {
-      if (e.code == 'failed-precondition') {
+      // `failed-precondition` = missing collectionGroup index.
+      // `permission-denied`   = query requires auth (user is pre-login).
+      // Both are non-fatal — skip this fallback and continue lookup.
+      if (e.code == 'failed-precondition' || e.code == 'permission-denied') {
         if (kDebugMode) {
           debugPrint(
-            '[OnboardingRepository.lookupByPhone] team_members index missing: ${e.message}',
+            '[OnboardingRepository] team_members lookup skipped (${e.code})',
           );
         }
         return null;
