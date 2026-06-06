@@ -841,7 +841,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
                   child:
                       CircularProgressIndicator(color: AppColors.navyPrimary)),
             ),
-            error: (_, __) => Padding(
+            error: (_, _) => Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
                 _tr('Could not load payments.', 'Imeshindwa kupakia malipo.'),

@@ -257,7 +257,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       ),
       body: salesAsync.when(
         loading: () => const SalesPageSkeleton(),
-        error: (_, __) => Center(
+        error: (_, _) => Center(
           child: EmptyState(
             icon: Icons.wifi_off_rounded,
             title: _tr('Could not load sales', 'Imeshindikana kupakia mauzo'),
@@ -403,7 +403,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                         padding:
                             const EdgeInsets.fromLTRB(24, 4, 24, 104),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (_, _) =>
                             const SizedBox(height: 10),
                         itemBuilder: (ctx, i) {
                           final item = filtered[i];

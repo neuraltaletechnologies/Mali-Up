@@ -85,7 +85,7 @@ void main() {
     test('count increases as entries are enqueued', () async {
       expect(await dao.watchPendingCount().first, 0);
 
-      await dao.enqueue(makeEntry(operationId: 'op-1'));
+      await dao.enqueue(makeEntry());
       expect(await dao.watchPendingCount().first, 1);
 
       await dao.enqueue(makeEntry(operationId: 'op-2'));
@@ -93,7 +93,7 @@ void main() {
     });
 
     test('completed entries are excluded from count', () async {
-      await dao.enqueue(makeEntry(operationId: 'op-1'));
+      await dao.enqueue(makeEntry());
       final rows = await dao.fetchPending(limit: 1);
       await dao.markCompleted(rows.first.id);
 
@@ -101,7 +101,7 @@ void main() {
     });
 
     test('conflict entries are included in count', () async {
-      await dao.enqueue(makeEntry(operationId: 'op-1'));
+      await dao.enqueue(makeEntry());
       final rows = await dao.fetchPending(limit: 1);
       await dao.markConflict(rows.first.id, 'server has newer version');
 
@@ -142,8 +142,8 @@ void main() {
 
   group('cancelForEntity', () {
     test('cancels all pending entries for a given entity', () async {
-      await dao.enqueue(makeEntry(operationId: 'op-1', entityId: 'inv-1'));
-      await dao.enqueue(makeEntry(operationId: 'op-2', entityId: 'inv-1'));
+      await dao.enqueue(makeEntry(entityId: 'inv-1'));
+      await dao.enqueue(makeEntry(operationId: 'op-2'));
       await dao.enqueue(makeEntry(operationId: 'op-3', entityId: 'inv-2'));
 
       await dao.cancelForEntity('inv-1');

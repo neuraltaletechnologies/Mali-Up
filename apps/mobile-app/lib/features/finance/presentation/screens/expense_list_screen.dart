@@ -143,7 +143,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen>
       body: Padding(
         padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 50),
         child: NestedScrollView(
-          headerSliverBuilder: (_, __) => [
+          headerSliverBuilder: (_, _) => [
             _buildSliverHeader(month, total, pendingCount, withReceipt, isLoading),
             SliverToBoxAdapter(child: _buildTabBar()),
           ],
@@ -389,7 +389,7 @@ class _ExpensesTab extends ConsumerWidget {
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (ctx, i) => _ExpenseCard(
                     expense: filtered[i],
                     onTap: () => onTap(filtered[i]),
@@ -1259,7 +1259,7 @@ class _RecurringTab extends ConsumerWidget {
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           itemCount: templates.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (ctx, i) => _RecurringCard(
             template: templates[i],
             onDelete: () => _deleteTemplate(ctx, ref, templates[i]),

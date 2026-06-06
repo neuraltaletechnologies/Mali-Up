@@ -26,7 +26,6 @@ const String _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 const String _sentryDist = String.fromEnvironment('SENTRY_DIST');
 const bool _sentryTestEvent = bool.fromEnvironment(
   'SENTRY_TEST_EVENT',
-  defaultValue: false,
 );
 
 Future<void> _startApp() async {

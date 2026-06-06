@@ -12,7 +12,6 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/shimmer.dart';
-import '../../../customer/domain/models/customer.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../debt/presentation/screens/debt_tracking_screen.dart';
 import '../../../finance/data/finance_providers.dart';

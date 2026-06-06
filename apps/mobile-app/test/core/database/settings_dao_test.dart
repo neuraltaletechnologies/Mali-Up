@@ -18,10 +18,10 @@ void main() {
 
   group('UserSettings', () {
     test('upsertUserSettings inserts when no row exists', () async {
-      await dao.upsertUserSettings(UserSettingsTableCompanion(
-        userId: const Value('uid-1'),
-        businessId: const Value('biz-1'),
-        language: const Value('sw'),
+      await dao.upsertUserSettings(const UserSettingsTableCompanion(
+        userId: Value('uid-1'),
+        businessId: Value('biz-1'),
+        language: Value('sw'),
       ));
 
       final result = await dao.getUserSettings();
@@ -31,15 +31,15 @@ void main() {
     });
 
     test('upsertUserSettings overwrites existing row', () async {
-      await dao.upsertUserSettings(UserSettingsTableCompanion(
-        userId: const Value('uid-1'),
-        businessId: const Value('biz-1'),
-        language: const Value('sw'),
+      await dao.upsertUserSettings(const UserSettingsTableCompanion(
+        userId: Value('uid-1'),
+        businessId: Value('biz-1'),
+        language: Value('sw'),
       ));
-      await dao.upsertUserSettings(UserSettingsTableCompanion(
-        userId: const Value('uid-1'),
-        businessId: const Value('biz-1'),
-        language: const Value('en'),
+      await dao.upsertUserSettings(const UserSettingsTableCompanion(
+        userId: Value('uid-1'),
+        businessId: Value('biz-1'),
+        language: Value('en'),
       ));
 
       final result = await dao.getUserSettings();
@@ -47,9 +47,9 @@ void main() {
     });
 
     test('updateLastSyncAt stores the timestamp', () async {
-      await dao.upsertUserSettings(UserSettingsTableCompanion(
-        userId: const Value('uid-1'),
-        businessId: const Value('biz-1'),
+      await dao.upsertUserSettings(const UserSettingsTableCompanion(
+        userId: Value('uid-1'),
+        businessId: Value('biz-1'),
       ));
       const ts = 1700000000000;
       await dao.updateLastSyncAt(ts);
@@ -59,9 +59,9 @@ void main() {
     });
 
     test('setOfflineSince and clearOfflineSince round-trip', () async {
-      await dao.upsertUserSettings(UserSettingsTableCompanion(
-        userId: const Value('uid-1'),
-        businessId: const Value('biz-1'),
+      await dao.upsertUserSettings(const UserSettingsTableCompanion(
+        userId: Value('uid-1'),
+        businessId: Value('biz-1'),
       ));
 
       const ts = 1700000000000;
@@ -73,20 +73,20 @@ void main() {
     });
 
     test('watchUserSettings emits updates reactively', () async {
-      await dao.upsertUserSettings(UserSettingsTableCompanion(
-        userId: const Value('uid-1'),
-        businessId: const Value('biz-1'),
-        language: const Value('sw'),
+      await dao.upsertUserSettings(const UserSettingsTableCompanion(
+        userId: Value('uid-1'),
+        businessId: Value('biz-1'),
+        language: Value('sw'),
       ));
 
       final stream = dao.watchUserSettings();
       final first = await stream.first;
       expect(first!.language, 'sw');
 
-      await dao.upsertUserSettings(UserSettingsTableCompanion(
-        userId: const Value('uid-1'),
-        businessId: const Value('biz-1'),
-        language: const Value('en'),
+      await dao.upsertUserSettings(const UserSettingsTableCompanion(
+        userId: Value('uid-1'),
+        businessId: Value('biz-1'),
+        language: Value('en'),
       ));
 
       final second = await stream.first;
