@@ -88,7 +88,7 @@ void main() {
     });
 
     test('excludes invoices from other businesses', () async {
-      await dao.upsert(invoice(businessId: 'biz-1'));
+      await dao.upsert(invoice());
       await dao.upsert(invoice(id: 'inv-2', businessId: 'biz-2'));
 
       final result = await dao.watchAll('biz-1').first;
@@ -111,7 +111,7 @@ void main() {
 
   group('getTotalOutstanding', () {
     test('sums total of all pending invoices', () async {
-      await dao.upsert(invoice(status: 'pending'));
+      await dao.upsert(invoice());
       await dao.upsert(invoice(id: 'inv-2', total: 250));
       await dao.upsert(invoice(id: 'inv-3', status: 'paid', total: 400));
 
@@ -128,7 +128,7 @@ void main() {
   group('getMonthlySales', () {
     test('groups invoices by YYYY-MM and sums totals', () async {
       await dao.upsert(
-        invoice(total: 100)
+        invoice()
             .copyWith(date: const Value('2025-01-10')),
       );
       await dao.upsert(

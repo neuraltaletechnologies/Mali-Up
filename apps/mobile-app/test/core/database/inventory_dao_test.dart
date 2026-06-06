@@ -66,7 +66,7 @@ void main() {
     });
 
     test('returns null for barcode in a different business', () async {
-      await dao.upsert(makeItem(businessId: 'biz-1'));
+      await dao.upsert(makeItem());
 
       final result = await dao.getByBarcode('biz-2', '1234567890');
       expect(result, isNull);
