@@ -91,7 +91,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       ),
       body: membersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
+        error: (_, _) => Center(
           child: Text(_tr('Failed to load team', 'Imeshindikana kupakia timu')),
         ),
         data: (members) {
@@ -142,7 +142,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(24, 4, 24, 120),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (_, _) =>
                             const SizedBox(height: 10),
                         itemBuilder: (ctx, i) => ListSwipeCard(
                           itemKey: ValueKey(filtered[i].id),

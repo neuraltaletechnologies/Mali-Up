@@ -20,7 +20,7 @@ void main() {
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  InvoicesTableCompanion _invoice({
+  InvoicesTableCompanion invoice({
     String id = 'inv-1',
     String businessId = 'biz-1',
     String customerId = 'cust-1',
@@ -53,7 +53,7 @@ void main() {
 
   group('upsert / getById', () {
     test('inserts a new invoice and retrieves it by id', () async {
-      await dao.upsert(_invoice());
+      await dao.upsert(invoice());
 
       final result = await dao.getById('inv-1');
       expect(result, isNotNull);
@@ -62,8 +62,8 @@ void main() {
     });
 
     test('upsert updates existing invoice on id conflict', () async {
-      await dao.upsert(_invoice());
-      await dao.upsert(_invoice(total: 250.0));
+      await dao.upsert(invoice());
+      await dao.upsert(invoice(total: 250.0));
 
       final result = await dao.getById('inv-1');
       expect(result!.total, 250.0);
@@ -77,8 +77,8 @@ void main() {
 
   group('watchAll', () {
     test('excludes soft-deleted invoices', () async {
-      await dao.upsert(_invoice(id: 'inv-1'));
-      await dao.upsert(_invoice(id: 'inv-2', isDeleted: 1));
+      await dao.upsert(invoice());
+      await dao.upsert(invoice(id: 'inv-2', isDeleted: 1));
 
       final stream = dao.watchAll('biz-1');
       final result = await stream.first;
@@ -88,8 +88,8 @@ void main() {
     });
 
     test('excludes invoices from other businesses', () async {
-      await dao.upsert(_invoice(id: 'inv-1', businessId: 'biz-1'));
-      await dao.upsert(_invoice(id: 'inv-2', businessId: 'biz-2'));
+      await dao.upsert(invoice(businessId: 'biz-1'));
+      await dao.upsert(invoice(id: 'inv-2', businessId: 'biz-2'));
 
       final result = await dao.watchAll('biz-1').first;
       expect(result.length, 1);
@@ -99,9 +99,9 @@ void main() {
 
   group('watchByStatus', () {
     test('returns only invoices with matching status', () async {
-      await dao.upsert(_invoice(id: 'inv-1', status: 'paid'));
-      await dao.upsert(_invoice(id: 'inv-2', status: 'pending'));
-      await dao.upsert(_invoice(id: 'inv-3', status: 'pending'));
+      await dao.upsert(invoice(status: 'paid'));
+      await dao.upsert(invoice(id: 'inv-2'));
+      await dao.upsert(invoice(id: 'inv-3'));
 
       final result = await dao.watchByStatus('biz-1', 'pending').first;
       expect(result.length, 2);
@@ -111,9 +111,9 @@ void main() {
 
   group('getTotalOutstanding', () {
     test('sums total of all pending invoices', () async {
-      await dao.upsert(_invoice(id: 'inv-1', status: 'pending', total: 100));
-      await dao.upsert(_invoice(id: 'inv-2', status: 'pending', total: 250));
-      await dao.upsert(_invoice(id: 'inv-3', status: 'paid', total: 400));
+      await dao.upsert(invoice(status: 'pending'));
+      await dao.upsert(invoice(id: 'inv-2', total: 250));
+      await dao.upsert(invoice(id: 'inv-3', status: 'paid', total: 400));
 
       final outstanding = await dao.getTotalOutstanding('biz-1');
       expect(outstanding, 350.0);
@@ -128,15 +128,15 @@ void main() {
   group('getMonthlySales', () {
     test('groups invoices by YYYY-MM and sums totals', () async {
       await dao.upsert(
-        _invoice(id: 'inv-1', total: 100)
+        invoice(total: 100)
             .copyWith(date: const Value('2025-01-10')),
       );
       await dao.upsert(
-        _invoice(id: 'inv-2', total: 200)
+        invoice(id: 'inv-2', total: 200)
             .copyWith(date: const Value('2025-01-25')),
       );
       await dao.upsert(
-        _invoice(id: 'inv-3', total: 500)
+        invoice(id: 'inv-3', total: 500)
             .copyWith(date: const Value('2025-02-05')),
       );
 
@@ -148,7 +148,7 @@ void main() {
 
   group('softDelete', () {
     test('marks invoice as deleted with pending_delete sync status', () async {
-      await dao.upsert(_invoice());
+      await dao.upsert(invoice());
       await dao.softDelete('inv-1');
 
       final result = await dao.getById('inv-1');
@@ -157,7 +157,7 @@ void main() {
     });
 
     test('soft-deleted invoice is excluded from watchAll', () async {
-      await dao.upsert(_invoice());
+      await dao.upsert(invoice());
       await dao.softDelete('inv-1');
 
       final result = await dao.watchAll('biz-1').first;
@@ -168,7 +168,7 @@ void main() {
   group('markSynced', () {
     test('sets syncStatus to synced and records serverUpdatedAt', () async {
       await dao.upsert(
-        _invoice(syncStatus: 'pending_create'),
+        invoice(syncStatus: 'pending_create'),
       );
 
       await dao.markSynced('inv-1', serverUpdatedAt: 9999999);
@@ -181,7 +181,7 @@ void main() {
 
   group('markConflict', () {
     test('sets syncStatus to conflict', () async {
-      await dao.upsert(_invoice(syncStatus: 'pending_update'));
+      await dao.upsert(invoice(syncStatus: 'pending_update'));
       await dao.markConflict('inv-1');
 
       final result = await dao.getById('inv-1');
@@ -191,7 +191,7 @@ void main() {
 
   group('hardDelete', () {
     test('removes invoice and its items from the database', () async {
-      await dao.upsert(_invoice());
+      await dao.upsert(invoice());
       await dao.upsertItem(InvoiceItemsTableCompanion.insert(
         id: 'item-1',
         invoiceId: 'inv-1',
@@ -210,9 +210,9 @@ void main() {
 
   group('getByCustomer', () {
     test('returns all invoices for a given customer', () async {
-      await dao.upsert(_invoice(id: 'inv-1', customerId: 'cust-A'));
-      await dao.upsert(_invoice(id: 'inv-2', customerId: 'cust-A'));
-      await dao.upsert(_invoice(id: 'inv-3', customerId: 'cust-B'));
+      await dao.upsert(invoice(customerId: 'cust-A'));
+      await dao.upsert(invoice(id: 'inv-2', customerId: 'cust-A'));
+      await dao.upsert(invoice(id: 'inv-3', customerId: 'cust-B'));
 
       final result = await dao.getByCustomer('biz-1', 'cust-A');
       expect(result.length, 2);

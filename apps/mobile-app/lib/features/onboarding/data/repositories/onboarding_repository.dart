@@ -58,7 +58,7 @@ class OnboardingRepository {
 
       final userSnap = results[0] as QuerySnapshot<Map<String, dynamic>>;
       final inviteSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
-      final memberSnap = results[2] as QuerySnapshot<Map<String, dynamic>>?;
+      final memberSnap = results[2];
 
       if (userSnap.docs.isNotEmpty) {
         final userDoc = userSnap.docs[0];
@@ -139,8 +139,6 @@ class OnboardingRepository {
           businessName: businessName,
           ownerUid: ownerUid,
           businessId: bizId,
-          inviteId: '',
-          email: '',
         );
       }
 

@@ -1084,7 +1084,7 @@ class _SuggestionList extends StatelessWidget {
                                 child: Text(
                                   isOut
                                       ? _tr('Out of stock', 'Imekwisha')
-                                      : _tr('Stock', 'Stoo') + ': $stock',
+                                      : '${_tr('Stock', 'Stoo')}: $stock',
                                   style: GoogleFonts.dmSans(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
