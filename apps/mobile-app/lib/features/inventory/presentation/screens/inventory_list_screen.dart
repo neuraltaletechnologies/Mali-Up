@@ -1,13 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
-import '../../../../shared/widgets/shimmer.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../product/domain/models/product_category.dart';
 import '../../data/inventory_providers.dart';
+import '../widgets/category_picker_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -419,332 +422,492 @@ class AddItemDialog extends ConsumerStatefulWidget {
 
 class _AddItemDialogState extends ConsumerState<AddItemDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _categoryController = TextEditingController();
-  final _skuController = TextEditingController();
-  final _currentStockController = TextEditingController();
-  final _reorderPointController = TextEditingController();
-  final _unitPriceController = TextEditingController();
-  final _unitController = TextEditingController(text: 'pcs');
-  final _supplierController = TextEditingController();
-  String _selectedCategory = 'General';
+  final _nameCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _skuCtrl = TextEditingController();
+  final _stockCtrl = TextEditingController();
+  final _reorderCtrl = TextEditingController();
+  final _priceCtrl = TextEditingController();
+  final _supplierCtrl = TextEditingController();
+
+  ProductCategory? _selectedCategory;
   String _selectedUnit = 'pcs';
   bool _isLoading = false;
 
-  final List<String> _categories = [
-    'Electronics',
-    'Clothing',
-    'Food & Beverages',
-    'Office Supplies',
-    'Tools & Equipment',
-    'Beauty & Personal Care',
-    'Home & Garden',
-    'Sports & Recreation',
-    'Books & Media',
-    'Toys & Games',
-    'Health & Medical',
-    'Automotive',
-    'Other',
-  ];
-
-  final List<String> _units = [
-    'pcs',
-    'kg',
-    'liters',
-    'boxes',
-    'bottles',
-    'bags',
-    'meters',
-    'pairs',
-    'sets',
-    'dozens',
+  static const _units = [
+    'pcs', 'kg', 'g', 'liters', 'ml',
+    'boxes', 'bottles', 'bags', 'meters', 'pairs', 'sets', 'dozens',
   ];
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _categoryController.dispose();
-    _skuController.dispose();
-    _currentStockController.dispose();
-    _reorderPointController.dispose();
-    _unitPriceController.dispose();
-    _unitController.dispose();
-    _supplierController.dispose();
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    _skuCtrl.dispose();
+    _stockCtrl.dispose();
+    _reorderCtrl.dispose();
+    _priceCtrl.dispose();
+    _supplierCtrl.dispose();
     super.dispose();
   }
 
+  InputDecoration _fieldDec({
+    required String label,
+    required IconData icon,
+    String? hint,
+    String? prefix,
+    Widget? suffix,
+  }) =>
+      InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, size: 18, color: AppColors.textMuted),
+        prefixText: prefix,
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: AppColors.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide:
+              BorderSide(color: AppColors.navyPrimary.withValues(alpha: 0.4), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+        ),
+        labelStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      );
+
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 12,
-            bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.black12,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black12, blurRadius: 20, offset: Offset(0, -4)),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              // ── Handle ─────────────────────────────────────────────────────
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(99),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _tr('Add New Item', 'Ongeza Bidhaaa Mpya'),
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      labelText: _tr('Item Name', 'Jina la Bidhaaa'),
-                      border: const OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return _tr(
-                          'Please enter item name',
-                          'Tafadhali weka jina la bidhaaa',
-                        );
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: InputDecoration(
-                      labelText: _tr('Description', 'Maelezo'),
-                      border: const OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedCategory,
-                    decoration: InputDecoration(
-                      labelText: _tr('Category', 'Kundi'),
-                      border: const OutlineInputBorder(),
-                    ),
-                    items: _categories.map((category) {
-                      return DropdownMenuItem(
-                        value: category,
-                        child: Text(category),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategory = value!;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _currentStockController,
-                          decoration: InputDecoration(
-                            labelText: _tr('Current Stock', 'Akiba ya Sasa'),
-                            border: const OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return _tr('Required', 'Inahitajika');
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _reorderPointController,
-                          decoration: InputDecoration(
-                            labelText: _tr('Reorder Point', 'Pointi ya Upya'),
-                            border: const OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return _tr('Required', 'Inahitajika');
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _unitPriceController,
-                          decoration: InputDecoration(
-                            labelText: _tr('Unit Price', 'Bei ya Kimoja'),
-                            border: const OutlineInputBorder(),
-                            prefixText: 'TZS ',
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return _tr('Required', 'Inahitajika');
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _selectedUnit,
-                          decoration: InputDecoration(
-                            labelText: _tr('Unit', 'Kimoja'),
-                            border: const OutlineInputBorder(),
-                          ),
-                          items: _units.map((unit) {
-                            return DropdownMenuItem(
-                              value: unit,
-                              child: Text(unit),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedUnit = value!;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _skuController,
-                    decoration: InputDecoration(
-                      labelText: _tr('SKU (Optional)', 'SKU (Hiari)'),
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _supplierController,
-                    decoration: InputDecoration(
-                      labelText: _tr('Supplier (Optional)', 'Mtoaji (Hiari)'),
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () => Navigator.pop(context),
-                          child: Text(_tr('Cancel', 'Ghairi')),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _addItem,
-                          child: _isLoading
-                              ? const ShimmerBox(
-                                  width: 88,
-                                  height: 14,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(999),
-                                  ),
-                                )
-                              : Text(_tr('Add Item', 'Ongeza Bidhaaa')),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+
+              // ── Header ──────────────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _tr('Add New Item', 'Ongeza Bidhaa Mpya'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded, size: 22),
+                      color: AppColors.textMuted,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.surfaceVariant,
+                        shape: const CircleBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Divider(height: 1, color: AppColors.border),
+
+              // ── Form ────────────────────────────────────────────────────────
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      24, 20, 24,
+                      MediaQuery.viewInsetsOf(context).bottom + 24,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Section: Basic info
+                        _SectionLabel(_tr('Product Details', 'Maelezo ya Bidhaa')),
+                        const SizedBox(height: 10),
+
+                        // Name
+                        TextFormField(
+                          controller: _nameCtrl,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: _fieldDec(
+                            label: _tr('Item name *', 'Jina la bidhaa *'),
+                            icon: Icons.inventory_2_outlined,
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? _tr('Name is required', 'Jina linahitajika')
+                              : null,
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Description
+                        TextFormField(
+                          controller: _descCtrl,
+                          maxLines: 2,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: _fieldDec(
+                            label: _tr(
+                                'Description (optional)', 'Maelezo (hiari)'),
+                            icon: Icons.notes_rounded,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Category — smart picker
+                        _SectionLabel(
+                            _tr('Category', 'Kategoria'),
+                            subtitle: _tr(
+                              'Loaded for your business type',
+                              'Imepakiwa kwa aina yako ya biashara',
+                            )),
+                        const SizedBox(height: 10),
+                        CategorySelectField(
+                          selected: _selectedCategory,
+                          onChanged: (cat) =>
+                              setState(() => _selectedCategory = cat),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Section: Stock
+                        _SectionLabel(_tr('Stock & Pricing', 'Hisa na Bei')),
+                        const SizedBox(height: 10),
+
+                        // Stock + Reorder row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _stockCtrl,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[0-9.]'))
+                                ],
+                                decoration: _fieldDec(
+                                  label: _tr('Current stock *', 'Hisa sasa *'),
+                                  icon: Icons.warehouse_rounded,
+                                ),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? _tr('Required', 'Inahitajika')
+                                        : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _reorderCtrl,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[0-9.]'))
+                                ],
+                                decoration: _fieldDec(
+                                  label: _tr('Reorder at *', 'Agiza upya *'),
+                                  icon: Icons.low_priority_rounded,
+                                ),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? _tr('Required', 'Inahitajika')
+                                        : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Price + Unit row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: TextFormField(
+                                controller: _priceCtrl,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[0-9.]'))
+                                ],
+                                decoration: _fieldDec(
+                                  label: _tr('Unit price *', 'Bei ya kimoja *'),
+                                  icon: Icons.payments_outlined,
+                                  prefix: 'TZS ',
+                                ),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? _tr('Required', 'Inahitajika')
+                                        : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: _UnitDropdown(
+                                value: _selectedUnit,
+                                units: _units,
+                                onChanged: (u) =>
+                                    setState(() => _selectedUnit = u),
+                                fieldDec: _fieldDec(
+                                  label: _tr('Unit', 'Kitengo'),
+                                  icon: Icons.straighten_rounded,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Section: Optional fields
+                        _SectionLabel(
+                            _tr('Optional Details', 'Maelezo ya Ziada')),
+                        const SizedBox(height: 10),
+
+                        TextFormField(
+                          controller: _skuCtrl,
+                          decoration: _fieldDec(
+                            label: _tr('SKU / Barcode', 'SKU / Baa-kodi'),
+                            icon: Icons.qr_code_rounded,
+                            hint: _tr('e.g. ABC-001', 'mfano: ABC-001'),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        TextFormField(
+                          controller: _supplierCtrl,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: _fieldDec(
+                            label:
+                                _tr('Supplier name', 'Jina la muuzaji mkuu'),
+                            icon: Icons.local_shipping_outlined,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // Save button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _save,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.navyPrimary,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: AppColors.navyPrimary,
+                                    ),
+                                  )
+                                : Text(
+                                    _tr('Add Item', 'Ongeza Bidhaa'),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  void _addItem() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
 
-      final navigator = Navigator.of(context);
-      final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
 
-      try {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) throw Exception('Not logged in');
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('Not logged in');
 
-        final repo = ref.read(contextFirestoreRepositoryProvider);
-        final ctx = await repo.resolveContextForUser(user.uid);
-        final inventoryRef = repo.scopeCollection(
-          uid: user.uid,
-          context: ctx,
-          childCollection: 'inventory_items',
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx = await repo.resolveContextForUser(user.uid);
+      final inventoryRef = repo.scopeCollection(
+        uid: user.uid,
+        context: ctx,
+        childCollection: 'inventory_items',
+      );
+
+      await inventoryRef.add({
+        'name': _nameCtrl.text.trim(),
+        'description': _descCtrl.text.trim(),
+        // Smart category — both legacy and structured fields
+        'category': _selectedCategory?.name ?? 'General',
+        'categoryId': _selectedCategory?.id ?? '',
+        'categoryName': _selectedCategory?.name ?? '',
+        'currentStock': double.tryParse(_stockCtrl.text) ?? 0,
+        'reorderPoint': double.tryParse(_reorderCtrl.text) ?? 0,
+        'unitPrice': double.tryParse(_priceCtrl.text) ?? 0,
+        'unit': _selectedUnit,
+        'sku': _skuCtrl.text.trim(),
+        'supplier': _supplierCtrl.text.trim(),
+        'isActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        navigator.pop();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+                _tr('Item added!', 'Bidhaa imeongezwa!')),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
         );
-
-        await inventoryRef.add({
-          'name': _nameController.text.trim(),
-          'description': _descriptionController.text.trim(),
-          'category': _selectedCategory,
-          'currentStock': double.tryParse(_currentStockController.text) ?? 0,
-          'reorderPoint': double.tryParse(_reorderPointController.text) ?? 0,
-          'unitPrice': double.tryParse(_unitPriceController.text) ?? 0,
-          'unit': _selectedUnit,
-          'sku': _skuController.text.trim(),
-          'supplier': _supplierController.text.trim(),
-          'isActive': true,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        if (mounted) {
-          navigator.pop();
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(_tr('Item added successfully', 'Bidhaaa imeongezwa kwa mafanikio')),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('${_tr("Error", "Kosa")}: ${e.toString()}'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
       }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('${_tr("Error", "Kosa")}: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section label helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  const _SectionLabel(this.title, {this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title.toUpperCase(),
+          style: GoogleFonts.dmSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textMuted,
+            letterSpacing: 0.6,
+          ),
+        ),
+        if (subtitle != null)
+          Text(
+            subtitle!,
+            style: GoogleFonts.dmSans(
+                fontSize: 11, color: AppColors.textMuted),
+          ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit dropdown — extracted to avoid nested DropdownButtonFormField issues
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _UnitDropdown extends StatelessWidget {
+  final String value;
+  final List<String> units;
+  final ValueChanged<String> onChanged;
+  final InputDecoration fieldDec;
+
+  const _UnitDropdown({
+    required this.value,
+    required this.units,
+    required this.onChanged,
+    required this.fieldDec,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      decoration: fieldDec,
+      isExpanded: true,
+      items: units
+          .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+          .toList(),
+      onChanged: (v) { if (v != null) onChanged(v); },
+    );
   }
 }
