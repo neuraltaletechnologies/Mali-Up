@@ -355,41 +355,15 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               // ── Search bar
               if (_searchActive) ...[
                 const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    focusNode: _searchFocus,
-                    onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                    decoration: InputDecoration(
-                      hintText: _tr(
-                        'Customer name or invoice number…',
-                        'Jina la mteja au namba ya ankara…',
-                      ),
-                      hintStyle: GoogleFonts.dmSans(
-                          fontSize: 14, color: AppColors.textMuted),
-                      prefixIcon: const Icon(Icons.search_rounded,
-                          size: 20, color: AppColors.textMuted),
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.primary, width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                    ),
+                AppSearchBar(
+                  controller: _searchCtrl,
+                  focusNode: _searchFocus,
+                  hintText: _tr(
+                    'Customer name or invoice number…',
+                    'Jina la mteja au namba ya ankara…',
                   ),
+                  onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                 ),
               ],
 

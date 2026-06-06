@@ -5,6 +5,7 @@ import '../../data/invoice_provider.dart';
 import '../../domain/models/invoice.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 
 // Global invoice provider instance
@@ -60,61 +61,76 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.navyPrimary,
+        foregroundColor: Colors.white,
+        elevation: 0,
         title: Text(
           LocalizationService.tr(
             en: AppStrings.get('invoices'),
             sw: AppStrings.get('invoices', isSwahili: true),
           ),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
         ),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-              onPressed: () => ref.read(invoiceChangeNotifierProvider).refresh(),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            onPressed: () => ref.read(invoiceChangeNotifierProvider).refresh(),
           ),
         ],
       ),
       body: Column(
         children: [
           // Search and filter section
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Search bar
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: LocalizationService.tr(
-                      en: 'Search invoices...',
-                      sw: 'Tafuta invoices...',
-                    ),
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onChanged: (value) => setState(() {}),
+          Column(
+            children: [
+              AppSearchBar(
+                controller: _searchController,
+                hintText: LocalizationService.tr(
+                  en: 'Search invoices...',
+                  sw: 'Tafuta ankara...',
                 ),
-                const SizedBox(height: 12),
-                
-                // Filter chips
-                SingleChildScrollView(
+                onChanged: (_) => setState(() {}),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              ),
+              // Filter chips
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFilterChip('all', 'All'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('pending', 'Pending'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('paid', 'Paid'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('overdue', 'Overdue'),
-                    ],
-                  ),
+                  children: [
+                    AppFilterChip(
+                      label: LocalizationService.tr(en: 'All', sw: 'Zote'),
+                      selected: _selectedFilter == 'all',
+                      onTap: () => setState(() => _selectedFilter = 'all'),
+                    ),
+                    const SizedBox(width: 8),
+                    AppFilterChip(
+                      label: LocalizationService.tr(en: 'Pending', sw: 'Zinasubiri'),
+                      selected: _selectedFilter == 'pending',
+                      onTap: () => setState(() => _selectedFilter = 'pending'),
+                    ),
+                    const SizedBox(width: 8),
+                    AppFilterChip(
+                      label: LocalizationService.tr(en: 'Paid', sw: 'Zilizolipwa'),
+                      selected: _selectedFilter == 'paid',
+                      onTap: () => setState(() => _selectedFilter = 'paid'),
+                    ),
+                    const SizedBox(width: 8),
+                    AppFilterChip(
+                      label: LocalizationService.tr(en: 'Overdue', sw: 'Zilizochelewa'),
+                      selected: _selectedFilter == 'overdue',
+                      onTap: () => setState(() => _selectedFilter = 'overdue'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
           
           // Summary cards
@@ -127,7 +143,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                     child: _buildSummaryCard(
                       'Today Sales',
                       invoiceProvider.getTodaySales(),
-                      Colors.green,
+                      AppColors.success,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -135,7 +151,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                     child: _buildSummaryCard(
                       'Outstanding',
                       invoiceProvider.getTotalOutstanding(),
-                      Colors.orange,
+                      AppColors.warning,
                     ),
                   ),
                 ],
@@ -155,29 +171,16 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
     );
   }
 
-  Widget _buildFilterChip(String value, String label) {
-    final isSelected = _selectedFilter == value;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _selectedFilter = value;
-        });
-      },
-      backgroundColor: Colors.grey[200],
-      selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
-      checkmarkColor: Theme.of(context).primaryColor,
-    );
-  }
-
-  Widget _buildSummaryCard(String title, double amount, Color color) {
+  Widget _buildSummaryCard(String title, double amount, Color accentColor) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(color: AppColors.shadowCard, blurRadius: 6, offset: Offset(0, 1)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,17 +189,17 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
             title,
             style: TextStyle(
               fontSize: 12,
-              color: color,
-              fontWeight: FontWeight.w500,
+              color: accentColor,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'TZS ${amount.toStringAsFixed(0)}',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
+              fontWeight: FontWeight.w700,
+              color: AppColors.navyPrimary,
             ),
           ),
         ],
@@ -206,45 +209,33 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
 
   Widget _buildInvoiceList(List<Invoice> invoices, bool isLoading, String? error) {
     if (isLoading) {
-      return const LoadingSkeleton();
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: SkeletonList(),
+      );
     }
 
     if (error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Error loading invoices',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              error,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => ref.read(invoiceChangeNotifierProvider).refresh(),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
+      return EmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: LocalizationService.tr(en: 'Could not load invoices', sw: 'Imeshindwa kupakia ankara'),
+        subtitle: LocalizationService.tr(en: 'Check your connection and try again.', sw: 'Angalia muunganiko wako na ujaribu tena.'),
+        actionLabel: LocalizationService.tr(en: 'Retry', sw: 'Jaribu tena'),
+        onAction: () => ref.read(invoiceChangeNotifierProvider).refresh(),
       );
     }
 
     if (invoices.isEmpty) {
       return EmptyState(
-        icon: Icons.receipt_long,
+        icon: Icons.receipt_long_rounded,
         title: LocalizationService.tr(en: 'No invoices found', sw: 'Hakuna ankara zilizopatikana'),
         subtitle: _searchController.text.isNotEmpty
-            ? LocalizationService.tr(en: 'Try adjusting your search or filters', sw: 'Jaribu kubadilisha utafutaji au vichujio vyako')
-            : LocalizationService.tr(en: 'Create your first invoice to get started', sw: 'Unda ankara yako ya kwanza kuanza'),
-        actionText: 'Create Invoice',
-        onAction: () => _navigateToCreateInvoice(),
+            ? LocalizationService.tr(en: 'Try adjusting your search or filters.', sw: 'Jaribu kubadilisha utafutaji au vichujio vyako.')
+            : LocalizationService.tr(en: 'Create your first invoice to get started.', sw: 'Unda ankara yako ya kwanza kuanza.'),
+        actionLabel: _searchController.text.isEmpty
+            ? LocalizationService.tr(en: 'Create Invoice', sw: 'Unda Ankara')
+            : null,
+        onAction: _searchController.text.isEmpty ? _navigateToCreateInvoice : null,
       );
     }
 
@@ -288,8 +279,8 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
       maxChildSize: 0.9,
       builder: (context, scrollController) => Container(
         decoration: const BoxDecoration(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          color: AppColors.background,
         ),
         child: Column(
           children: [
@@ -299,7 +290,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
               height: 4,
               margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -357,9 +348,9 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                                 if (item.description.isNotEmpty)
                                   Text(
                                     item.description,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey[600],
+                                      color: AppColors.textMuted,
                                     ),
                                   ),
                               ],
@@ -367,7 +358,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                           ),
                           Text(
                             '${item.quantity} × ${item.unitPrice.toStringAsFixed(2)}',
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: const TextStyle(color: AppColors.textSecondary),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -438,8 +429,8 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
             width: 80,
             child: Text(
               label,
-              style: TextStyle(
-                color: Colors.grey[600],
+              style: const TextStyle(
+                color: AppColors.textMuted,
                 fontSize: 14,
               ),
             ),
@@ -495,7 +486,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
               en: 'Could not open WhatsApp. Make sure it\'s installed.',
               sw: 'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
             )),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -529,7 +520,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
             content: Text(success
                 ? LocalizationService.tr(en: 'Invoice marked as paid', sw: 'Ankara imewekwa kama imelipwa')
                 : LocalizationService.tr(en: 'Could not update invoice. Please try again.', sw: 'Imeshindwa kusasisha ankara. Jaribu tena.')),
-            backgroundColor: success ? Colors.green : Colors.red,
+            backgroundColor: success ? AppColors.success : AppColors.error,
           ),
         );
       }
@@ -537,60 +528,6 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
   }
 }
 
-// --- Placeholder widgets to satisfy analyzer until shared widgets are available ---
-class LoadingSkeleton extends StatelessWidget {
-  const LoadingSkeleton({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 6,
-      itemBuilder: (context, index) => Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        height: 64,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
-  }
-}
-
-class EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String actionText;
-  final VoidCallback onAction;
-
-  const EmptyState({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.actionText,
-    required this.onAction,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: onAction, child: Text(actionText)),
-        ],
-      ),
-    );
-  }
-}
 
 class InvoiceCard extends StatelessWidget {
   final Invoice invoice;
@@ -606,21 +543,136 @@ class InvoiceCard extends StatelessWidget {
     this.onMarkPaid,
   });
 
+  Color get _stripeColor {
+    switch (invoice.status) {
+      case 'paid':    return AppColors.success;
+      case 'overdue': return AppColors.error;
+      default:        return AppColors.warning;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        title: Text(invoice.invoiceNumber),
-        subtitle: Text(invoice.customerName),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (onShare != null) IconButton(icon: const Icon(Icons.share), onPressed: onShare),
-            if (onMarkPaid != null) IconButton(icon: const Icon(Icons.check), onPressed: onMarkPaid),
-          ],
-        ),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(color: AppColors.shadowCard, blurRadius: 6, offset: Offset(0, 1)),
+            ],
+          ),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    color: _stripeColor,
+                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _stripeColor.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(Icons.receipt_long_rounded, size: 20, color: _stripeColor),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      invoice.invoiceNumber,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.navyPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  PaymentStatusChip(status: invoice.status),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                invoice.customerName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Due: ${invoice.dueDate}',
+                                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    'TZS ${invoice.total.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.navyPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (onShare != null || onMarkPaid != null) ...[
+                          const SizedBox(width: 4),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (onShare != null)
+                                IconButton(
+                                  icon: const Icon(Icons.share_rounded, size: 18, color: AppColors.textMuted),
+                                  onPressed: onShare,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                ),
+                              if (onMarkPaid != null)
+                                IconButton(
+                                  icon: const Icon(Icons.check_circle_outline_rounded, size: 18, color: AppColors.success),
+                                  onPressed: onMarkPaid,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

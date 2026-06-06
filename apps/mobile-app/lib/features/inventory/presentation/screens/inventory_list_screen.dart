@@ -100,32 +100,10 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
           ),
 
           // Search bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: _tr('Search by name, category or SKU...', 'Tafuta kwa jina, kategoria au SKU...'),
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {});
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                filled: true,
-                fillColor: AppColors.card,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              onChanged: (value) => setState(() {}),
-            ),
+          AppSearchBar(
+            controller: _searchController,
+            hintText: _tr('Search by name, category or SKU...', 'Tafuta kwa jina, kategoria au SKU...'),
+            onChanged: (_) => setState(() {}),
           ),
 
           // Inventory Summary - Compact card style
