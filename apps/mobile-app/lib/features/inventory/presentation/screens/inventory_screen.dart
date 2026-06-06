@@ -2318,7 +2318,7 @@ class _CategoryDropdownButton extends StatelessWidget {
                           ? selectedName
                           : (categories.isEmpty
                               ? _tr('No categories yet', 'Bado hakuna kategoria')
-                              : _tr('Select category', 'Chagua kategoria')),
+                              : _tr('category', 'kategoria')),
                       style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: selectedName.isNotEmpty
@@ -2414,7 +2414,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    _tr('Select Category', 'Chagua Kategoria'),
+                    _tr('Category', 'Kategoria'),
                     style: GoogleFonts.dmSans(
                       fontSize: 17, fontWeight: FontWeight.w800,
                       color: AppColors.navyPrimary,

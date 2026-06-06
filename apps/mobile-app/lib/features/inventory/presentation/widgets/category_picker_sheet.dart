@@ -135,7 +135,7 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _tr('Select Category', 'Chagua Kategoria'),
+                          _tr('Select Category', 'Kategoria'),
                           style: GoogleFonts.dmSans(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
