@@ -18,16 +18,10 @@ class OnboardingSuccessScreen extends ConsumerStatefulWidget {
       _OnboardingSuccessScreenState();
 }
 
-class _OnboardingSuccessScreenState extends ConsumerState<OnboardingSuccessScreen>
+class _OnboardingSuccessScreenState
+    extends ConsumerState<OnboardingSuccessScreen>
     with TickerProviderStateMixin {
-  late final AnimationController _checkCtrl;
-  late final AnimationController _ringCtrl;
   late final AnimationController _contentCtrl;
-
-  late final Animation<double> _checkScale;
-  late final Animation<double> _checkOpacity;
-  late final Animation<double> _ringScale;
-  late final Animation<double> _ringOpacity;
   late final Animation<double> _contentFade;
   late final Animation<Offset> _contentSlide;
 
@@ -42,57 +36,22 @@ class _OnboardingSuccessScreenState extends ConsumerState<OnboardingSuccessScree
       ),
     );
 
-    _checkCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 680),
-    );
-    _ringCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
     _contentCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
 
-    _checkScale = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _checkCtrl, curve: Curves.elasticOut),
-    );
-    _checkOpacity = CurvedAnimation(
-      parent: _checkCtrl,
-      curve: const Interval(0, 0.4),
-    );
+    _contentFade = CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOut);
+    _contentSlide =
+        Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+          CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOutCubic),
+        );
 
-    _ringScale = Tween<double>(begin: 0.6, end: 1.5).animate(
-      CurvedAnimation(parent: _ringCtrl, curve: Curves.easeOut),
-    );
-    _ringOpacity = Tween<double>(begin: 0.5, end: 0.0).animate(
-      CurvedAnimation(parent: _ringCtrl, curve: Curves.easeOut),
-    );
-
-    _contentFade = CurvedAnimation(
-      parent: _contentCtrl,
-      curve: Curves.easeOut,
-    );
-    _contentSlide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOutCubic),
-    );
-
-    _checkCtrl.forward().whenComplete(() {
-      if (mounted) {
-        _ringCtrl.forward();
-        _contentCtrl.forward();
-      }
-    });
+    _contentCtrl.forward();
   }
 
   @override
   void dispose() {
-    _checkCtrl.dispose();
-    _ringCtrl.dispose();
     _contentCtrl.dispose();
     super.dispose();
   }
@@ -256,8 +215,12 @@ class _OnboardingSuccessScreenState extends ConsumerState<OnboardingSuccessScree
                                 firstName.isNotEmpty
                                     ? OnboardingStrings.s(
                                         sw,
-                                        en: OnboardingStrings.successTitleEn(firstName),
-                                        sw: OnboardingStrings.successTitleSw(firstName),
+                                        en: OnboardingStrings.successTitleEn(
+                                          firstName,
+                                        ),
+                                        sw: OnboardingStrings.successTitleSw(
+                                          firstName,
+                                        ),
                                       )
                                     : OnboardingStrings.s(
                                         sw,
@@ -282,56 +245,16 @@ class _OnboardingSuccessScreenState extends ConsumerState<OnboardingSuccessScree
                             ),
                             const SizedBox(height: 28),
                             Center(
-                              child: SizedBox(
-                                width: 160,
-                                height: 160,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    FadeTransition(
-                                      opacity: _ringOpacity,
-                                      child: ScaleTransition(
-                                        scale: _ringScale,
-                                        child: Container(
-                                          width: 96,
-                                          height: 96,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: AppColors.yellowBrand,
-                                              width: 2,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    ScaleTransition(
-                                      scale: _checkScale,
-                                      child: FadeTransition(
-                                        opacity: _checkOpacity,
-                                        child: Container(
-                                          width: 96,
-                                          height: 96,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.yellowBrand,
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: AppColors.yellowBrand.withValues(alpha: 0.38),
-                                                blurRadius: 32,
-                                                spreadRadius: 4,
-                                              ),
-                                            ],
-                                          ),
-                                          child: const Icon(
-                                            Icons.check_rounded,
-                                            size: 52,
-                                            color: AppColors.navyPrimary,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                              child: Container(
+                                width: 96,
+                                height: 96,
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.border,
+                                    width: 1.5,
+                                  ),
                                 ),
                               ),
                             ),
@@ -386,13 +309,16 @@ class _OnboardingSuccessScreenState extends ConsumerState<OnboardingSuccessScree
                                   backgroundColor: AppColors.navyPrimary,
                                   foregroundColor: Colors.white,
                                   elevation: 4,
-                                  shadowColor: AppColors.navyPrimary.withValues(alpha: 0.3),
+                                  shadowColor: AppColors.navyPrimary.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   minimumSize: const Size.fromHeight(52),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                onPressed: () => context.go(AppRoutes.dashboard),
+                                onPressed: () =>
+                                    context.go(AppRoutes.dashboard),
                                 child: Text(
                                   OnboardingStrings.s(
                                     sw,
@@ -490,8 +416,11 @@ class _BusinessReadyCard extends StatelessWidget {
               color: AppColors.navyPrimary,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.storefront_rounded,
-                color: AppColors.yellowBrand, size: 22),
+            child: const Icon(
+              Icons.storefront_rounded,
+              color: AppColors.yellowBrand,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -510,7 +439,9 @@ class _BusinessReadyCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  isSwahili ? 'Eneo lako liko tayari' : 'Your workspace is ready',
+                  isSwahili
+                      ? 'Eneo lako liko tayari'
+                      : 'Your workspace is ready',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textMuted,

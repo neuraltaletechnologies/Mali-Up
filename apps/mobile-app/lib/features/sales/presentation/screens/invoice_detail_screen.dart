@@ -64,7 +64,8 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   bool get _isQuotation =>
       (_inv['type'] ?? '').toString().toLowerCase() == 'quotation';
-  double get _total => parseNumericAmount(_inv['totalAmount']);
+  double get _total =>
+      parseNumericAmount(_inv['totalAmount'] ?? _inv['amount']);
   double get _subtotal => parseNumericAmount(_inv['subtotal']);
   double get _discount => parseNumericAmount(_inv['discountAmount']);
   double get _vat => parseNumericAmount(_inv['vatAmount']);
@@ -84,9 +85,23 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   List<Map<String, dynamic>> get _lineItems {
     final raw = _inv['lineItems'];
-    if (raw is List) return raw.whereType<Map<String, dynamic>>().toList();
+    if (raw is List && raw.isNotEmpty) {
+      return raw.whereType<Map<String, dynamic>>().toList();
+    }
     final fallback = _inv['items'];
-    if (fallback is List) return fallback.whereType<Map<String, dynamic>>().toList();
+    if (fallback is List) {
+      // Normalize quick-sale item keys ('name', 'total') to full-invoice keys
+      return fallback.whereType<Map<String, dynamic>>().map((item) {
+        return {
+          'productName': item['productName'] ?? item['name'] ?? '',
+          'qty': item['qty'] ?? item['quantity'] ?? 1,
+          'unitPrice': item['unitPrice'],
+          'lineTotal': item['lineTotal'] ?? item['total'],
+          'unit': item['unit'] ?? '',
+          'productType': item['productType'] ?? '',
+        };
+      }).toList();
+    }
     return [];
   }
 
@@ -150,7 +165,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => _RecordPaymentSheet(
-        outstanding: _total,
+        outstanding: _outstanding,
         invoiceId: _inv['id'] as String,
       ),
     );
@@ -943,7 +958,7 @@ class _PaymentInfoCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.navyPrimary.withOpacity(0.06),
+              color: AppColors.navyPrimary.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.payments_rounded,
@@ -1160,13 +1175,13 @@ class _ActionTile extends StatelessWidget {
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: destructive
-                ? AppColors.error.withOpacity(0.05)
-                : color.withOpacity(0.06),
+                ? AppColors.error.withValues(alpha: 0.05)
+                : color.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
                 color: destructive
-                    ? AppColors.error.withOpacity(0.2)
-                    : color.withOpacity(0.15)),
+                    ? AppColors.error.withValues(alpha: 0.2)
+                    : color.withValues(alpha: 0.15)),
           ),
           child: Row(
             children: [

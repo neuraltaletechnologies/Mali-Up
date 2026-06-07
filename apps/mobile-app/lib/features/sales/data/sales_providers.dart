@@ -32,6 +32,14 @@ final salesInvoiceListProvider = StreamProvider<List<Map<String, dynamic>>>((ref
       .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
 });
 
+/// Reads the invoice total from either the quick-sale field ('amount') or the
+/// full-invoice field ('totalAmount'), whichever is present and non-zero.
+double readInvoiceTotal(Map<String, dynamic> item) {
+  final a = parseNumericAmount(item['totalAmount']);
+  if (a > 0) return a;
+  return parseNumericAmount(item['amount']);
+}
+
 double parseNumericAmount(Object? value) {
   if (value == null) return 0;
   if (value is num) return value.toDouble();

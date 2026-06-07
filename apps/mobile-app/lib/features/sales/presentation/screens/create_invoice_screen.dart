@@ -239,6 +239,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         'vatApplied': _applyVat,
         'vatAmount': _vatAmount,
         'totalAmount': _grandTotal,
+        'amount': _grandTotal,
         'paymentMethod': _payMethod.name,
         if (_payMethod == _PayMethod.mpesa && _mpesaRef.isNotEmpty)
           'mpesaReference': _mpesaRef,
@@ -287,7 +288,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     for (final item in _items.where((i) => i.productId.isNotEmpty)) {
       final docRef = invCol.doc(item.productId);
       batch.update(docRef, {
-        'stock': FieldValue.increment(-item.qty),
+        'currentStock': FieldValue.increment(-item.qty),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }
