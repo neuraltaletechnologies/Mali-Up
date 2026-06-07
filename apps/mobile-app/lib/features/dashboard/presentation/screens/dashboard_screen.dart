@@ -35,6 +35,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   int _entryRewardTrigger = 0;
   bool _showEntryReward = false;
+  bool _showHeavyContent = false;
   Timer? _clockTimer;
   Future<Map<String, dynamic>?> _profileFuture = Future.value();
 
@@ -45,6 +46,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (!mounted) return;
       setState(() {
         _profileFuture = _fetchUserProfile();
+        _showHeavyContent = true;
       });
       _showFirstEntryRewardIfNeeded();
       _checkWebsiteInterestNudge();
