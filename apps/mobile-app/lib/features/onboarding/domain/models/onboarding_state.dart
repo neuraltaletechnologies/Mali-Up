@@ -1,27 +1,24 @@
-// Immutable state for the 7-screen onboarding flow.
+// Immutable state for the onboarding flow.
 //
 // Written as a hand-rolled copyWith class so it compiles without build_runner.
-// To migrate to code generation later:
-//   1. Add freezed_annotation + freezed + build_runner to pubspec.yaml
-//   2. Annotate with @freezed and add the part directive
-//   3. Run: flutter pub run build_runner build --delete-conflicting-outputs
 
 import '../../../../core/services/localization_service.dart';
 
 // ─── STEP ENUM ────────────────────────────────────────────────────────────────
 
-/// Each value maps to one screen in the 7-step flow.
+/// Each value maps to one screen in the onboarding flow.
 /// The [stepIndex] drives the GoRouter redirect guard — a user cannot jump
 /// ahead of the step they have legitimately reached.
 enum OnboardingStep {
-  welcome(0),        // Screen 1 — welcome + language picker
-  phoneEntry(1),     // Screen 2 — phone number entry
-  otpVerify(2),      // Screen 3 — OTP verification
-  returningUser(3),  // Screen 4A — returning user detected
-  newUserInfo(3),    // Screen 4B — new user personal info (same guard index as 4A)
-  businessDetails(4),// Screen 5 — business details + personalised greeting
-  passwordPin(5),    // Screen 6 — password + 4-digit PIN
-  success(6);        // Screen 7 — success + dashboard entry
+  welcome(0),          // Screen 1 — language picker
+  intro(1),            // Screen 2 — app intro slides
+  phoneEntry(2),       // Screen 3 — phone number entry + lookup
+  pinLogin(3),         // Screen 4A — existing user PIN login
+  teamMemberSetup(3),  // Screen 4B — team member first-time PIN setup
+  newUserInfo(3),      // Screen 4C — new user personal info
+  businessDetails(4),  // Screen 5 — business details
+  pinSetup(5),         // Screen 6 — set + confirm 4-digit PIN
+  success(6);          // Screen 7 — success + dashboard entry
 
   const OnboardingStep(this.stepIndex);
 
@@ -37,34 +34,39 @@ class OnboardingState {
     this.currentStep = OnboardingStep.welcome,
     this.language = AppLanguage.english,
 
-    // Screen 2 — Phone
+    // Screen 3 — Phone
     this.phone = '',
-    this.verificationId = '',
-    this.resendToken,
 
-    // Screen 3 — OTP
-    this.otpAttempts = 0,
-    this.isOtpLocked = false,
-    this.resendCooldownSeconds = 0,
-
-    // Screen 4A/4B — User detection
+    // Screen 4A — Existing user PIN login
     this.isReturningUser = false,
     this.existingUserId = '',
 
-    // Screen 4B — Personal info
+    // Screen 4B — Team member setup
+    this.isTeamMember = false,
+    this.teamMemberId = '',
+    this.teamOwnerUid = '',
+    this.inviteId = '',
+    this.memberEmail = '',
+
+    // Screen 4A/4B/4C — user profile
     this.firstName = '',
     this.lastName = '',
     this.city = '',
     this.role = '',
-
-    // Screen 5 — Business details
     this.businessName = '',
     this.businessType = '',
     this.businessId = '',
+    this.businessCountry = 'TZ',
+    this.businessRegion = '',
+    this.businessDistrict = '',
+    this.email = '',
+    this.websiteUrl = '',
+    this.hasWebsite = false,
+    this.websiteInterest = false,
 
-    // Screen 6 — Security
-    this.password = '',
+    // Screen 6 — PIN setup
     this.pin = '',
+    this.confirmPin = '',
 
     // Async / UI
     this.isLoading = false,
@@ -78,42 +80,50 @@ class OnboardingState {
   final OnboardingStep currentStep;
   final AppLanguage language;
 
-  // ── Screen 2 ──────────────────────────────────────────────────────────────
-  final String phone;
-  final String verificationId;
-  final int? resendToken;
-
   // ── Screen 3 ──────────────────────────────────────────────────────────────
-  final int otpAttempts;
-  final bool isOtpLocked;
+  final String phone;
 
-  /// Seconds remaining before the resend button becomes active (0 = ready).
-  final int resendCooldownSeconds;
-
-  // ── Screen 4A/4B ──────────────────────────────────────────────────────────
+  // ── Screen 4A — existing user ─────────────────────────────────────────────
   final bool isReturningUser;
   final String existingUserId;
 
-  // ── Screen 4B ─────────────────────────────────────────────────────────────
+  // ── Screen 4B — team member ───────────────────────────────────────────────
+  final bool isTeamMember;
+
+  /// Firestore document ID in the `team_members` subcollection.
+  final String teamMemberId;
+
+  /// UID of the business owner who added this team member.
+  final String teamOwnerUid;
+
+  /// Document ID in the top-level `pendingInvites` collection (empty if found
+  /// via legacy `team_members` collectionGroup).
+  final String inviteId;
+
+  /// Email stored on the invite — used in PIN recovery flow.
+  final String memberEmail;
+
+  // ── Profile fields (populated by lookup or entered by new user) ───────────
   final String firstName;
   final String lastName;
-
-  /// Used in both `users` and `businesses` Firestore documents.
   final String city;
-
-  /// E.g. "Owner", "Manager" — stored as `role` in Firestore.
   final String role;
 
   // ── Screen 5 ──────────────────────────────────────────────────────────────
   final String businessName;
   final String businessType;
-
-  /// Populated after [OnboardingService.saveBusinessProfile] returns.
   final String businessId;
+  final String businessCountry;  // ISO-2 code, default 'TZ'
+  final String businessRegion;
+  final String businessDistrict;
+  final String email;
+  final String websiteUrl;
+  final bool hasWebsite;
+  final bool websiteInterest;
 
   // ── Screen 6 ──────────────────────────────────────────────────────────────
-  final String password;
   final String pin;
+  final String confirmPin;
 
   // ── Async / UI ────────────────────────────────────────────────────────────
   final bool isLoading;
@@ -142,13 +152,13 @@ class OnboardingState {
     OnboardingStep? currentStep,
     AppLanguage? language,
     String? phone,
-    String? verificationId,
-    int? resendToken,
-    int? otpAttempts,
-    bool? isOtpLocked,
-    int? resendCooldownSeconds,
     bool? isReturningUser,
     String? existingUserId,
+    bool? isTeamMember,
+    String? teamMemberId,
+    String? teamOwnerUid,
+    String? inviteId,
+    String? memberEmail,
     String? firstName,
     String? lastName,
     String? city,
@@ -156,8 +166,15 @@ class OnboardingState {
     String? businessName,
     String? businessType,
     String? businessId,
-    String? password,
+    String? businessCountry,
+    String? businessRegion,
+    String? businessDistrict,
+    String? email,
+    String? websiteUrl,
+    bool? hasWebsite,
+    bool? websiteInterest,
     String? pin,
+    String? confirmPin,
     bool? isLoading,
     // Use clearError: true to set errorMessage to null.
     String? errorMessage,
@@ -168,14 +185,13 @@ class OnboardingState {
       currentStep: currentStep ?? this.currentStep,
       language: language ?? this.language,
       phone: phone ?? this.phone,
-      verificationId: verificationId ?? this.verificationId,
-      resendToken: resendToken ?? this.resendToken,
-      otpAttempts: otpAttempts ?? this.otpAttempts,
-      isOtpLocked: isOtpLocked ?? this.isOtpLocked,
-      resendCooldownSeconds:
-          resendCooldownSeconds ?? this.resendCooldownSeconds,
       isReturningUser: isReturningUser ?? this.isReturningUser,
       existingUserId: existingUserId ?? this.existingUserId,
+      isTeamMember: isTeamMember ?? this.isTeamMember,
+      teamMemberId: teamMemberId ?? this.teamMemberId,
+      teamOwnerUid: teamOwnerUid ?? this.teamOwnerUid,
+      inviteId: inviteId ?? this.inviteId,
+      memberEmail: memberEmail ?? this.memberEmail,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       city: city ?? this.city,
@@ -183,8 +199,15 @@ class OnboardingState {
       businessName: businessName ?? this.businessName,
       businessType: businessType ?? this.businessType,
       businessId: businessId ?? this.businessId,
-      password: password ?? this.password,
+      businessCountry: businessCountry ?? this.businessCountry,
+      businessRegion: businessRegion ?? this.businessRegion,
+      businessDistrict: businessDistrict ?? this.businessDistrict,
+      email: email ?? this.email,
+      websiteUrl: websiteUrl ?? this.websiteUrl,
+      hasWebsite: hasWebsite ?? this.hasWebsite,
+      websiteInterest: websiteInterest ?? this.websiteInterest,
       pin: pin ?? this.pin,
+      confirmPin: confirmPin ?? this.confirmPin,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       isComplete: isComplete ?? this.isComplete,
@@ -198,12 +221,13 @@ class OnboardingState {
         other.currentStep == currentStep &&
         other.language == language &&
         other.phone == phone &&
-        other.verificationId == verificationId &&
-        other.otpAttempts == otpAttempts &&
-        other.isOtpLocked == isOtpLocked &&
-        other.resendCooldownSeconds == resendCooldownSeconds &&
         other.isReturningUser == isReturningUser &&
         other.existingUserId == existingUserId &&
+        other.isTeamMember == isTeamMember &&
+        other.teamMemberId == teamMemberId &&
+        other.teamOwnerUid == teamOwnerUid &&
+        other.inviteId == inviteId &&
+        other.memberEmail == memberEmail &&
         other.firstName == firstName &&
         other.lastName == lastName &&
         other.city == city &&
@@ -211,8 +235,15 @@ class OnboardingState {
         other.businessName == businessName &&
         other.businessType == businessType &&
         other.businessId == businessId &&
-        other.password == password &&
+        other.businessCountry == businessCountry &&
+        other.businessRegion == businessRegion &&
+        other.businessDistrict == businessDistrict &&
+        other.email == email &&
+        other.websiteUrl == websiteUrl &&
+        other.hasWebsite == hasWebsite &&
+        other.websiteInterest == websiteInterest &&
         other.pin == pin &&
+        other.confirmPin == confirmPin &&
         other.isLoading == isLoading &&
         other.errorMessage == errorMessage &&
         other.isComplete == isComplete;
@@ -220,11 +251,13 @@ class OnboardingState {
 
   @override
   int get hashCode => Object.hashAll([
-        currentStep, language, phone, verificationId,
-        otpAttempts, isOtpLocked, resendCooldownSeconds,
+        currentStep, language, phone,
         isReturningUser, existingUserId,
+        isTeamMember, teamMemberId, teamOwnerUid, inviteId, memberEmail,
         firstName, lastName, city, role,
         businessName, businessType, businessId,
-        password, pin, isLoading, errorMessage, isComplete,
+        businessCountry, businessRegion, businessDistrict, email,
+        websiteUrl, hasWebsite, websiteInterest,
+        pin, confirmPin, isLoading, errorMessage, isComplete,
       ]);
 }

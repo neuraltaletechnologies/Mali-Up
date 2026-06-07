@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,18 +9,17 @@ import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
-import 'mali_components.dart';
+import '../../features/onboarding/providers/onboarding_notifier.dart';
 
-
-class MainShellPage extends StatefulWidget {
+class MainShellPage extends ConsumerStatefulWidget {
   final Widget child;
   const MainShellPage({super.key, required this.child});
 
   @override
-  State<MainShellPage> createState() => _MainShellPageState();
+  ConsumerState<MainShellPage> createState() => _MainShellPageState();
 }
 
-class _MainShellPageState extends State<MainShellPage> with SingleTickerProviderStateMixin {
+class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTickerProviderStateMixin {
   User? _currentUser;
   late Future<Map<String, dynamic>?> _profileFuture;
   late final VoidCallback _languageListener;
@@ -161,6 +161,16 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
     rootContext.go(route);
   }
 
+  Future<void> _switchAccountAndSignOut(BuildContext dialogContext) async {
+    Navigator.of(dialogContext).pop();
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
+    await FirebaseAuth.instance.signOut();
+    ref.read(onboardingNotifierProvider.notifier).reset();
+    if (!mounted) return;
+    context.go(AppRoutes.phone, extra: {'switchAccount': true});
+  }
+
   Future<void> _openNavigationPanel({
     required BuildContext context,
     required String location,
@@ -209,17 +219,17 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                       topRight: Radius.circular(24),
                       bottomRight: Radius.circular(24),
                     ),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.08)),
+                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.12)),
                     boxShadow: AppTheme.modalShadow,
                   ),
                   child: Column(
                     children: [
-                      // Profile Header — glass
+                      // Profile Header — blue and white
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.05),
+                          color: AppColors.secondary,
                           border: Border(
-                            bottom: BorderSide(color: AppColors.primary.withValues(alpha: 0.08)),
+                            bottom: BorderSide(color: AppColors.secondary.withValues(alpha: 0.18)),
                           ),
                           borderRadius: const BorderRadius.only(topRight: Radius.circular(24)),
                         ),
@@ -236,12 +246,12 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                                       width: 52,
                                       height: 52,
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary,
+                                        color: Colors.white,
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 2),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.28), width: 2),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: AppColors.primary.withValues(alpha: 0.25),
+                                            color: AppColors.secondary.withValues(alpha: 0.25),
                                             blurRadius: 12,
                                             offset: const Offset(0, 4),
                                           ),
@@ -251,7 +261,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                                         child: Text(
                                           profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
                                           style: const TextStyle(
-                                            color: Colors.white,
+                                            color: AppColors.secondary,
                                             fontSize: 22,
                                             fontWeight: FontWeight.w800,
                                           ),
@@ -268,7 +278,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
-                                              color: AppColors.secondary,
+                                              color: Colors.white,
                                               fontSize: 16,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -279,7 +289,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
-                                              color: AppColors.textMuted,
+                                              color: Colors.white70,
                                               fontSize: 12,
                                               fontWeight: FontWeight.w400,
                                             ),
@@ -301,19 +311,19 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: AppColors.yellowBrand.withValues(alpha: 0.12),
+                                        color: Colors.white.withValues(alpha: 0.14),
                                         borderRadius: BorderRadius.circular(999),
-                                        border: Border.all(color: AppColors.yellowBrand.withValues(alpha: 0.4)),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.stars_rounded, size: 12, color: AppColors.yellowBrand),
+                                            const Icon(Icons.stars_rounded, size: 12, color: Colors.white),
                                           const SizedBox(width: 4),
                                           Text(
                                             _tr('Free', 'Bure'),
                                             style: const TextStyle(
-                                              color: AppColors.yellowBrand,
+                                                color: Colors.white,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -325,9 +335,9 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(alpha: 0.08),
+                                        color: Colors.white,
                                         borderRadius: BorderRadius.circular(999),
-                                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -335,13 +345,13 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                                           const Icon(
                                             Icons.business_center_rounded,
                                             size: 12,
-                                            color: AppColors.primary,
+                                            color: AppColors.secondary,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
                                             _tr('Business', 'Biashara'),
                                             style: const TextStyle(
-                                              color: AppColors.primary,
+                                              color: AppColors.secondary,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -363,7 +373,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                           children: [
                             _DrawerItemLight(
                               icon: Icons.grid_view_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Hali ya biashara', 'Hali ya biashara'),
                               semanticsLabel: _tr('Dashboard, business overview', 'Hali ya biashara, muhtasari wa biashara'),
                               selected: isDashboard,
@@ -372,7 +382,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
                             _DrawerItemLight(
                               icon: Icons.receipt_long_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Tuma ankara', 'Tuma ankara'),
                               semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
                               selected: _isSelected(location, AppRouter.salesPath),
@@ -380,15 +390,15 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             ),
                             _DrawerItemLight(
                               icon: Icons.inventory_2_rounded,
-                              iconColor: AppColors.primary,
-                              label: _tr('Hisa zangu', 'Hisa zangu'),
-                              semanticsLabel: _tr('My stock and inventory', 'Hisa zangu, usimamizi wa bidhaa'),
+                              iconColor: AppColors.secondary,
+                              label: _tr('Bidhaa zangu', 'Bidhaa zangu'),
+                              semanticsLabel: _tr('My stock and inventory', 'Bidhaa zangu, usimamizi wa bidhaaa'),
                               selected: _isSelected(location, AppRouter.inventoryPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
                             ),
                             _DrawerItemLight(
                               icon: Icons.people_alt_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Wateja wangu', 'Wateja wangu'),
                               semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
                               selected: _isSelected(location, AppRouter.crmPath),
@@ -397,7 +407,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
                             _DrawerItemLight(
                               icon: Icons.account_balance_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Madeni', 'Madeni'),
                               semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
                               selected: _isSelected(location, AppRouter.debtPath),
@@ -405,7 +415,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             ),
                             _DrawerItemLight(
                               icon: Icons.payments_outlined,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Gharama zangu', 'Gharama zangu'),
                               semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
                               selected: _isSelected(location, AppRouter.expensesPath),
@@ -413,16 +423,24 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             ),
                             _DrawerItemLight(
                               icon: Icons.account_balance_wallet_outlined,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
                               semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
                               selected: _isSelected(location, AppRouter.cashFlowPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
                             ),
+                            _DrawerItemLight(
+                              icon: Icons.bar_chart_rounded,
+                              iconColor: AppColors.secondary,
+                              label: _tr('Ripoti za Fedha', 'Ripoti za Fedha'),
+                              semanticsLabel: _tr('Financial reports — P&L, Balance Sheet, VAT', 'Ripoti za fedha — P&L, Mizania, VAT'),
+                              selected: _isSelected(location, AppRouter.reportsPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.reportsPath),
+                            ),
                             _DrawerSectionLabel(label: _tr('TEAM', 'TIMU')),
                             _DrawerItemLight(
                               icon: Icons.group_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('My Team', 'Timu yangu'),
                               semanticsLabel: _tr('Team and role management', 'Timu yangu, usimamizi wa majukumu'),
                               selected: _isSelected(location, AppRouter.teamPath),
@@ -431,7 +449,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
                             _DrawerItemLight(
                               icon: Icons.storefront_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Simamia Biashara', 'Simamia Biashara'),
                               semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
                               selected: _isSelected(location, AppRouter.businessesPath),
@@ -439,66 +457,11 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
                             ),
                             _DrawerItemLight(
                               icon: Icons.settings_rounded,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.secondary,
                               label: _tr('Mipangilio', 'Mipangilio'),
                               semanticsLabel: _tr('App settings', 'Mipangilio ya programu'),
                               selected: _isSelected(location, AppRouter.settingsPath),
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Sign Out Button
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.fromLTRB(12, 12, 12, MediaQuery.of(dialogContext).padding.bottom + 16),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.04),
-                          borderRadius: const BorderRadius.only(
-                            bottomRight: Radius.circular(24),
-                          ),
-                          border: Border(
-                            top: BorderSide(color: AppColors.primary.withValues(alpha: 0.08)),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Semantics(
-                              button: true,
-                              label: _tr('Sign out from Mali App', 'Toka, logout from Mali App'),
-                              child: SizedBox(
-                                height: 48,
-                                child: Material(
-                                  type: MaterialType.transparency,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.loginPath),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.error.withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            _tr('Sign Out', 'Toka'),
-                                            style: const TextStyle(
-                                              color: AppColors.error,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
                             ),
                           ],
                         ),
@@ -535,7 +498,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
       ),
       _NavDestination(
         route: AppRouter.inventoryPath,
-        label: _tr('Stock', 'Hisa'),
+        label: _tr('Stock', 'Bidhaa'),
         icon: Icons.inventory_2_outlined,
         activeIcon: Icons.inventory_2_rounded,
       ),
@@ -559,7 +522,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
             ? (profile?['name'] as String).trim()
             : ((user?.displayName?.trim().isNotEmpty ?? false)
                 ? user!.displayName!.trim()
-                : _tr('Mali App User', 'Mtumiaji wa Mali App'));
+                : _tr('Mali Up User', 'Mtumiaji wa Mali Up'));
 
     final authPhone = user?.phoneNumber?.trim();
     final profilePhone = (profile?['phone'] as String?)?.trim();
@@ -586,15 +549,10 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     final currentUser = _currentUser;
-    final isDashboard = _isSelected(location, AppRouter.dashboardPath);
 
     return FutureBuilder<Map<String, dynamic>?>(
       future: _profileFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done && snapshot.data == null) {
-          return const SkeletonScreen(hasHeader: false, listItems: 6);
-        }
-
         final profileData = snapshot.data;
         final profile = _buildProfileData(currentUser, profileData);
         final businesses = _businessesFromProfile(profileData);
@@ -662,14 +620,7 @@ class _MainShellPageState extends State<MainShellPage> with SingleTickerProvider
               ),
             ),
           ),
-          body: Padding(
-            padding: EdgeInsets.only(top: isDashboard ? 0 : 50 + MediaQuery.of(context).padding.top),
-            child: Column(
-              children: [
-                Expanded(child: widget.child),
-              ],
-            ),
-          ),
+          body: widget.child,
           bottomNavigationBar: SafeArea(
             bottom: false,
             child: Padding(
@@ -811,6 +762,17 @@ class _FinanceContextSwitcher extends StatelessWidget {
             : 'Business Context';
   }
 
+  /// Returns the first meaningful word for compact display in the navbar.
+  /// e.g. "Neuraltale Electronics Ltd" → "Neuraltale"
+  ///      "AB Shop" → "AB Shop" (first word is too short, keep two words)
+  static String _shortName(String name) {
+    final words = name.trim().split(RegExp(r'\s+'));
+    if (words.isEmpty) return name;
+    final first = words.first;
+    if (first.length >= 4 || words.length == 1) return first;
+    return words.take(2).join(' ');
+  }
+
   Future<void> _openBusinessSwitcherSheet(
     BuildContext context,
     String? selectedBusinessId,
@@ -925,9 +887,8 @@ class _FinanceContextSwitcher extends StatelessWidget {
         }
       }
     }
-    final label = (selectedBusiness?['name'] as String?)?.trim().isNotEmpty == true
-        ? (selectedBusiness!['name'] as String).trim()
-        : tr('Business', 'Biashara');
+    final rawName = (selectedBusiness?['name'] as String?)?.trim() ?? '';
+    final label = rawName.isNotEmpty ? _shortName(rawName) : tr('Business', 'Biashara');
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -1009,7 +970,7 @@ class _DrawerItemLight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const activeColor = AppColors.primary;
+    const activeColor = AppColors.secondary;
 
     return Semantics(
       button: true,
@@ -1027,10 +988,10 @@ class _DrawerItemLight extends StatelessWidget {
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: selected ? activeColor.withValues(alpha: 0.07) : Colors.transparent,
+                color: selected ? activeColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 border: selected
-                    ? const Border(left: BorderSide(color: AppColors.primary, width: 3))
+                    ? Border(left: BorderSide(color: Colors.white.withValues(alpha: 0.7), width: 3))
                     : null,
               ),
               padding: EdgeInsets.only(left: selected ? 9 : 12, right: 16),
@@ -1041,14 +1002,14 @@ class _DrawerItemLight extends StatelessWidget {
                     height: 34,
                     decoration: BoxDecoration(
                       color: selected
-                          ? activeColor.withValues(alpha: 0.12)
-                          : iconColor.withValues(alpha: 0.09),
+                          ? Colors.white.withValues(alpha: 0.16)
+                          : AppColors.secondary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       icon,
                       size: 17,
-                      color: selected ? activeColor : iconColor,
+                      color: selected ? Colors.white : AppColors.secondary,
                     ),
                   ),
                   const SizedBox(width: 13),
@@ -1056,7 +1017,7 @@ class _DrawerItemLight extends StatelessWidget {
                     child: Text(
                       label,
                       style: TextStyle(
-                        color: selected ? activeColor : AppColors.textPrimary,
+                        color: selected ? Colors.white : AppColors.secondary,
                         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                         fontSize: 14,
                         letterSpacing: -0.1,
@@ -1068,7 +1029,7 @@ class _DrawerItemLight extends StatelessWidget {
                       width: 6,
                       height: 6,
                       decoration: const BoxDecoration(
-                        color: activeColor,
+                        color: Colors.white,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -1098,7 +1059,7 @@ class _DrawerSectionLabel extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: AppColors.textMuted,
+                color: AppColors.secondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,

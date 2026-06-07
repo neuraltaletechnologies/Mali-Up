@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/team_providers.dart';
@@ -58,16 +60,33 @@ class TeamScreen extends ConsumerStatefulWidget {
 
 class _TeamScreenState extends ConsumerState<TeamScreen> {
   _TeamFilter _filter = _TeamFilter.all;
+  final _searchCtrl = TextEditingController();
 
-  List<TeamMember> _applyFilter(List<TeamMember> all) => switch (_filter) {
-        _TeamFilter.all => all,
-        _TeamFilter.active =>
-          all.where((m) => m.status == 'active').toList(),
-        _TeamFilter.pending =>
-          all.where((m) => m.status == 'pending').toList(),
-        _TeamFilter.suspended =>
-          all.where((m) => m.status == 'suspended').toList(),
-      };
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<TeamMember> _applyFilter(List<TeamMember> all) {
+    final query = _searchCtrl.text.toLowerCase().trim();
+    var result = switch (_filter) {
+      _TeamFilter.all => all,
+      _TeamFilter.active => all.where((m) => m.status == 'active').toList(),
+      _TeamFilter.pending => all.where((m) => m.status == 'pending').toList(),
+      _TeamFilter.suspended =>
+        all.where((m) => m.status == 'suspended').toList(),
+    };
+    if (query.isNotEmpty) {
+      result = result
+          .where((m) =>
+              m.name.toLowerCase().contains(query) ||
+              m.email.toLowerCase().contains(query) ||
+              m.phone.contains(query))
+          .toList();
+    }
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +108,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       ),
       body: membersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
+        error: (_, _) => Center(
           child: Text(_tr('Failed to load team', 'Imeshindikana kupakia timu')),
         ),
         data: (members) {
@@ -109,7 +128,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 66, 24, 0),
                 child: Text(
                   _tr('My Team', 'Timu Yangu'),
                   style: GoogleFonts.dmSans(
@@ -125,14 +144,20 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _StatsCard(members: members),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
+              // Search bar
+              AppSearchBar(
+                controller: _searchCtrl,
+                hintText: _tr('Search by name, email…', 'Tafuta kwa jina, barua pepe…'),
+                onChanged: (_) => setState(() {}),
+              ),
               // Filter pills
               _FilterPills(
                 selected: _filter,
                 counts: counts,
                 onSelect: (f) => setState(() => _filter = f),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               // List
               Expanded(
                 child: filtered.isEmpty
@@ -140,12 +165,16 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(24, 4, 24, 120),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (ctx, i) => _MemberCard(
-                          member: filtered[i],
-                          onTap: () =>
-                              _showMemberSheet(context, filtered[i]),
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (ctx, i) => ListSwipeCard(
+                          itemKey: ValueKey(filtered[i].id),
+                          onEdit: () => _showMemberSheet(context, filtered[i]),
+                          onDelete: () => _removeMember(context, ref, filtered[i]),
+                          child: _MemberCard(
+                            member: filtered[i],
+                            onTap: () => _showMemberSheet(context, filtered[i]),
+                          ),
                         ),
                       ),
               ),
@@ -165,6 +194,55 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       useSafeArea: true,
       builder: (_) => const _InviteMemberSheet(),
     );
+  }
+
+  Future<void> _removeMember(BuildContext context, WidgetRef ref, TeamMember member) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_tr('Remove Member', 'Ondoa Mwanachama'),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+        content: Text(_tr(
+          'Remove ${member.name} from the team? This cannot be undone.',
+          'Ondoa ${member.name} kutoka timu? Haiwezi kurejeshwa.',
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_tr('Cancel', 'Ghairi')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: Text(_tr('Remove', 'Ondoa')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx2 = await repo.resolveContextForUser(user.uid);
+      await repo.deleteTeamMember(uid: user.uid, context: ctx2, memberId: member.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_tr('${member.name} removed.', '${member.name} ameondolewa.')),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(_tr(
+            'Could not remove member. Please try again.',
+            'Imeshindikana kuondoa mwanachama. Jaribu tena.',
+          )),
+        ));
+      }
+    }
   }
 
   void _showMemberSheet(BuildContext ctx, TeamMember member) {
@@ -315,7 +393,7 @@ class _FilterPills extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 0),
+                    horizontal: 14),
                 decoration: BoxDecoration(
                   color: active
                       ? color.withValues(alpha: 0.12)
@@ -395,21 +473,31 @@ class _MemberCard extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border(
-              left: BorderSide(color: rc, width: 3.5),
-              top: const BorderSide(color: AppColors.border),
-              right: const BorderSide(color: AppColors.border),
-              bottom: const BorderSide(color: AppColors.border),
-            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                  color: AppColors.shadowCard,
+                  blurRadius: 6,
+                  offset: Offset(0, 1)),
+            ],
           ),
-          child: Padding(
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Left stripe — role color
+                Container(width: 4, color: rc),
+                Expanded(
+                  child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Row(
               children: [
@@ -540,9 +628,13 @@ class _MemberCard extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
+                ),   // Expanded
+              ],     // outer Row children
+            ),       // outer Row
+          ),         // IntrinsicHeight
+        ),           // Ink
+      ),             // InkWell
+    );               // Material
   }
 }
 
@@ -550,54 +642,28 @@ class _MemberCard extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final _TeamFilter filter;
-
   const _EmptyState({required this.filter});
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
+  Widget build(BuildContext context) => EmptyState(
+        icon: filter == _TeamFilter.all
+            ? Icons.group_outlined
+            : Icons.manage_accounts_outlined,
+        title: filter == _TeamFilter.all
+            ? _tr('Your team is just you for now',
+                'Timu yako ni wewe tu kwa sasa')
+            : _tr('No members in this group',
+                'Hakuna wanachama katika kundi hili'),
+        subtitle: filter == _TeamFilter.all
+            ? _tr(
+                'Tap "Add Member" to invite your first team member.',
+                'Bonyeza "Ongeza Mwanachama" kukaribisha mwanachama wako wa kwanza.',
+              )
+            : _tr(
+                'Try a different permission group to find members.',
+                'Jaribu kundi tofauti la ruhusa kupata wanachama.',
               ),
-              child: const Icon(Icons.group_outlined,
-                  size: 32, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              filter == _TeamFilter.all
-                  ? _tr('No team members yet', 'Bado hakuna wanachama')
-                  : _tr('No members in this group',
-                      'Hakuna wanachama katika kundi hili'),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _tr('Tap "Add Member" to invite your first team member.',
-                  'Bonyeza "Ongeza Mwanachama" kukaribisha mwanachama wako wa kwanza.'),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted, height: 1.5),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+      );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -653,6 +719,10 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
       return;
     }
 
+    final rawPhone = _phoneCtrl.text.trim();
+    final normalizedPhone =
+        rawPhone.isNotEmpty ? _normalizePhone(rawPhone) : '';
+
     setState(() => _isSaving = true);
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -668,23 +738,48 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
           ? _customPerms
           : defaultPermissionsFor(_selectedRole);
 
-      await repo.addTeamMember(
+      final storedPhone =
+          normalizedPhone.isNotEmpty ? normalizedPhone : rawPhone;
+
+      // Write team_member record (for team management UI)
+      final memberRef = await repo.addTeamMember(
         uid: user.uid,
         context: ctx,
         data: {
           'name': name,
           'email': _emailCtrl.text.trim(),
-          'phone': _phoneCtrl.text.trim(),
+          'phone': storedPhone,
           'role': _selectedRole.name,
-          'customPermissions':
-              permsToStore.map((p) => p.name).toList(),
-          'status': 'active',
+          'customPermissions': permsToStore.map((p) => p.name).toList(),
+          'status': 'pending',
           'invitedAt': FieldValue.serverTimestamp(),
           'invitedBy': user.uid,
           if (_notesCtrl.text.trim().isNotEmpty)
             'notes': _notesCtrl.text.trim(),
         },
       );
+
+      // Write pendingInvite for fast phone-based lookup during staff login
+      if (normalizedPhone.isNotEmpty) {
+        final bizId = ctx.businessId ?? '';
+        final bizName = await repo.getBusinessName(uid: user.uid, context: ctx);
+        await repo.writePendingInvite(
+          inviteData: {
+            'businessId': bizId,
+            'businessName': bizName,
+            'fullName': name,
+            'phoneNumber': normalizedPhone,
+            'email': _emailCtrl.text.trim(),
+            'role': _selectedRole.name,
+            'invitedBy': user.uid,
+            'ownerUid': user.uid,
+            'memberId': memberRef.id,
+            'status': 'pending',
+            'pinCreated': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+        );
+      }
 
       navigator.pop();
       messenger.showSnackBar(SnackBar(
@@ -697,10 +792,23 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
       if (!mounted) return;
       setState(() => _isSaving = false);
       messenger.showSnackBar(SnackBar(
-          content: Text(_tr(
-              'Failed to add member. Try again.',
-              'Imeshindikana. Jaribu tena.'))));
+        backgroundColor: AppColors.error,
+        content: Text(_tr(
+            'Could not add team member. Please try again.',
+            'Imeshindikana kuongeza mwanachama. Jaribu tena.'))));
     }
+  }
+
+  /// Normalises any phone input to E.164 (defaults to Tanzania +255).
+  static String _normalizePhone(String raw) {
+    final phone = raw.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    if (phone.isEmpty) return phone;
+    if (phone.startsWith('+')) return phone;
+    if (phone.startsWith('255') && phone.length >= 12) return '+$phone';
+    if (phone.startsWith('0') && phone.length >= 9) {
+      return '+255${phone.substring(1)}';
+    }
+    return '+255$phone';
   }
 
   void _snack(String msg) => ScaffoldMessenger.of(context)
@@ -907,7 +1015,8 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       if (!mounted) return;
       setState(() => _isSaving = false);
       messenger.showSnackBar(SnackBar(
-          content: Text(_tr('Update failed.', 'Imeshindikana.'))));
+        backgroundColor: AppColors.error,
+        content: Text(_tr('Could not update role. Please try again.', 'Imeshindikana kusasisha jukumu. Jaribu tena.'))));
     }
   }
 
@@ -950,7 +1059,8 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       ));
     } catch (_) {
       messenger.showSnackBar(SnackBar(
-          content: Text(_tr('Failed to remove.', 'Imeshindikana.'))));
+        backgroundColor: AppColors.error,
+        content: Text(_tr('Could not remove member. Please try again.', 'Imeshindikana kuondoa mwanachama. Jaribu tena.'))));
     }
   }
 
@@ -1535,7 +1645,7 @@ class _ActionCard extends StatelessWidget {
                 ),
               ),
               trailing ??
-                  Icon(Icons.chevron_right_rounded,
+                  const Icon(Icons.chevron_right_rounded,
                       color: AppColors.textMuted, size: 18),
             ],
           ),

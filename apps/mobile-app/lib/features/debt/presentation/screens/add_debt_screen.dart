@@ -7,7 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../customer/domain/models/customer.dart';
 import '../../domain/models/debt.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -38,6 +40,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
   late bool _isReceivable;
   late DateTime _dueDate;
   bool _saving = false;
+  Customer? _linkedCustomer;
 
   final _amountCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
@@ -83,6 +86,16 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
     super.dispose();
   }
 
+  void _selectCustomer(Customer? c) {
+    setState(() {
+      _linkedCustomer = c;
+      if (c != null) {
+        _nameCtrl.text = c.name;
+        _phoneCtrl.text = c.phone;
+      }
+    });
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -123,6 +136,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
         'partyName': _nameCtrl.text.trim(),
         if (_phoneCtrl.text.trim().isNotEmpty)
           'partyPhone': _phoneCtrl.text.trim(),
+        if (_linkedCustomer != null) 'customerId': _linkedCustomer!.id,
         'type': _isReceivable ? 'receivable' : 'payable',
         'originalAmount': amount,
         'paidAmount': widget.debtToEdit?.paidAmount ?? 0,
@@ -203,6 +217,17 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
                 isReceivable: _isReceivable,
               ),
               const SizedBox(height: 14),
+
+              // Customer link (receivables only — suppliers aren't in customer DB)
+              if (_isReceivable) ...[
+                CustomerPickerField(
+                  selected: _linkedCustomer,
+                  onSelected: _selectCustomer,
+                  labelEn: 'Link to Customer (optional)',
+                  labelSw: 'Unganisha na Mteja (si lazima)',
+                ),
+                const SizedBox(height: 14),
+              ],
 
               // Party details
               _FieldCard(

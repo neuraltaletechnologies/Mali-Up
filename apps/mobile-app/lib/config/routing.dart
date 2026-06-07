@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/onboarding/presentation/screens/splash_screen.dart';
-import '../features/onboarding/presentation/screens/returning_user_screen.dart';
+import '../features/onboarding/presentation/screens/intro_slides_screen.dart';
+import '../features/onboarding/presentation/screens/phone_entry_screen.dart';
+import '../features/onboarding/presentation/screens/pin_login_screen.dart';
+import '../features/onboarding/presentation/screens/team_member_setup_screen.dart';
 import '../features/onboarding/presentation/screens/new_user_info_screen.dart';
 import '../features/onboarding/presentation/screens/business_details_screen.dart';
 import '../features/onboarding/presentation/screens/security_setup_screen.dart';
@@ -16,10 +19,7 @@ import '../shared/widgets/main_shell_page.dart';
 // Deferred imports — loaded on first navigation to avoid bundling everything upfront.
 import '../features/onboarding/presentation/screens/language_selection_screen.dart'
     deferred as screen_welcome;
-import '../features/auth/presentation/screens/register_screen.dart'
-    deferred as screen_phone;
-import '../features/auth/presentation/screens/otp_verification_screen.dart'
-    deferred as screen_otp;
+
 import '../features/dashboard/presentation/screens/dashboard_screen.dart'
     deferred as screen_dashboard;
 import '../features/settings/presentation/screens/settings_screen.dart'
@@ -42,20 +42,41 @@ import '../features/finance/presentation/screens/cash_flow_screen.dart'
     deferred as screen_cashflow;
 import '../features/team/presentation/screens/team_screen.dart'
     deferred as screen_team;
+import '../features/reports/presentation/screens/reports_hub_screen.dart'
+    deferred as screen_reports;
+import '../features/reports/presentation/screens/profit_loss_screen.dart'
+    deferred as screen_pnl;
+import '../features/reports/presentation/screens/sales_report_screen.dart'
+    deferred as screen_sales_report;
+import '../features/reports/presentation/screens/expense_report_screen.dart'
+    deferred as screen_expense_report;
+import '../features/reports/presentation/screens/vat_summary_screen.dart'
+    deferred as screen_vat;
+import '../features/reports/presentation/screens/ar_aging_screen.dart'
+    deferred as screen_ar;
+import '../features/reports/presentation/screens/ap_aging_screen.dart'
+    deferred as screen_ap;
+import '../features/reports/presentation/screens/cash_flow_report_screen.dart'
+    deferred as screen_cashflow_report;
+import '../features/reports/presentation/screens/balance_sheet_screen.dart'
+    deferred as screen_balance;
+import '../features/reports/presentation/screens/inventory_valuation_screen.dart'
+    deferred as screen_inv_val;
 
 // ─── ROUTE PATHS ─────────────────────────────────────────────────────────────
 
 abstract final class AppRoutes {
-  // ── Onboarding (7 screens) ────────────────────────────────────────────────
-  static const splash      = '/splash';
-  static const welcome     = '/welcome';     // Screen 1 — language picker
-  static const phone       = '/phone';       // Screen 2 — phone entry
-  static const otp         = '/otp';         // Screen 3 — OTP verify
-  static const returning   = '/returning';   // Screen 4A — returning user
-  static const newUser     = '/new-user';    // Screen 4B — new user info
-  static const business    = '/business';    // Screen 5 — business details
-  static const security    = '/security';    // Screen 6 — password + PIN
-  static const success     = '/success';     // Screen 7 — success screen
+  // ── Onboarding ────────────────────────────────────────────────────────────
+  static const splash     = '/splash';
+  static const welcome    = '/welcome';    // Screen 1 — language picker
+  static const intro      = '/intro';      // Screen 2 — app intro slides
+  static const phone      = '/phone';      // Screen 3 — phone entry + lookup
+  static const pinLogin   = '/pin-login';  // Screen 4A — existing user PIN
+  static const teamSetup  = '/team-setup'; // Screen 4B — team member first login
+  static const newUser    = '/new-user';   // Screen 4C — new user personal info
+  static const business   = '/business';   // Screen 5 — business details
+  static const security   = '/security';   // Screen 6 — PIN setup (new owners)
+  static const success    = '/success';    // Screen 7 — success
 
   // ── Main app shell ────────────────────────────────────────────────────────
   static const dashboard   = '/';
@@ -69,10 +90,11 @@ abstract final class AppRoutes {
   static const settings    = '/settings';
   static const subscription = '/subscription';
   static const businesses  = '/businesses';
+  static const reports     = '/reports';
   static const login       = '/login';
 
   static const _onboardingPaths = {
-    welcome, phone, otp, returning, newUser, business, security, success,
+    welcome, intro, phone, pinLogin, teamSetup, newUser, business, security, success,
   };
 
   static bool isOnboardingPath(String path) => _onboardingPaths.contains(path);
@@ -80,17 +102,6 @@ abstract final class AppRoutes {
 
 // ─── ROUTER PROVIDER ─────────────────────────────────────────────────────────
 
-/// Riverpod provider that owns the [GoRouter] instance.
-///
-/// The router observes [onboardingNotifierProvider] via [_RouterNotifier] so
-/// that any state change (step advance, isComplete flip) triggers a redirect
-/// re-evaluation without requiring a manual `context.go()`.
-///
-/// Usage in main.dart:
-/// ```dart
-/// final router = ref.watch(goRouterProvider);
-/// return MaterialApp.router(routerConfig: router, ...);
-/// ```
 final goRouterProvider = Provider<GoRouter>((ref) {
   final notifier = _RouterNotifier(ref);
 
@@ -102,77 +113,72 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-// ─── ROUTER NOTIFIER (ChangeNotifier bridge) ──────────────────────────────────
+// ─── ROUTER NOTIFIER ─────────────────────────────────────────────────────────
 
-/// Listens to [onboardingNotifierProvider] and calls [notifyListeners] so
-/// GoRouter re-runs its redirect function whenever onboarding state changes.
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
-    // Any mutation of OnboardingState will trigger a redirect re-check.
     _ref.listen(onboardingNotifierProvider, (prev, next) => notifyListeners());
   }
 
   final Ref _ref;
 
-  /// GoRouter calls this before rendering every route.
-  ///
-  /// Guard rules (evaluated top-to-bottom — first matching rule wins):
-  ///
-  /// 1. Splash screen is always accessible.
-  /// 2. If onboarding is complete and the path is an onboarding path → dashboard.
-  /// 3. If onboarding is NOT complete and the path is a shell path → welcome.
-  /// 4. Per-step guards prevent skipping ahead (e.g. OTP without a verificationId).
   String? _redirect(BuildContext context, GoRouterState routerState) {
     final path = routerState.uri.path;
     final ob = _ref.read(onboardingNotifierProvider);
 
-    // Splash is always allowed — it runs the completion check itself.
+    // Splash always allowed — it runs the completion check.
     if (path == AppRoutes.splash) return null;
 
     // ── Post-completion guards ────────────────────────────────────────────
     if (ob.isComplete) {
-      // Allow the success screen as the post-completion landing page.
       if (path == AppRoutes.success) return null;
-      // Block any other onboarding screen once the flow is done.
       if (AppRoutes.isOnboardingPath(path)) return AppRoutes.dashboard;
-      return null; // allow dashboard + shell routes
+      return null;
     }
 
-    // ── Pre-completion: block shell routes until onboarding is done ───────
+    // ── Pre-completion: block shell routes ────────────────────────────────
     if (!AppRoutes.isOnboardingPath(path) && path != AppRoutes.login) {
       return AppRoutes.welcome;
     }
 
     // ── Step-by-step guards ───────────────────────────────────────────────
 
-    // Screen 3 requires a verificationId (sendOtp must have succeeded).
-    if (path == AppRoutes.otp && ob.verificationId.isEmpty) {
+    // Screen 3 requires a phone number to have been entered.
+    if (path == AppRoutes.phone &&
+        ob.currentStep.stepIndex < OnboardingStep.phoneEntry.stepIndex) {
+      return AppRoutes.intro;
+    }
+
+    // Screens 4A/4B/4C require phone lookup to have run
+    // (currentStep must be at or past phoneEntry).
+    if ((path == AppRoutes.pinLogin ||
+            path == AppRoutes.teamSetup ||
+            path == AppRoutes.newUser) &&
+        ob.currentStep.stepIndex < OnboardingStep.pinLogin.stepIndex) {
       return AppRoutes.phone;
     }
 
-    // Screens 4A and 4B require OTP to have been verified
-    // (verificationId set AND currentStep past otpVerify).
-    if ((path == AppRoutes.returning || path == AppRoutes.newUser) &&
-        ob.currentStep.stepIndex < OnboardingStep.returningUser.stepIndex) {
-      return AppRoutes.otp;
+    // Screen 4A only for returning users (has an existing account).
+    if (path == AppRoutes.pinLogin && !ob.isReturningUser) {
+      return ob.isTeamMember ? AppRoutes.teamSetup : AppRoutes.newUser;
     }
 
-    // Screen 4A is only reachable for returning users.
-    if (path == AppRoutes.returning && !ob.isReturningUser) {
-      return AppRoutes.newUser;
+    // Screen 4B only for pending team members.
+    if (path == AppRoutes.teamSetup && !ob.isTeamMember) {
+      return ob.isReturningUser ? AppRoutes.pinLogin : AppRoutes.newUser;
     }
 
-    // Screen 4B is only reachable for new users.
-    if (path == AppRoutes.newUser && ob.isReturningUser) {
-      return AppRoutes.returning;
+    // Screen 4C only for new users (not returning, not team member).
+    if (path == AppRoutes.newUser &&
+        (ob.isReturningUser || ob.isTeamMember)) {
+      return ob.isReturningUser ? AppRoutes.pinLogin : AppRoutes.teamSetup;
     }
 
-    // Screen 5 requires personal info to be entered (or returning-user path).
+    // Screen 5 requires personal info (firstName set, or returning/team user).
     if (path == AppRoutes.business) {
-      final hasPersonal = ob.firstName.isNotEmpty || ob.isReturningUser;
-      if (!hasPersonal) {
-        return ob.isReturningUser ? AppRoutes.returning : AppRoutes.newUser;
-      }
+      final hasPersonal =
+          ob.firstName.isNotEmpty || ob.isReturningUser || ob.isTeamMember;
+      if (!hasPersonal) return AppRoutes.newUser;
     }
 
     // Screen 6 requires a businessName.
@@ -180,12 +186,12 @@ class _RouterNotifier extends ChangeNotifier {
       return AppRoutes.business;
     }
 
-    // Screen 7 only reachable after saveAndComplete() sets isComplete.
+    // Screen 7 only after saveAndComplete() sets isComplete.
     if (path == AppRoutes.success && !ob.isComplete) {
       return AppRoutes.welcome;
     }
 
-    return null; // no redirect — render the requested route
+    return null;
   }
 }
 
@@ -205,7 +211,7 @@ List<RouteBase> _buildRoutes() {
       ),
     ),
 
-    // ── Screen 1 — Welcome + Language ────────────────────────────────────────
+    // ── Screen 1 — Language ──────────────────────────────────────────────────
     GoRoute(
       path: AppRoutes.welcome,
       pageBuilder: (context, state) => _authPage(
@@ -213,53 +219,54 @@ List<RouteBase> _buildRoutes() {
         _deferred(
           load: screen_welcome.loadLibrary,
           build: () => screen_welcome.LanguageSelectionScreen(
-            onLanguageSelected: () => context.go(AppRoutes.phone),
+            onLanguageSelected: () => context.go(AppRoutes.intro),
           ),
         ),
       ),
     ),
 
-    // ── Screen 2 — Phone Entry ───────────────────────────────────────────────
+    // ── Screen 2 — App intro slides ──────────────────────────────────────────
     GoRoute(
-      path: AppRoutes.phone,
+      path: AppRoutes.intro,
       pageBuilder: (context, state) => _authPage(
         state,
-        _deferred(
-          load: screen_phone.loadLibrary,
-          build: () => screen_phone.RegisterScreen(fromOnboarding: true),
-        ),
+        const IntroSlidesScreen(),
       ),
     ),
 
-    // ── Screen 3 — OTP Verification ──────────────────────────────────────────
+    // ── Screen 3 — Phone Entry ───────────────────────────────────────────────
     GoRoute(
-      path: AppRoutes.otp,
+      path: AppRoutes.phone,
       pageBuilder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>?;
+        final extra = state.extra;
+        final isSwitchAccount =
+            extra is Map && extra['switchAccount'] == true;
         return _authPage(
           state,
-          _deferred(
-            load: screen_otp.loadLibrary,
-            build: () => screen_otp.OTPVerificationScreen(
-              phoneNumber: extra?['phoneNumber'] as String? ?? '',
-              isRegistration: extra?['isRegistration'] as bool? ?? true,
-              userData: extra?['userData'] as Map<String, dynamic>?,
-            ),
-          ),
+          PhoneEntryScreen(isSwitchAccount: isSwitchAccount),
         );
       },
     ),
 
-    // ── Screen 4A — Returning User ───────────────────────────────────────────
+    // ── Screen 4A — PIN Login ────────────────────────────────────────────────
     GoRoute(
-      path: AppRoutes.returning,
+      path: AppRoutes.pinLogin,
       pageBuilder: (context, state) => _authPage(
         state,
-        const ReturningUserScreen(),
+        const PinLoginScreen(),
       ),
     ),
 
-    // ── Screen 4B — New User Personal Info ───────────────────────────────────
+    // ── Screen 4B — Team Member Setup ───────────────────────────────────────
+    GoRoute(
+      path: AppRoutes.teamSetup,
+      pageBuilder: (context, state) => _authPage(
+        state,
+        const TeamMemberSetupScreen(),
+      ),
+    ),
+
+    // ── Screen 4C — New User Personal Info ───────────────────────────────────
     GoRoute(
       path: AppRoutes.newUser,
       pageBuilder: (context, state) => _authPage(
@@ -277,7 +284,7 @@ List<RouteBase> _buildRoutes() {
       ),
     ),
 
-    // ── Screen 6 — Password + PIN ────────────────────────────────────────────
+    // ── Screen 6 — PIN Setup ────────────────────────────────────────────────
     GoRoute(
       path: AppRoutes.security,
       pageBuilder: (context, state) => _authPage(
@@ -398,6 +405,78 @@ List<RouteBase> _buildRoutes() {
             build: () => screen_team.TeamScreen(),
           ),
         ),
+        GoRoute(
+          path: AppRoutes.reports,
+          builder: (context, state) => _deferred(
+            load: screen_reports.loadLibrary,
+            build: () => screen_reports.ReportsHubScreen(),
+          ),
+          routes: [
+            GoRoute(
+              path: 'pnl',
+              builder: (context, state) => _deferred(
+                load: screen_pnl.loadLibrary,
+                build: () => screen_pnl.ProfitLossScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'sales',
+              builder: (context, state) => _deferred(
+                load: screen_sales_report.loadLibrary,
+                build: () => screen_sales_report.SalesReportScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'expenses',
+              builder: (context, state) => _deferred(
+                load: screen_expense_report.loadLibrary,
+                build: () => screen_expense_report.ExpenseReportScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'vat',
+              builder: (context, state) => _deferred(
+                load: screen_vat.loadLibrary,
+                build: () => screen_vat.VatSummaryScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'ar-aging',
+              builder: (context, state) => _deferred(
+                load: screen_ar.loadLibrary,
+                build: () => screen_ar.ArAgingScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'ap-aging',
+              builder: (context, state) => _deferred(
+                load: screen_ap.loadLibrary,
+                build: () => screen_ap.ApAgingScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'cash-flow',
+              builder: (context, state) => _deferred(
+                load: screen_cashflow_report.loadLibrary,
+                build: () => screen_cashflow_report.CashFlowReportScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'balance-sheet',
+              builder: (context, state) => _deferred(
+                load: screen_balance.loadLibrary,
+                build: () => screen_balance.BalanceSheetScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'inventory-valuation',
+              builder: (context, state) => _deferred(
+                load: screen_inv_val.loadLibrary,
+                build: () => screen_inv_val.InventoryValuationScreen(),
+              ),
+            ),
+          ],
+        ),
       ],
     ),
   ];
@@ -405,7 +484,6 @@ List<RouteBase> _buildRoutes() {
 
 // ─── TRANSITION HELPERS ───────────────────────────────────────────────────────
 
-/// Slide-fade transition used for all onboarding + auth screens.
 CustomTransitionPage<void> _authPage(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
@@ -429,8 +507,6 @@ CustomTransitionPage<void> _authPage(GoRouterState state, Widget child) {
   );
 }
 
-/// Wraps a deferred library in a [FutureBuilder] so the screen renders once
-/// its library chunk has loaded. Shows an empty [Scaffold] while loading.
 Widget _deferred({
   required Future<void> Function() load,
   required Widget Function() build,
@@ -439,23 +515,13 @@ Widget _deferred({
     future: load(),
     builder: (context, snap) {
       if (snap.connectionState == ConnectionState.done) return build();
-      return const Scaffold(); // blank frame while chunk loads
+      return const Scaffold();
     },
   );
 }
 
 // ─── BACKWARD-COMPAT FACTORY ─────────────────────────────────────────────────
 
-/// Legacy factory kept so existing [main.dart] callers don't break.
-/// Migrate main.dart to use [goRouterProvider] via Riverpod instead.
-///
-/// ```dart
-/// // OLD (main.dart)
-/// router: AppRouter.createRouter(showLanguageSelection: ..., showOnboarding: ...)
-///
-/// // NEW (main.dart)
-/// final router = ref.watch(goRouterProvider);
-/// ```
 @Deprecated('Use goRouterProvider instead')
 class AppRouter {
   static const splashPath      = AppRoutes.splash;
@@ -463,17 +529,18 @@ class AppRouter {
   static const loginPath       = AppRoutes.login;
   static const welcomePath     = AppRoutes.welcome;
   static const phonePath       = AppRoutes.phone;
-  static const otpPath         = AppRoutes.otp;
-  static const returningPath   = AppRoutes.returning;
+  static const pinLoginPath    = AppRoutes.pinLogin;
   static const newUserPath     = AppRoutes.newUser;
   static const businessPath    = AppRoutes.business;
   static const securityPath    = AppRoutes.security;
   static const successPath     = AppRoutes.success;
 
-  // Keep old path names alive for any existing code that references them.
+  // Legacy aliases kept so existing code doesn't break at compile time.
   static const languageSelectionPath = AppRoutes.welcome;
   static const onboardingPath        = AppRoutes.welcome;
   static const registerPath          = AppRoutes.phone;
+  static const otpPath               = AppRoutes.phone;
+  static const returningPath         = AppRoutes.pinLogin;
   static const salesPath             = AppRoutes.sales;
   static const inventoryPath         = AppRoutes.inventory;
   static const crmPath               = AppRoutes.crm;
@@ -484,6 +551,7 @@ class AppRouter {
   static const settingsPath          = AppRoutes.settings;
   static const subscriptionPath      = AppRoutes.subscription;
   static const businessesPath        = AppRoutes.businesses;
+  static const reportsPath           = AppRoutes.reports;
 
   static GoRouter createRouter({
     required bool showLanguageSelection,

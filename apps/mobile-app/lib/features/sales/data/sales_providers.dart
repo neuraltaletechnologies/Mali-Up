@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/data/repositories/context_firestore_repository.dart';
 import '../../customer/data/customer_providers.dart';
 
 final salesInvoiceListProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
@@ -10,15 +11,21 @@ final salesInvoiceListProvider = StreamProvider<List<Map<String, dynamic>>>((ref
     yield const <Map<String, dynamic>>[];
     return;
   }
-
-  final repository = ref.watch(contextFirestoreRepositoryProvider);
-  final context = await repository.resolveContextForUser(user.uid);
+  final businessAsync = ref.watch(currentBusinessIdProvider);
+  if (businessAsync.isLoading) {
+    return;
+  }
+  final bizId = businessAsync.valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <Map<String, dynamic>>[];
+    return;
+  }
+  final repository = ref.read(contextFirestoreRepositoryProvider);
   final collection = repository.scopeCollection(
     uid: user.uid,
-    context: context,
+    context: ResolvedFinanceContext.business(bizId),
     childCollection: 'sales_invoices',
   );
-
   yield* collection
       .orderBy('createdAt', descending: true)
       .snapshots()

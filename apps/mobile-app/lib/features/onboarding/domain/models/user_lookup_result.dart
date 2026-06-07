@@ -1,17 +1,20 @@
-/// Result of a Firestore phone-number lookup performed after OTP verification.
+/// Result of a Firestore phone-number lookup performed during onboarding.
 ///
-/// Use a `switch` or pattern-match on the sealed class to branch the router:
+/// Use a `switch` or pattern-match to branch the router:
 /// ```dart
 /// switch (result) {
-///   ReturningUser r => // go to /returning, populate state from r
-///   NewUser()      => // go to /new-user
+///   ReturningUser r  => // go to /pin-login, show PIN entry
+///   TeamMemberPending t => // go to /team-setup, show profile + set PIN
+///   NewUser()        => // go to /new-user, collect personal + business info
 /// }
 /// ```
 sealed class UserLookupResult {
   const UserLookupResult();
 }
 
-/// The phone number maps to an existing user + business document.
+/// The phone number maps to an existing user document in the `users` collection.
+/// This user already has a Firebase Auth account and a PIN.
+/// Both business owners and previously-activated team members fall here.
 final class ReturningUser extends UserLookupResult {
   const ReturningUser({
     required this.userId,
@@ -50,6 +53,52 @@ final class ReturningUser extends UserLookupResult {
   @override
   String toString() =>
       'ReturningUser(userId: $userId, name: $name, businessName: $businessName)';
+}
+
+/// The phone number matches a team member added by an owner, but this member
+/// has NOT yet set up their own account (no entry in the top-level `users`
+/// collection, no Firebase Auth account, no PIN).
+/// First time they sign in they see their profile and set a PIN.
+final class TeamMemberPending extends UserLookupResult {
+  const TeamMemberPending({
+    required this.memberId,
+    required this.name,
+    required this.role,
+    required this.businessName,
+    required this.ownerUid,
+    required this.businessId,
+    this.inviteId = '',
+    this.email = '',
+  });
+
+  /// Firestore document ID in the `team_members` subcollection.
+  final String memberId;
+
+  /// Name as entered by the owner when adding this team member.
+  final String name;
+
+  /// Role string (e.g. 'manager', 'cashier') — see [TeamRole].
+  final String role;
+
+  /// Business name owned by the owner who added this member.
+  final String businessName;
+
+  /// UID of the owner — needed to activate the member's record.
+  final String ownerUid;
+
+  /// Business document ID under the owner's tenant — needed to update status.
+  final String businessId;
+
+  /// Document ID in the top-level `pendingInvites` collection.
+  /// Empty string when found via legacy `team_members` collectionGroup.
+  final String inviteId;
+
+  /// Email on file for this invite — used in PIN recovery flow.
+  final String email;
+
+  @override
+  String toString() =>
+      'TeamMemberPending(memberId: $memberId, name: $name, role: $role, inviteId: $inviteId)';
 }
 
 /// No document exists for this phone — the user is registering for the first time.

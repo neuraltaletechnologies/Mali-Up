@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 
 /// Audit Log Screen - Activity Log
 /// Shows all compliance-critical events (logins, exports, deletions, etc)
@@ -24,24 +25,11 @@ class AuditLogScreen extends ConsumerWidget {
         title: const Text('Activity Log'),
       ),
       body: auditLogs.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.history,
-                    size: 48,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No activity yet',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
+          ? const EmptyState(
+              icon: Icons.timeline_rounded,
+              title: 'Nothing to see here yet',
+              subtitle:
+                  'Actions and changes on your account will be logged here.',
             )
           : ListView.builder(
               itemCount: auditLogs.length,

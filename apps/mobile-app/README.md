@@ -1,40 +1,31 @@
 # Mali Up Mobile
 
-The current Mali Up B v1.0 app is a business-only Flutter product for Tanzanian small business owners. It uses a premium fintech white UI, Swahili-first labels, and Riverpod from day one.
+Mali Up Mobile is a Swahili-first Flutter app for Tanzanian SMEs.
 
-## Current MVP Modules
+## Current Stack
 
-- Hali ya biashara
-- Tuma ankara
-- Wateja wangu
-- Gharama zangu
-- Hisa zangu
+- Flutter + Riverpod UI
+- Firebase Auth for identity
+- Cloud Firestore for onboarding, business, customer, and app state
+- Firebase Storage for media
+- Sentry for crash reporting
 
-## Architecture
+## Authentication Model
 
-| Layer | Responsibility |
-| --- | --- |
-| Presentation | Screens, widgets, forms, and view state |
-| Domain | Models, repository interfaces, and use cases |
-| Data | FirestoreService, AuthService, and repository implementations |
+The app is Firebase-only for onboarding and sign-in.
 
-The data layer is repository-driven so the app can move to Cloud Functions or service-backed APIs later without rewriting the UI.
+- Phone lookup reads directly from Firestore.
+- Returning users sign in with Firebase Auth and their PIN-derived password.
+- New users complete onboarding and are provisioned in Firebase Auth + Firestore.
+- PIN recovery uses Firebase Auth password reset.
 
-## State Management
+There is no custom auth backend in the mobile app flow.
 
-Riverpod is the primary state system.
+## Data Layer
 
-- `authStateProvider`
-- `currentUserIdProvider`
-- `isLoggedInProvider`
-- `userProfileProvider`
-- `dashboardDataProvider`
-- `invoicesProvider`
-- `customerProvider`
-- `expenseProvider`
-- `inventoryProvider`
-
-Form state should use small `StateNotifier` classes, while simple and live state should use `StateProvider` and `StreamProvider`.
+- Onboarding data is stored in Firestore under the active tenant/business scope.
+- Repository classes keep the UI isolated from persistence details.
+- The generic HTTP helper only exists for explicit API URLs that you pass in yourself.
 
 ## UI Direction
 
@@ -46,8 +37,6 @@ The app uses the Premium Fintech White system:
 - `surfaceLight` `#F8F9FC`
 - `cardWhite` `#FFFFFF`
 
-Core components include `MaliCard`, `PrimaryButton`, `SecondaryButton`, `GhostButton`, `AmountDisplay`, `StatusChip`, `EmptyState`, and `HeroCard`.
-
 ## Getting Started
 
 ```bash
@@ -55,10 +44,55 @@ flutter pub get
 flutter run
 ```
 
-Localization should stay Swahili-first with English as fallback.
+## Sentry (Full Setup)
 
-## Note
+The app initializes Sentry only when `SENTRY_DSN` is provided via
+`--dart-define` / `--dart-define-from-file`.
 
-Personal finance features, context switching, and advanced business modules are intentionally out of scope for the current MVP and are planned for later phases.
+1. Copy `sentry.example.json` to `sentry.local.json`.
+2. Put your real DSN in `SENTRY_DSN`.
+3. Run with Sentry enabled:
+
+```bash
+flutter run --dart-define-from-file=sentry.local.json
+```
+
+Windows helper:
+
+```bash
+run_with_sentry.bat
+```
+
+Optional one-time verification:
+
+- Set `"SENTRY_TEST_EVENT": "true"` in `sentry.local.json`.
+- Start the app once. A startup test message is sent.
+- Set it back to `"false"` afterward.
+
+## Session Replay
+
+Session Replay is enabled in [lib/main.dart](lib/main.dart) with:
+
+- `options.replay.sessionSampleRate = 1.0`
+- `options.replay.onErrorSampleRate = 1.0`
+- `options.privacy.maskAllText = true`
+- `options.privacy.maskAllImages = true`
+
+Use `1.0` while testing so every session is captured. Lower `sessionSampleRate` before production if needed.
+
+## Application Metrics
+
+The app now emits a few basic metrics through `Sentry.metrics`:
+
+- `app_launch` when the app starts with Sentry enabled.
+- `barcode_scan` for barcode scanner success and miss events.
+- `scan_to_cart_time_ms` for the time from accepted barcode to cart add.
+- `sales_created` and `sales_created_amount` when an invoice is saved.
+- `invoice_printed` when the receipt/share sheet is opened.
+- `customer_added` when a customer is persisted through the repository.
+
+Metrics can be extended from `lib/core/services/sentry_metrics_service.dart`.
+Use `count`, `gauge`, and `distribution` there when you want to track anything
+that should help you debug product behavior.
 
 Part of the [Mali Up](../../README.md) suite.

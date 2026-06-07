@@ -176,8 +176,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     switch (result) {
       case AuthResult.invalidPhone:
         return _tr(
-          'Invalid Tanzanian phone number',
-          'Namba ya simu ya Tanzania si sahihi',
+          'Invalid phone number. Please go back and enter a valid number.',
+          'Namba ya simu si sahihi. Rudi nyuma na uweke namba sahihi.',
         );
       case AuthResult.otpExpired:
         return _tr(

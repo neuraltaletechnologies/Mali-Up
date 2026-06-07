@@ -4,7 +4,7 @@
     "dashboard": "Paneli",
     "invoices": "Ankara",
     "customers": "Wateja",
-    "inventory": "Hesabu ya Bidhaa",
+    "inventory": "Hesabu ya Bidhaaa",
     "reports": "Ripoti",
     "settings": "Mipango",
     "profile": "Wasifu",
@@ -64,23 +64,23 @@
     "expenseReport": "Muhtasari wa Matumizi"
   },
   "inventory": {
-    "inventory": "Hesabu ya Bidhaa",
-    "product": "Bidhaa",
+    "inventory": "Hesabu ya Bidhaaa",
+    "product": "Bidhaaa",
     "stock": "Benki",
     "unit": "Kipimo",
     "quantity": "Wingi",
     "price": "Bei",
     "category": "Jamii",
-    "sku": "Nambari ya Bidhaa",
+    "sku": "Nambari ya Bidhaaa",
     "lowStock": "Benki ndogo",
     "outOfStock": "Benki haipo",
-    "newProduct": "Bidhaa Mpya",
-    "productList": "Orodha ya Bidhaa",
+    "newProduct": "Bidhaaa Mpya",
+    "productList": "Orodha ya Bidhaaa",
     "enterQuantity": "Ingiza wingi",
     "changePrice": "Badilisha Bei",
     "newCategory": "Jamii Mpya",
-    "stockUpdate": "Salio la Bidhaa Libadilishwa",
-    "availableStock": "Bidhaa inayopatikana: {count}"
+    "stockUpdate": "Salio la Bidhaaa Libadilishwa",
+    "availableStock": "Bidhaaa inayopatikana: {count}"
   },
   "reporting": {
     "report": "Ripoti",
@@ -153,7 +153,7 @@
     "permissionDenied": "Huna ruhusa ya kuingia hapa. Wasiliana na mkuu",
     "notFound": "Haipo. Tafadhali jaribu tafuta tena",
     "duplicateEntry": "Tayari iko. Ingiza mpya au badilisha",
-    "insufficientStock": "Benki haitoshi. Bidhaa inayopatikana: {count}",
+    "insufficientStock": "Benki haitoshi. Bidhaaa inayopatikana: {count}",
     "negativeBalance": "Salio hasi. Tafadhali malipo hesabu"
   },
   "emptyStates": {
@@ -205,7 +205,7 @@
     "success": "Nzuri!",
     "invoiceSent": "Ankara imerudiwa kwa mteja",
     "paymentDue": "Malipo linastahili leo",
-    "lowStock": "Bidhaa hii ina benki ndogo",
+    "lowStock": "Bidhaaa hii ina benki ndogo",
     "backupCreated": "Nakala ya data imeundwa kwa maajabu",
     "accountUpdated": "Akaunti imebadilishwa kwa maajabu",
     "needHelp": "Tafadhali soma msaada wetu au wasiliana na timu"

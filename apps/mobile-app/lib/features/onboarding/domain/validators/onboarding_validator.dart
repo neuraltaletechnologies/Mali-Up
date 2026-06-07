@@ -32,6 +32,37 @@ abstract final class OnboardingValidator {
     return null;
   }
 
+  /// Validates a local number against its country dial code.
+  /// Tanzania (+255): must be 9 digits starting with 6 or 7 (leading 0 stripped).
+  /// All others: 7–15 digits after stripping leading zeros.
+  static String? validateInternationalPhone(
+    String localNumber,
+    String dialCode, {
+    bool isSwahili = false,
+  }) {
+    final cleaned = _strip(localNumber);
+    if (cleaned.isEmpty) {
+      return _t(isSwahili,
+          en: 'Phone number is required.',
+          sw: 'Namba ya simu inahitajika.');
+    }
+    final stripped = cleaned.replaceFirst(RegExp(r'^0+'), '');
+    if (dialCode == '+255') {
+      if (!RegExp(r'^[67]\d{8}$').hasMatch(stripped)) {
+        return _t(isSwahili,
+            en: 'Enter a valid Tanzania mobile number (e.g. 712 345 678).',
+            sw: 'Ingiza namba sahihi ya simu ya Tanzania (mfano 712 345 678).');
+      }
+    } else {
+      if (stripped.length < 7 || stripped.length > 15) {
+        return _t(isSwahili,
+            en: 'Enter a valid phone number.',
+            sw: 'Ingiza namba sahihi ya simu.');
+      }
+    }
+    return null;
+  }
+
   /// Converts any local format to E.164 (+255XXXXXXXXX).
   static String normalisePhone(String phone) {
     final cleaned = _strip(phone);
@@ -129,6 +160,28 @@ abstract final class OnboardingValidator {
       return _t(isSwahili,
           en: 'Verification code must contain digits only.',
           sw: 'Msimbo wa uhakiki lazima uwe nambari tu.');
+    }
+    return null;
+  }
+
+  // ─── EMAIL ──────────────────────────────────────────────────────────────
+
+  /// Validates an email address. If [optional] is true, empty values are
+  /// accepted (returns null). Otherwise an empty value returns an error.
+  static String? validateEmail(String email,
+      {bool isSwahili = false, bool optional = true}) {
+    final t = email.trim();
+    if (t.isEmpty) {
+      if (optional) return null;
+      return _t(isSwahili,
+          en: 'Email is required.', sw: 'Barua pepe inahitajika.');
+    }
+    // Simple but effective email pattern
+    final ok = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(t);
+    if (!ok) {
+      return _t(isSwahili,
+          en: 'Enter a valid email address.',
+          sw: 'Ingiza anwani sahihi ya barua pepe.');
     }
     return null;
   }

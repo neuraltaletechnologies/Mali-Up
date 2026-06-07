@@ -1,4 +1,3 @@
-import { useRouter } from 'next/router';
 import { useLanguage } from '@/lib/i18n-utils';
 
 export const LanguageSwitcher = () => {

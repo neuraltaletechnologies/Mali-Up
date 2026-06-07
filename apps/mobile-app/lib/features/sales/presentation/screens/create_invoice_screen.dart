@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../inventory/data/inventory_providers.dart';
@@ -191,7 +192,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
   Future<void> _save({required bool asDraft}) async {
     if (_items.every((i) => i.productName.trim().isEmpty)) {
-      _showSnack(_tr('Add at least one item', 'Ongeza bidhaa angalau moja'));
+      _showSnack(_tr('Add at least one item', 'Ongeza bidhaaa angalau moja'));
       return;
     }
     setState(() => _saving = true);
@@ -350,9 +351,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                   const SizedBox(height: 16),
                   _SectionCard(
                     children: [
-                      _CustomerPicker(
+                      CustomerPickerField(
                         selected: _customer,
-                        onPicked: (c) => setState(() => _customer = c),
+                        onSelected: (c) => setState(() => _customer = c),
                       ),
                       const _Divider(),
                       _DateRow(
@@ -568,206 +569,7 @@ class _Divider extends StatelessWidget {
       const Divider(height: 1, thickness: 1, color: AppColors.border);
 }
 
-// ── Customer Picker ──────────────────────────────────────────────────────────
 
-class _CustomerPicker extends ConsumerStatefulWidget {
-  final Customer? selected;
-  final ValueChanged<Customer?> onPicked;
-
-  const _CustomerPicker({required this.selected, required this.onPicked});
-
-  @override
-  ConsumerState<_CustomerPicker> createState() => _CustomerPickerState();
-}
-
-class _CustomerPickerState extends ConsumerState<_CustomerPicker> {
-  void _open() {
-    final customers = ref
-        .read(customerListProvider)
-        .maybeWhen(data: (d) => d, orElse: () => <Customer>[]);
-    showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _CustomerSheet(
-        customers: customers,
-        onSelected: (c) {
-          widget.onPicked(c);
-          Navigator.of(context).pop();
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = widget.selected;
-    return InkWell(
-      onTap: _open,
-      borderRadius:
-          const BorderRadius.vertical(top: Radius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: c != null
-                    ? AppColors.navyPrimary.withValues(alpha: 0.08)
-                    : AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                Icons.person_rounded,
-                size: 20,
-                color: c != null
-                    ? AppColors.navyPrimary
-                    : AppColors.textMuted,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: c == null
-                  ? Text(
-                      _tr('Select Customer (optional)',
-                          'Chagua Mteja (si lazima)'),
-                      style: GoogleFonts.dmSans(
-                          fontSize: 14, color: AppColors.textMuted),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(c.name,
-                            style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary)),
-                        if (c.phone.isNotEmpty)
-                          Text(c.phone,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 12,
-                                  color: AppColors.textMuted)),
-                      ],
-                    ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textMuted,
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CustomerSheet extends StatefulWidget {
-  final List<Customer> customers;
-  final ValueChanged<Customer> onSelected;
-
-  const _CustomerSheet(
-      {required this.customers, required this.onSelected});
-
-  @override
-  State<_CustomerSheet> createState() => _CustomerSheetState();
-}
-
-class _CustomerSheetState extends State<_CustomerSheet> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final filtered = _query.isEmpty
-        ? widget.customers
-        : widget.customers
-            .where((c) =>
-                c.name.toLowerCase().contains(_query.toLowerCase()) ||
-                c.phone.contains(_query))
-            .toList();
-
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.65,
-      maxChildSize: 0.9,
-      minChildSize: 0.4,
-      builder: (_, ctrl) => Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2)),
-          ),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: TextField(
-              autofocus: true,
-              onChanged: (v) => setState(() => _query = v),
-              decoration: InputDecoration(
-                hintText:
-                    _tr('Search customers…', 'Tafuta wateja…'),
-                prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                filled: true,
-                fillColor: AppColors.surfaceVariant,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              controller: ctrl,
-              itemCount: filtered.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, color: AppColors.border),
-              itemBuilder: (_, i) {
-                final c = filtered[i];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor:
-                        AppColors.navyPrimary.withValues(alpha: 0.1),
-                    child: Text(
-                      c.name.isNotEmpty
-                          ? c.name[0].toUpperCase()
-                          : '?',
-                      style: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary),
-                    ),
-                  ),
-                  title: Text(c.name,
-                      style: GoogleFonts.dmSans(
-                          fontWeight: FontWeight.w600)),
-                  subtitle: c.phone.isNotEmpty
-                      ? Text(c.phone,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              color: AppColors.textMuted))
-                      : null,
-                  onTap: () => widget.onSelected(c),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ── Date Row ─────────────────────────────────────────────────────────────────
 
@@ -924,7 +726,7 @@ class _ItemsSection extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              _tr('Items', 'Bidhaa'),
+              _tr('Items', 'Bidhaaa'),
               style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -1065,9 +867,15 @@ class _LineItemCardState extends State<_LineItemCard> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard,
+              blurRadius: 6,
+              offset: Offset(0, 1)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1098,7 +906,7 @@ class _LineItemCardState extends State<_LineItemCard> {
                 Expanded(
                   child: Text(
                     widget.item.productName.isEmpty
-                        ? _tr('New Item', 'Bidhaa Mpya')
+                        ? _tr('New Item', 'Bidhaaa Mpya')
                         : widget.item.productName,
                     style: GoogleFonts.dmSans(
                         fontSize: 13,
@@ -1123,7 +931,7 @@ class _LineItemCardState extends State<_LineItemCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _FieldLabel(_tr('Product / Service', 'Bidhaa / Huduma')),
+                _FieldLabel(_tr('Product / Service', 'Bidhaaa / Huduma')),
                 const SizedBox(height: 4),
                 _OutlineField(
                   controller: _nameCtrl,
@@ -1219,51 +1027,130 @@ class _SuggestionList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 4),
+      margin: const EdgeInsets.only(top: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 4)),
+              color: AppColors.shadowCard,
+              blurRadius: 12,
+              offset: Offset(0, 3)),
         ],
       ),
-      child: Column(
-        children: items.map((inv) {
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+        children: items.asMap().entries.map((e) {
+          final isLast = e.key == items.length - 1;
+          final inv = e.value;
           final price = parseNumericAmount(
               inv['sellingPrice'] ?? inv['unitPrice']);
-          return InkWell(
+          final stock = parseStock(inv['currentStock'] ?? inv['stock']);
+          final isOut  = stock <= 0;
+          final isLow  = !isOut && stock <= parseStock(inv['reorderPoint'] ?? 5);
+          final productType = (inv['productType'] as String?) ?? '';
+          final isService    = productType == 'service';
+          final category = (inv['category'] as String?) ?? '';
+          final stockColor = isService
+              ? AppColors.tealAccent
+              : isOut
+                  ? AppColors.error
+                  : isLow
+                      ? AppColors.warning
+                      : AppColors.success;
+
+          return Column(children: [
+          InkWell(
             onTap: () => onTap(inv),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.inventory_2_rounded,
-                      size: 16, color: AppColors.textMuted),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      inv['name']?.toString() ?? '',
-                      style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600),
+                  // Inventory-style tinted icon
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: stockColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isService
+                          ? Icons.design_services_rounded
+                          : Icons.inventory_2_outlined,
+                      size: 18,
+                      color: stockColor,
                     ),
                   ),
-                  Text(
-                    'TZS ${_fmtNum(price)}',
-                    style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12,
-                        color: AppColors.textSecondary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          inv['name']?.toString() ?? '',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13, fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary),
+                        ),
+                        if (category.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(category,
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 11, color: AppColors.textMuted)),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'TZS ${_fmtNum(price)}',
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary),
+                      ),
+                      if (!isService) ...[
+                        const SizedBox(height: 3),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: stockColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: stockColor.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            isOut
+                                ? _tr('Out', 'Imekwisha')
+                                : '$stock ${_tr("left", "zimebaki")}',
+                            style: GoogleFonts.dmSans(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: stockColor),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
-          );
+          ),
+          if (!isLast)
+            const Divider(
+                height: 1,
+                indent: 14,
+                endIndent: 14,
+                color: AppColors.border),
+          ]);
         }).toList(),
+        ),
       ),
     );
   }

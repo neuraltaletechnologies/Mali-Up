@@ -7,14 +7,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
+import '../../../customer/presentation/widgets/add_customer_dialog.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../data/sales_providers.dart';
 import 'invoice_detail_screen.dart';
@@ -163,6 +166,51 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     };
   }
 
+  Future<void> _deleteSale(BuildContext context, WidgetRef ref, Map<String, dynamic> sale) async {
+    final id = (sale['id'] as String?)?.trim() ?? '';
+    if (id.isEmpty) return;
+    final saleNo = (sale['invoiceNumber'] ?? sale['id'] ?? '').toString();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(_tr('Delete Invoice?', 'Futa Ankara?'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, color: AppColors.navyPrimary)),
+        content: Text(_tr('Delete $saleNo? This cannot be undone.', 'Futa $saleNo? Haiwezi kurejeshwa.'),
+            style: GoogleFonts.dmSans(fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_tr('Cancel', 'Ghairi')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: Text(_tr('Delete', 'Futa'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final ctx2 = await repo.resolveContextForUser(user.uid);
+      await repo
+          .scopeCollection(uid: user.uid, context: ctx2, childCollection: 'sales_invoices')
+          .doc(id)
+          .delete();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(_tr('Could not delete invoice. Please try again.', 'Imeshindwa kufuta ankara. Jaribu tena.')),
+        ));
+      }
+    }
+  }
+
   Future<void> _showNewSaleSheet(BuildContext ctx) async {
     final plan = await ref.read(planStatusProvider.future);
     if (!ctx.mounted) return;
@@ -209,7 +257,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       ),
       body: salesAsync.when(
         loading: () => const SalesPageSkeleton(),
-        error: (_, __) => Center(
+        error: (_, _) => Center(
           child: EmptyState(
             icon: Icons.wifi_off_rounded,
             title: _tr('Could not load sales', 'Imeshindikana kupakia mauzo'),
@@ -246,7 +294,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             children: [
               // ── Header row
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 12, 0),
+                padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 66, 12, 0),
                 child: Row(
                   children: [
                     Expanded(
@@ -307,41 +355,15 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               // ── Search bar
               if (_searchActive) ...[
                 const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    focusNode: _searchFocus,
-                    onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                    decoration: InputDecoration(
-                      hintText: _tr(
-                        'Customer name or invoice number…',
-                        'Jina la mteja au namba ya ankara…',
-                      ),
-                      hintStyle: GoogleFonts.dmSans(
-                          fontSize: 14, color: AppColors.textMuted),
-                      prefixIcon: const Icon(Icons.search_rounded,
-                          size: 20, color: AppColors.textMuted),
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: AppColors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.primary, width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                    ),
+                AppSearchBar(
+                  controller: _searchCtrl,
+                  focusNode: _searchFocus,
+                  hintText: _tr(
+                    'Customer name or invoice number…',
+                    'Jina la mteja au namba ya ankara…',
                   ),
+                  onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                 ),
               ],
 
@@ -355,24 +377,34 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                         padding:
                             const EdgeInsets.fromLTRB(24, 4, 24, 104),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (_, _) =>
                             const SizedBox(height: 10),
                         itemBuilder: (ctx, i) {
                           final item = filtered[i];
-                          return _InvoiceCard(
-                            item: item,
-                            onTap: () => Navigator.of(ctx).push(
+                          return ListSwipeCard(
+                            itemKey: ValueKey(item['id'] ?? i),
+                            onEdit: () => Navigator.of(ctx).push(
                               MaterialPageRoute(
                                 builder: (_) => InvoiceDetailScreen(
                                   invoice: Map<String, dynamic>.from(item),
                                 ),
                               ),
                             ),
-                            onReceiptAction: () =>
-                                _openReceiptActions(
-                              context: ctx,
-                              sale: item,
-                              ref: ref,
+                            onDelete: () => _deleteSale(ctx, ref, item),
+                            child: _InvoiceCard(
+                              item: item,
+                              onTap: () => Navigator.of(ctx).push(
+                                MaterialPageRoute(
+                                  builder: (_) => InvoiceDetailScreen(
+                                    invoice: Map<String, dynamic>.from(item),
+                                  ),
+                                ),
+                              ),
+                              onReceiptAction: () => _openReceiptActions(
+                                context: ctx,
+                                sale: item,
+                                ref: ref,
+                              ),
                             ),
                           );
                         },
@@ -495,7 +527,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     if (discount > 0) {
       b.writeln(
-          '${_tr("Subtotal", "Jumla Bidhaa")}: TSh ${subtotal.toStringAsFixed(0)}');
+          '${_tr("Subtotal", "Jumla Bidhaaa")}: TSh ${subtotal.toStringAsFixed(0)}');
       b.writeln(
           '${_tr("Discount", "Punguzo")}: -TSh ${discount.toStringAsFixed(0)}');
     }
@@ -550,6 +582,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       businessName: meta['businessName'] ?? 'Business',
       printedBy: meta['printedBy'] ?? 'User',
     );
+    SentryMetricsService.invoicePrinted(surface: 'receipt_sheet');
     if (!context.mounted) return;
 
     await showModalBottomSheet<void>(
@@ -933,26 +966,27 @@ class _InvoiceCard extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border(
-              left: BorderSide(color: sColor, width: 3.5),
-              top: const BorderSide(color: AppColors.border),
-              right: const BorderSide(color: AppColors.border),
-              bottom: const BorderSide(color: AppColors.border),
-            ),
+            border: Border.all(color: AppColors.border),
             boxShadow: AppTheme.cardShadow,
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Container(width: 4, color: sColor),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 12, 14, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                 // Row 1: invoice number + date + status chip
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1146,12 +1180,16 @@ class _InvoiceCard extends StatelessWidget {
                     ],
                   ),
                 ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+                      ],    // Column children
+                    ),      // Column
+                  ),        // Padding
+                ),          // Expanded
+              ],            // Row children
+            ),              // Row
+          ),                // IntrinsicHeight
+        ),                  // Ink
+      ),                    // InkWell
+    );                      // Material return
   }
 }
 
@@ -1159,76 +1197,42 @@ class _InvoiceCard extends StatelessWidget {
 
 class _EmptySalesState extends StatelessWidget {
   final _SalesFilter filter;
-
   const _EmptySalesState({required this.filter});
 
   @override
   Widget build(BuildContext context) {
-    final ({IconData icon, String title, String subtitle}) content =
+    final (IconData icon, String title, String subtitle) content =
         switch (filter) {
       _SalesFilter.paid => (
-        icon: Icons.check_circle_outline_rounded,
-        title: _tr('No paid invoices', 'Hakuna ankara zilizolipwa'),
-        subtitle: _tr('Paid invoices will appear here.',
+        Icons.check_circle_outline_rounded,
+        _tr('All paid up', 'Yote yalilipwa'),
+        _tr('Paid invoices will show up here once customers settle.',
             'Ankara zilizolipwa zitaonekana hapa.'),
       ),
       _SalesFilter.overdue => (
-        icon: Icons.schedule_rounded,
-        title: _tr('No overdue invoices', 'Hakuna ankara zilizochelewa'),
-        subtitle:
-            _tr('Great — nothing overdue!', 'Vizuri — hakuna iliyochelewa!'),
+        Icons.hourglass_empty_rounded,
+        _tr('Nothing overdue — nice!', 'Hakuna zilizochelewa — vizuri!'),
+        _tr('All your invoices are on track.',
+            'Ankara zako zote ziko sawa.'),
       ),
       _SalesFilter.draft => (
-        icon: Icons.edit_note_rounded,
-        title: _tr('No drafts', 'Hakuna rasimu'),
-        subtitle: _tr('Saved drafts will appear here.',
-            'Rasimu zilizohifadhiwa zitaonekana hapa.'),
+        Icons.edit_note_rounded,
+        _tr('No drafts saved', 'Hakuna rasimu zilizohifadhiwa'),
+        _tr('Unfinished sales will be saved here as drafts.',
+            'Mauzo ambayo hayajakamilika yatahifadhiwa hapa kama rasimu.'),
       ),
       _ => (
-        icon: Icons.receipt_long_outlined,
-        title: _tr('No sales yet', 'Bado hakuna mauzo'),
-        subtitle:
-            _tr('Tap New Sale to get started.', 'Bonyeza Mauzo Mapya kuanza.'),
+        Icons.receipt_long_outlined,
+        _tr('Your first sale is waiting!', 'Mauzo yako ya kwanza yanangoja!'),
+        _tr('Tap New Sale to record a payment.',
+            'Bonyeza Mauzo Mapya kurekodi malipo.'),
       ),
     };
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Icon(content.icon,
-                  size: 32, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              content.title,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              content.subtitle,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted, height: 1.5),
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: content.$1,
+      title: content.$2,
+      subtitle: content.$3,
     );
   }
 }
@@ -1477,26 +1481,71 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     });
   }
 
-  Future<void> _scanBarcode(int index) async {
-    final entry = _items[index];
-    final scanned = await BarcodeScannerScreen.show(context,
-        title: _tr('Scan Product', 'Skani Bidhaa'));
-    if (scanned == null || scanned.isEmpty || !mounted) return;
-
+  /// Opens the continuous POS scanner. Each successful scan auto-adds an
+  /// item row (or increments qty if the product is already in the list).
+  Future<void> _openPosScanner() async {
     final inventory = ref.read(inventoryItemListProvider).value ?? [];
-    final matched = inventory.firstWhere(
-      (item) =>
-          (item['sku'] ?? '').toString().toLowerCase() ==
-          scanned.toLowerCase(),
-      orElse: () => <String, dynamic>{},
+
+    final results = await PosScannerScreen.show(
+      context,
+      title: _tr('Scan Items', 'Skani Bidhaa'),
+      onScanned: (barcode) async {
+        final matched = inventory.firstWhere(
+          (item) =>
+              (item['sku'] ?? '').toString().toLowerCase() ==
+              barcode.toLowerCase(),
+          orElse: () => <String, dynamic>{},
+        );
+        if (matched.isEmpty) return null;
+        final name = (matched['name'] ?? '').toString();
+        final price = parseUnitPrice(matched['unitPrice'] ?? matched['price'] ?? 0);
+        return PosCartEntry(barcode: barcode, name: name, price: price);
+      },
     );
 
-    if (matched.isNotEmpty) {
-      _selectProduct(entry, matched);
-    } else {
-      _snack(_tr('No product found for barcode: $scanned',
-          'Hakuna bidhaa kwa nambari: $scanned'));
+    if (!mounted || results.isEmpty) return;
+
+    // Remove any blank placeholder items first.
+    final toRemove = _items
+        .where((e) =>
+            e.nameCtrl.text.trim().isEmpty && e.selectedItem == null)
+        .toList();
+    for (final e in toRemove) {
+      e.dispose();
+      _items.remove(e);
     }
+
+    // Merge scanner results into the items list.
+    for (final scanned in results) {
+      final existing = _items.firstWhere(
+        (e) =>
+            e.selectedItem != null &&
+            (e.selectedItem!['sku'] ?? '').toString().toLowerCase() ==
+                scanned.barcode.toLowerCase(),
+        orElse: () => _ItemEntry(name: '___not_found___'),
+      );
+
+      if (existing.nameCtrl.text != '___not_found___') {
+        existing.qty += scanned.qty - 1; // already counted 1 in the entry
+      } else {
+        final inv = inventory.firstWhere(
+          (item) =>
+              (item['sku'] ?? '').toString().toLowerCase() ==
+              scanned.barcode.toLowerCase(),
+          orElse: () => <String, dynamic>{},
+        );
+        if (inv.isNotEmpty) {
+          final newEntry = _ItemEntry();
+          newEntry.nameCtrl.addListener(() => _onItemNameChanged(newEntry));
+          _selectProduct(newEntry, inv);
+          newEntry.qty = scanned.qty;
+          _items.add(newEntry);
+        }
+      }
+    }
+
+    if (_items.isEmpty) _addItem();
+    setState(() {});
   }
 
   Future<void> _pickDueDate() async {
@@ -1515,12 +1564,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final e = _items[i];
       if (e.nameCtrl.text.trim().isEmpty) {
         _snack(_tr(
-            'Enter name for item ${i + 1}', 'Ingiza jina la bidhaa ${i + 1}'));
+            'Enter name for item ${i + 1}', 'Ingiza jina la bidhaaa ${i + 1}'));
         return;
       }
       if (e.unitPrice <= 0) {
         _snack(_tr(
-            'Enter price for item ${i + 1}', 'Ingiza bei ya bidhaa ${i + 1}'));
+            'Enter price for item ${i + 1}', 'Ingiza bei ya bidhaaa ${i + 1}'));
         return;
       }
       if (e.isOutOfStock) {
@@ -1528,6 +1577,15 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             '${e.nameCtrl.text.trim()} imekwisha stokuni.'));
         return;
       }
+    }
+
+    // Require a customer when payment is not fully settled
+    if (_payStatus != _PayStatus.paid && _selectedCustomer == null) {
+      _snack(_tr(
+        'Please select a customer before recording a debt.',
+        'Tafadhali chagua mteja kabla ya kurekodi deni.',
+      ));
+      return;
     }
 
     double amountPaid;
@@ -1609,6 +1667,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         if (notes.isNotEmpty) 'notes': notes,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      SentryMetricsService.salesCreated(
+        amount: _grandTotal,
+        status: statusStr,
+      );
 
       for (final e in _items) {
         if (e.selectedItem != null) {
@@ -1642,6 +1704,29 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             'balance': FieldValue.increment(outstanding),
           });
         } catch (_) {}
+
+        // Create a debt record when sale is not fully paid
+        if (outstanding > 0 && _payStatus != _PayStatus.paid) {
+          try {
+            await repo
+                .scopeCollection(
+                    uid: user.uid, context: ctx, childCollection: 'debts')
+                .add({
+              'customerId': _selectedCustomer!.id,
+              'customerName': _selectedCustomer!.name,
+              'customerPhone': _selectedCustomer!.phone,
+              'invoiceNumber': invoiceNumber,
+              'originalAmount': _grandTotal,
+              'amountPaid': amountPaid,
+              'outstandingAmount': outstanding,
+              'status': _payStatus == _PayStatus.partial ? 'partial' : 'unpaid',
+              'type': 'sale',
+              if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          } catch (_) {}
+        }
       }
 
       navigator.pop();
@@ -1767,14 +1852,37 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   }
 
   Widget _buildCustomerSection() {
+    final needsCustomer =
+        _payStatus != _PayStatus.paid && _selectedCustomer == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_tr('Customer', 'Mteja'),
-            style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textMuted)),
+        Row(
+          children: [
+            Text(_tr('Customer', 'Mteja'),
+                style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: needsCustomer ? AppColors.warning : AppColors.textMuted)),
+            if (needsCustomer) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _tr('Required for debt', 'Inahitajika kwa deni'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.warning),
+                ),
+              ),
+            ],
+          ],
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _customerCtrl,
@@ -1870,7 +1978,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
               useSafeArea: true,
-              builder: (_) => _QuickAddCustomerSheet(
+              builder: (_) => AddCustomerDialog(
                 initialName: _customerCtrl.text.trim(),
                 onAdded: _selectCustomer,
               ),
@@ -1911,8 +2019,36 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     fontWeight: FontWeight.w600,
                     color: AppColors.textMuted)),
             const Spacer(),
+            // POS continuous scan button
+            GestureDetector(
+              onTap: _openPosScanner,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.tealAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: AppColors.tealAccent.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.qr_code_scanner_rounded,
+                        size: 14, color: AppColors.tealAccent),
+                    const SizedBox(width: 5),
+                    Text(_tr('Scan Mode', 'Skani'),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.tealAccent)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Text(
-                '${_items.length} ${_tr("item", "bidhaa")}${_items.length != 1 ? "s" : ""}',
+                '${_items.length} ${_tr("item", "kitu")}${_items.length != 1 ? "s" : ""}',
                 style: GoogleFonts.dmSans(
                     fontSize: 11, color: AppColors.textMuted)),
           ],
@@ -1940,7 +2076,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 const Icon(Icons.add_circle_outline_rounded,
                     size: 18, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(_tr('Add Item', 'Ongeza Bidhaa'),
+                Text(_tr('Add Item', 'Ongeza Bidhaaa'),
                     style: GoogleFonts.dmSans(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700,
@@ -1956,14 +2092,20 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Widget _buildItemRow(int index) {
     final entry = _items[index];
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
             color: entry.isOutOfStock
                 ? AppColors.error.withValues(alpha: 0.4)
                 : AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard,
+              blurRadius: 6,
+              offset: Offset(0, 1)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1971,7 +2113,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           Row(
             children: [
               Text(
-                '${_tr("Item", "Bidhaa")} ${index + 1}',
+                '${_tr("Item", "Bidhaaa")} ${index + 1}',
                 style: GoogleFonts.dmSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -1993,7 +2135,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             textCapitalization: TextCapitalization.words,
             onChanged: (_) => setState(() {}),
             decoration: _fieldDec(
-              label: _tr('Product name', 'Jina la bidhaa'),
+              label: _tr('Product name', 'Jina la bidhaaa'),
               prefix: Icons.inventory_2_outlined,
               suffix: entry.selectedItem != null
                   ? const Icon(Icons.check_circle_rounded,
@@ -2014,8 +2156,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                       : IconButton(
                           icon: const Icon(Icons.qr_code_scanner_rounded,
                               size: 22, color: AppColors.tealAccent),
-                          tooltip: _tr('Scan barcode', 'Skani nambari'),
-                          onPressed: () => _scanBarcode(index),
+                          tooltip: _tr('Scan mode', 'Hali ya skani'),
+                          onPressed: _openPosScanner,
                         )),
             ),
           ),
@@ -2057,7 +2199,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                         child: Text(
                           _tr(
                               'Add "${entry.nameCtrl.text}" to inventory',
-                              'Ongeza "${entry.nameCtrl.text}" kwa hisa'),
+                              'Ongeza "${entry.nameCtrl.text}" kwa bidhaa'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.dmSans(
@@ -2152,94 +2294,127 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Widget _buildProductSuggestions(int index) {
     final entry = _items[index];
     return Container(
-      margin: const EdgeInsets.only(top: 4),
+      margin: const EdgeInsets.only(top: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
+              color: AppColors.shadowCard,
               blurRadius: 12,
-              offset: const Offset(0, 3)),
+              offset: Offset(0, 3)),
         ],
       ),
-      child: Column(
-        children: entry.suggs.asMap().entries.map((e) {
-          final isLast = e.key == entry.suggs.length - 1;
-          final item = e.value;
-          final name = (item['name'] ?? '') as String;
-          final price =
-              parseUnitPrice(item['unitPrice'] ?? item['price'] ?? 0);
-          final stock =
-              parseStock(item['currentStock'] ?? item['stock'] ?? 0);
-          final oos = stock <= 0;
-          return Column(
-            children: [
-              InkWell(
-                onTap: oos ? null : () => _selectProduct(entry, item),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                  child: Row(
-                    children: [
-                      Icon(Icons.inventory_2_rounded,
-                          size: 16,
-                          color: oos ? AppColors.error : AppColors.primary),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          children: entry.suggs.asMap().entries.map((e) {
+            final isLast = e.key == entry.suggs.length - 1;
+            final item = e.value;
+            final name = (item['name'] ?? '') as String;
+            final category = (item['category'] ?? '') as String;
+            final price = parseUnitPrice(item['unitPrice'] ?? item['price'] ?? 0);
+            final stock = parseStock(item['currentStock'] ?? item['stock'] ?? 0);
+            final isService = (item['productType'] as String?) == 'service';
+            final oos = !isService && stock <= 0;
+            final isLow = !isService && !oos && stock <= parseStock(item['reorderPoint'] ?? 5);
+            final stockColor = oos
+                ? AppColors.error
+                : isLow
+                    ? AppColors.warning
+                    : AppColors.success;
+            final iconData = isService
+                ? Icons.design_services_rounded
+                : Icons.inventory_2_outlined;
+
+            return Column(
+              children: [
+                InkWell(
+                  onTap: oos ? null : () => _selectProduct(entry, item),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        // Inventory-style tinted icon
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: stockColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(iconData,
+                              size: 18, color: stockColor),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name,
+                                  style: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: oos
+                                          ? AppColors.textMuted
+                                          : AppColors.navyPrimary)),
+                              if (category.isNotEmpty)
+                                Text(category,
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 11,
+                                        color: AppColors.textMuted)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(name,
-                                style: GoogleFonts.dmSans(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: oos
-                                        ? AppColors.textMuted
-                                        : AppColors.navyPrimary)),
                             Text(
-                              oos
-                                  ? _tr('Out of Stock', 'Haipatikani')
-                                  : 'TSh ${price.toStringAsFixed(0)} · $stock ${_tr("in stock", "stokuni")}',
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 11,
-                                  color: oos
-                                      ? AppColors.error
-                                      : AppColors.textMuted),
+                              'TZS ${price.toStringAsFixed(0)}',
+                              style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navyPrimary),
                             ),
+                            const SizedBox(height: 3),
+                            if (!isService)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: stockColor.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: stockColor.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(
+                                  oos
+                                      ? _tr('Out', 'Imekwisha')
+                                      : '$stock ${_tr("left", "zimebaki")}',
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: stockColor),
+                                ),
+                              ),
                           ],
                         ),
-                      ),
-                      if (oos)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6)),
-                          child: Text(_tr('Out', 'Imekwisha'),
-                              style: const TextStyle(
-                                  fontSize: 9,
-                                  color: AppColors.error,
-                                  fontWeight: FontWeight.w700)),
-                        )
-                      else
-                        const Icon(Icons.north_west_rounded,
-                            size: 13, color: AppColors.textMuted),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              if (!isLast)
-                const Divider(
-                    height: 1,
-                    indent: 12,
-                    endIndent: 12,
-                    color: AppColors.border),
-            ],
-          );
-        }).toList(),
+                if (!isLast)
+                  const Divider(
+                      height: 1,
+                      indent: 14,
+                      endIndent: 14,
+                      color: AppColors.border),
+              ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -2255,7 +2430,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       child: Column(
         children: [
           _TotalRow(
-              label: _tr('Subtotal', 'Jumla Bidhaa'),
+              label: _tr('Subtotal', 'Jumla Bidhaaa'),
               value: 'TSh ${_subtotal.toStringAsFixed(0)}'),
           const SizedBox(height: 8),
           TextField(
@@ -2444,16 +2619,36 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
   Widget _buildSaveButton() {
     final hasOutOfStock = _items.any((e) => e.isOutOfStock);
+    final needsCustomer =
+        _payStatus != _PayStatus.paid && _selectedCustomer == null;
+    final isDisabled = _isSaving || hasOutOfStock || needsCustomer;
+
+    String buttonLabel;
+    if (hasOutOfStock) {
+      buttonLabel = _tr('Item out of stock', 'Bidhaaa imekwisha');
+    } else if (needsCustomer) {
+      buttonLabel = _tr('Select a customer first', 'Chagua mteja kwanza');
+    } else {
+      buttonLabel = _tr('Save Sale', 'Hifadhi Mauzo');
+    }
+
+    Color disabledBg;
+    if (hasOutOfStock) {
+      disabledBg = AppColors.error.withValues(alpha: 0.6);
+    } else if (needsCustomer) {
+      disabledBg = AppColors.warning.withValues(alpha: 0.5);
+    } else {
+      disabledBg = AppColors.primary.withValues(alpha: 0.5);
+    }
+
     return SizedBox(
       height: 52,
       child: ElevatedButton(
-        onPressed: (_isSaving || hasOutOfStock) ? null : _save,
+        onPressed: isDisabled ? null : _save,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.navyPrimary,
-          disabledBackgroundColor: hasOutOfStock
-              ? AppColors.error.withValues(alpha: 0.6)
-              : AppColors.primary.withValues(alpha: 0.5),
+          disabledBackgroundColor: disabledBg,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16)),
           elevation: 0,
@@ -2465,9 +2660,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 child: CircularProgressIndicator(
                     strokeWidth: 2.5, color: AppColors.navyPrimary))
             : Text(
-                hasOutOfStock
-                    ? _tr('Item out of stock', 'Bidhaa imekwisha')
-                    : _tr('Save Sale', 'Hifadhi Mauzo'),
+                buttonLabel,
                 style: GoogleFonts.dmSans(
                     fontSize: 15, fontWeight: FontWeight.w700)),
       ),
@@ -2719,7 +2912,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              _tr('Enter product name', 'Ingiza jina la bidhaa'))));
+              _tr('Enter product name', 'Ingiza jina la bidhaaa'))));
       return;
     }
     if (price <= 0) {
@@ -2770,7 +2963,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(_tr(
-              'Failed to add product', 'Imeshindikana kuongeza bidhaa'))));
+              'Failed to add product', 'Imeshindikana kuongeza bidhaaa'))));
     }
   }
 
@@ -2801,7 +2994,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                 ),
               ),
               Text(
-                _tr('Add New Product', 'Ongeza Bidhaa Mpya'),
+                _tr('Add New Product', 'Ongeza Bidhaaa Mpya'),
                 style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -2810,7 +3003,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               const SizedBox(height: 20),
               _field(
                   ctrl: _nameCtrl,
-                  label: _tr('Product Name *', 'Jina la Bidhaa *'),
+                  label: _tr('Product Name *', 'Jina la Bidhaaa *'),
                   icon: Icons.inventory_2_outlined,
                   caps: TextCapitalization.words),
               const SizedBox(height: 14),
@@ -2855,7 +3048,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _selectedUnit,
+                      initialValue: _selectedUnit,
                       decoration: InputDecoration(
                         labelText: _tr('Unit', 'Kitengo'),
                         prefixIcon:
@@ -2913,7 +3106,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                               strokeWidth: 2.5,
                               color: AppColors.secondary))
                       : Text(
-                          _tr('Add to Inventory', 'Ongeza kwa Hisa'),
+                          _tr('Add to Inventory', 'Ongeza kwa Bidhaa'),
                           style: const TextStyle(
                               fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
