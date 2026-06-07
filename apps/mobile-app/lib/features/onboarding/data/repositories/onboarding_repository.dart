@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/onboarding_state.dart';
 import '../../domain/models/user_lookup_result.dart';
 import '../../../auth/presentation/utils/pin_auth_password.dart';
+import '../../../team/domain/models/team_member.dart';
 
 // ─── PROVIDER ────────────────────────────────────────────────────────────────
 
@@ -195,7 +196,8 @@ class OnboardingRepository {
     final firstName = parts.isNotEmpty ? parts.first : '';
     final lastName = parts.length > 1 ? parts.skip(1).join(' ') : '';
 
-    // Write user document
+    // Write user document — include memberId so currentMemberProvider can
+    // find the team_member doc without a collection-group query.
     await _db.collection('users').doc(uid).set({
       'phone': phone,
       'name': name,
@@ -205,11 +207,12 @@ class OnboardingRepository {
       'isTeamMember': true,
       'ownerUid': ownerUid,
       'businessId': businessId,
+      'memberId': memberId,
       'createdAt': FieldValue.serverTimestamp(),
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
 
-    // Mark team_member record as active
+    // Mark team_member record as active and stamp userId (Firebase Auth UID).
     if (ownerUid.isNotEmpty && businessId.isNotEmpty && memberId.isNotEmpty) {
       try {
         await _db
@@ -222,10 +225,33 @@ class OnboardingRepository {
             .update({
           'status': 'active',
           'acceptedAt': FieldValue.serverTimestamp(),
-          'uid': uid,
+          'userId': uid, // used by Firestore rules and currentMemberProvider
         });
       } catch (e) {
         if (kDebugMode) debugPrint('[createTeamMemberAccount] activate: $e');
+      }
+
+      // Write memberAccess/{uid} so Firestore security rules can check
+      // permissions server-side without trusting the client.
+      try {
+        final teamRole = TeamRole.fromString(role);
+        final permissions = defaultPermissionsFor(teamRole)
+            .map((p) => p.name)
+            .toList();
+        await _db
+            .collection('tenants')
+            .doc(ownerUid)
+            .collection('memberAccess')
+            .doc(uid)
+            .set({
+          'status': 'active',
+          'businessId': businessId,
+          'memberId': memberId,
+          'role': role,
+          'permissions': permissions,
+        });
+      } catch (e) {
+        if (kDebugMode) debugPrint('[createTeamMemberAccount] memberAccess: $e');
       }
     }
 

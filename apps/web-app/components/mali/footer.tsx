@@ -1,119 +1,150 @@
-"use client"
-
-import { useRef } from "react"
-import { motion, useInView } from "framer-motion"
-import { Twitter, Linkedin, Instagram } from "lucide-react"
 import NextImage from "next/image"
 
-const links = {
+const footerLinks = {
   Product: [
     { label: "Features", href: "#features" },
     { label: "How It Works", href: "#journey" },
-    { label: "Download", href: "#download" },
+    { label: "Industries", href: "#industries" },
+    { label: "Team Management", href: "#team" },
+    { label: "Mobile App", href: "#mobile" },
   ],
   Company: [
-    { label: "About", href: "https://neuraltale.com/about", external: true },
-    { label: "Blog", href: "https://neuraltale.com/blog", external: true },
-    { label: "Careers", href: "https://neuraltale.com/careers", external: true },
+    { label: "About Us", href: "#" },
+    { label: "Blog", href: "#" },
+    { label: "Careers", href: "#" },
+    { label: "Press", href: "#" },
+  ],
+  Support: [
+    { label: "Help Center", href: "#" },
+    { label: "Contact Us", href: "#" },
+    { label: "Status", href: "#" },
+    { label: "Community", href: "#" },
   ],
   Legal: [
-    { label: "Privacy", href: "#" },
-    { label: "Terms", href: "#" },
+    { label: "Privacy Policy", href: "#" },
+    { label: "Terms of Service", href: "#" },
+    { label: "Cookie Policy", href: "#" },
   ],
 }
 
-const socials = [
-  { icon: Twitter, label: "Twitter", href: "#" },
-  { icon: Linkedin, label: "LinkedIn", href: "#" },
-  { icon: Instagram, label: "Instagram", href: "#" },
-]
-
 export function Footer() {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: "-50px" })
-
   return (
     <footer
-      ref={ref}
-      className="bg-background border-t border-border"
-      aria-label="Site footer"
+      className="relative"
+      style={{
+        background: "var(--mali-navy-950)",
+        borderTop: "1px solid rgba(255,255,255,0.04)",
+      }}
     >
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        <motion.div
-          className="grid md:grid-cols-2 lg:grid-cols-5 gap-12"
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-        >
+      <div className="max-w-7xl mx-auto px-6 py-16">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-10 mb-14">
           {/* Brand */}
-          <div className="lg:col-span-2 flex flex-col gap-5">
-            <a href="#" className="flex items-center gap-2.5 group w-fit">
-              <NextImage
-                src="/maliup-logo.png"
-                alt="Mali Up logo"
-                width={40}
-                height={40}
-                className="rounded-xl shadow-lg transition-transform group-hover:scale-105"
-              />
-              <span className="font-heading font-semibold text-foreground text-lg tracking-tight">
-                Mali<span className="text-accent">Up</span>
+          <div className="col-span-2 lg:col-span-1">
+            <a href="#" className="flex items-center gap-2.5 mb-4">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{
+                  background: "rgba(212,165,116,0.1)",
+                  border: "1px solid rgba(212,165,116,0.18)",
+                }}
+              >
+                <NextImage
+                  src="/maliup-logo.png"
+                  alt="Mali Up"
+                  width={22}
+                  height={22}
+                  className="rounded-lg"
+                />
+              </div>
+              <span
+                className="font-heading font-bold text-lg"
+                style={{ color: "rgba(255,255,255,0.9)" }}
+              >
+                Mali<span style={{ color: "#d4a574" }}>Up</span>
               </span>
             </a>
-            <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
-              Your complete financial companion for Africa. Track money, register assets, manage business.
+            <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>
+              Business Operating System for African SMEs.
+              <br />
+              Built in Tanzania.
             </p>
-
-            {/* Social links */}
-            <div className="flex gap-2" aria-label="Social media links">
-              {socials.map(({ icon: Icon, label, href }) => (
+            <div className="mt-5 flex gap-3">
+              {[
+                { icon: "𝕏", label: "Twitter/X" },
+                { icon: "in", label: "LinkedIn" },
+                { icon: "f", label: "Facebook" },
+              ].map((social) => (
                 <a
-                  key={label}
-                  href={href}
-                  aria-label={label}
-                  className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground"
+                  key={social.label}
+                  href="#"
+                  aria-label={social.label}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold transition-colors"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.4)",
+                  }}
                 >
-                  <Icon size={18} />
+                  {social.icon}
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Nav columns */}
-          {Object.entries(links).map(([section, items]) => (
-            <div key={section} className="flex flex-col gap-4">
-              <h3 className="text-foreground font-semibold text-sm">{section}</h3>
-              <ul className="flex flex-col gap-3">
-                {items.map((item) => (
-                  <li key={item.label}>
+          {/* Links */}
+          {Object.entries(footerLinks).map(([section, links]) => (
+            <div key={section}>
+              <p
+                className="text-xs font-semibold mb-4 tracking-wider uppercase"
+                style={{ color: "rgba(255,255,255,0.35)" }}
+              >
+                {section}
+              </p>
+              <ul className="space-y-2.5">
+                {links.map((link) => (
+                  <li key={link.label}>
                     <a
-                      href={item.href}
-                      target={item.external ? "_blank" : undefined}
-                      rel={item.external ? "noreferrer" : undefined}
-                      className="text-muted-foreground text-sm hover:text-foreground transition-colors"
+                      href={link.href}
+                      className="text-sm transition-colors"
+                      style={{ color: "rgba(255,255,255,0.45)" }}
                     >
-                      {item.label}
+                      {link.label}
                     </a>
                   </li>
                 ))}
               </ul>
             </div>
           ))}
-        </motion.div>
+        </div>
 
         {/* Bottom bar */}
-        <motion.div
-          className="mt-16 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4"
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : {}}
-          transition={{ duration: 0.6, delay: 0.2 }}
+        <div
+          className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
         >
-          <p className="text-muted-foreground text-sm">
-            {new Date().getFullYear()} Neuraltale Technology. All rights reserved.
+          <p className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+            © {new Date().getFullYear()} Mali Up. All rights reserved.
           </p>
-          <p className="text-muted-foreground text-sm">
-            Made with care in Africa
-          </p>
-        </motion.div>
+          <div className="flex items-center gap-4">
+            <div
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
+              style={{
+                background: "rgba(74,222,128,0.06)",
+                border: "1px solid rgba(74,222,128,0.12)",
+                color: "#4ade80",
+              }}
+            >
+              <div
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: "#4ade80", boxShadow: "0 0 4px #4ade80" }}
+              />
+              All systems operational
+            </div>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.2)" }}>
+              🇹🇿 Made in Tanzania
+            </p>
+          </div>
+        </div>
       </div>
     </footer>
   )

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +11,8 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../rbac/data/audit_log_service.dart';
+import '../../../rbac/data/rbac_providers.dart';
 import '../../data/team_providers.dart';
 import '../../domain/models/team_member.dart';
 
@@ -91,21 +95,24 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   @override
   Widget build(BuildContext context) {
     final membersAsync = ref.watch(teamMembersProvider);
+    final ps = ref.watch(permissionServiceProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showInviteSheet(context),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.navyPrimary,
-        elevation: 3,
-        icon: const Icon(Icons.person_add_rounded, size: 20),
-        label: Text(
-          _tr('Add Member', 'Ongeza Mwanachama'),
-          style: GoogleFonts.dmSans(
-              fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-      ),
+      floatingActionButton: ps.isOwner
+          ? FloatingActionButton.extended(
+              onPressed: () => _showInviteSheet(context),
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 3,
+              icon: const Icon(Icons.person_add_rounded, size: 20),
+              label: Text(
+                _tr('Add Member', 'Ongeza Mwanachama'),
+                style: GoogleFonts.dmSans(
+                    fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+            )
+          : null,
       body: membersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => Center(
@@ -169,8 +176,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                             const SizedBox(height: 12),
                         itemBuilder: (ctx, i) => ListSwipeCard(
                           itemKey: ValueKey(filtered[i].id),
-                          onEdit: () => _showMemberSheet(context, filtered[i]),
-                          onDelete: () => _removeMember(context, ref, filtered[i]),
+                          onEdit: ps.isOwner ? () => _showMemberSheet(context, filtered[i]) : null,
+                          onDelete: ps.isOwner ? () => _removeMember(context, ref, filtered[i]) : null,
                           child: _MemberCard(
                             member: filtered[i],
                             onTap: () => _showMemberSheet(context, filtered[i]),
@@ -226,6 +233,15 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx2 = await repo.resolveContextForUser(user.uid);
       await repo.deleteTeamMember(uid: user.uid, context: ctx2, memberId: member.id);
+      unawaited(AuditLogService().log(
+        ownerUid: user.uid,
+        businessId: ctx2.businessId ?? '',
+        performedByUid: user.uid,
+        performedByName: user.displayName ?? 'Owner',
+        action: AuditLogService.memberRemoved,
+        targetMemberId: member.id,
+        targetName: member.name,
+      ));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(_tr('${member.name} removed.', '${member.name} ameondolewa.')),
@@ -1000,6 +1016,41 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
           context: ctx,
           memberId: _member.id,
           data: data);
+      // Audit log — best-effort, do not await
+      final bizId = ctx.businessId ?? '';
+      if (data.containsKey('role')) {
+        unawaited(AuditLogService().log(
+          ownerUid: user.uid,
+          businessId: bizId,
+          performedByUid: user.uid,
+          performedByName: user.displayName ?? 'Owner',
+          action: AuditLogService.roleChanged,
+          targetMemberId: _member.id,
+          targetName: _member.name,
+          previousValue: _member.role.name,
+          newValue: data['role'],
+        ));
+      } else if (data['status'] == 'suspended') {
+        unawaited(AuditLogService().log(
+          ownerUid: user.uid,
+          businessId: bizId,
+          performedByUid: user.uid,
+          performedByName: user.displayName ?? 'Owner',
+          action: AuditLogService.memberSuspended,
+          targetMemberId: _member.id,
+          targetName: _member.name,
+        ));
+      } else if (data['status'] == 'active') {
+        unawaited(AuditLogService().log(
+          ownerUid: user.uid,
+          businessId: bizId,
+          performedByUid: user.uid,
+          performedByName: user.displayName ?? 'Owner',
+          action: AuditLogService.memberActivated,
+          targetMemberId: _member.id,
+          targetName: _member.name,
+        ));
+      }
       if (!mounted) return;
       setState(() {
         _member = _member.copyWith(
@@ -1051,6 +1102,15 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo.deleteTeamMember(
           uid: user.uid, context: ctx, memberId: _member.id);
+      unawaited(AuditLogService().log(
+        ownerUid: user.uid,
+        businessId: ctx.businessId ?? '',
+        performedByUid: user.uid,
+        performedByName: user.displayName ?? 'Owner',
+        action: AuditLogService.memberRemoved,
+        targetMemberId: _member.id,
+        targetName: _member.name,
+      ));
       navigator.pop();
       messenger.showSnackBar(SnackBar(
         content: Text(_tr(
@@ -1068,6 +1128,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
   Widget build(BuildContext context) {
     final rc = _roleColor(_member.role);
     final size = MediaQuery.sizeOf(context);
+    final ps = ref.watch(permissionServiceProvider);
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: size.height * 0.92),
@@ -1143,73 +1204,74 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── Change role ──────────────────────────────────────
-                    _ActionCard(
-                      icon: Icons.swap_horiz_rounded,
-                      color: AppColors.navyPrimary,
-                      title: _tr('Change Role', 'Badilisha Jukumu'),
-                      subtitle: _member.role.label,
-                      trailing: Icon(
-                        _editingRole
-                            ? Icons.expand_less_rounded
-                            : Icons.expand_more_rounded,
-                        color: AppColors.textMuted,
-                        size: 20,
+                    // ── Change role (owner only) ─────────────────────────
+                    if (ps.isOwner) ...[
+                      _ActionCard(
+                        icon: Icons.swap_horiz_rounded,
+                        color: AppColors.navyPrimary,
+                        title: _tr('Change Role', 'Badilisha Jukumu'),
+                        subtitle: _member.role.label,
+                        trailing: Icon(
+                          _editingRole
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          color: AppColors.textMuted,
+                          size: 20,
+                        ),
+                        onTap: () =>
+                            setState(() => _editingRole = !_editingRole),
                       ),
-                      onTap: () =>
-                          setState(() => _editingRole = !_editingRole),
-                    ),
-                    if (_editingRole) ...[
-                      const SizedBox(height: 10),
-                      ...TeamRole.values.map((r) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _RoleCard(
-                              role: r,
-                              selected: _pendingRole == r,
-                              onTap: () =>
-                                  setState(() => _pendingRole = r),
-                              compact: true,
-                            ),
-                          )),
-                      if (_pendingRole == TeamRole.custom) ...[
+                      if (_editingRole) ...[
+                        const SizedBox(height: 10),
+                        ...TeamRole.values.map((r) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _RoleCard(
+                                role: r,
+                                selected: _pendingRole == r,
+                                onTap: () =>
+                                    setState(() => _pendingRole = r),
+                                compact: true,
+                              ),
+                            )),
+                        if (_pendingRole == TeamRole.custom) ...[
+                          const SizedBox(height: 8),
+                          _PermissionEditor(
+                            perms: _pendingPerms,
+                            onChanged: (p) =>
+                                setState(() => _pendingPerms = p),
+                          ),
+                        ],
                         const SizedBox(height: 8),
-                        _PermissionEditor(
-                          perms: _pendingPerms,
-                          onChanged: (p) =>
-                              setState(() => _pendingPerms = p),
+                        SizedBox(
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: _isSaving
+                                ? null
+                                : () => _updateMember({
+                                      'role': _pendingRole.name,
+                                      if (_pendingRole == TeamRole.custom)
+                                        'customPermissions': _pendingPerms
+                                            .map((p) => p.name)
+                                            .toList(),
+                                    }),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.navyPrimary,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                                _tr('Save Role', 'Hifadhi Jukumu'),
+                                style: GoogleFonts.dmSans(
+                                    fontWeight: FontWeight.w700)),
+                          ),
                         ),
                       ],
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 44,
-                        child: ElevatedButton(
-                          onPressed: _isSaving
-                              ? null
-                              : () => _updateMember({
-                                    'role': _pendingRole.name,
-                                    if (_pendingRole == TeamRole.custom)
-                                      'customPermissions': _pendingPerms
-                                          .map((p) => p.name)
-                                          .toList(),
-                                  }),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.navyPrimary,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                              _tr('Save Role', 'Hifadhi Jukumu'),
-                              style: GoogleFonts.dmSans(
-                                  fontWeight: FontWeight.w700)),
-                        ),
-                      ),
+                      const SizedBox(height: 10),
                     ],
 
-                    const SizedBox(height: 10),
-
-                    // ── View permissions ─────────────────────────────────
+                    // ── View permissions (visible to all) ────────────────
                     _ActionCard(
                       icon: Icons.lock_outline_rounded,
                       color: AppColors.tealAccent,
@@ -1236,44 +1298,41 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                                   : null),
                     ],
 
-                    const SizedBox(height: 10),
-
-                    // ── Suspend / Activate ───────────────────────────────
-                    if (_member.status == 'active')
+                    // ── Suspend / Activate + Remove (owner only) ─────────
+                    if (ps.isOwner) ...[
+                      const SizedBox(height: 10),
+                      if (_member.status == 'active')
+                        _ActionCard(
+                          icon: Icons.pause_circle_outline_rounded,
+                          color: AppColors.warning,
+                          title: _tr('Suspend Member', 'Zuia Mwanachama'),
+                          subtitle: _tr(
+                              'Temporarily revoke access',
+                              'Zuia ufikiaji kwa muda'),
+                          onTap: () =>
+                              _updateMember({'status': 'suspended'}),
+                        )
+                      else if (_member.status == 'suspended')
+                        _ActionCard(
+                          icon: Icons.play_circle_outline_rounded,
+                          color: AppColors.success,
+                          title: _tr(
+                              'Activate Member', 'Wezesha Mwanachama'),
+                          subtitle:
+                              _tr('Restore access', 'Rudisha ufikiaji'),
+                          onTap: () => _updateMember({'status': 'active'}),
+                        ),
+                      const SizedBox(height: 10),
                       _ActionCard(
-                        icon: Icons.pause_circle_outline_rounded,
-                        color: AppColors.warning,
-                        title:
-                            _tr('Suspend Member', 'Zuia Mwanachama'),
+                        icon: Icons.person_remove_outlined,
+                        color: AppColors.error,
+                        title: _tr('Remove Member', 'Ondoa Mwanachama'),
                         subtitle: _tr(
-                            'Temporarily revoke access',
-                            'Zuia ufikiaji kwa muda'),
-                        onTap: () =>
-                            _updateMember({'status': 'suspended'}),
-                      )
-                    else if (_member.status == 'suspended')
-                      _ActionCard(
-                        icon: Icons.play_circle_outline_rounded,
-                        color: AppColors.success,
-                        title: _tr(
-                            'Activate Member', 'Wezesha Mwanachama'),
-                        subtitle:
-                            _tr('Restore access', 'Rudisha ufikiaji'),
-                        onTap: () => _updateMember({'status': 'active'}),
+                            'Permanently remove from team',
+                            'Ondoa kabisa kutoka timu'),
+                        onTap: _delete,
                       ),
-
-                    const SizedBox(height: 10),
-
-                    // ── Remove ───────────────────────────────────────────
-                    _ActionCard(
-                      icon: Icons.person_remove_outlined,
-                      color: AppColors.error,
-                      title: _tr('Remove Member', 'Ondoa Mwanachama'),
-                      subtitle: _tr(
-                          'Permanently remove from team',
-                          'Ondoa kabisa kutoka timu'),
-                      onTap: _delete,
-                    ),
+                    ],
                   ],
                 ),
               ),

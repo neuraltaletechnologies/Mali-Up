@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/repositories/context_firestore_repository.dart';
+import '../../rbac/data/rbac_providers.dart';
 import '../domain/models/customer.dart';
 
 final contextFirestoreRepositoryProvider = Provider<ContextFirestoreRepository>((ref) {
@@ -29,6 +30,7 @@ final customerListProvider = StreamProvider<List<Customer>>((ref) async* {
     yield const <Customer>[];
     return;
   }
+  final ownerUid = ref.watch(tenantOwnerUidProvider) ?? user.uid;
   final businessAsync = ref.watch(currentBusinessIdProvider);
   if (businessAsync.isLoading) {
     return;
@@ -40,7 +42,7 @@ final customerListProvider = StreamProvider<List<Customer>>((ref) async* {
   }
   final repo = ref.read(contextFirestoreRepositoryProvider);
   yield* repo.watchCustomers(
-    uid: user.uid,
+    uid: ownerUid,
     context: ResolvedFinanceContext.business(bizId),
   );
 });
@@ -53,6 +55,7 @@ final customerInvoicesProvider =
     yield const [];
     return;
   }
+  final ownerUid = ref.watch(tenantOwnerUidProvider) ?? user.uid;
   final businessAsync = ref.watch(currentBusinessIdProvider);
   if (businessAsync.isLoading) {
     return;
@@ -64,7 +67,7 @@ final customerInvoicesProvider =
   }
   final repo = ref.read(contextFirestoreRepositoryProvider);
   final col = repo.scopeCollection(
-    uid: user.uid,
+    uid: ownerUid,
     context: ResolvedFinanceContext.business(bizId),
     childCollection: 'sales_invoices',
   );
@@ -83,6 +86,7 @@ final customerNotesProvider =
     yield const [];
     return;
   }
+  final ownerUid = ref.watch(tenantOwnerUidProvider) ?? user.uid;
   final businessAsync = ref.watch(currentBusinessIdProvider);
   if (businessAsync.isLoading) {
     return;
@@ -94,7 +98,7 @@ final customerNotesProvider =
   }
   final repo = ref.read(contextFirestoreRepositoryProvider);
   final customersCol = repo.scopeCollection(
-    uid: user.uid,
+    uid: ownerUid,
     context: ResolvedFinanceContext.business(bizId),
     childCollection: 'customers',
   );

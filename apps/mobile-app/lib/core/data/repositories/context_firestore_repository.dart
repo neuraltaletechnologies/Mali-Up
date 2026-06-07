@@ -449,6 +449,57 @@ class ContextFirestoreRepository {
     ).doc(memberId).delete();
   }
 
+  // ── Member access (Firestore-rules enforcement layer) ────────────────────────
+
+  /// Writes (or merges) a `memberAccess/{memberUid}` document under the
+  /// owner's tenant.  This is the record that Firestore security rules read
+  /// to decide whether a team member may read or write business data.
+  ///
+  /// Must be called:
+  ///   1. When a team member accepts an invite (pass their Firebase Auth UID).
+  ///   2. Whenever their role, permissions, or status changes.
+  ///
+  /// [ownerUid]   — The business owner's Firebase Auth UID (tenant root).
+  /// [businessId] — The business the member belongs to.
+  /// [memberUid]  — The team member's Firebase Auth UID (becomes the doc ID).
+  /// [permissions] — Flat list of effective AppPermission names.
+  /// [status]      — 'active' | 'suspended'.
+  /// [role]        — Role name string (for audit / display purposes).
+  Future<void> writeMemberAccess({
+    required String ownerUid,
+    required String businessId,
+    required String memberUid,
+    required List<String> permissions,
+    required String status,
+    required String role,
+  }) {
+    return _firestore
+        .collection('tenants')
+        .doc(ownerUid)
+        .collection('memberAccess')
+        .doc(memberUid)
+        .set({
+      'businessId': businessId,
+      'permissions': permissions,
+      'status': status,
+      'role': role,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Deletes the `memberAccess` document when a team member is removed.
+  Future<void> deleteMemberAccess({
+    required String ownerUid,
+    required String memberUid,
+  }) {
+    return _firestore
+        .collection('tenants')
+        .doc(ownerUid)
+        .collection('memberAccess')
+        .doc(memberUid)
+        .delete();
+  }
+
   // ── Pending invites (top-level collection for easy phone lookup) ─────────────
 
   /// Writes a new pending invite document. Returns the auto-generated ID.
