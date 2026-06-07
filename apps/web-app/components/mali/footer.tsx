@@ -140,7 +140,7 @@ export function Footer() {
               />
               All systems operational
             </div>
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.2)" }}>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.58)" }}>
               🇹🇿 Made in Tanzania
             </p>
           </div>
