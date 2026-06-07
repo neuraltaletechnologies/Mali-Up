@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/sales_providers.dart';
 import 'create_invoice_screen.dart';
@@ -63,11 +64,12 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   bool get _isQuotation =>
       (_inv['type'] ?? '').toString().toLowerCase() == 'quotation';
-
   double get _total => parseNumericAmount(_inv['totalAmount']);
   double get _subtotal => parseNumericAmount(_inv['subtotal']);
   double get _discount => parseNumericAmount(_inv['discountAmount']);
   double get _vat => parseNumericAmount(_inv['vatAmount']);
+  double get _amountPaid => parseNumericAmount(_inv['amountPaid']);
+  double get _outstanding => (_total - _amountPaid).clamp(0.0, _total);
 
   String get _invoiceNumber =>
       _inv['invoiceNumber']?.toString() ?? _inv['id']?.toString() ?? '—';
@@ -83,32 +85,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   List<Map<String, dynamic>> get _lineItems {
     final raw = _inv['lineItems'];
     if (raw is List) return raw.whereType<Map<String, dynamic>>().toList();
+    final fallback = _inv['items'];
+    if (fallback is List) return fallback.whereType<Map<String, dynamic>>().toList();
     return [];
   }
-
-  Color get _statusColor {
-    return switch (_status) {
-      'paid' => AppColors.success,
-      'sent' => AppColors.tealAccent,
-      'overdue' => AppColors.error,
-      'draft' => AppColors.textMuted,
-      'cancelled' => AppColors.textDisabled,
-      _ => AppColors.warning,
-    };
-  }
-
-  String get _statusLabel {
-    return switch (_status) {
-      'paid' => _tr('Paid', 'Imelipwa'),
-      'sent' => _tr('Sent', 'Imetumwa'),
-      'overdue' => _tr('Overdue', 'Imechelewa'),
-      'draft' => _tr('Draft', 'Rasimu'),
-      'cancelled' => _tr('Cancelled', 'Imefutwa'),
-      _ => _tr('Pending', 'Inasubiri'),
-    };
-  }
-
-  // ── Actions ─────────────────────────────────────────────────────────────────
 
   Future<void> _updateStatus(String newStatus) async {
     setState(() => _updating = true);
@@ -122,8 +102,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       await col.doc(_inv['id'] as String).update({
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
-        if (newStatus == 'paid')
-          'paidAt': FieldValue.serverTimestamp(),
+        if (newStatus == 'paid') 'paidAt': FieldValue.serverTimestamp(),
       });
       setState(() {
         _inv = {..._inv, 'status': newStatus};
@@ -145,8 +124,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     final col = repo.scopeCollection(
         uid: user.uid, context: ctx, childCollection: 'sales_invoices');
     await col.doc(_inv['id'] as String).update({'type': 'invoice'});
-    _showSnack(
-        _tr('Converted to invoice', 'Imebadilishwa kuwa ankara'));
+    _showSnack(_tr('Converted to invoice', 'Imebadilishwa kuwa ankara'));
   }
 
   void _openEdit() {
@@ -160,7 +138,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   void _openReturn() {
-    // Navigates to sales return screen (created separately)
     Navigator.of(context).pushNamed('/sales-return', arguments: _inv);
   }
 
@@ -200,16 +177,12 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
   void _shareEmail() async {
     final text = _buildShareText();
-    final subject =
-        Uri.encodeComponent(_tr('Invoice $_invoiceNumber', 'Ankara $_invoiceNumber'));
+    final subject = Uri.encodeComponent(
+        _tr('Invoice $_invoiceNumber', 'Ankara $_invoiceNumber'));
     final body = Uri.encodeComponent(text);
-    final customerEmail =
-        (_inv['customerEmail'] ?? '').toString();
-    final to = customerEmail.isNotEmpty
-        ? Uri.encodeComponent(customerEmail)
-        : '';
-    await launchUrl(
-        Uri.parse('mailto:$to?subject=$subject&body=$body'));
+    final customerEmail = (_inv['customerEmail'] ?? '').toString();
+    final to = customerEmail.isNotEmpty ? Uri.encodeComponent(customerEmail) : '';
+    await launchUrl(Uri.parse('mailto:$to?subject=$subject&body=$body'));
   }
 
   void _copyText() {
@@ -218,15 +191,11 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   String _buildShareText() {
-    final type = _isQuotation
-        ? _tr('QUOTATION', 'NUKUU')
-        : _tr('INVOICE', 'ANKARA');
+    final type = _isQuotation ? _tr('QUOTATION', 'NUKUU') : _tr('INVOICE', 'ANKARA');
     final lines = StringBuffer();
     lines.writeln('*$type — $_invoiceNumber*');
     lines.writeln('━━━━━━━━━━━━━━━━━━━━━');
-    if (_customerName.isNotEmpty) {
-      lines.writeln('${_tr('To:', 'Kwa:')} *$_customerName*');
-    }
+    lines.writeln('${_tr('Customer:', 'Mteja:')} *$_customerName*');
     if (_invoiceDate != null) {
       lines.writeln('${_tr('Date:', 'Tarehe:')} ${_fmt(_invoiceDate!)}');
     }
@@ -234,30 +203,24 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       lines.writeln('${_tr('Due:', 'Mwisho:')} ${_fmt(_dueDate!)}');
     }
     lines.writeln();
-    lines.writeln(_tr('Items:', 'Bidhaa:'));
     for (final item in _lineItems) {
-      final name = item['productName']?.toString() ?? '';
-      final qty = item['qty']?.toString() ?? '1';
+      final name = item['productName']?.toString() ?? item['name']?.toString() ?? '';
+      final qty = item['qty']?.toString() ?? item['quantity']?.toString() ?? '1';
       final price = _fmtNum(parseNumericAmount(item['unitPrice']));
-      final total = _fmtNum(parseNumericAmount(item['lineTotal']));
+      final total = _fmtNum(parseNumericAmount(item['lineTotal'] ?? item['total']));
       lines.writeln('• $name × $qty @ TZS $price = *TZS $total*');
     }
     lines.writeln('━━━━━━━━━━━━━━━━━━━━━');
     if (_discount > 0) {
-      lines.writeln(
-          '${_tr('Discount:', 'Punguzo:')} -TZS ${_fmtNum(_discount)}');
+      lines.writeln('${_tr('Discount:', 'Punguzo:')} -TZS ${_fmtNum(_discount)}');
     }
     if (_vat > 0) {
-      lines.writeln(
-          '${_tr('VAT (18%):', 'VAT (18%):')} TZS ${_fmtNum(_vat)}');
+      lines.writeln('${_tr('VAT (18%):', 'VAT (18%):')} TZS ${_fmtNum(_vat)}');
     }
-    lines.writeln(
-        '*${_tr('TOTAL:', 'JUMLA:')} TZS ${_fmtNum(_total)}*');
-
-    final notes = _inv['notes']?.toString() ?? '';
-    if (notes.isNotEmpty) {
+    lines.writeln('*${_tr('TOTAL:', 'JUMLA:')} TZS ${_fmtNum(_total)}*');
+    if ((_inv['notes'] ?? '').toString().isNotEmpty) {
       lines.writeln();
-      lines.writeln('_${notes}_');
+      lines.writeln('_${_inv['notes']}_');
     }
     return lines.toString();
   }
@@ -268,13 +231,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       SnackBar(
         content: Text(msg),
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
-
-  // ── UI ──────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -284,19 +244,18 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       body: FadeTransition(
         opacity: _fadeAnim,
         child: ListView(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           children: [
-            _HeroCard(
+            _InvoiceSummaryCard(
               invoiceNumber: _invoiceNumber,
               total: _total,
               status: _status,
-              statusLabel: _statusLabel,
-              statusColor: _statusColor,
               isQuotation: _isQuotation,
               customerName: _customerName,
               invoiceDate: _invoiceDate,
               dueDate: _dueDate,
+              itemCount: _lineItems.length,
+              outstanding: _outstanding,
             ),
             const SizedBox(height: 16),
             _ShareRow(
@@ -348,9 +307,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       foregroundColor: Colors.white,
       elevation: 0,
       title: Text(
-        _isQuotation
-            ? _tr('Quotation', 'Nukuu')
-            : _tr('Invoice', 'Ankara'),
+        _isQuotation ? _tr('Quotation', 'Nukuu') : _tr('Invoice', 'Ankara'),
         style: GoogleFonts.dmSans(
             fontWeight: FontWeight.w700,
             fontSize: 17,
@@ -377,8 +334,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         title: Text(_tr('Cancel Invoice?', 'Futa Ankara?'),
             style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
         content: Text(
-            _tr('This action cannot be undone.',
-                'Hatua hii haiwezi kutenduliwa.'),
+            _tr('This action cannot be undone.', 'Hatua hii haiwezi kutenduliwa.'),
             style: GoogleFonts.dmSans()),
         actions: [
           TextButton(
@@ -386,8 +342,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               child: Text(_tr('Back', 'Rudi'),
                   style: GoogleFonts.dmSans())),
           FilledButton(
-            style:
-                FilledButton.styleFrom(backgroundColor: AppColors.error),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () {
               Navigator.of(context).pop();
               _updateStatus('cancelled');
@@ -401,48 +356,50 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-widgets
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _HeroCard extends StatelessWidget {
+class _InvoiceSummaryCard extends StatelessWidget {
   final String invoiceNumber;
   final double total;
   final String status;
-  final String statusLabel;
-  final Color statusColor;
   final bool isQuotation;
   final String customerName;
   final DateTime? invoiceDate;
   final DateTime? dueDate;
+  final int itemCount;
+  final double outstanding;
 
-  const _HeroCard({
+  const _InvoiceSummaryCard({
     required this.invoiceNumber,
     required this.total,
     required this.status,
-    required this.statusLabel,
-    required this.statusColor,
     required this.isQuotation,
     required this.customerName,
     required this.invoiceDate,
     required this.dueDate,
+    required this.itemCount,
+    required this.outstanding,
   });
 
   @override
   Widget build(BuildContext context) {
+    final overdue = dueDate != null &&
+        dueDate!.isBefore(DateTime.now()) &&
+        status != 'paid' &&
+        status != 'cancelled';
+
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.navyPrimary,
-            AppColors.navyPrimary.withValues(alpha: 0.85),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -453,113 +410,141 @@ class _HeroCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isQuotation
-                            ? _tr('QUOTATION', 'NUKUU')
-                            : _tr('INVOICE', 'ANKARA'),
-                        style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white60,
-                            letterSpacing: 1.2),
-                      ),
+                    Row(
+                      children: [
+                        if (invoiceNumber.isNotEmpty)
+                          Text(
+                            invoiceNumber,
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
+                        if (isQuotation) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _tr('QUO', 'NUK'),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textMuted,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 3),
                     Text(
-                      invoiceNumber,
-                      style: GoogleFonts.jetBrainsMono(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white),
+                      customerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border:
-                      Border.all(color: statusColor.withOpacity(0.4)),
-                ),
-                child: Text(
-                  statusLabel.toUpperCase(),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
-                      letterSpacing: 0.5),
-                ),
-              ),
+              PaymentStatusChip(status: status),
             ],
           ),
-          const SizedBox(height: 20),
-          Text(
-            'TZS ${_fmtNum(total)}',
-            style: GoogleFonts.dmSerifDisplay(
-                fontSize: 36, color: Colors.white),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _tr('Total Amount', 'Jumla ya Malipo'),
-            style: GoogleFonts.dmSans(
-                fontSize: 12, color: Colors.white54),
-          ),
-          const SizedBox(height: 16),
-          const Divider(color: Colors.white12),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
-                child: _HeroMeta(
-                  label: _tr('Customer', 'Mteja'),
-                  value: customerName,
-                  icon: Icons.person_rounded,
+                child: _SummaryMeta(
+                  label: _tr('Date', 'Tarehe'),
+                  value: invoiceDate == null ? '-' : _fmt(invoiceDate!),
+                  icon: Icons.calendar_today_rounded,
                 ),
               ),
-              if (invoiceDate != null)
-                Expanded(
-                  child: _HeroMeta(
-                    label: _tr('Date', 'Tarehe'),
-                    value: _fmt(invoiceDate!),
-                    icon: Icons.calendar_today_rounded,
+              Expanded(
+                child: _SummaryMeta(
+                  label: _tr('Due', 'Mwisho'),
+                  value: dueDate == null ? '-' : _fmt(dueDate!),
+                  icon: Icons.event_rounded,
+                  warn: overdue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                'TZS ${_fmtNum(total)}',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (itemCount > 0)
+                Text(
+                  '· $itemCount ${_tr(itemCount == 1 ? 'item' : 'items', itemCount == 1 ? 'kitu' : 'vitu')}',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
                   ),
                 ),
-              if (dueDate != null)
-                Expanded(
-                  child: _HeroMeta(
-                    label: _tr('Due', 'Mwisho'),
-                    value: _fmt(dueDate!),
-                    icon: Icons.event_rounded,
-                    warn: dueDate!.isBefore(DateTime.now()) &&
-                        status != 'paid' &&
-                        status != 'cancelled',
+              const Spacer(),
+              if (outstanding > 0 && status != 'paid' && status != 'cancelled')
+                Text(
+                  '${_tr('Due', 'Baki')}: TZS ${_fmtNum(outstanding)}',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
                   ),
                 ),
             ],
           ),
+          if (overdue) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.schedule_rounded,
+                    size: 12, color: AppColors.error),
+                const SizedBox(width: 4),
+                Text(
+                  '${_tr('Due was', 'Malipo ilikuwa')} ${_fmt(dueDate!)} ${dueDate!.year}',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _HeroMeta extends StatelessWidget {
+class _SummaryMeta extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
   final bool warn;
 
-  const _HeroMeta({
+  const _SummaryMeta({
     required this.label,
     required this.value,
     required this.icon,
@@ -568,24 +553,31 @@ class _HeroMeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = warn ? AppColors.error : Colors.white70;
+    final color = warn ? AppColors.error : AppColors.textSecondary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, size: 11, color: Colors.white38),
+            Icon(icon, size: 11, color: AppColors.textMuted),
             const SizedBox(width: 4),
-            Text(label,
-                style: GoogleFonts.dmSans(
-                    fontSize: 10, color: Colors.white38)),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 10,
+                color: AppColors.textMuted,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 3),
         Text(
           value,
           style: GoogleFonts.dmSans(
-              fontSize: 12, fontWeight: FontWeight.w600, color: color),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
           overflow: TextOverflow.ellipsis,
         ),
       ],
@@ -692,135 +684,130 @@ class _LineItemsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Text(
-              _tr('Items', 'Bidhaa'),
-              style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 0, 10),
+          child: Text(
+            _tr('Items', 'Bidhaaa'),
+            style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.3),
           ),
-          // Column headers
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: Text(
-                    _tr('ITEM', 'BIDHAA'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted,
-                        letterSpacing: 0.5),
+        ),
+        ...items.asMap().entries.map((e) {
+          final i = e.key;
+          final item = e.value;
+          final isLast = i == items.length - 1;
+          final productName = item['productName']?.toString() ?? '—';
+          final unit = (item['unit'] ?? '').toString();
+          final unitPrice = parseNumericAmount(item['unitPrice']);
+          final lineTotal = parseNumericAmount(item['lineTotal']);
+          final qty = item['qty']?.toString() ?? '1';
+          final isService = (item['productType'] as String?) == 'service';
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+                boxShadow: const [
+                  BoxShadow(
+                      color: AppColors.shadowCard,
+                      blurRadius: 6,
+                      offset: Offset(0, 1)),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Icon with tinted background — inventory card style
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.navyPrimary.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isService
+                          ? Icons.design_services_rounded
+                          : Icons.inventory_2_outlined,
+                      size: 20,
+                      color: AppColors.navyPrimary,
+                    ),
                   ),
-                ),
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    _tr('QTY', 'IDI'),
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted,
-                        letterSpacing: 0.5),
-                  ),
-                ),
-                SizedBox(
-                  width: 90,
-                  child: Text(
-                    _tr('TOTAL', 'JUMLA'),
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted,
-                        letterSpacing: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 8, color: AppColors.border),
-          ...items.asMap().entries.map((e) {
-            final i = e.key;
-            final item = e.value;
-            final isLast = i == items.length - 1;
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 4,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['productName']?.toString() ?? '—',
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary),
-                            ),
-                            if ((item['unit'] ?? '').toString().isNotEmpty)
-                              Text(
-                                '${item['unit']} · TZS ${_fmtNum(parseNumericAmount(item['unitPrice']))}',
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    color: AppColors.textMuted),
-                              ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          '×${item['qty']?.toString() ?? '1'}',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 13,
-                              color: AppColors.textSecondary),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 90,
-                        child: Text(
-                          'TZS ${_fmtNum(parseNumericAmount(item['lineTotal']))}',
-                          textAlign: TextAlign.right,
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 13,
+                  const SizedBox(width: 14),
+                  // Name + unit · price per unit
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          productName,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary),
+                              color: AppColors.navyPrimary),
+                        ),
+                        if (unit.isNotEmpty || unitPrice > 0) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            [
+                              if (unit.isNotEmpty) unit,
+                              if (unitPrice > 0)
+                                'TZS ${_fmtNum(unitPrice)} ${_tr("each", "kila")}',
+                            ].join(' · '),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                color: AppColors.textMuted),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Qty × total
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'TZS ${_fmtNum(lineTotal)}',
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.navyPrimary.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: AppColors.navyPrimary.withValues(alpha: 0.15)),
+                        ),
+                        child: Text(
+                          '×$qty',
+                          style: GoogleFonts.jetBrainsMono(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary),
                         ),
                       ),
                     ],
                   ),
-                ),
-                if (!isLast)
-                  const Divider(height: 1, color: AppColors.border),
-              ],
-            );
-          }),
-          const SizedBox(height: 4),
-        ],
-      ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 }
@@ -1059,10 +1046,8 @@ class _ActionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDraft = status == 'draft';
-    final isSent = status == 'sent' || status == 'pending';
     final isPaid = status == 'paid';
     final isCancelled = status == 'cancelled';
-    final isOverdue = status == 'overdue';
 
     return Container(
       decoration: BoxDecoration(

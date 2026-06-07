@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
+import '../../../../shared/widgets/mali_components.dart';
+import '../../../customer/data/customer_providers.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 import 'add_debt_screen.dart';
@@ -316,7 +320,7 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 64, 16, 10),
             child: _AgingFilterPills(
               selected: _filterBucket,
               onSelect: (b) => setState(() =>
@@ -326,20 +330,13 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
           ),
         ),
         if (isLoading)
-          const SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: CircularProgressIndicator(
-                    color: AppColors.navyPrimary),
-              ),
-            ),
-          )
+          const SliverDebtListSkeleton()
         else if (filtered.isEmpty)
-          SliverToBoxAdapter(child: _EmptyState(
+          SliverToBoxAdapter(child: EmptyState(
             icon: Icons.check_circle_outline_rounded,
-            title: _tr('All settled!', 'Yote yalilipwa!'),
-            subtitle: _tr('No outstanding receivables.', 'Hakuna wadai waliobaki.'),
+            title: _tr("You're all settled up!", 'Umesawazishwa kikamilifu!'),
+            subtitle: _tr('No outstanding amounts owed to you right now.',
+                'Hakuna kiasi kinachokudaiwa kwa sasa.'),
           ))
         else
           SliverPadding(
@@ -348,9 +345,14 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
               delegate: SliverChildBuilderDelegate(
                 (ctx, i) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _DebtCard(
-                    debt: filtered[i],
-                    onTap: () => widget.onTap(filtered[i]),
+                  child: ListSwipeCard(
+                    itemKey: ValueKey(filtered[i].id),
+                    onEdit: () => widget.onTap(filtered[i]),
+                    onDelete: () => _deleteDebt(ctx, ref, filtered[i]),
+                    child: _DebtCard(
+                      debt: filtered[i],
+                      onTap: () => widget.onTap(filtered[i]),
+                    ),
                   ),
                 ),
                 childCount: filtered.length,
@@ -383,19 +385,6 @@ class _PayablesTab extends ConsumerWidget {
     final payables = ref.watch(payablesProvider);
     final isLoading = ref.watch(debtListProvider).isLoading;
 
-    if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.navyPrimary),
-      );
-    }
-    if (payables.isEmpty) {
-      return _EmptyState(
-        icon: Icons.task_alt_rounded,
-        title: _tr('No outstanding bills', 'Hakuna bili zilizo wazi'),
-        subtitle: _tr('All your supplier payments are up to date.', 'Malipo yote ya wasambazaji yamekamilika.'),
-      );
-    }
-
     final overdue = payables.where((d) => d.daysOverdue > 0).toList();
     final dueSoon = payables
         .where((d) => d.daysOverdue <= 0 && d.daysOverdue >= -7)
@@ -404,7 +393,23 @@ class _PayablesTab extends ConsumerWidget {
         .where((d) => d.daysOverdue < -7)
         .toList();
 
-    return CustomScrollView(
+    Widget body;
+    if (isLoading) {
+      body = const DebtTabSkeleton(key: ValueKey('skeleton'));
+    } else if (payables.isEmpty) {
+      body = KeyedSubtree(
+        key: const ValueKey('empty'),
+        child: EmptyState(
+          icon: Icons.handshake_outlined,
+          title: _tr('No outstanding bills', 'Hakuna bili zilizo wazi'),
+          subtitle: _tr('All your supplier payments are up to date.',
+              'Malipo yote ya wasambazaji yamekamilika.'),
+        ),
+      );
+    } else {
+      body = KeyedSubtree(
+        key: const ValueKey('content'),
+        child: CustomScrollView(
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
@@ -418,7 +423,12 @@ class _PayablesTab extends ConsumerWidget {
                 ),
                 ...overdue.map((d) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      child: ListSwipeCard(
+                        itemKey: ValueKey(d.id),
+                        onEdit: () => onTap(d),
+                        onDelete: () => _deleteDebt(context, ref, d),
+                        child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      ),
                     )),
               ],
               if (dueSoon.isNotEmpty) ...[
@@ -429,7 +439,12 @@ class _PayablesTab extends ConsumerWidget {
                 ),
                 ...dueSoon.map((d) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      child: ListSwipeCard(
+                        itemKey: ValueKey(d.id),
+                        onEdit: () => onTap(d),
+                        onDelete: () => _deleteDebt(context, ref, d),
+                        child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      ),
                     )),
               ],
               if (upcoming.isNotEmpty) ...[
@@ -440,13 +455,26 @@ class _PayablesTab extends ConsumerWidget {
                 ),
                 ...upcoming.map((d) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      child: ListSwipeCard(
+                        itemKey: ValueKey(d.id),
+                        onEdit: () => onTap(d),
+                        onDelete: () => _deleteDebt(context, ref, d),
+                        child: _DebtCard(debt: d, onTap: () => onTap(d)),
+                      ),
                     )),
               ],
             ]),
           ),
         ),
       ],
+        ),
+      );
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      switchInCurve: Curves.easeOut,
+      child: body,
     );
   }
 }
@@ -980,6 +1008,57 @@ class _WriteOffTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(_tr('Delete Entry', 'Futa Rekodi'),
+          style: const TextStyle(fontWeight: FontWeight.w700)),
+      content: Text(_tr(
+        'This cannot be undone. All payment records will also be deleted.',
+        'Haiwezi kurejeshwa. Rekodi zote za malipo pia zitafutwa.',
+      )),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(_tr('Cancel', 'Ghairi')),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: TextButton.styleFrom(foregroundColor: AppColors.error),
+          child: Text(_tr('Delete', 'Futa')),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final repo = ref.read(contextFirestoreRepositoryProvider);
+    final ctx2 = await repo.resolveContextForUser(user.uid);
+    await repo
+        .scopeCollection(uid: user.uid, context: ctx2, childCollection: 'debts')
+        .doc(debt.id)
+        .delete();
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: AppColors.error,
+        content: Text(_tr(
+          'Could not delete entry. Please try again.',
+          'Imeshindwa kufuta rekodi. Jaribu tena.',
+        )),
+      ));
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Shared widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1005,32 +1084,26 @@ class _DebtCard extends StatelessWidget {
     final isReceivable = debt.type == 'receivable';
     final daysOver = debt.daysOverdue;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-          boxShadow: const [
-            BoxShadow(
-                color: AppColors.shadowCard,
-                blurRadius: 8,
-                offset: Offset(0, 2))
-          ],
-        ),
+    return Ink(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard, blurRadius: 6, offset: Offset(0, 1))
+        ],
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: AppColors.navyPrimary.withValues(alpha: 0.06),
+        highlightColor: AppColors.navyPrimary.withValues(alpha: 0.04),
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Colored left stripe
-              Container(
-                width: 4,
-                decoration: BoxDecoration(
-                  color: _ageColor,
-                  borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(14)),
-                ),
-              ),
+              // Colored left stripe — age indicator
+              Container(width: 4, color: _ageColor),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
@@ -1297,46 +1370,4 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 72, horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: AppColors.border),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: GoogleFonts.dmSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: GoogleFonts.dmSans(
-                  fontSize: 13, color: AppColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 

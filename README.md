@@ -14,7 +14,7 @@ The MVP ships only five core modules:
 - Tuma ankara
 - Wateja wangu
 - Gharama zangu
-- Hisa zangu
+- Bidhaa zangu
 
 All personal finance modules and advanced business modules are deferred to later phases and preserved in the architecture document.
 

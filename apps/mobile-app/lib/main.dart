@@ -2,22 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:mali_up/config/routing.dart';
 import 'package:mali_up/core/theme/app_theme.dart';
 import 'package:mali_up/core/services/localization_service.dart';
 import 'package:mali_up/core/services/motion_service.dart';
+import 'package:mali_up/core/services/sentry_metrics_service.dart';
 import 'package:mali_up/core/services/security_service.dart';
 import 'package:mali_up/features/security/presentation/screens/pin_lock_screen.dart';
 import 'firebase_options.dart';
 
 const String _onboardingCompletedKey = 'onboarding_completed';
+const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
+const String _sentryEnvironment = String.fromEnvironment(
+  'SENTRY_ENVIRONMENT',
+  defaultValue: 'development',
+);
+const String _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
+const String _sentryDist = String.fromEnvironment('SENTRY_DIST');
+const bool _sentryTestEvent = bool.fromEnvironment(
+  'SENTRY_TEST_EVENT',
+);
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
+Future<void> _startApp() async {
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -29,9 +40,10 @@ Future<void> main() async {
     }
   }
 
+  // Drift is the source of truth for offline data — Firestore's own
+  // persistence cache is disabled to prevent a dual-cache inconsistency.
   FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    persistenceEnabled: false,
   );
 
   final prefs = await SharedPreferences.getInstance();
@@ -56,6 +68,45 @@ Future<void> main() async {
   );
 }
 
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  SentryMetricsService.configure(enabled: _sentryDsn.isNotEmpty);
+
+  if (_sentryDsn.isEmpty) {
+    await _startApp();
+  } else {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = _sentryDsn;
+        options.tracesSampleRate = 1.0;
+        options.profilesSampleRate = 1.0;
+        options.replay.sessionSampleRate = 1.0;
+        options.replay.onErrorSampleRate = 1.0;
+        options.privacy.maskAllText = true;
+        options.privacy.maskAllImages = true;
+        options.sendDefaultPii = true;
+        options.debug = false;
+        options.environment = _sentryEnvironment;
+        if (_sentryRelease.isNotEmpty) {
+          options.release = _sentryRelease;
+        }
+        if (_sentryDist.isNotEmpty) {
+          options.dist = _sentryDist;
+        }
+      },
+      appRunner: () async {
+        await _startApp();
+        SentryMetricsService.appLaunched(sentryEnabled: true);
+        if (_sentryTestEvent) {
+          await Sentry.captureException(
+            StateError('This is test exception'),
+          );
+        }
+      },
+    );
+  }
+}
+
 class MaliUpApp extends StatefulWidget {
   final bool hasCompletedOnboarding;
   final bool hasSelectedLanguage;
@@ -73,29 +124,53 @@ class MaliUpApp extends StatefulWidget {
 class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
   late final GoRouter _router;
 
+  // True when the app was launched with the lock screen active (PIN lock set).
+  late final bool _startedLocked;
+  // Flipped to true after the first post-unlock navigation so subsequent
+  // lock/unlock cycles (app backgrounded and resumed) don't force a redirect.
+  bool _navigatedAfterFirstUnlock = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _startedLocked = SecurityService.isLockedNotifier.value;
     _router = AppRouter.createRouter(
       showLanguageSelection: !widget.hasSelectedLanguage,
       showOnboarding:
           !widget.hasCompletedOnboarding && widget.hasSelectedLanguage,
     );
+    SecurityService.isLockedNotifier.addListener(_onLockStateChanged);
   }
 
   @override
   void dispose() {
+    SecurityService.isLockedNotifier.removeListener(_onLockStateChanged);
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
     super.dispose();
   }
 
-  // Lock the app whenever it moves to the background.
+  // When the app was started locked and the user just verified their PIN,
+  // skip the splash screen and go straight to the dashboard.
+  void _onLockStateChanged() {
+    if (!SecurityService.isLockedNotifier.value &&
+        _startedLocked &&
+        !_navigatedAfterFirstUnlock) {
+      _navigatedAfterFirstUnlock = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && FirebaseAuth.instance.currentUser != null) {
+          _router.go(AppRoutes.dashboard);
+        }
+      });
+    }
+  }
+
+  // Lock only when fully backgrounded — not on transient inactive states
+  // (notification shade, volume overlay, app switcher, etc.).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused) {
       SecurityService.lockApp();
     }
   }
@@ -121,21 +196,23 @@ class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
             return ValueListenableBuilder<bool>(
               valueListenable: MotionService.reducedMotionNotifier,
               builder: (context, reducedMotion, child) {
-                return MaterialApp.router(
-                  title: 'Mali Up',
-                  debugShowCheckedModeBanner: false,
-                  theme: AppTheme.lightTheme,
-                  locale: Locale(language.code),
-                  supportedLocales: const [
-                    Locale('en'),
-                    Locale('sw'),
-                  ],
-                  localizationsDelegates: const [
-                    GlobalMaterialLocalizations.delegate,
-                    GlobalWidgetsLocalizations.delegate,
-                    GlobalCupertinoLocalizations.delegate,
-                  ],
-                  routerConfig: _router,
+                return SentryWidget(
+                  child: MaterialApp.router(
+                    title: 'Mali Up',
+                    debugShowCheckedModeBanner: false,
+                    theme: AppTheme.lightTheme,
+                    locale: Locale(language.code),
+                    supportedLocales: const [
+                      Locale('en'),
+                      Locale('sw'),
+                    ],
+                    localizationsDelegates: const [
+                      GlobalMaterialLocalizations.delegate,
+                      GlobalWidgetsLocalizations.delegate,
+                      GlobalCupertinoLocalizations.delegate,
+                    ],
+                    routerConfig: _router,
+                  ),
                 );
               },
             );

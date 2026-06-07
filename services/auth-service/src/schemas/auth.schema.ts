@@ -13,5 +13,15 @@ export const loginSchema = z.object({
   password: z.string(),
 });
 
+export const lookupSchema = z.object({
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format'),
+});
+
+export const recoverySchema = z.object({
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format'),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type LookupInput = z.infer<typeof lookupSchema>;
+export type RecoveryInput = z.infer<typeof recoverySchema>;

@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon --loader ts-node/esm src/server.ts",
+    "dev": "nodemon --exec \"node --loader ts-node/esm\" src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
@@ -22,6 +22,7 @@
     "fastify": "^5.8.4",
     "fastify-plugin": "^5.1.0",
     "fastify-type-provider-zod": "^6.1.0",
+    "firebase-admin": "^13.10.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

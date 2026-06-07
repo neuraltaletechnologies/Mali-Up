@@ -108,7 +108,7 @@ export function Hero() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.45 }}
               >
-                "Business wealth, in your hand."
+                &quot;Business wealth, in your hand.&quot;
               </motion.p>
 
               {/* Business feature chips */}

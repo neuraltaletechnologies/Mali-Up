@@ -8,8 +8,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../product/data/category_providers.dart';
+import '../../../product/domain/models/business_product_config.dart';
+import '../../../product/domain/models/product_category.dart';
 import '../../data/inventory_providers.dart';
 import '../widgets/barcode_view_sheet.dart';
 
@@ -179,11 +183,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _openAdd(BuildContext ctx) {
+    final mq = MediaQuery.of(ctx).size;
     showModalBottomSheet<void>(
       context: ctx,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
+      constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
       builder: (_) => const _ProductFormSheet(),
     );
   }
@@ -191,6 +198,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   void _openFilterSort(BuildContext ctx, List<Map<String, dynamic>> allItems) {
     showModalBottomSheet<void>(
       context: ctx,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -228,11 +236,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           Expanded(
             child: inventoryAsync.when(
               loading: () => const InventoryPageSkeleton(),
-              error: (e, _) => Center(
-                child: Text(
-                  _tr('Unable to load inventory.', 'Imeshindikana kupakia stoo.'),
-                  style: GoogleFonts.dmSans(color: AppColors.textMuted),
-                ),
+              error: (e, _) => EmptyState(
+                icon: Icons.wifi_off_rounded,
+                title: _tr('Could not load inventory', 'Imeshindikana kupakia stoo'),
+                subtitle: _tr('Check your connection and try again.', 'Angalia muunganiko wako na ujaribu tena.'),
+                actionLabel: _tr('Try again', 'Jaribu tena'),
+                onAction: () => ref.invalidate(inventoryItemListProvider),
               ),
               data: (items) {
                 final filtered = _applyFiltersAndSort(
@@ -240,9 +249,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 );
                 return Column(
                   children: [
+                    SizedBox(height: MediaQuery.of(context).padding.top + 50),
+                    // ── Stats strip ──────────────────────────────────────
+                    _StatsStrip(items: items),
+
                     // ── Search + Filter bar ──────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                       child: Row(
                         children: [
                           Expanded(
@@ -261,9 +274,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         ],
                       ),
                     ),
-
-                    // ── Stats strip ──────────────────────────────────────
-                    _StatsStrip(items: items),
 
                     // ── Active filter chips ──────────────────────────────
                     if (_typeFilter.isNotEmpty || _healthFilter > 0)
@@ -316,7 +326,7 @@ class _SearchBar extends StatelessWidget {
         onChanged: onChanged,
         style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
         decoration: InputDecoration(
-          hintText: _tr('Search products…', 'Tafuta bidhaa…'),
+          hintText: _tr('Search products…', 'Tafuta bidhaaa…'),
           hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
           prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
           suffixIcon: ctrl.text.isNotEmpty
@@ -428,7 +438,7 @@ class _StatsStrip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _Strip(label: _tr('Products', 'Bidhaa'), value: '${items.length}'),
+          _Strip(label: _tr('Products', 'Bidhaaa'), value: '${items.length}'),
           _StripDiv(),
           _Strip(label: _tr('Stock Value', 'Thamani'), value: 'TSh ${_fmtShort(stockVal)}'),
           _StripDiv(),
@@ -572,38 +582,19 @@ class _EmptyPlaceholder extends StatelessWidget {
   const _EmptyPlaceholder({required this.hasQuery});
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            hasQuery ? Icons.search_off_rounded : Icons.inventory_2_outlined,
-            size: 40,
-            color: AppColors.border,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            hasQuery
-                ? _tr('No products match', 'Hakuna bidhaa inayolingana')
-                : _tr('No products yet', 'Bado hakuna bidhaa'),
-            style: GoogleFonts.dmSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            hasQuery
-                ? _tr('Try a different search or filter', 'Jaribu utafutaji tofauti')
-                : _tr('Tap + to add your first product', 'Bonyeza + kuongeza bidhaa ya kwanza'),
-            style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => EmptyState(
+        icon: hasQuery
+            ? Icons.search_off_rounded
+            : Icons.inventory_2_outlined,
+        title: hasQuery
+            ? _tr('No matches found', 'Hakuna inayolingana')
+            : _tr('Your shelves are empty', 'Rafu zako ziko tupu'),
+        subtitle: hasQuery
+            ? _tr('Try a different search or remove a filter.',
+                'Jaribu utafutaji tofauti au ondoa kichujio.')
+            : _tr('Tap + to add your first product.',
+                'Bonyeza + kuongeza bidhaa yako ya kwanza.'),
+      );
 }
 
 // ── Product Row ───────────────────────────────────────────────────────────────
@@ -627,7 +618,7 @@ class _ProductRow extends ConsumerWidget {
           .delete();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('Product deleted', 'Bidhaa imefutwa')),
+          content: Text(_tr('Product deleted', 'Bidhaaa imefutwa')),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ));
@@ -654,116 +645,64 @@ class _ProductRow extends ConsumerWidget {
     final health  = _healthLevel(item);
     final hColor  = _healthColor(health);
 
-    return Dismissible(
-      key: ValueKey(item['id'] ?? name),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          // Right swipe → Edit
-          await showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            useSafeArea: true,
-            builder: (_) => _ProductFormSheet(
-              existingItem: item,
-              existingId: (item['id'] as String?) ?? '',
-            ),
-          );
-          return false;
-        } else {
-          // Left swipe → Delete confirmation
-          final confirmed = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text(
-                _tr('Delete Product?', 'Futa Bidhaa?'),
-                style: GoogleFonts.dmSans(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navyPrimary,
-                ),
-              ),
-              content: Text(
-                _tr(
-                  'Delete "$name"? This cannot be undone.',
-                  'Futa "$name"? Hii haiwezi kutenduliwa.',
-                ),
-                style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textSecondary),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: Text(
-                    _tr('Cancel', 'Ghairi'),
-                    style: GoogleFonts.dmSans(color: AppColors.textMuted, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                  child: Text(
-                    _tr('Delete', 'Futa'),
-                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-          );
-          if (confirmed == true) {
-            await _deleteItem(context, ref);
-            return true;
-          }
-          return false;
-        }
-      },
-      background: Container(
-        color: AppColors.tealAccent.withValues(alpha: 0.08),
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.edit_rounded, color: AppColors.tealAccent, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              _tr('Edit', 'Hariri'),
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.tealAccent,
-              ),
-            ),
-          ],
-        ),
-      ),
-      secondaryBackground: Container(
-        color: AppColors.error.withValues(alpha: 0.08),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              _tr('Delete', 'Futa'),
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.error,
-              ),
-            ),
-          ],
-        ),
-      ),
-      child: GestureDetector(
-        onTap: () => showModalBottomSheet<void>(
+    return ListSwipeCard(
+      itemKey: ValueKey(item['id'] ?? name),
+      onEdit: () async {
+        final mq = MediaQuery.of(context).size;
+        await showModalBottomSheet<void>(
           context: context,
+          useRootNavigator: true,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           useSafeArea: true,
-          builder: (_) => _ProductDetailSheet(item: item),
-        ),
+          constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
+          builder: (_) => _ProductFormSheet(
+            existingItem: item,
+            existingId: (item['id'] as String?) ?? '',
+          ),
+        );
+      },
+      onDelete: () async {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(
+              _tr('Delete Product?', 'Futa Bidhaa?'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, color: AppColors.navyPrimary),
+            ),
+            content: Text(
+              _tr('Delete "$name"? This cannot be undone.', 'Futa "$name"? Hii haiwezi kutenduliwa.'),
+              style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(_tr('Cancel', 'Ghairi'), style: GoogleFonts.dmSans(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: Text(_tr('Delete', 'Futa'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true) await _deleteItem(context, ref);
+      },
+      child: GestureDetector(
+        onTap: () {
+          final mq = MediaQuery.of(context).size;
+          showModalBottomSheet<void>(
+            context: context,
+            useRootNavigator: true,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            useSafeArea: true,
+            constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
+            builder: (_) => _ProductDetailSheet(item: item),
+          );
+        },
         child: Container(
         margin: const EdgeInsets.only(bottom: 1),
         decoration: BoxDecoration(
@@ -1032,7 +971,7 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
               const SizedBox(height: 20),
 
               // ── Type filter ───────────────────────────────────────────
-              _SheetSectionLabel(_tr('Product type', 'Aina ya bidhaa')),
+              _SheetSectionLabel(_tr('Product type', 'Aina ya bidhaaa')),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -1474,7 +1413,7 @@ class _DetailView extends StatelessWidget {
                       onPressed: onEdit,
                       icon: const Icon(Icons.edit_rounded, size: 17),
                       label: Text(
-                        _tr('Edit Product', 'Hariri Bidhaa'),
+                        _tr('Edit Product', 'Hariri Bidhaaa'),
                         style: GoogleFonts.dmSans(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -1689,15 +1628,26 @@ class _ProductFormSheet extends ConsumerStatefulWidget {
 
 class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   late ProductType _type;
+
   final _nameCtrl    = TextEditingController();
-  final _catCtrl     = TextEditingController();
   final _skuCtrl     = TextEditingController();
   final _buyCtrl     = TextEditingController();
   final _sellCtrl    = TextEditingController();
   final _stockCtrl   = TextEditingController(text: '1');
   final _reorderCtrl = TextEditingController(text: '5');
+  final _batchCtrl   = TextEditingController();
+  final _brandCtrl   = TextEditingController();
+  final _warrantyCtrl = TextEditingController();
+
   String _unit = 'pcs';
   bool _saving = false;
+
+  // Category state
+  String _selectedCategoryId = '';
+  String _selectedCategoryName = '';
+
+  // Expiry date state
+  DateTime? _expiryDate;
 
   static const _units = [
     'pcs','kg','liters','boxes','bottles','bags','meters','sets','dozen','packets',
@@ -1705,7 +1655,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   bool get _isEdit => widget.existingItem != null;
 
-  double get _buyVal  =>
+  double get _buyVal =>
       double.tryParse(_buyCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
   double get _sellVal =>
       double.tryParse(_sellCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
@@ -1716,9 +1666,18 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final item = widget.existingItem;
     if (item != null) {
       _type = _readType(item);
-      _nameCtrl.text  = (item['name'] ?? item['productName'] ?? '').toString();
-      _catCtrl.text   = (item['category'] ?? '').toString();
-      _skuCtrl.text   = (item['sku'] ?? '').toString();
+      _nameCtrl.text   = (item['name'] ?? item['productName'] ?? '').toString();
+      _skuCtrl.text    = (item['sku'] ?? '').toString();
+      _batchCtrl.text  = (item['batchNumber'] ?? '').toString();
+      _brandCtrl.text  = (item['brand'] ?? '').toString();
+      _warrantyCtrl.text = (item['warrantyPeriod'] ?? '').toString();
+
+      _selectedCategoryId   = (item['categoryId']   ?? '').toString();
+      _selectedCategoryName = (item['categoryName'] ?? item['category'] ?? '').toString();
+
+      final expiry = item['expiryDate'] as String? ?? '';
+      if (expiry.isNotEmpty) _expiryDate = DateTime.tryParse(expiry);
+
       final b = _readBuyingPrice(item);
       final s = _readSellingPrice(item);
       if (b > 0) _buyCtrl.text  = b.toStringAsFixed(0);
@@ -1735,9 +1694,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose(); _catCtrl.dispose(); _skuCtrl.dispose();
-    _buyCtrl.dispose();  _sellCtrl.dispose();
-    _stockCtrl.dispose(); _reorderCtrl.dispose();
+    _nameCtrl.dispose();   _skuCtrl.dispose();
+    _buyCtrl.dispose();    _sellCtrl.dispose();
+    _stockCtrl.dispose();  _reorderCtrl.dispose();
+    _batchCtrl.dispose();  _brandCtrl.dispose();
+    _warrantyCtrl.dispose();
     super.dispose();
   }
 
@@ -1749,6 +1710,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
     if (_sellVal <= 0) {
       _snack(_tr('Enter a selling price', 'Ingiza bei ya kuuza'));
+      return;
+    }
+
+    // Enforce expiry date when required by business type
+    final bizType = ref.read(currentBusinessTypeProvider).valueOrNull ?? '';
+    final config  = BusinessProductConfig.forBusinessType(bizType);
+    if (config.isExpiryRequired && _expiryDate == null) {
+      _snack(_tr('Expiry date is required', 'Tarehe ya mwisho inahitajika'));
       return;
     }
 
@@ -1765,10 +1734,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         uid: user.uid, context: ctx, childCollection: 'inventory_items',
       );
 
+      final resolvedCatName = _selectedCategoryName.isNotEmpty
+          ? _selectedCategoryName
+          : _tr('General', 'Jumla');
+
       final data = <String, dynamic>{
         'name':         name,
         'productType':  _type.name,
-        'category':     _catCtrl.text.trim().isNotEmpty ? _catCtrl.text.trim() : 'General',
+        'category':     resolvedCatName,
+        'categoryId':   _selectedCategoryId,
+        'categoryName': resolvedCatName,
         'unit':         _unit,
         'sellingPrice': _sellVal,
         'unitPrice':    _sellVal,
@@ -1779,8 +1754,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           'reorderPoint': int.tryParse(_reorderCtrl.text) ?? 5,
         },
         if (_skuCtrl.text.trim().isNotEmpty) 'sku': _skuCtrl.text.trim(),
-        'isActive':   true,
-        'updatedAt':  FieldValue.serverTimestamp(),
+        'expiryDate':     _expiryDate != null
+            ? '${_expiryDate!.year}-${_expiryDate!.month.toString().padLeft(2, '0')}-${_expiryDate!.day.toString().padLeft(2, '0')}'
+            : '',
+        'batchNumber':    _batchCtrl.text.trim(),
+        'brand':          _brandCtrl.text.trim(),
+        'warrantyPeriod': _warrantyCtrl.text.trim(),
+        'isActive':  true,
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
       if (_isEdit && widget.existingId != null) {
@@ -1805,7 +1786,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       msg.showSnackBar(SnackBar(
-        content: Text(_tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.')),
+        backgroundColor: AppColors.error,
+        content: Text(_tr('Could not save product. Please try again.', 'Imeshindikana kuhifadhi bidhaa. Jaribu tena.')),
       ));
     }
   }
@@ -1820,351 +1802,902 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
   }
 
+  Future<void> _pickExpiryDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _expiryDate ?? DateTime.now().add(const Duration(days: 90)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 20)),
+      helpText: _tr('Select Expiry Date', 'Chagua Tarehe ya Mwisho'),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: AppColors.navyPrimary,
+            onSurface: AppColors.textPrimary,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _expiryDate = picked);
+  }
+
+  Future<void> _openCategoryPicker(List<ProductCategory> categories) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CategoryPickerSheet(
+        categories: categories,
+        selectedId: _selectedCategoryId,
+        onSelect: (cat) {
+          setState(() {
+            _selectedCategoryId   = cat.id;
+            _selectedCategoryName = cat.name;
+          });
+        },
+        onAddNew: (name) async {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return;
+          final bizId = ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+          if (bizId.isEmpty) return;
+          final repo = ref.read(contextFirestoreRepositoryProvider);
+          final id = await addCategory(
+            uid: user.uid,
+            bizId: bizId,
+            businessType: ref.read(currentBusinessTypeProvider).valueOrNull ?? '',
+            name: name,
+            repo: repo,
+          );
+          setState(() {
+            _selectedCategoryId   = id;
+            _selectedCategoryName = name;
+          });
+        },
+      ),
+    );
+  }
+
   void _snack(String t) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
 
   @override
   Widget build(BuildContext context) {
-    final showStock  = _type != ProductType.service;
+    final categoriesAsync = ref.watch(categoryListProvider);
+    final bizTypeAsync    = ref.watch(currentBusinessTypeProvider);
+    final bizType = bizTypeAsync.valueOrNull ?? '';
+    final config  = BusinessProductConfig.forBusinessType(bizType);
+
+    final showStock  = _type != ProductType.service && config.showStock;
     final showProfit = _buyVal > 0 && _sellVal > 0;
     final profitAmt  = _profit(_buyVal, _sellVal);
     final marginAmt  = _margin(_buyVal, _sellVal);
+    final sheetWidth = MediaQuery.sizeOf(context).width;
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.92,
-      ),
-      child: Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-          // Handle + Header ────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
-            child: Column(
-              children: [
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    width: 36, height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  ),
-                ),
-                Row(
+    final categories = categoriesAsync.valueOrNull ?? const <ProductCategory>[];
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SizedBox(
+        width: sheetWidth,
+        child: Material(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // Handle + Header ──────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                child: Column(
                   children: [
-                    Expanded(
-                      child: Text(
-                        _isEdit
-                            ? _tr('Edit Product', 'Hariri Bidhaa')
-                            : _tr('Add Product', 'Ongeza Bidhaa'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navyPrimary,
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        width: 36, height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(99),
                         ),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: const Icon(
-                        Icons.close_rounded,
-                        size: 22,
-                        color: AppColors.textMuted,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _isEdit
+                                ? _tr('Edit Product', 'Hariri Bidhaa')
+                                : _tr('Add Product', 'Ongeza Bidhaa'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            size: 22,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // ── Type pills ────────────────────────────────────────
+                    Row(
+                      children: ProductType.values.map((t) {
+                        final sel = t == _type;
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _type = t),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              margin: EdgeInsets.only(
+                                right: t != ProductType.values.last ? 8 : 0,
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: sel ? AppColors.navyPrimary : AppColors.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: sel ? AppColors.navyPrimary : AppColors.border,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(_typeIcon(t), size: 18,
+                                      color: sel ? Colors.white : AppColors.textMuted),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _typeName(t),
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: sel ? Colors.white : AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+              ),
 
-                // ── Type pills ──────────────────────────────────────
-                Row(
-                  children: ProductType.values.map((t) {
-                    final sel = t == _type;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _type = t),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          margin: EdgeInsets.only(
-                            right: t != ProductType.values.last ? 8 : 0,
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: sel ? AppColors.navyPrimary : AppColors.surface,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: sel ? AppColors.navyPrimary : AppColors.border,
+              const SizedBox(height: 8),
+              Container(height: 1, color: AppColors.border),
+
+              // ── Scrollable form ──────────────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    24, 20, 24,
+                    MediaQuery.of(context).viewInsets.bottom + 32,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      // Product name
+                      _FormLabel('${BusinessProductConfig.productNameLabel(
+                        bizType,
+                        isSwahili: LocalizationService.isSwahili,
+                      )} *'),
+                      const SizedBox(height: 6),
+                      _FormField(
+                        ctrl: _nameCtrl,
+                        hint: _tr('e.g. Unga wa mahindi 2kg', 'k.m. Unga wa mahindi 2kg'),
+                        caps: TextCapitalization.words,
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Category dropdown + Unit
+                      Row(
+                        children: [
+                          if (config.showCategory) ...[
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Category', 'Kategoria')),
+                                  const SizedBox(height: 6),
+                                  _CategoryDropdownButton(
+                                    selectedName: _selectedCategoryName,
+                                    categories: categories,
+                                    loading: categoriesAsync.isLoading,
+                                    onTap: () => _openCategoryPicker(categories),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _FormLabel(_tr('Unit', 'Kitengo')),
+                                const SizedBox(height: 6),
+                                _UnitDropdown(
+                                  value: _unit,
+                                  units: _units,
+                                  onChanged: (v) => setState(() => _unit = v),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                _typeIcon(t),
-                                size: 18,
-                                color: sel ? Colors.white : AppColors.textMuted,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _typeName(t),
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: sel ? Colors.white : AppColors.textMuted,
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // SKU / Barcode
+                      _FormLabel('SKU / ${_tr("Barcode", "Nambari")} (${_tr("optional", "hiari")})'),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _FormField(
+                              ctrl: _skuCtrl,
+                              hint: 'e.g. ABC-001',
+                              caps: TextCapitalization.characters,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 48, height: 48,
+                            child: OutlinedButton(
+                              onPressed: _scanSku,
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                side: const BorderSide(color: AppColors.tealAccent),
+                                foregroundColor: AppColors.tealAccent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                            ],
+                              child: const Icon(Icons.qr_code_scanner_rounded, size: 22),
+                            ),
                           ),
+                        ],
+                      ),
+
+                      // ── Business-type-specific fields ──────────────────────
+
+                      // Expiry date (pharmacy required, perishable optional)
+                      if (config.showExpiryDate) ...[
+                        const SizedBox(height: 14),
+                        _FormLabel(config.isExpiryRequired
+                            ? _tr('Expiry Date *', 'Tarehe ya Mwisho *')
+                            : _tr('Expiry Date (optional)', 'Tarehe ya Mwisho (hiari)')),
+                        const SizedBox(height: 6),
+                        _ExpiryDateButton(
+                          date: _expiryDate,
+                          isRequired: config.isExpiryRequired,
+                          onTap: _pickExpiryDate,
+                          onClear: () => setState(() => _expiryDate = null),
+                        ),
+                      ],
+
+                      // Batch number (pharmacy / health)
+                      if (config.showBatchNumber) ...[
+                        const SizedBox(height: 14),
+                        _FormLabel('${_tr('Batch Number', 'Nambari ya Kundi')} (${_tr("optional", "hiari")})'),
+                        const SizedBox(height: 6),
+                        _FormField(
+                          ctrl: _batchCtrl,
+                          hint: 'e.g. BN-2024-001',
+                          caps: TextCapitalization.characters,
+                        ),
+                      ],
+
+                      // Brand (electronics / pharmacy)
+                      if (config.showBrand) ...[
+                        const SizedBox(height: 14),
+                        _FormLabel('${_tr('Brand', 'Chapa')} (${_tr("optional", "hiari")})'),
+                        const SizedBox(height: 6),
+                        _FormField(
+                          ctrl: _brandCtrl,
+                          hint: 'e.g. Samsung, Dawa Ltd',
+                          caps: TextCapitalization.words,
+                        ),
+                      ],
+
+                      // Warranty period (electronics)
+                      if (config.showWarrantyPeriod) ...[
+                        const SizedBox(height: 14),
+                        _FormLabel('${_tr('Warranty Period', 'Kipindi cha Dhamana')} (${_tr("optional", "hiari")})'),
+                        const SizedBox(height: 6),
+                        _FormField(
+                          ctrl: _warrantyCtrl,
+                          hint: _tr('e.g. 12 months', 'k.m. miezi 12'),
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
+                      Container(height: 1, color: AppColors.border),
+                      const SizedBox(height: 20),
+
+                      // ── Pricing ───────────────────────────────────────────
+                      _FormSectionLabel(_tr('Pricing', 'Bei')),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _FormLabel(_tr('Buying price', 'Bei ya kununua')),
+                                const SizedBox(height: 6),
+                                _FormField(
+                                  ctrl: _buyCtrl,
+                                  hint: '0',
+                                  prefix: 'TSh',
+                                  keyboard: const TextInputType.numberWithOptions(decimal: true),
+                                  formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                  onChanged: (_) => setState(() {}),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _FormLabel(_tr('Selling price *', 'Bei ya kuuza *')),
+                                const SizedBox(height: 6),
+                                _FormField(
+                                  ctrl: _sellCtrl,
+                                  hint: '0',
+                                  prefix: 'TSh',
+                                  keyboard: const TextInputType.numberWithOptions(decimal: true),
+                                  formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                  onChanged: (_) => setState(() {}),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (showProfit) ...[
+                        const SizedBox(height: 10),
+                        _ProfitStrip(profit: profitAmt, margin: marginAmt),
+                      ],
+
+                      // ── Stock ─────────────────────────────────────────────
+                      if (showStock) ...[
+                        const SizedBox(height: 20),
+                        Container(height: 1, color: AppColors.border),
+                        const SizedBox(height: 20),
+                        _FormSectionLabel(_tr('Stock', 'Stoo')),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Quantity', 'Kiasi')),
+                                  const SizedBox(height: 6),
+                                  _FormField(
+                                    ctrl: _stockCtrl,
+                                    hint: '1',
+                                    keyboard: TextInputType.number,
+                                    formatters: [FilteringTextInputFormatter.digitsOnly],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Reorder point', 'Kikomo')),
+                                  const SizedBox(height: 6),
+                                  _FormField(
+                                    ctrl: _reorderCtrl,
+                                    hint: '5',
+                                    keyboard: TextInputType.number,
+                                    formatters: [FilteringTextInputFormatter.digitsOnly],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _tr(
+                            'Alert me when stock drops to the reorder point.',
+                            'Nitaarifiwe stoo inapofika kikomo cha kuagiza.',
+                          ),
+                          style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                        ),
+                      ],
+
+                      const SizedBox(height: 28),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _saving ? null : _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.navyPrimary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor:
+                                AppColors.navyPrimary.withValues(alpha: 0.4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _saving
+                              ? const SizedBox(
+                                  width: 18, height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
+                                )
+                              : Text(
+                                  _isEdit
+                                      ? _tr('Save changes', 'Hifadhi mabadiliko')
+                                      : _tr('Add to inventory', 'Ongeza kwenye bidhaa'),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 15, fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                         ),
                       ),
-                    );
-                  }).toList(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Category dropdown button ──────────────────────────────────────────────────
+
+class _CategoryDropdownButton extends StatelessWidget {
+  final String selectedName;
+  final List<ProductCategory> categories;
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _CategoryDropdownButton({
+    required this.selectedName,
+    required this.categories,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: loading
+                  ? Row(children: [
+                      const SizedBox(
+                        width: 14, height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.textMuted),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _tr('Loading…', 'Inapakia…'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14, color: AppColors.textDisabled,
+                        ),
+                      ),
+                    ])
+                  : Text(
+                      selectedName.isNotEmpty
+                          ? selectedName
+                          : (categories.isEmpty
+                              ? _tr('No categories yet', 'Bado hakuna kategoria')
+                              : _tr('category', 'kategoria')),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: selectedName.isNotEmpty
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: selectedName.isNotEmpty
+                            ? AppColors.navyPrimary
+                            : AppColors.textDisabled,
+                      ),
+                    ),
+            ),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                size: 18, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Category Picker bottom sheet ──────────────────────────────────────────────
+
+class _CategoryPickerSheet extends ConsumerStatefulWidget {
+  final List<ProductCategory> categories;
+  final String selectedId;
+  final ValueChanged<ProductCategory> onSelect;
+  final Future<void> Function(String name) onAddNew;
+
+  const _CategoryPickerSheet({
+    required this.categories,
+    required this.selectedId,
+    required this.onSelect,
+    required this.onAddNew,
+  });
+
+  @override
+  ConsumerState<_CategoryPickerSheet> createState() => _CategoryPickerSheetState();
+}
+
+class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
+  final _searchCtrl = TextEditingController();
+  final _newCtrl    = TextEditingController();
+  String _query = '';
+  bool _showAdd = false;
+  bool _adding  = false;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _newCtrl.dispose();
+    super.dispose();
+  }
+
+  List<ProductCategory> get _filtered {
+    if (_query.isEmpty) return widget.categories;
+    return widget.categories
+        .where((c) => c.name.toLowerCase().contains(_query.toLowerCase()))
+        .toList();
+  }
+
+  Future<void> _addCategory() async {
+    final name = _newCtrl.text.trim();
+    if (name.isEmpty) return;
+    setState(() => _adding = true);
+    await widget.onAddNew(name);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 60),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _tr('Category', 'Kategoria'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 17, fontWeight: FontWeight.w800,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() => _showAdd = !_showAdd),
+                  icon: Icon(
+                    _showAdd ? Icons.close_rounded : Icons.add_rounded,
+                    size: 18,
+                    color: AppColors.tealAccent,
+                  ),
+                  label: Text(
+                    _showAdd
+                        ? _tr('Cancel', 'Ghairi')
+                        : _tr('Add New', 'Ongeza Mpya'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13, fontWeight: FontWeight.w600,
+                      color: AppColors.tealAccent,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 8),
-          Container(height: 1, color: AppColors.border),
-
-          // ── Scrollable form ─────────────────────────────────────────
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                24, 20, 24,
-                MediaQuery.of(context).viewInsets.bottom + 32,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          // Add new category field
+          if (_showAdd) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Row(
                 children: [
-                  // Basic info
-                  _FormLabel(_tr('Product name *', 'Jina la bidhaa *')),
-                  const SizedBox(height: 6),
-                  _FormField(
-                    ctrl: _nameCtrl,
-                    hint: _tr('e.g. Maize flour 2kg', 'k.m. Unga wa mahindi 2kg'),
-                    caps: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 14),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _FormLabel(_tr('Category', 'Kategoria')),
-                            const SizedBox(height: 6),
-                            _FormField(
-                              ctrl: _catCtrl,
-                              hint: _tr('e.g. Food', 'k.m. Chakula'),
-                              caps: TextCapitalization.words,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _FormLabel(_tr('Unit', 'Kitengo')),
-                            const SizedBox(height: 6),
-                            _UnitDropdown(
-                              value: _unit,
-                              units: _units,
-                              onChanged: (v) => setState(() => _unit = v),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  _FormLabel('SKU / ${_tr("Barcode", "Nambari")} (${_tr("optional", "hiari")})'),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _FormField(
-                          ctrl: _skuCtrl,
-                          hint: 'e.g. ABC-001',
-                          caps: TextCapitalization.characters,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        height: 48,
-                        child: OutlinedButton(
-                          onPressed: _scanSku,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            side: const BorderSide(color: AppColors.tealAccent),
-                            foregroundColor: AppColors.tealAccent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Icon(Icons.qr_code_scanner_rounded, size: 22),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-                  Container(height: 1, color: AppColors.border),
-                  const SizedBox(height: 20),
-
-                  // Pricing
-                  _FormSectionLabel(_tr('Pricing', 'Bei')),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _FormLabel(_tr('Buying price', 'Bei ya kununua')),
-                            const SizedBox(height: 6),
-                            _FormField(
-                              ctrl: _buyCtrl,
-                              hint: '0',
-                              prefix: 'TSh',
-                              keyboard: const TextInputType.numberWithOptions(decimal: true),
-                              formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                              onChanged: (_) => setState(() {}),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _FormLabel(_tr('Selling price *', 'Bei ya kuuza *')),
-                            const SizedBox(height: 6),
-                            _FormField(
-                              ctrl: _sellCtrl,
-                              hint: '0',
-                              prefix: 'TSh',
-                              keyboard: const TextInputType.numberWithOptions(decimal: true),
-                              formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                              onChanged: (_) => setState(() {}),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Live profit strip
-                  if (showProfit) ...[
-                    const SizedBox(height: 10),
-                    _ProfitStrip(profit: profitAmt, margin: marginAmt),
-                  ],
-
-                  // Stock info
-                  if (showStock) ...[
-                    const SizedBox(height: 20),
-                    Container(height: 1, color: AppColors.border),
-                    const SizedBox(height: 20),
-                    _FormSectionLabel(_tr('Stock', 'Stoo')),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _FormLabel(_tr('Quantity', 'Kiasi')),
-                              const SizedBox(height: 6),
-                              _FormField(
-                                ctrl: _stockCtrl,
-                                hint: '1',
-                                keyboard: TextInputType.number,
-                                formatters: [FilteringTextInputFormatter.digitsOnly],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _FormLabel(_tr('Reorder point', 'Kikomo')),
-                              const SizedBox(height: 6),
-                              _FormField(
-                                ctrl: _reorderCtrl,
-                                hint: '5',
-                                keyboard: TextInputType.number,
-                                formatters: [FilteringTextInputFormatter.digitsOnly],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _tr(
-                        'Alert me when stock drops to the reorder point.',
-                        'Nitaarifiwe stoo inapofika kikomo cha kuagiza.',
-                      ),
+                  Expanded(
+                    child: TextField(
+                      controller: _newCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      autofocus: true,
                       style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
+                        fontSize: 14, fontWeight: FontWeight.w600,
+                        color: AppColors.navyPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: _tr('Category name', 'Jina la kategoria'),
+                        hintStyle: GoogleFonts.dmSans(
+                          fontSize: 14, color: AppColors.textDisabled,
+                        ),
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                              color: AppColors.tealAccent, width: 1.5),
+                        ),
                       ),
                     ),
-                  ],
-
-                  const SizedBox(height: 28),
-
+                  ),
+                  const SizedBox(width: 8),
                   SizedBox(
-                    width: double.infinity,
-                    height: 50,
+                    height: 48,
                     child: ElevatedButton(
-                      onPressed: _saving ? null : _save,
+                      onPressed: _adding ? null : _addCategory,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.navyPrimary,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                            AppColors.navyPrimary.withValues(alpha: 0.4),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 0,
                       ),
-                      child: _saving
+                      child: _adding
                           ? const SizedBox(
-                              width: 18, height: 18,
+                              width: 16, height: 16,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white,
-                              ),
+                                  strokeWidth: 2, color: Colors.white),
                             )
-                          : Text(
-                              _isEdit
-                                  ? _tr('Save changes', 'Hifadhi mabadiliko')
-                                  : _tr('Add to inventory', 'Ongeza kwa hisa'),
+                          : Text(_tr('Save', 'Hifadhi'),
                               style: GoogleFonts.dmSans(
-                                fontSize: 15, fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                                  fontSize: 13, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
               ),
             ),
+          ],
+
+          const SizedBox(height: 8),
+
+          // Search
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _query = v),
+              style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
+              decoration: InputDecoration(
+                hintText: _tr('Search categories…', 'Tafuta kategoria…'),
+                hintStyle: GoogleFonts.dmSans(
+                    fontSize: 14, color: AppColors.textDisabled),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    size: 18, color: AppColors.textMuted),
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // List
+          Expanded(
+            child: _filtered.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.category_outlined,
+                            size: 36, color: AppColors.border),
+                        const SizedBox(height: 10),
+                        Text(
+                          _tr(
+                            'No categories found.\nTap "+ Add New" to create one.',
+                            'Hakuna category zilizopo.\nBonyeza "+ Ongeza Mpya" kuunda moja.',
+                          ),
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13, color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                    itemCount: _filtered.length,
+                    itemBuilder: (_, i) {
+                      final cat = _filtered[i];
+                      final isSelected = cat.id == widget.selectedId;
+                      return ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        leading: Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.navyPrimary
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.navyPrimary
+                                  : AppColors.border,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.label_rounded,
+                            size: 18,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textMuted,
+                          ),
+                        ),
+                        title: Text(
+                          cat.name,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: AppColors.navyPrimary,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_rounded,
+                                size: 20, color: AppColors.success)
+                            : null,
+                        onTap: () {
+                          widget.onSelect(cat);
+                          Navigator.of(context).pop();
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Expiry date picker button ─────────────────────────────────────────────────
+
+class _ExpiryDateButton extends StatelessWidget {
+  final DateTime? date;
+  final bool isRequired;
+  final VoidCallback onTap;
+  final VoidCallback onClear;
+
+  const _ExpiryDateButton({
+    required this.date,
+    required this.isRequired,
+    required this.onTap,
+    required this.onClear,
+  });
+
+  bool get _isExpired =>
+      date != null && date!.isBefore(DateTime.now());
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDate   = date != null;
+    final expired   = _isExpired;
+    final expireSoon = hasDate && !expired &&
+        date!.isBefore(DateTime.now().add(const Duration(days: 30)));
+
+    Color borderColor = AppColors.border;
+    Color iconColor   = AppColors.textMuted;
+    if (expired)     { borderColor = AppColors.error;   iconColor = AppColors.error; }
+    else if (expireSoon) { borderColor = AppColors.warning; iconColor = AppColors.warning; }
+    else if (hasDate) { borderColor = AppColors.success;  iconColor = AppColors.success; }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: hasDate ? 1.5 : 1.0),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_month_rounded, size: 18, color: iconColor),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                hasDate
+                    ? '${date!.day.toString().padLeft(2, '0')} / '
+                        '${date!.month.toString().padLeft(2, '0')} / '
+                        '${date!.year}'
+                        '${expired ? '  ⚠ ${_tr("Expired", "Imeisha")}' : ''}'
+                        '${expireSoon ? '  ⚠ ${_tr("Expires soon", "Karibu kumalizika")}' : ''}'
+                    : (isRequired
+                        ? _tr('Tap to set expiry date *', 'Gusa kuweka tarehe ya mwisho *')
+                        : _tr('Tap to set expiry date', 'Gusa kuweka tarehe ya mwisho')),
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  fontWeight: hasDate ? FontWeight.w600 : FontWeight.w400,
+                  color: expired
+                      ? AppColors.error
+                      : expireSoon
+                          ? AppColors.warning
+                          : hasDate
+                              ? AppColors.navyPrimary
+                              : AppColors.textDisabled,
+                ),
+              ),
+            ),
+            if (hasDate)
+              GestureDetector(
+                onTap: onClear,
+                child: const Icon(Icons.close_rounded,
+                    size: 16, color: AppColors.textMuted),
+              ),
+          ],
         ),
       ),
     );

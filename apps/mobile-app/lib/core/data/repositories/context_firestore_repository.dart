@@ -3,7 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../features/customer/domain/models/customer.dart';
 import '../../../features/debt/domain/models/debt.dart';
 import '../../../features/finance/domain/models/cash_account.dart';
+import '../../../features/finance/domain/models/cash_transaction.dart';
+import '../../../features/finance/domain/models/daily_reconciliation.dart';
 import '../../../features/finance/domain/models/expense.dart';
+import '../../services/sentry_metrics_service.dart';
+import '../../../features/team/domain/models/team_member.dart';
 
 
 enum FinanceContextType { business }
@@ -35,40 +39,42 @@ class ContextFirestoreRepository {
           .collection('users')
           .doc(uid)
           .get(const GetOptions());
-      final data = snapshot.data();
-
-      final defaultContext = (data?['defaultContext'] as String?)
-          ?.toLowerCase();
-      final selectedBusinessId = (data?['selectedBusinessId'] as String?)
-          ?.trim();
-      final businesses = _businessListFromProfile(data);
-
-      if (defaultContext != null && defaultContext.startsWith('business')) {
-        final businessId =
-            _businessIdFromContext(defaultContext) ??
-            selectedBusinessId ??
-            businesses.firstOrNull?.id;
-        if (businessId != null && businessId.isNotEmpty) {
-          return ResolvedFinanceContext.business(businessId);
-        }
-      }
-
-      final defaultAccountType = (data?['defaultAccountType'] as String?)
-          ?.toLowerCase();
-      if (defaultAccountType == 'business') {
-        final businessId = selectedBusinessId ?? businesses.firstOrNull?.id;
-        if (businessId != null && businessId.isNotEmpty) {
-          return ResolvedFinanceContext.business(businessId);
-        }
-      }
-
-      if (businesses.isNotEmpty) {
-        return ResolvedFinanceContext.business(
-          selectedBusinessId ?? businesses.first.id,
-        );
-      }
+      return resolveContextFromData(snapshot.data());
     } catch (_) {
-      // Keep a safe fallback when user profile is unavailable.
+      return const ResolvedFinanceContext.business('');
+    }
+  }
+
+  /// Resolves finance context synchronously from an already-fetched profile map.
+  /// Used by [currentBusinessIdProvider] to avoid redundant Firestore reads.
+  ResolvedFinanceContext resolveContextFromData(Map<String, dynamic>? data) {
+    final defaultContext = (data?['defaultContext'] as String?)?.toLowerCase();
+    final selectedBusinessId =
+        (data?['selectedBusinessId'] as String?)?.trim();
+    final businesses = _businessListFromProfile(data);
+
+    if (defaultContext != null && defaultContext.startsWith('business')) {
+      final businessId = _businessIdFromContext(defaultContext) ??
+          selectedBusinessId ??
+          businesses.firstOrNull?.id;
+      if (businessId != null && businessId.isNotEmpty) {
+        return ResolvedFinanceContext.business(businessId);
+      }
+    }
+
+    final defaultAccountType =
+        (data?['defaultAccountType'] as String?)?.toLowerCase();
+    if (defaultAccountType == 'business') {
+      final businessId = selectedBusinessId ?? businesses.firstOrNull?.id;
+      if (businessId != null && businessId.isNotEmpty) {
+        return ResolvedFinanceContext.business(businessId);
+      }
+    }
+
+    if (businesses.isNotEmpty) {
+      return ResolvedFinanceContext.business(
+        selectedBusinessId ?? businesses.first.id,
+      );
     }
 
     return const ResolvedFinanceContext.business('');
@@ -91,16 +97,18 @@ class ContextFirestoreRepository {
     });
   }
 
-  Future<void> addCustomer({
+  Future<DocumentReference<Map<String, dynamic>>> addCustomer({
     required String uid,
     required ResolvedFinanceContext context,
     required Customer customer,
-  }) {
-    return _scopeCollection(
+  }) async {
+    final ref = await _scopeCollection(
       uid: uid,
       context: context,
       childCollection: 'customers',
     ).add(customer.toFirestore());
+    SentryMetricsService.customerAdded(source: 'repository');
+    return ref;
   }
 
   Stream<List<Debt>> watchDebts({
@@ -230,6 +238,256 @@ class ContextFirestoreRepository {
           .map((doc) => CashAccount.fromFirestore(doc.data(), doc.id))
           .toList();
     });
+  }
+
+  Future<DocumentReference<Map<String, dynamic>>> addCashAccount({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required CashAccount account,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'cash_accounts',
+    ).add({...account.toFirestore(), 'createdAt': FieldValue.serverTimestamp()});
+  }
+
+  Future<void> updateCashAccount({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String accountId,
+    required Map<String, dynamic> data,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'cash_accounts',
+    ).doc(accountId).update({...data, 'updatedAt': FieldValue.serverTimestamp()});
+  }
+
+  Future<void> deleteCashAccount({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String accountId,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'cash_accounts',
+    ).doc(accountId).delete();
+  }
+
+  // ── Cash transactions ────────────────────────────────────────────────────────
+
+  Stream<List<CashTransaction>> watchCashTransactions({
+    required String uid,
+    required ResolvedFinanceContext context,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'cash_transactions',
+    ).orderBy('date', descending: true).snapshots().map((snap) {
+      return snap.docs
+          .map((doc) => CashTransaction.fromFirestore(doc.data(), doc.id))
+          .toList();
+    });
+  }
+
+  // Atomically records the transaction and adjusts account balance(s).
+  Future<void> addCashTransaction({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required CashTransaction txn,
+  }) async {
+    final batch = _firestore.batch();
+
+    final txnCol = _scopeCollection(uid: uid, context: context, childCollection: 'cash_transactions');
+    final txnRef = txnCol.doc();
+    batch.set(txnRef, {
+      ...txn.toFirestore(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    final accountCol = _scopeCollection(uid: uid, context: context, childCollection: 'cash_accounts');
+    final ts = FieldValue.serverTimestamp();
+
+    if (txn.isDeposit && txn.toAccountId.isNotEmpty) {
+      batch.update(accountCol.doc(txn.toAccountId), {
+        'balance': FieldValue.increment(txn.amount),
+        'updatedAt': ts,
+      });
+    } else if (txn.isWithdrawal && txn.fromAccountId.isNotEmpty) {
+      batch.update(accountCol.doc(txn.fromAccountId), {
+        'balance': FieldValue.increment(-txn.amount),
+        'updatedAt': ts,
+      });
+    } else if (txn.isTransfer) {
+      if (txn.fromAccountId.isNotEmpty) {
+        batch.update(accountCol.doc(txn.fromAccountId), {
+          'balance': FieldValue.increment(-txn.amount),
+          'updatedAt': ts,
+        });
+      }
+      if (txn.toAccountId.isNotEmpty) {
+        batch.update(accountCol.doc(txn.toAccountId), {
+          'balance': FieldValue.increment(txn.amount),
+          'updatedAt': ts,
+        });
+      }
+    }
+
+    await batch.commit();
+  }
+
+  // ── Daily reconciliations ─────────────────────────────────────────────────────
+
+  Stream<List<DailyReconciliation>> watchDailyReconciliations({
+    required String uid,
+    required ResolvedFinanceContext context,
+    String? accountId,
+  }) {
+    Query<Map<String, dynamic>> query = _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'daily_reconciliations',
+    ).orderBy('date', descending: true);
+
+    if (accountId != null && accountId.isNotEmpty) {
+      query = query.where('accountId', isEqualTo: accountId);
+    }
+
+    return query.snapshots().map((snap) {
+      return snap.docs
+          .map((doc) => DailyReconciliation.fromFirestore(doc.data(), doc.id))
+          .toList();
+    });
+  }
+
+  Future<void> saveReconciliation({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required DailyReconciliation reconciliation,
+  }) async {
+    final col = _scopeCollection(uid: uid, context: context, childCollection: 'daily_reconciliations');
+    final existing = await col
+        .where('accountId', isEqualTo: reconciliation.accountId)
+        .where('date', isEqualTo: reconciliation.date)
+        .limit(1)
+        .get();
+
+    final data = {
+      ...reconciliation.toFirestore(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (existing.docs.isEmpty) {
+      await col.add({...data, 'createdAt': FieldValue.serverTimestamp()});
+    } else {
+      await existing.docs.first.reference.update(data);
+    }
+
+    // Update lastReconciled on the account
+    await updateCashAccount(
+      uid: uid,
+      context: context,
+      accountId: reconciliation.accountId,
+      data: {'lastReconciled': reconciliation.date},
+    );
+  }
+
+  // ── Team members ────────────────────────────────────────────────────────────
+
+  Stream<List<TeamMember>> watchTeamMembers({
+    required String uid,
+    required ResolvedFinanceContext context,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'team_members',
+    ).orderBy('invitedAt').snapshots().map((snap) => snap.docs
+        .map((doc) => TeamMember.fromFirestore(doc.data(), doc.id))
+        .toList());
+  }
+
+  /// Returns the new document reference so callers can use the generated ID.
+  Future<DocumentReference<Map<String, dynamic>>> addTeamMember({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required Map<String, dynamic> data,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'team_members',
+    ).add(data);
+  }
+
+  Future<void> updateTeamMember({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String memberId,
+    required Map<String, dynamic> data,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'team_members',
+    ).doc(memberId).update(data);
+  }
+
+  Future<void> deleteTeamMember({
+    required String uid,
+    required ResolvedFinanceContext context,
+    required String memberId,
+  }) {
+    return _scopeCollection(
+      uid: uid,
+      context: context,
+      childCollection: 'team_members',
+    ).doc(memberId).delete();
+  }
+
+  // ── Pending invites (top-level collection for easy phone lookup) ─────────────
+
+  /// Writes a new pending invite document. Returns the auto-generated ID.
+  Future<String> writePendingInvite({
+    required Map<String, dynamic> inviteData,
+  }) async {
+    final ref = await _firestore.collection('pendingInvites').add(inviteData);
+    return ref.id;
+  }
+
+  /// Updates an existing pending invite (e.g., mark as accepted).
+  Future<void> updatePendingInvite({
+    required String inviteId,
+    required Map<String, dynamic> data,
+  }) {
+    return _firestore
+        .collection('pendingInvites')
+        .doc(inviteId)
+        .update(data);
+  }
+
+  /// Fetches the display name for the current business context.
+  Future<String> getBusinessName({
+    required String uid,
+    required ResolvedFinanceContext context,
+  }) async {
+    final bizId = context.businessId;
+    if (bizId == null || bizId.isEmpty) return '';
+    try {
+      final doc = await _firestore
+          .collection('tenants')
+          .doc(uid)
+          .collection('businesses')
+          .doc(bizId)
+          .get();
+      return (doc.data()?['businessName'] as String?) ?? '';
+    } catch (_) {
+      return '';
+    }
   }
 
   CollectionReference<Map<String, dynamic>> _scopeCollection({

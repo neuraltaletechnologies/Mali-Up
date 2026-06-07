@@ -7,12 +7,12 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/shimmer.dart';
-import '../../../customer/domain/models/customer.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../debt/presentation/screens/debt_tracking_screen.dart';
 import '../../../finance/data/finance_providers.dart';
@@ -35,7 +35,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   int _entryRewardTrigger = 0;
   bool _showEntryReward = false;
-  bool _showHeavyContent = false;
   Timer? _clockTimer;
   Future<Map<String, dynamic>?> _profileFuture = Future.value();
 
@@ -48,15 +47,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         _profileFuture = _fetchUserProfile();
       });
       _showFirstEntryRewardIfNeeded();
+      _checkWebsiteInterestNudge();
       _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
         if (mounted) setState(() {});
-      });
-      Future<void>.delayed(const Duration(milliseconds: 120), () {
-        if (mounted) {
-          setState(() {
-            _showHeavyContent = true;
-          });
-        }
       });
     });
   }
@@ -90,6 +83,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await Future.delayed(const Duration(milliseconds: 1300));
     if (!mounted) return;
     setState(() => _showEntryReward = false);
+  }
+
+  Future<void> _checkWebsiteInterestNudge() async {
+    final prefs   = await SharedPreferences.getInstance();
+    final pending = prefs.getBool('pending_website_interest') ?? false;
+    if (!pending || !mounted) return;
+    await prefs.remove('pending_website_interest');
+    await Future.delayed(const Duration(milliseconds: 2200));
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _WebsiteInterestSheet(),
+    );
   }
 
   Future<Map<String, dynamic>?> _fetchUserProfile() async {
@@ -135,24 +143,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customers = _showHeavyContent
-      ? ref.watch(customerListProvider)
-      : const AsyncLoading<List<Customer>>();
-    final customerCount = _showHeavyContent
-      ? customers.maybeWhen(data: (items) => items.length, orElse: () => 0)
-      : 0;
-    final AsyncValue<List<Expense>> expenses = _showHeavyContent
-      ? ref.watch(expenseListProvider)
-      : const AsyncLoading<List<Expense>>();
-    final AsyncValue<List<CashAccount>> cashAccounts = _showHeavyContent
-      ? ref.watch(cashAccountListProvider)
-      : const AsyncLoading<List<CashAccount>>();
-    final expenseItems = _showHeavyContent
-      ? expenses.maybeWhen(data: (items) => items, orElse: () => const [])
-      : const [];
-    final cashAccountItems = _showHeavyContent
-      ? cashAccounts.maybeWhen(data: (items) => items, orElse: () => const [])
-      : const [];
+    final customers = ref.watch(customerListProvider);
+    final customerCount = customers.maybeWhen(data: (items) => items.length, orElse: () => 0);
+    final AsyncValue<List<Expense>> expenses = ref.watch(expenseListProvider);
+    final AsyncValue<List<CashAccount>> cashAccounts = ref.watch(cashAccountListProvider);
+    final expenseItems = expenses.maybeWhen(data: (items) => items, orElse: () => const []);
+    final cashAccountItems = cashAccounts.maybeWhen(data: (items) => items, orElse: () => const []);
     final totalExpenses = expenseItems.fold<double>(
       0,
       (total, item) => total + _numericValue(item.amount),
@@ -161,18 +157,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       0,
       (total, item) => total + _numericValue(item.balance),
     );
-    final salesItems = _showHeavyContent
-        ? ref.watch(salesInvoiceListProvider).maybeWhen(
+    final salesItems = ref.watch(salesInvoiceListProvider).maybeWhen(
             data: (items) => items,
             orElse: () => const <Map<String, dynamic>>[],
-          )
-        : const <Map<String, dynamic>>[];
-    final inventoryItems = _showHeavyContent
-        ? ref.watch(inventoryItemListProvider).maybeWhen(
+          );
+    final inventoryItems = ref.watch(inventoryItemListProvider).maybeWhen(
             data: (items) => items,
             orElse: () => const <Map<String, dynamic>>[],
-          )
-        : const <Map<String, dynamic>>[];
+          );
     final todayRevenue = _revenueForPeriod(salesItems, 0);
     final weekRevenue = _revenueForPeriod(salesItems, 6);
     final monthRevenue = _monthRevenue(salesItems);
@@ -278,64 +270,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     const SizedBox(height: 20),
 
                     // ── Hero card ──────────────────────────────────────────
-                    if (_showHeavyContent)
-                      _UnifiedHeroCard(
-                        totalCash: totalCash,
-                        totalExpenses: totalExpenses,
-                        customerCount: customerCount,
-                        businessName: _getBusinessName(snapshot.data),
-                        logoUrl: _getBusinessLogoUrl(snapshot.data),
-                      )
-                    else
-                      const _DashboardHeroSkeleton(),
-
-                    const SizedBox(height: 16),
-
-                    // ── Revenue Overview ───────────────────────────────────
-                    if (_showHeavyContent)
-                      _RevenueOverviewCard(
-                        todayRevenue: todayRevenue,
-                        weekRevenue: weekRevenue,
-                        monthRevenue: monthRevenue,
-                      )
-                    else
-                      const _DashboardHeroSkeleton(),
-
-                    const SizedBox(height: 12),
-
-                    // ── Profit Snapshot + Receivables ─────────────────────
-                    if (_showHeavyContent)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _ProfitSnapshotCard(
-                              monthRevenue: monthRevenue,
-                              totalExpenses: totalExpenses,
-                              netProfit: netProfit,
-                              profitMargin: profitMargin,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _ReceivablesCard(
-                              totalOutstanding: totalOutstanding,
-                              invoiceCount: unpaidSales.length,
-                              overdueCount: overdueCount,
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      const Row(children: [
-                        Expanded(child: _DashboardHalfCardSkeleton()),
-                        SizedBox(width: 12),
-                        Expanded(child: _DashboardHalfCardSkeleton()),
-                      ]),
-
-                    if (_showHeavyContent && lowStockItems.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _LowStockAlertsSection(items: lowStockItems),
-                    ],
+                    _UnifiedHeroCard(
+                      totalCash: totalCash,
+                      totalExpenses: totalExpenses,
+                      customerCount: customerCount,
+                      businessName: _getBusinessName(snapshot.data),
+                      logoUrl: _getBusinessLogoUrl(snapshot.data),
+                    ),
 
                     const SizedBox(height: 24),
 
@@ -354,7 +295,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    _ModuleGrid(showHeavyContent: _showHeavyContent),
+                    const _ModuleGrid(showHeavyContent: true),
 
                     const SizedBox(height: 28),
 
@@ -403,10 +344,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (_showHeavyContent)
-                      const _ChartLegendRow()
-                    else
-                      const _DashboardLoadingPillRow(),
+                    const _ChartLegendRow(),
                     const SizedBox(height: 14),
                     Container(
                       height: 220,
@@ -416,29 +354,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         border: Border.all(color: AppColors.border),
                       ),
                       padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-                      child: _showHeavyContent
-                          ? _SalesLineChart(
-                              salesItems: salesItems,
-                            )
-                          : const _DashboardChartPlaceholder(),
+                      child: _SalesLineChart(
+                        salesItems: salesItems,
+                      ),
                     ),
 
                     const SizedBox(height: 28),
 
                     // ── Top Performers ─────────────────────────────────────
-                    if (_showHeavyContent && salesItems.isNotEmpty) ...[
+                    if (salesItems.isNotEmpty) ...[
                       _TopPerformersSection(salesItems: salesItems),
                       const SizedBox(height: 28),
                     ],
 
                     // ── Recent Activity ────────────────────────────────────
-                    _showHeavyContent
-                        ? _RecentTransactionsList(
-                            title: _tr('Recent Activity', 'Shughuli za Karibuni'),
-                            expenses: expenseItems,
-                            salesItems: salesItems,
-                          )
-                        : const _DashboardLoadingList(),
+                    _RecentTransactionsList(
+                      title: _tr('Recent Activity', 'Shughuli za Karibuni'),
+                      expenses: expenseItems,
+                      salesItems: salesItems,
+                    ),
                   ],
                 ),
               );
@@ -654,7 +588,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final name = widget.businessName ?? _tr('My Business', 'Biashara yangu');
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
-        ? '${_fmtCompactAmount(widget.totalCash)}'
+        ? _fmtCompactAmount(widget.totalCash)
         : '••••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
     final expText = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
@@ -663,10 +597,13 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final netColor = net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
 
     // Standard ISO credit card ratio: 85.6mm × 53.98mm
-    return AspectRatio(
-      aspectRatio: 1.586,
-      child: Container(
-        width: double.infinity,
+    // Width is capped so the card doesn't deform on large screens.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: AspectRatio(
+          aspectRatio: 1.586,
+          child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
@@ -914,7 +851,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
           ],
         ),
       ),
-    );
+        ),   // AspectRatio
+      ),     // ConstrainedBox
+    );       // Center
   }
 }
 
@@ -1042,9 +981,6 @@ class _ModuleGrid extends StatelessWidget {
   const _ModuleGrid({required this.showHeavyContent});
 
   static const _modules = [
-    (icon: Icons.receipt_long_rounded, labelEn: 'Tuma ankara', labelSw: 'Tuma ankara', color: Color(0xFF003153), route: AppRouter.salesPath),
-    (icon: Icons.inventory_2_rounded, labelEn: 'Hisa zangu', labelSw: 'Hisa zangu', color: Color(0xFF1A6E8A), route: AppRouter.inventoryPath),
-    (icon: Icons.people_alt_rounded, labelEn: 'Wateja wangu', labelSw: 'Wateja wangu', color: Color(0xFF059669), route: AppRouter.crmPath),
     (icon: Icons.payments_rounded, labelEn: 'Gharama zangu', labelSw: 'Gharama zangu', color: Color(0xFFD97706), route: AppRouter.expensesPath),
     (icon: Icons.account_balance_rounded, labelEn: 'Madeni', labelSw: 'Madeni', color: Color(0xFFDC2626), route: AppRouter.debtPath),
     (icon: Icons.account_balance_wallet_rounded, labelEn: 'Mtiririko wa Fedha', labelSw: 'Mtiririko wa Fedha', color: Color(0xFF7C3AED), route: AppRouter.cashFlowPath),
@@ -1136,6 +1072,7 @@ class _ModuleGrid extends StatelessWidget {
   void _openDebtPanel(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) {
@@ -1281,6 +1218,493 @@ class _SalesLineChart extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Website Interest Nudge ───────────────────────────────────────────────────
+
+class _WebsiteInterestSheet extends StatefulWidget {
+  const _WebsiteInterestSheet();
+
+  @override
+  State<_WebsiteInterestSheet> createState() => _WebsiteInterestSheetState();
+}
+
+class _WebsiteInterestSheetState extends State<_WebsiteInterestSheet> {
+  bool _showForm = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // Use a stable Container as the modal root — AnimatedSwitcher as a bare
+    // root causes renderObject.child mismatches when the modal route sees
+    // two overlapping children during the transition.
+    if (_showForm) {
+      return _WebsiteRequirementsForm(
+        onDone: () => Navigator.of(context).pop(),
+      );
+    }
+    return _WebsiteNudgeBanner(
+      onGetStarted: () => setState(() => _showForm = true),
+      onDismiss: () => Navigator.of(context).pop(),
+    );
+  }
+}
+
+// ── Nudge banner ──────────────────────────────────────────────────────────────
+
+class _WebsiteNudgeBanner extends StatelessWidget {
+  const _WebsiteNudgeBanner({
+    required this.onGetStarted,
+    required this.onDismiss,
+  });
+
+  final VoidCallback onGetStarted;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 24, offset: Offset(0, -4)),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        20,
+        24,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+
+          // Icon badge
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.navyPrimary,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.language_rounded,
+              color: AppColors.yellowBrand,
+              size: 26,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Headline
+          Text(
+            _tr(
+              "Let's build you a website for your business?",
+              'Tujenge tovuti ya biashara yako?',
+            ),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+              height: 1.25,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Body
+          Text(
+            _tr(
+              'Get a professional website designed for your business and start reaching more customers online.',
+              'Pata tovuti ya kitaalamu iliyoundwa kwa biashara yako na uanze kufikia wateja zaidi mtandaoni.',
+            ),
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // Primary CTA
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navyPrimary,
+                foregroundColor: AppColors.yellowBrand,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: onGetStarted,
+              child: Text(
+                _tr('Get Started', 'Anza Sasa'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Dismiss link
+          Center(
+            child: TextButton(
+              onPressed: onDismiss,
+              child: Text(
+                _tr('Maybe Later', 'Labda Baadaye'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Requirements form ─────────────────────────────────────────────────────────
+
+class _WebsiteRequirementsForm extends StatefulWidget {
+  const _WebsiteRequirementsForm({required this.onDone});
+
+  final VoidCallback onDone;
+
+  @override
+  State<_WebsiteRequirementsForm> createState() =>
+      _WebsiteRequirementsFormState();
+}
+
+class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
+  final _notesCtrl = TextEditingController();
+  bool _submitting = false;
+  bool _submitted  = false;
+
+  @override
+  void dispose() {
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      widget.onDone();
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      // Load user profile for WhatsApp message
+      String personName = '';
+      String businessName = '';
+      String businessType = '';
+      String phone = '';
+
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final data = doc.data() ?? {};
+        personName = ((data['displayName'] ?? data['name']) as String?)?.trim() ?? '';
+        phone = (data['phone'] as String?)?.trim() ?? user.phoneNumber ?? '';
+
+        final businesses = data['businesses'];
+        if (businesses is List && businesses.isNotEmpty) {
+          final biz = businesses.first as Map;
+          businessName = (biz['name'] as String?)?.trim() ?? '';
+          businessType = (biz['category'] as String?)?.trim() ?? '';
+        }
+      } catch (_) {}
+
+      final notes = _notesCtrl.text.trim();
+
+      // Store lead in Firestore
+      await FirebaseFirestore.instance
+          .collection('websiteRequests')
+          .doc(user.uid)
+          .set({
+        'uid': user.uid,
+        'personName': personName,
+        'businessName': businessName,
+        'businessType': businessType,
+        'phone': phone,
+        'notes': notes,
+        'requestedAt': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      }, SetOptions(merge: true));
+
+      if (mounted) setState(() { _submitting = false; _submitted = true; });
+
+      // Build and launch WhatsApp message
+      final whatsappMsg = _buildWhatsAppMessage(
+        personName: personName.isNotEmpty ? personName : _tr('Business Owner', 'Mmiliki wa Biashara'),
+        businessName: businessName,
+        businessType: businessType,
+        phone: phone,
+        notes: notes,
+      );
+      final opened = await _launchWhatsAppRequest(whatsappMsg);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _tr(
+                'Could not open WhatsApp. Please make sure it is installed.',
+                'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
+              ),
+            ),
+          ),
+        );
+      }
+
+      await Future.delayed(const Duration(milliseconds: 1600));
+      if (mounted) widget.onDone();
+    } catch (_) {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  String _buildWhatsAppMessage({
+    required String personName,
+    required String businessName,
+    required String businessType,
+    required String phone,
+    required String notes,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln(_tr(
+      'Hello Neuraltale Technologies Team,',
+      'Habari Timu ya Neuraltale Technologies,',
+    ));
+    buffer.writeln();
+    buffer.writeln(_tr(
+      'I would like assistance creating a website for my business.',
+      'Ningependa msaada wa kuunda tovuti kwa biashara yangu.',
+    ));
+    buffer.writeln();
+    buffer.writeln('${_tr("Name", "Jina")}: $personName');
+    if (businessName.isNotEmpty) {
+      buffer.writeln('${_tr("Business", "Biashara")}: $businessName');
+    }
+    if (businessType.isNotEmpty) {
+      buffer.writeln('${_tr("Business Type", "Aina ya Biashara")}: $businessType');
+    }
+    if (phone.isNotEmpty) {
+      buffer.writeln('${_tr("Phone", "Simu")}: $phone');
+    }
+    if (notes.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('${_tr("Additional Notes", "Maelezo ya Ziada")}:');
+      buffer.writeln(notes);
+    }
+    buffer.writeln();
+    buffer.writeln(_tr('Thank you.', 'Asante.'));
+    return buffer.toString().trim();
+  }
+
+  Future<bool> _launchWhatsAppRequest(String message) async {
+    const phone = '255653520829';
+    final primaryUrl = Uri.https('wa.me', '/$phone', {'text': message});
+    final fallbackUrl = Uri.https('api.whatsapp.com', '/send', {
+      'phone': phone,
+      'text': message,
+    });
+
+    try {
+      if (await launchUrl(primaryUrl, mode: LaunchMode.externalApplication)) {
+        return true;
+      }
+    } catch (_) {}
+
+    try {
+      return await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 24, offset: Offset(0, -4)),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        20,
+        24,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+
+          if (_submitted) ...[
+            const Center(
+              child: Icon(Icons.check_circle_rounded,
+                  color: AppColors.success, size: 48),
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: Text(
+                _tr("We'll be in touch!", 'Tutawasiliana nawe hivi karibuni!'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
+                ),
+              ),
+            ),
+          ] else ...[
+            Text(
+              _tr('Tell us what you need', 'Tuambie unachohitaji'),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _tr(
+                'Any requirements or ideas for your website? (optional)',
+                'Je, una mahitaji au mawazo yoyote kwa tovuti yako? (si lazima)',
+              ),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textMuted,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _notesCtrl,
+              maxLines: 4,
+              minLines: 3,
+              textInputAction: TextInputAction.newline,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.navyPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: _tr(
+                  'e.g. I sell clothing and want an online store…',
+                  'mfano Nauza nguo na nataka duka la mtandaoni…',
+                ),
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textDisabled,
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: AppColors.navyPrimary.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.all(14),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navyPrimary,
+                  foregroundColor: AppColors.yellowBrand,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.yellowBrand,
+                        ),
+                      )
+                    : Text(
+                        _tr('Submit', 'Wasilisha'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: widget.onDone,
+                child: Text(
+                  _tr('Cancel', 'Ghairi'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1650,7 +2074,11 @@ class _RevStat extends StatelessWidget {
   final String value;
   final bool highlight;
 
-  const _RevStat({required this.label, required this.value});
+  const _RevStat({
+    required this.label,
+    required this.value,
+    required this.highlight,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1854,7 +2282,7 @@ class _LowStockAlertsSection extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(
-              _tr('Low Stock Alerts', 'Tahadhari ya Hisa Ndogo'),
+              _tr('Low Stock Alerts', 'Tahadhari ya Bidhaa Ndogo'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -2037,7 +2465,7 @@ class _TopPerformersSection extends StatelessWidget {
         if (products.isNotEmpty)
           _PerformerSubsection(
             icon: Icons.inventory_2_outlined,
-            label: _tr('Best Products', 'Bidhaa Bora'),
+            label: _tr('Best Products', 'Bidhaaa Bora'),
             color: AppColors.tealAccent,
             entries: products,
           ),
