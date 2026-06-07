@@ -167,7 +167,7 @@ export function FinalCTA() {
 
         <motion.p
           className="mt-6 text-sm"
-          style={{ color: "rgba(255,255,255,0.2)" }}
+          style={{ color: "rgba(255,255,255,0.58)" }}
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
