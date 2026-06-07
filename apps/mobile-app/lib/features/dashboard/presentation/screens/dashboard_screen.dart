@@ -1346,6 +1346,10 @@ class _RecentTransactionsList extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {},
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: Text(
                 _tr('View All', 'Ona Zote'),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -1356,7 +1360,7 @@ class _RecentTransactionsList extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 12),
         if (items.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 24),

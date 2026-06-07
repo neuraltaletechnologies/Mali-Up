@@ -242,6 +242,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 );
                 return Column(
                   children: [
+                    // ── Stats strip ──────────────────────────────────────
+                    _StatsStrip(items: items),
+
                     // ── Search + Filter bar ──────────────────────────────
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
@@ -263,9 +266,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                         ],
                       ),
                     ),
-
-                    // ── Stats strip ──────────────────────────────────────
-                    _StatsStrip(items: items),
 
                     // ── Active filter chips ──────────────────────────────
                     if (_typeFilter.isNotEmpty || _healthFilter > 0)
