@@ -10,6 +10,7 @@ import '../../../../shared/widgets/pin_digit_box.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/constants/onboarding_strings.dart';
 import '../utils/pin_auth_password.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -149,11 +150,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _openWhatsAppHelpDesk() async {
     final message = Uri.encodeComponent(
       _tr(
-        'Hello Mali App Help Desk, I need emergency support with login.',
-        'Habari Mali App Help Desk, nahitaji msaada wa dharura wa kuingia.',
+        'Hello Mali Up Help Desk, I need emergency support with login.',
+        'Habari Mali Up Help Desk, nahitaji msaada wa dharura wa kuingia.',
       ),
     );
-    final uri = Uri.parse('https://wa.me/255653520829?text=$message');
+    final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       await _NotificationHelper.showError(
@@ -313,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen> {
           'Incorrect PIN. Please try again.',
           'PIN si sahihi. Jaribu tena.',
         ),
-        'user-not-found' => _tr('Account not found.', 'Akaunti haijapatikana.'),
+        'user-not-found' => _tr('Account not found. Please go back and check your phone number.', 'Akaunti haijapatikana. Rudi nyuma na uangalie namba yako ya simu.'),
         _ => _tr(
           'Login failed. Please check your PIN.',
           'Uingiaji umeshindikana. Hakiki PIN yako.',
@@ -327,8 +328,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await _NotificationHelper.showError(
         context,
         _tr(
-          'An unexpected error occurred.',
-          'Hitilafu isiyotarajiwa imetokea.',
+          'Something went wrong. Please try again or contact support if it continues.',
+          'Kuna tatizo. Tafadhali jaribu tena au wasiliana na msaada ikiwa litaendelea.',
         ),
       );
     }

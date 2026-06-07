@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecurityService {
-  static const _pinKey = 'security_pin_hash';
+  static const _pinKey = 'security_pin'; // Changed from 'security_pin_hash'
   static const _lockEnabledKey = 'app_lock_enabled';
   static const _biometricEnabledKey = 'biometric_enabled';
 
@@ -14,6 +14,11 @@ class SecurityService {
   static final ValueNotifier<bool> isLockedNotifier = ValueNotifier(false);
 
   static final _auth = LocalAuthentication();
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
 
   static Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
@@ -26,25 +31,23 @@ class SecurityService {
   }
 
   static Future<bool> hasPin() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_pinKey);
+    final pin = await _secureStorage.read(key: _pinKey);
+    return pin != null;
   }
 
   static Future<void> setPin(String pin) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_pinKey, _hashPin(pin));
+    await _secureStorage.write(key: _pinKey, value: pin);
   }
 
   static Future<bool> verifyPin(String pin) async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString(_pinKey);
+    final stored = await _secureStorage.read(key: _pinKey);
     if (stored == null) return false;
-    return stored == _hashPin(pin);
+    return stored == pin;
   }
 
   static Future<void> enableAppLock(String pin) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_pinKey, _hashPin(pin));
+    await _secureStorage.write(key: _pinKey, value: pin);
     await prefs.setBool(_lockEnabledKey, true);
     lockEnabledNotifier.value = true;
     isLockedNotifier.value = false;
@@ -52,7 +55,7 @@ class SecurityService {
 
   static Future<void> disableAppLock() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_pinKey);
+    await _secureStorage.delete(key: _pinKey);
     await prefs.setBool(_lockEnabledKey, false);
     await prefs.setBool(_biometricEnabledKey, false);
     lockEnabledNotifier.value = false;
@@ -114,18 +117,5 @@ class SecurityService {
 
   static void unlockApp() {
     isLockedNotifier.value = false;
-  }
-
-  // XOR-based obfuscation with a fixed salt — keeps the PIN out of plain text
-  // in SharedPreferences without requiring a crypto package.
-  static String _hashPin(String pin) {
-    const salt = 'MaliUp@Security#2026';
-    final saltBytes = utf8.encode(salt);
-    final pinBytes = utf8.encode(pin);
-    final xored = List<int>.generate(
-      pinBytes.length,
-      (i) => pinBytes[i] ^ saltBytes[i % saltBytes.length],
-    );
-    return base64Url.encode(xored);
   }
 }

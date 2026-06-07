@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
@@ -634,53 +635,13 @@ class _HeroAmountCard extends StatelessWidget {
               ),
               const Spacer(),
               if (debt.isFullyPaid)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.successBg,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _tr('PAID', 'IMELIPWA'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.success),
-                  ),
-                )
+                const PaymentStatusChip(status: 'paid')
               else if (isOverdue)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _ageColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${debt.daysOverdue} ${_tr('days overdue', 'siku zimechelewa')}',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: _ageColor),
-                  ),
+                PaymentStatusChip(
+                  status: debt.paidAmount > 0 ? 'partial' : 'overdue',
                 )
               else
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.successBg,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${_tr('Due', 'Inastahiwa')}: ${_fmtDate(debt.dueDate)}',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.success),
-                  ),
-                ),
+                const PaymentStatusChip(status: 'pending'),
             ],
           ),
         ],
@@ -880,7 +841,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
                   child:
                       CircularProgressIndicator(color: AppColors.navyPrimary)),
             ),
-            error: (_, __) => Padding(
+            error: (_, _) => Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
                 _tr('Could not load payments.', 'Imeshindwa kupakia malipo.'),
@@ -889,15 +850,13 @@ class _PaymentHistoryCard extends ConsumerWidget {
               ),
             ),
             data: (payments) => payments.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Center(
-                      child: Text(
-                        _tr('No payments recorded yet.',
-                            'Hakuna malipo yaliyorekodiwa bado.'),
-                        style: GoogleFonts.dmSans(
-                            fontSize: 13, color: AppColors.textDisabled),
-                      ),
+                ? EmptyState(
+                    icon: Icons.payments_outlined,
+                    title: _tr('No payments recorded yet',
+                        'Hakuna malipo yaliyorekodiwa bado'),
+                    subtitle: _tr(
+                      'Add a payment to start tracking repayments.',
+                      'Ongeza malipo ili uanze kufuatilia marejesho.',
                     ),
                   )
                 : Column(

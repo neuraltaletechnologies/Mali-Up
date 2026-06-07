@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import '../../core/onboarding_colors.dart';
-import '../../models/onboarding_model.dart';
-import '../widgets/animated_widgets.dart';
-import '../../../../core/services/localization_service.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/emotional_design.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-/// Main onboarding experience with 4 screens
-/// Includes smooth page transitions and page indicators
+import '../../../../config/routing.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/localization_service.dart';
+import '../../../../core/constants/onboarding_strings.dart';
+
+/// Premium 3-slide onboarding carousel.
+/// Calls [onOnboardingComplete] when the user taps "Let's get started" on
+/// the last slide.
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onOnboardingComplete;
 
-  const OnboardingScreen({
-    super.key,
-    required this.onOnboardingComplete,
-  });
+  const OnboardingScreen({super.key, required this.onOnboardingComplete});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -24,293 +23,297 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen>
     with TickerProviderStateMixin {
-  late PageController _pageController;
-  late AnimationController _exitAnimationController;
-  late final VoidCallback _languageListener;
+  final PageController _pageCtrl = PageController();
+  int _current = 0;
+
+  late VoidCallback _langListener;
   late AppLanguage _language;
-  
-  int _currentIndex = 0;
+  late final AnimationController _sheetCtrl;
+  late final Animation<double> _sheetFade;
+  late final Animation<Offset> _sheetSlide;
+
+  // ── Slide data ──────────────────────────────────────────────────────────────
+
+  static const _slides = [
+    _SlideData(
+      titleEn: 'Make confident\nbusiness decisions.',
+      titleSw: 'Fanya maamuzi ya\nbiashara kwa ujasiri.',
+      bodyEn:
+          'Understand your money, sales, and business performance clearly with real-time insights.',
+      bodySw:
+          'Elewa pesa yako, mauzo, na utendaji wa biashara kwa uwazi kwa kutumia taarifa za wakati halisi.',
+    ),
+    _SlideData(
+      titleEn: 'Spend less time\nwriting things down.',
+      titleSw: 'Tumia muda mchache\nkuandika mambo.',
+      bodyEn:
+          'Automate your invoices, inventory updates, and payment tracking in one seamless ecosystem.',
+      bodySw:
+          'Otomatisha ankara, masasisho ya hifadhi, na ufuatiliaji wa malipo katika mfumo mmoja madhubuti.',
+    ),
+    _SlideData(
+      titleEn: 'Built specifically for\nAfrican businesses.',
+      titleSw: 'Imeundwa maalum kwa\nbiashara za Afrika.',
+      bodyEn:
+          'Offline-first, mobile-first, and designed for the way real businesses operate.',
+      bodySw:
+          'Inafanya kazi bila mtandao, kwenye simu, na iliyoundwa kwa jinsi biashara halisi zinavyofanya kazi.',
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+    );
+
     _language = LocalizationService.languageNotifier.value;
-    _languageListener = () {
+    _langListener = () {
       if (mounted) {
         setState(() => _language = LocalizationService.languageNotifier.value);
       }
     };
-    LocalizationService.languageNotifier.addListener(_languageListener);
-    _pageController = PageController();
-    _exitAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-  }
-
-  String _tr(String en, String sw) {
-    return _language == AppLanguage.swahili ? sw : en;
-  }
-
-  void _onSkipTap() {
-    HapticFeedback.selectionClick();
-    _pageController.animateToPage(
-      onboardingPages.length - 1,
-      duration: const Duration(milliseconds: 380),
-      curve: Curves.easeOutCubic,
-    );
-  }
-
-  void _onPrimaryTap() {
-    HapticFeedback.lightImpact();
-    widget.onOnboardingComplete();
+    LocalizationService.languageNotifier.addListener(_langListener);
   }
 
   @override
   void dispose() {
-    LocalizationService.languageNotifier.removeListener(_languageListener);
-    _pageController.dispose();
-    _exitAnimationController.dispose();
+    LocalizationService.languageNotifier.removeListener(_langListener);
+    _pageCtrl.dispose();
     super.dispose();
+  }
+
+  bool get _sw => _language == AppLanguage.swahili;
+
+  String _tr(String en, String sw) => _sw ? sw : en;
+
+  bool get _isLastSlide => _current == _slides.length - 1;
+
+  Future<void> _openWhatsAppHelp() async {
+    final message = Uri.encodeComponent(
+      _sw
+          ? 'Habari Mali Up Help Desk, nahitaji msaada wa kuendelea.'
+          : 'Hello Mali Up Help Desk, I need help getting started.',
+    );
+    final uri = Uri.parse('${OnboardingStrings.helpDeskUrl}$message');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _goBack() {
+    context.go(AppRoutes.welcome);
+  }
+
+  void _onPageChanged(int index) {
+    setState(() => _current = index);
+  }
+
+  Future<void> _onPrimaryAction() async {
+    if (_isLastSlide) {
+      widget.onOnboardingComplete();
+      return;
+    }
+    await _pageCtrl.nextPage(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.fastOutSlowIn,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
-      child: Scaffold(
-        extendBody: true,
-        backgroundColor: AppColors.background,
-        body: Stack(
-          children: [
-
-            // Page view for onboarding screens
-            PageView.builder(
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() => _currentIndex = index);
-              },
-              itemCount: onboardingPages.length,
-              itemBuilder: (context, index) {
-                return AnimatedBuilder(
-                  animation: _pageController,
-                  builder: (context, child) {
-                    final page = _pageController.hasClients
-                        ? (_pageController.page ?? _currentIndex.toDouble())
-                        : _currentIndex.toDouble();
-                    final delta = (index - page);
-                    final parallaxX = (delta * 28).clamp(-28.0, 28.0);
-
-                    return Transform.translate(
-                      offset: Offset(parallaxX, 0),
-                      child: child,
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top Bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: _goBack,
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: AppColors.navyPrimary,
+                      size: 18,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.border.withValues(alpha: 0.3),
+                      padding: const EdgeInsets.all(10),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _openWhatsAppHelp,
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: AppColors.navyPrimary,
+                      size: 15,
+                    ),
+                    label: Text(
+                      _tr('Help', 'Msaada'),
+                      style: const TextStyle(
+                        color: AppColors.navyPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.border.withValues(alpha: 0.3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              
+              const Spacer(flex: 2),
+              
+              // Carousel
+              SizedBox(
+                height: 320,
+                child: PageView.builder(
+                  controller: _pageCtrl,
+                  onPageChanged: _onPageChanged,
+                  itemCount: _slides.length,
+                  itemBuilder: (context, index) {
+                    return _SlidePage(
+                      slide: _slides[index],
+                      isSwahili: _sw,
                     );
                   },
-                  child: _buildOnboardingPage(onboardingPages[index]),
-                );
-              },
-            ),
-
-            // Bottom controls
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _buildBottomControls(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOnboardingPage(OnboardingPage page) {
-    return SingleChildScrollView(
-      child: Container(
-        height: MediaQuery.of(context).size.height,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 20),
-            EntranceAnimation(
-              delay: const Duration(milliseconds: 60),
-              child: EmotionalLottieSpot(
-                scene: _lottieSceneForPage(page.index),
-                size: 160,
-              ),
-            ),
-            const SizedBox(height: 40),
-
-            // Text content
-            EntranceAnimation(
-              delay: const Duration(milliseconds: 200),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                child: _buildTextContent(page),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextContent(OnboardingPage page) {
-    final isSwahili = _language == AppLanguage.swahili;
-    return Column(
-      key: ValueKey<int>(page.index),
-      children: [
-        Text(
-          page.getTitle(isSwahili),
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: OnboardingColors.textDark,
-                fontSize: 28,
-              ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          page.getDescription(isSwahili),
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: OnboardingColors.textLight,
-                height: 1.6,
-                fontSize: 16,
-              ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBottomControls() {
-    final bool isLastPage = _currentIndex == onboardingPages.length - 1;
-
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Container(
-          key: ValueKey<bool>(isLastPage),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-         
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 260),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            child: Column(
-              key: ValueKey<int>(_currentIndex),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    const Spacer(),
-                    if (!isLastPage)
-                      EmotionalTapScale(
-                        hapticStyle: TapHapticStyle.selection,
-                        onTap: _onSkipTap,
-                        child: Text(
-                          _tr('Skip', 'Ruka'),
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                      ),
-                  ],
                 ),
-                const SizedBox(height: 14),
-                if (isLastPage)
-                  _buildPrimaryButton(
-                    label: _tr('Let\'s get started', 'Tuanze'),
-                    onTap: _onPrimaryTap,
-                  ),
-                if (isLastPage)
-                  const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.08),
+              ),
+              
+              const Spacer(flex: 3),
+              
+              // Indicators
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_slides.length, (index) {
+                  final active = index == _current;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: active ? 32 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: active
+                          ? AppColors.navyPrimary
+                          : AppColors.border,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  );
+                }),
+              ),
+              
+              const SizedBox(height: 40),
+              
+              // Action Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _onPrimaryAction,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navyPrimary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: SmoothPageIndicator(
-                    controller: _pageController,
-                    count: onboardingPages.length,
-                    effect: ExpandingDotsEffect(
-                      expansionFactor: 2.2,
-                      spacing: 6,
-                      radius: 99,
-                      dotHeight: 6,
-                      dotWidth: 6,
-                      activeDotColor: AppColors.primary,
-                      dotColor: AppColors.secondary.withValues(alpha: 0.18),
+                  child: Text(
+                    _isLastSlide
+                        ? _tr("Let's get started", 'Tuanze sasa')
+                        : _tr('Continue', 'Endelea'),
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+            ],
           ),
         ),
       ),
     );
-  }
-
-  Widget _buildPrimaryButton({
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return EmotionalTapScale(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.secondary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  EmotionalLottieScene _lottieSceneForPage(int index) {
-    switch (index) {
-      case 0:
-        return EmotionalLottieScene.dashboard;
-      case 1:
-        return EmotionalLottieScene.onboarding;
-      case 2:
-        return EmotionalLottieScene.authVerify;
-      case 3:
-        return EmotionalLottieScene.celebrate;
-      default:
-        return EmotionalLottieScene.authWelcome;
-    }
   }
 }
 
+// ── Slide page ─────────────────────────────────────────────────────────────────
+
+class _SlidePage extends StatelessWidget {
+  final _SlideData slide;
+  final bool isSwahili;
+
+  const _SlidePage({
+    required this.slide,
+    required this.isSwahili,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final title = isSwahili ? slide.titleSw : slide.titleEn;
+    final body = isSwahili ? slide.bodySw : slide.bodyEn;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 36,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+              height: 1.15,
+              letterSpacing: -1.2,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            body,
+            style: GoogleFonts.inter(
+              fontSize: 17,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textSecondary,
+              height: 1.55,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Slide data model ───────────────────────────────────────────────────────────
+
+class _SlideData {
+  final String titleEn;
+  final String titleSw;
+  final String bodyEn;
+  final String bodySw;
+
+  const _SlideData({
+    required this.titleEn,
+    required this.titleSw,
+    required this.bodyEn,
+    required this.bodySw,
+  });
+}

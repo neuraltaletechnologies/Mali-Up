@@ -12,7 +12,6 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../shared/widgets/mali_components.dart';
 
 class ManageBusinessesScreen extends StatefulWidget {
   const ManageBusinessesScreen({super.key});
@@ -167,11 +166,23 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   Future<Map<String, dynamic>?> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .get(const GetOptions());
-    return snapshot.data();
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get(const GetOptions());
+      return snapshot.data();
+    } catch (_) {
+      try {
+        final cached = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get(const GetOptions(source: Source.cache));
+        return cached.data();
+      } catch (_) {
+        return null;
+      }
+    }
   }
 
   List<Map<String, dynamic>> _businessesFromProfile(Map<String, dynamic>? profile) {
@@ -190,7 +201,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
               'facebook': (entry['facebook'] as String?)?.trim() ?? '',
               'instagram': (entry['instagram'] as String?)?.trim() ?? '',
               'tiktok': (entry['tiktok'] as String?)?.trim() ?? '',
-              // kept read-only for data preservation — not shown in form
+              // website fields — now editable
+              'websiteUrl': ((entry['websiteUrl'] as String?)?.trim().isNotEmpty == true
+                  ? entry['websiteUrl'] as String
+                  : (entry['website'] as String?)?.trim()) ?? '',
+              'hasWebsite': (entry['hasWebsite'] as bool?) ?? false,
+              'websiteInterest': (entry['websiteInterest'] as bool?) ?? false,
+              // kept for data preservation
               'website': (entry['website'] as String?)?.trim() ?? '',
               'x': (entry['x'] as String?)?.trim() ?? '',
               'linkedin': (entry['linkedin'] as String?)?.trim() ?? '',
@@ -303,518 +320,509 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     final isEditing = business != null;
     final businessId = business?['id'] as String?;
 
-    final nameController =
-        TextEditingController(text: (business?['name'] as String?) ?? '');
-    final phoneController =
-        TextEditingController(text: (business?['phone'] as String?) ?? '');
-    final workingHoursController =
-        TextEditingController(text: (business?['workingHours'] as String?) ?? '');
-    final facebookController =
-        TextEditingController(text: (business?['facebook'] as String?) ?? '');
-    final instagramController =
-        TextEditingController(text: (business?['instagram'] as String?) ?? '');
-    final tiktokController =
-        TextEditingController(text: (business?['tiktok'] as String?) ?? '');
+    final nameCtrl    = TextEditingController(text: (business?['name'] as String?) ?? '');
+    final websiteCtrl = TextEditingController(text: (business?['websiteUrl'] as String?) ?? '');
 
-    String selectedBusinessType = () {
-      final stored = (business?['category'] as String?) ?? 'Retail';
-      return _businessTypes.any((t) => t['value'] == stored) ? stored : 'Retail';
+    String selectedType = () {
+      final stored = (business?['category'] as String?) ?? '';
+      return _businessTypes.any((t) => t['value'] == stored) ? stored : (_businessTypes.isNotEmpty ? _businessTypes.first['value'] as String : 'retail');
     }();
     String? selectedCity = (business?['placeOfBusiness'] as String?)?.trim();
-    if (selectedCity != null &&
-        !_tanzaniaCities.any((c) => c['en'] == selectedCity)) {
+    if (selectedCity != null && !_tanzaniaCities.any((c) => c['en'] == selectedCity)) {
       selectedCity = null;
     }
 
-    File? pickedLogoFile;
-    final existingLogoUrl = (business?['logoUrl'] as String?)?.trim();
+    File?  pickedLogoFile;
+    final  existingLogoUrl = (business?['logoUrl'] as String?)?.trim();
 
     final result = await showModalBottomSheet<bool>(
       context: context,
       useRootNavigator: true,
-      isScrollControlled: true,
       useSafeArea: true,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        bool localSaving = false;
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            final currentName = nameController.text.trim();
-            final initial =
-                currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
+      builder: (sheetCtx) {
+        bool   localSaving     = false;
+        bool   websiteInterest = (business?['websiteInterest'] as bool?) ?? false;
+
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetCtx).height * 0.90,
+          ),
+          child: StatefulBuilder(
+          builder: (dlgCtx, setS) {
+            final currentName = nameCtrl.text.trim();
+            final initial     = currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
+
+            InputDecoration fieldDeco({required String label, String? hint, required IconData icon}) =>
+                InputDecoration(
+                  labelText: label,
+                  hintText: hint,
+                  prefixIcon: Icon(icon, size: 18, color: AppColors.textMuted),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: AppColors.navyPrimary.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
+                  ),
+                  labelStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                );
 
             return Container(
               decoration: const BoxDecoration(
                 color: AppColors.background,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -4)),
+                ],
               ),
               child: SafeArea(
                 top: false,
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    top: 14,
-                    bottom: MediaQuery.of(dialogContext).viewInsets.bottom + 18,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    24, 20, 24,
+                    MediaQuery.viewInsetsOf(dlgCtx).bottom + 24,
                   ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 44,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              color: AppColors.border,
-                              borderRadius: BorderRadius.circular(999),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Handle ─────────────────────────────────────────────
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                          // ── Header ────────────────────────────────────────
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: AppColors.navyPrimary,
+                                  borderRadius: BorderRadius.circular(13),
+                                ),
+                                child: Icon(
+                                  isEditing ? Icons.edit_rounded : Icons.add_business_rounded,
+                                  color: AppColors.yellowBrand,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isEditing
+                                          ? _tr('Edit business', 'Hariri biashara')
+                                          : _tr('Add new business', 'Ongeza biashara mpya'),
+                                      style: const TextStyle(
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.navyPrimary,
+                                        letterSpacing: -0.3,
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      isEditing
+                                          ? _tr('Update your business profile.', 'Sasisha wasifu wa biashara yako.')
+                                          : _tr('Fill in the details below to get started.', 'Jaza maelezo hapa chini kuanza.'),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textMuted,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 28),
+
+                          // ── Logo picker ───────────────────────────────────
+                          Center(
+                            child: GestureDetector(
+                              onTap: () async {
+                                final picker = ImagePicker();
+                                final picked = await picker.pickImage(
+                                  source: ImageSource.gallery,
+                                  maxWidth: 512,
+                                  maxHeight: 512,
+                                  imageQuality: 85,
+                                );
+                                if (picked != null && dlgCtx.mounted) {
+                                  setS(() => pickedLogoFile = File(picked.path));
+                                }
+                              },
+                              child: Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  Container(
+                                    width: 90,
+                                    height: 90,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: AppColors.yellowBrand,
+                                      border: Border.all(color: AppColors.border, width: 2.5),
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: pickedLogoFile != null
+                                        ? Image.file(pickedLogoFile!, fit: BoxFit.cover)
+                                        : (existingLogoUrl != null && existingLogoUrl.isNotEmpty
+                                            ? Image.network(
+                                                existingLogoUrl,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, _, _) => _LogoInitial(initial: initial),
+                                              )
+                                            : _LogoInitial(initial: initial)),
+                                  ),
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.navyPrimary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2),
+                                    ),
+                                    child: const Icon(Icons.camera_alt_rounded, size: 14, color: AppColors.yellowBrand),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
+                          const SizedBox(height: 28),
 
-                        // Header — no gradient
-                        Text(
-                          isEditing
-                              ? _tr('Edit business', 'Hariri biashara')
-                              : _tr('Add new business', 'Ongeza biashara mpya'),
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                            letterSpacing: -0.3,
+                          // Business name
+                          TextField(
+                            controller: nameCtrl,
+                            onChanged: (_) => setS(() {}),
+                            style: const TextStyle(fontSize: 15, color: AppColors.navyPrimary),
+                            decoration: fieldDeco(
+                              label: _tr('Business name *', 'Jina la biashara *'),
+                              hint: _tr("e.g. Mama Lucy's Shop", 'mfano Duka la Mama Lucy'),
+                              icon: Icons.storefront_outlined,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isEditing
-                              ? _tr(
-                                  'Update your business profile.',
-                                  'Sasisha wasifu wa biashara yako.',
-                                )
-                              : _tr(
-                                  'Fill in your business details to get started.',
-                                  'Jaza taarifa za biashara yako kuanza.',
-                                ),
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                        // Logo picker
-                        Center(
-                          child: GestureDetector(
-                            onTap: () async {
-                              final picker = ImagePicker();
-                              final picked = await picker.pickImage(
-                                source: ImageSource.gallery,
-                                maxWidth: 512,
-                                maxHeight: 512,
-                                imageQuality: 85,
+                          // ── Business type ─────────────────────────────────
+                          _FormSectionLabel(label: _tr('Business type', 'Aina ya biashara')),
+                          const SizedBox(height: 8),
+                          _FormTapSelector(
+                            icon: () {
+                              final t = _businessTypes.firstWhere(
+                                (t) => t['value'] == selectedType,
+                                orElse: () => _businessTypes.isNotEmpty ? _businessTypes.first : {'icon': Icons.category},
                               );
-                              if (picked != null && dialogContext.mounted) {
-                                setDialogState(() => pickedLogoFile = File(picked.path));
+                              final raw = t['icon'];
+                              if (raw is IconData) return raw;
+                              if (raw is String) return LookupService.iconFromName(raw);
+                              return Icons.category_rounded;
+                            }(),
+                            value: () {
+                              final t = _businessTypes.firstWhere(
+                                (t) => t['value'] == selectedType,
+                                orElse: () => _businessTypes.isNotEmpty ? _businessTypes.first : {'en': '', 'sw': ''},
+                              );
+                              return _tr(t['en'] as String, t['sw'] as String);
+                            }(),
+                            placeholder: _tr('Select business type', 'Chagua aina ya biashara'),
+                            hasValue: true,
+                            onTap: () async {
+                              final picked = await showModalBottomSheet<String>(
+                                context: dlgCtx,
+                                useRootNavigator: true,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => _BizTypePickerSheet(
+                                  types: _businessTypes,
+                                  selectedValue: selectedType,
+                                  tr: _tr,
+                                ),
+                              );
+                              if (picked != null && dlgCtx.mounted) {
+                                setS(() => selectedType = picked);
                               }
                             },
-                            child: Stack(
-                              alignment: Alignment.bottomRight,
-                              children: [
-                                Container(
-                                  width: 88,
-                                  height: 88,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppColors.yellowBrand,
-                                    border: Border.all(color: AppColors.border, width: 2),
-                                  ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: pickedLogoFile != null
-                                      ? Image.file(pickedLogoFile!, fit: BoxFit.cover)
-                                      : (existingLogoUrl != null && existingLogoUrl.isNotEmpty
-                                          ? Image.network(
-                                              existingLogoUrl,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, _, _) =>
-                                                  _LogoInitial(initial: initial),
-                                            )
-                                          : _LogoInitial(initial: initial)),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ── Business location ─────────────────────────────
+                          _FormSectionLabel(label: _tr('Business location', 'Mahali pa biashara')),
+                          const SizedBox(height: 4),
+                          Text(
+                            _tr(
+                              'Helps customers and reports stay accurate.',
+                              'Husaidia wateja na ripoti kuwa sahihi.',
+                            ),
+                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: 12),
+                          _FormTapSelector(
+                            icon: Icons.location_on_outlined,
+                            value: selectedCity == null ? null : () {
+                              final city = _tanzaniaCities.firstWhere(
+                                (c) => c['en'] == selectedCity,
+                                orElse: () => _tanzaniaCities.isNotEmpty ? _tanzaniaCities.first : {'en': '', 'sw': ''},
+                              );
+                              return _tr(city['en']!, city['sw']!);
+                            }(),
+                            placeholder: _tr('Select city / region *', 'Chagua mji / mkoa *'),
+                            hasValue: selectedCity != null,
+                            onTap: () async {
+                              final picked = await showModalBottomSheet<String>(
+                                context: dlgCtx,
+                                useRootNavigator: true,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => _CityPickerSheet(
+                                  cities: _tanzaniaCities,
+                                  selectedValue: selectedCity,
+                                  tr: _tr,
                                 ),
-                                Container(
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
+                              );
+                              if (picked != null && dlgCtx.mounted) {
+                                setS(() => selectedCity = picked);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ── Online presence ───────────────────────────────
+                          _FormSectionLabel(label: _tr('Online presence', 'Uwepo wa mtandao')),
+                          const SizedBox(height: 4),
+                          Text(
+                            _tr(
+                              'Add your website if you have one (optional).',
+                              'Ongeza tovuti yako kama una moja (si lazima).',
+                            ),
+                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: websiteCtrl,
+                            keyboardType: TextInputType.url,
+                            autocorrect: false,
+                            style: const TextStyle(fontSize: 15, color: AppColors.navyPrimary),
+                            decoration: fieldDeco(
+                              label: _tr('Business website (optional)', 'Tovuti ya biashara (hiari)'),
+                              hint: 'https://mybusiness.com',
+                              icon: Icons.language_rounded,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // "Build me my website" checkbox
+                          GestureDetector(
+                            onTap: () => setS(() => websiteInterest = !websiteInterest),
+                            behavior: HitTestBehavior.opaque,
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: Checkbox(
+                                    value: websiteInterest,
+                                    onChanged: (v) => setS(() => websiteInterest = v ?? false),
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    activeColor: AppColors.navyPrimary,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    side: const BorderSide(color: AppColors.border, width: 1.5),
                                   ),
-                                  child: const Icon(Icons.camera_alt_rounded,
-                                      size: 14, color: Colors.white),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _tr('Build me my website', 'Nitengeneze Tovuti Yangu'),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textMuted,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 32),
 
-                        // ── Section: Basic info ──────────────────────────────
-                        _FormSectionLabel(
-                            label: _tr('BASIC INFO', 'TAARIFA ZA MSINGI')),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: nameController,
-                          onChanged: (_) => setDialogState(() {}),
-                          decoration: InputDecoration(
-                            labelText: _tr('Business name *', 'Jina la biashara *'),
-                            border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.business_rounded),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        MaliSelectField(
-                          placeholder: _tr('Business Type', 'Aina ya Biashara'),
-                          displayValue: () {
-                            final type = _businessTypes.firstWhere(
-                              (t) => t['value'] == selectedBusinessType,
-                              orElse: () => _businessTypes.first,
-                            );
-                            return _tr(type['en'] as String, type['sw'] as String);
-                          }(),
-                          hasValue: true,
-                          onTap: () async {
-                            final selected = await showModalBottomSheet<String>(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) => MaliSelectSheet<String>(
-                                title: _tr('Business Type', 'Aina ya Biashara'),
-                                items: _businessTypes
-                                    .map((t) => t['value'] as String)
-                                    .toList(),
-                                selectedValue: selectedBusinessType,
-                                labelBuilder: (value) {
-                                  final type = _businessTypes.firstWhere(
-                                    (t) => t['value'] == value,
-                                    orElse: () => _businessTypes.first,
-                                  );
-                                  return _tr(type['en'] as String, type['sw'] as String);
-                                },
-                                iconBuilder: (value) {
-                                  final type = _businessTypes.firstWhere(
-                                    (t) => t['value'] == value,
-                                    orElse: () => _businessTypes.first,
-                                  );
-                                  final iconRaw = type['icon'];
-                                  if (iconRaw is IconData) return iconRaw;
-                                  if (iconRaw is String) {
-                                    return LookupService.iconFromName(iconRaw);
-                                  }
-                                  return Icons.category;
-                                },
-                              ),
-                            );
-                            if (selected != null && dialogContext.mounted) {
-                              setDialogState(() => selectedBusinessType = selected);
-                            }
-                          },
-                          icon: Icons.category_rounded,
-                        ),
-                        const SizedBox(height: 12),
-                        MaliSelectField(
-                          placeholder: _tr('City / Region *', 'Mji / Mkoa *'),
-                          displayValue: () {
-                            if (selectedCity == null) return '';
-                            final city = _tanzaniaCities.firstWhere(
-                              (c) => c['en'] == selectedCity,
-                              orElse: () => _tanzaniaCities.first,
-                            );
-                            return _tr(city['en']!, city['sw']!);
-                          }(),
-                          hasValue: selectedCity != null,
-                          onTap: () async {
-                            final selected = await showModalBottomSheet<String>(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (_) => MaliSelectSheet<String>(
-                                title: _tr('City / Region', 'Mji / Mkoa'),
-                                items: _tanzaniaCities.map((c) => c['en']!).toList(),
-                                selectedValue: selectedCity,
-                                labelBuilder: (value) {
-                                  final city = _tanzaniaCities.firstWhere(
-                                    (c) => c['en'] == value,
-                                    orElse: () => _tanzaniaCities.first,
-                                  );
-                                  return _tr(city['en']!, city['sw']!);
-                                },
-                              ),
-                            );
-                            if (selected != null && dialogContext.mounted) {
-                              setDialogState(() => selectedCity = selected);
-                            }
-                          },
-                          icon: Icons.location_on_outlined,
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: InputDecoration(
-                            labelText: _tr(
-                              'Phone number (optional)',
-                              'Nambari ya simu (hiari)',
-                            ),
-                            hintText: '+255 700 000 000',
-                            border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.phone_outlined),
-                          ),
-                        ),
-
-                        // ── Section: Presence ────────────────────────────────
-                        _FormSectionLabel(
-                            label: _tr('PRESENCE', 'UWEPO WA BIASHARA')),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: workingHoursController,
-                          decoration: InputDecoration(
-                            labelText: _tr(
-                              'Working hours (optional)',
-                              'Muda wa kazi (hiari)',
-                            ),
-                            hintText: _tr(
-                              'Mon – Sat: 8:00 AM – 6:00 PM',
-                              'Jumatatu – Jumamosi: 8:00 – 18:00',
-                            ),
-                            border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.access_time_rounded),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _WebsitePromoCard(tr: _tr),
-
-                        // ── Section: Social media ────────────────────────────
-                        _FormSectionLabel(
-                            label: _tr('SOCIAL MEDIA', 'MITANDAO YA KIJAMII')),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: facebookController,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'Facebook',
-                            hintText: 'facebook.com/yourbusiness',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.facebook_rounded),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: instagramController,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'Instagram',
-                            hintText: '@yourbusiness',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.camera_alt_outlined),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: tiktokController,
-                          keyboardType: TextInputType.url,
-                          decoration: const InputDecoration(
-                            labelText: 'TikTok',
-                            hintText: '@yourbusiness',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.music_note_rounded),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Delete button — edit mode only
-                        if (isEditing) ...[
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.error,
-                                side: BorderSide(
-                                    color: AppColors.error.withValues(alpha: 0.25)),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                              ),
-                              onPressed: () async {
-                                final nameConfirmCtrl = TextEditingController();
-                                final businessName =
-                                    (business['name'] as String?)?.trim() ?? '';
-                                final confirmed = await showDialog<bool>(
-                                  context: dialogContext,
-                                  barrierDismissible: false,
-                                  builder: (c) => StatefulBuilder(
-                                    builder: (sc, ss) => AlertDialog(
-                                      title: Text(_tr(
-                                          'Confirm deletion',
-                                          'Thibitisha kufuta')),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(_tr(
-                                            'Type the business name to confirm permanent deletion.',
-                                            'Andika jina la biashara kuthibitisha ufutaji.',
-                                          )),
-                                          const SizedBox(height: 12),
-                                          TextField(
-                                            controller: nameConfirmCtrl,
-                                            decoration: InputDecoration(
-                                                hintText: businessName),
-                                            onChanged: (_) => ss(() {}),
+                          // ── Delete (edit mode only) ────────────────────────
+                          if (isEditing) ...[
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.error,
+                                  side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () async {
+                                  final nameConfirmCtrl = TextEditingController();
+                                  final bizName = (business['name'] as String?)?.trim() ?? '';
+                                  final confirmed = await showDialog<bool>(
+                                    context: dlgCtx,
+                                    barrierDismissible: false,
+                                    builder: (c) => StatefulBuilder(
+                                      builder: (sc, ss) => AlertDialog(
+                                        title: Text(_tr('Confirm deletion', 'Thibitisha kufuta')),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(_tr(
+                                              'Type the business name to confirm permanent deletion.',
+                                              'Andika jina la biashara kuthibitisha ufutaji.',
+                                            )),
+                                            const SizedBox(height: 12),
+                                            TextField(
+                                              controller: nameConfirmCtrl,
+                                              decoration: InputDecoration(hintText: bizName),
+                                              onChanged: (_) => ss(() {}),
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(c).pop(false),
+                                            child: Text(_tr('Cancel', 'Ghairi')),
+                                          ),
+                                          TextButton(
+                                            onPressed: nameConfirmCtrl.text.trim() == bizName
+                                                ? () => Navigator.of(c).pop(true)
+                                                : null,
+                                            child: Text(
+                                              _tr('Delete permanently', 'Futa kudumu'),
+                                              style: const TextStyle(color: Colors.redAccent),
+                                            ),
                                           ),
                                         ],
                                       ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.of(c).pop(false),
-                                          child: Text(_tr('Cancel', 'Ghairi')),
-                                        ),
-                                        TextButton(
-                                          onPressed:
-                                              nameConfirmCtrl.text.trim() ==
-                                                      businessName
-                                                  ? () => Navigator.of(c)
-                                                      .pop(true)
-                                                  : null,
-                                          child: Text(
-                                            _tr('Delete permanently',
-                                                'Futa kudumu'),
-                                            style: const TextStyle(
-                                                color: Colors.redAccent),
-                                          ),
-                                        ),
-                                      ],
                                     ),
-                                  ),
-                                );
-                                if (confirmed == true) {
-                                  if (mounted) Navigator.of(context).pop();
-                                  await _deleteBusiness(profile, business);
-                                }
-                              },
-                              icon: const Icon(Icons.delete_outline_rounded,
-                                  size: 18),
-                              label: Text(
-                                  _tr('Delete business', 'Futa biashara')),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // Cancel / Save
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: localSaving
-                                    ? null
-                                    : () =>
-                                        Navigator.of(dialogContext).pop(false),
-                                child: Text(_tr('Cancel', 'Ghairi')),
+                                  );
+                                  if (confirmed == true) {
+                                    if (mounted) Navigator.of(context).pop();
+                                    await _deleteBusiness(profile, business);
+                                  }
+                                },
+                                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                                label: Text(_tr('Delete business', 'Futa biashara')),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 2,
-                              child: FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                ),
-                                icon: localSaving
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white),
-                                      )
-                                    : Icon(
-                                        isEditing
-                                            ? Icons.save_rounded
-                                            : Icons.add_business_rounded,
-                                        size: 18),
-                                onPressed: localSaving
-                                    ? null
-                                    : () async {
-                                        setDialogState(() => localSaving = true);
-                                        final saved = await _saveBusinessForm(
-                                          profile: profile,
-                                          businessId: businessId,
-                                          name: nameController.text.trim(),
-                                          category: selectedBusinessType,
-                                          place: selectedCity ?? '',
-                                          phone: phoneController.text.trim(),
-                                          workingHours:
-                                              workingHoursController.text,
-                                          facebook: facebookController.text,
-                                          instagram: instagramController.text,
-                                          tiktok: tiktokController.text,
-                                          existingBusiness: business,
-                                          pickedLogoFile: pickedLogoFile,
-                                          existingLogoUrl: existingLogoUrl,
-                                        );
-                                        if (!mounted) return;
-                                        setDialogState(
-                                            () => localSaving = false);
-                                        if (saved && dialogContext.mounted) {
-                                          Navigator.of(dialogContext).pop(true);
-                                        }
-                                      },
-                                label: Text(
-                                  localSaving
-                                      ? _tr('Saving…', 'Inahifadhi…')
-                                      : isEditing
-                                          ? _tr('Save changes',
-                                              'Hifadhi mabadiliko')
-                                          : _tr('Add business',
-                                              'Ongeza biashara'),
-                                ),
-                              ),
-                            ),
+                            const SizedBox(height: 12),
                           ],
-                        ),
-                      ],
-                    ),
+
+                          // ── Cancel / Save ─────────────────────────────────
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    foregroundColor: AppColors.navyPrimary,
+                                    side: const BorderSide(color: AppColors.border),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  onPressed: localSaving ? null : () => Navigator.of(dlgCtx).pop(false),
+                                  child: Text(_tr('Cancel', 'Ghairi')),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.navyPrimary,
+                                    elevation: 3,
+                                    shadowColor: AppColors.primary.withValues(alpha: 0.35),
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  onPressed: localSaving
+                                      ? null
+                                      : () async {
+                                          setS(() => localSaving = true);
+                                          final saved = await _saveBusinessForm(
+                                            profile: profile,
+                                            businessId: businessId,
+                                            name: nameCtrl.text.trim(),
+                                            category: selectedType,
+                                            place: selectedCity ?? '',
+                                            phone: (business?['phone'] as String?) ?? '',
+                                            workingHours: (business?['workingHours'] as String?) ?? '',
+                                            websiteUrl: websiteCtrl.text.trim(),
+                                            websiteInterest: websiteInterest,
+                                            facebook: (business?['facebook'] as String?) ?? '',
+                                            instagram: (business?['instagram'] as String?) ?? '',
+                                            tiktok: (business?['tiktok'] as String?) ?? '',
+                                            existingBusiness: business,
+                                            pickedLogoFile: pickedLogoFile,
+                                            existingLogoUrl: existingLogoUrl,
+                                          );
+                                          if (!mounted) return;
+                                          setS(() => localSaving = false);
+                                          if (saved && dlgCtx.mounted) {
+                                            Navigator.of(dlgCtx).pop(true);
+                                          }
+                                        },
+                                  child: localSaving
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.navyPrimary,
+                                          ),
+                                        )
+                                      : Text(
+                                          isEditing
+                                              ? _tr('Save changes', 'Hifadhi mabadiliko')
+                                              : _tr('Add business', 'Ongeza biashara'),
+                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                    ],
                   ),
                 ),
               ),
             );
           },
+        ),
         );
       },
     );
 
-    nameController.dispose();
-    phoneController.dispose();
-    workingHoursController.dispose();
-    facebookController.dispose();
-    instagramController.dispose();
-    tiktokController.dispose();
+    nameCtrl.dispose();
+    websiteCtrl.dispose();
 
     if (result == true && mounted) {
-      setState(() {
-        _profileFuture = _loadProfile();
-      });
+      setState(() => _profileFuture = _loadProfile());
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -822,6 +830,10 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                 ? _tr('Business updated.', 'Biashara imesasishwa.')
                 : _tr('Business added.', 'Biashara imeongezwa.'),
           ),
+          backgroundColor: AppColors.navyPrimary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
         ),
       );
     }
@@ -837,6 +849,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     required String place,
     required String phone,
     required String workingHours,
+    required String websiteUrl,
+    required bool websiteInterest,
     required String facebook,
     required String instagram,
     required String tiktok,
@@ -874,14 +888,12 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
       final igVal = _normalizeOptionalUrl(instagram);
       final ttVal = _normalizeOptionalUrl(tiktok);
 
-      // Pass through fields removed from the form — preserves existing data
-      String? websiteVal, xVal, linkedinVal;
+      // Preserve x / linkedin (not surfaced in form)
+      String? xVal, linkedinVal;
       if (existingBusiness != null) {
-        final w = (existingBusiness['website'] as String?)?.trim();
-        if (w != null && w.isNotEmpty) websiteVal = w;
-        final x = (existingBusiness['x'] as String?)?.trim();
-        if (x != null && x.isNotEmpty) xVal = x;
+        final x  = (existingBusiness['x']       as String?)?.trim();
         final li = (existingBusiness['linkedin'] as String?)?.trim();
+        if (x  != null && x.isNotEmpty)  xVal       = x;
         if (li != null && li.isNotEmpty) linkedinVal = li;
       }
 
@@ -915,10 +927,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             'placeOfBusiness': place,
             'phone': ?phoneVal,
             'workingHours': hoursVal,
+            'websiteUrl': websiteUrl,
+            'hasWebsite': websiteUrl.isNotEmpty,
+            'websiteInterest': websiteInterest,
+            'website': websiteUrl.isEmpty ? null : websiteUrl,
             'facebook': ?fbVal,
             'instagram': ?igVal,
             'tiktok': ?ttVal,
-            'website': ?websiteVal,
             'x': ?xVal,
             'linkedin': ?linkedinVal,
             if (newLogoUrl != null && newLogoUrl.isNotEmpty) 'logoUrl': newLogoUrl,
@@ -954,10 +969,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             profile?['displayName'] ?? profile?['name'] ?? user.displayName,
         'phone': ?phoneVal,
         'workingHours': hoursVal,
+        'websiteUrl': websiteUrl,
+        'hasWebsite': websiteUrl.isNotEmpty,
+        'websiteInterest': websiteInterest,
+        'website': websiteUrl.isEmpty ? null : websiteUrl,
         'facebook': ?fbVal,
         'instagram': ?igVal,
         'tiktok': ?ttVal,
-        'website': ?websiteVal,
         'x': ?xVal,
         'linkedin': ?linkedinVal,
         if (newLogoUrl != null && newLogoUrl.isNotEmpty) 'logoUrl': newLogoUrl,
@@ -1429,14 +1447,10 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.background,
-          appBar: AppBar(
-            title: Text(_tr('My Businesses', 'Biashara zangu')),
-            centerTitle: false,
-          ),
           body: isLoading
               ? const Center(child: CircularProgressIndicator())
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+                  padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 62, 20, 40),
                   children: [
                     _buildAddHero(profile),
                     if (businesses.isNotEmpty) ...[
@@ -1534,27 +1548,240 @@ class _FormSectionLabel extends StatelessWidget {
   const _FormSectionLabel({required this.label});
 
   @override
+  Widget build(BuildContext context) => Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.navyPrimary,
+          letterSpacing: 0.1,
+        ),
+      );
+}
+
+// ── Tap-to-open selector (matches onboarding _TapSelector style) ──────────────
+
+class _FormTapSelector extends StatelessWidget {
+  const _FormTapSelector({
+    required this.icon,
+    required this.placeholder,
+    required this.onTap,
+    this.value,
+    this.hasValue = false,
+  });
+
+  final IconData  icon;
+  final String    placeholder;
+  final String?   value;
+  final bool      hasValue;
+  final VoidCallback onTap;
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 22, bottom: 2),
-      child: Row(
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: hasValue
+                ? AppColors.navyPrimary.withValues(alpha: 0.35)
+                : AppColors.border,
+            width: hasValue ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18,
+                color: hasValue ? AppColors.navyPrimary : AppColors.textMuted),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                value ?? placeholder,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                  color: hasValue ? AppColors.navyPrimary : AppColors.textDisabled,
+                ),
+              ),
+            ),
+            Icon(
+              hasValue
+                  ? Icons.check_circle_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: hasValue ? AppColors.success : AppColors.textMuted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Business-type picker sheet (mirrors onboarding _BizTypePickerSheet) ────────
+
+class _BizTypePickerSheet extends StatefulWidget {
+  const _BizTypePickerSheet({
+    required this.types,
+    required this.selectedValue,
+    required this.tr,
+  });
+
+  final List<Map<String, dynamic>> types;
+  final String  selectedValue;
+  final String Function(String, String) tr;
+
+  @override
+  State<_BizTypePickerSheet> createState() => _BizTypePickerSheetState();
+}
+
+class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
+  final _searchCtrl = TextEditingController();
+  late List<Map<String, dynamic>> _filtered;
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = widget.types;
+    _searchCtrl.addListener(_onSearch);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.removeListener(_onSearch);
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearch() {
+    final q = _searchCtrl.text.toLowerCase().trim();
+    setState(() {
+      _filtered = q.isEmpty
+          ? widget.types
+          : widget.types.where((t) {
+              final en = (t['en'] as String? ?? '').toLowerCase();
+              final sw = (t['sw'] as String? ?? '').toLowerCase();
+              return en.contains(q) || sw.contains(q);
+            }).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.88),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 3,
-            height: 14,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(2),
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              widget.tr('Business Type', 'Aina ya Biashara'),
+              style: const TextStyle(
+                fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navyPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                style: const TextStyle(fontSize: 14, color: AppColors.navyPrimary),
+                decoration: InputDecoration(
+                  hintText: widget.tr('Search business type…', 'Tafuta aina ya biashara…'),
+                  hintStyle: const TextStyle(fontSize: 14, color: AppColors.textDisabled),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
+              itemCount: _filtered.length,
+              itemBuilder: (_, i) {
+                final t        = _filtered[i];
+                final val      = t['value'] as String? ?? '';
+                final selected = val == widget.selectedValue;
+                final label    = widget.tr(t['en'] as String? ?? '', t['sw'] as String? ?? '');
+                final rawIcon  = t['icon'];
+                final icon     = rawIcon is IconData
+                    ? rawIcon
+                    : (rawIcon is String ? LookupService.iconFromName(rawIcon) : Icons.category_rounded);
+
+                return InkWell(
+                  onTap: () => Navigator.of(context).pop(val),
+                  borderRadius: BorderRadius.circular(12),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.navyPrimary.withValues(alpha: 0.06)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: selected ? AppColors.navyPrimary : AppColors.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: selected ? AppColors.navyPrimary : AppColors.border,
+                            ),
+                          ),
+                          child: Icon(icon, size: 18,
+                              color: selected ? AppColors.yellowBrand : AppColors.textMuted),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                color: AppColors.navyPrimary,
+                              )),
+                        ),
+                        if (selected)
+                          const Icon(Icons.check_rounded, size: 18, color: AppColors.success),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -1563,97 +1790,141 @@ class _FormSectionLabel extends StatelessWidget {
   }
 }
 
-class _WebsitePromoCard extends StatelessWidget {
+// ── City / Region picker sheet (mirrors onboarding _SearchPickerSheet) ─────────
+
+class _CityPickerSheet extends StatefulWidget {
+  const _CityPickerSheet({
+    required this.cities,
+    required this.selectedValue,
+    required this.tr,
+  });
+
+  final List<Map<String, String>> cities;
+  final String? selectedValue;
   final String Function(String, String) tr;
-  const _WebsitePromoCard({required this.tr});
+
+  @override
+  State<_CityPickerSheet> createState() => _CityPickerSheetState();
+}
+
+class _CityPickerSheetState extends State<_CityPickerSheet> {
+  final _searchCtrl = TextEditingController();
+  late List<Map<String, String>> _filtered;
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = widget.cities;
+    _searchCtrl.addListener(_onSearch);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.removeListener(_onSearch);
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearch() {
+    final q = _searchCtrl.text.toLowerCase().trim();
+    setState(() {
+      _filtered = q.isEmpty
+          ? widget.cities
+          : widget.cities.where((c) {
+              final en = (c['en'] ?? '').toLowerCase();
+              final sw = (c['sw'] ?? '').toLowerCase();
+              return en.contains(q) || sw.contains(q);
+            }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF6366F1).withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF6366F1).withValues(alpha: 0.2),
-        ),
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.82),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
-            child: const Icon(Icons.language_rounded,
-                color: Color(0xFF6366F1), size: 20),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tr("Don't have a website?", 'Huna tovuti bado?'),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
-                  ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              widget.tr('City / Region', 'Mji / Mkoa'),
+              style: const TextStyle(
+                fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navyPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                style: const TextStyle(fontSize: 14, color: AppColors.navyPrimary),
+                decoration: InputDecoration(
+                  hintText: widget.tr('Search…', 'Tafuta…'),
+                  hintStyle: const TextStyle(fontSize: 14, color: AppColors.textDisabled),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  tr(
-                    'We build professional websites for businesses like yours — fast and affordable.',
-                    'Tunajenga tovuti za kitaalamu kwa biashara kama yako — haraka na bei nafuu.',
-                  ),
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                GestureDetector(
-                  onTap: () {
-                    showDialog<void>(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        title: Text(tr('Get in touch', 'Wasiliana nasi')),
-                        content: Text(tr(
-                          'Contact us and we will build a professional website for your business.',
-                          'Wasiliana nasi na tutakutengenezea tovuti ya kitaalamu kwa biashara yako.',
-                        )),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(c).pop(),
-                            child: Text(tr('Close', 'Funga')),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        tr('Contact us to get started', 'Wasiliana nasi kuanza'),
-                        style: const TextStyle(
-                          color: Color(0xFF6366F1),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
+              itemCount: _filtered.length,
+              itemBuilder: (_, i) {
+                final city     = _filtered[i];
+                final en       = city['en'] ?? '';
+                final selected = en == widget.selectedValue;
+                final label    = widget.tr(en, city['sw'] ?? en);
+
+                return InkWell(
+                  onTap: () => Navigator.of(context).pop(en),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                color: AppColors.navyPrimary,
+                              )),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_forward_rounded,
-                          size: 14, color: Color(0xFF6366F1)),
-                    ],
+                        if (selected)
+                          const Icon(Icons.check_rounded, size: 17, color: AppColors.success),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ],
