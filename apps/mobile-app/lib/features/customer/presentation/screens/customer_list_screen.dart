@@ -8,6 +8,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../rbac/data/rbac_providers.dart';
 import '../../data/customer_providers.dart';
 import '../../domain/models/customer.dart';
 import '../widgets/add_customer_dialog.dart';
@@ -43,18 +44,22 @@ extension _SegmentX on _Segment {
   bool matches(Customer c) => switch (this) {
         _Segment.all => true,
         _Segment.vip => c.tags.any((t) => t.toLowerCase() == 'vip'),
-        _Segment.wholesale =>
-          c.tags.any((t) => t.toLowerCase().contains('jumla') ||
-              t.toLowerCase().contains('wholesale')),
-        _Segment.retail =>
-          c.tags.any((t) => t.toLowerCase().contains('reja') ||
-              t.toLowerCase().contains('retail')),
-        _Segment.blacklisted =>
-          c.tags.any((t) => t.toLowerCase().contains('nyeusi') ||
-              t.toLowerCase().contains('black')),
-        _Segment.hasBalance => (double.tryParse(c.balance) ?? 0) > 0,
+        _Segment.wholesale => c.tags.any((t) =>
+            t.toLowerCase().contains('jumla') ||
+            t.toLowerCase().contains('wholesale')),
+        _Segment.retail => c.tags.any((t) =>
+            t.toLowerCase().contains('reja') ||
+            t.toLowerCase().contains('retail')),
+        _Segment.blacklisted => c.tags.any((t) =>
+            t.toLowerCase().contains('nyeusi') ||
+            t.toLowerCase().contains('black')),
+        _Segment.hasBalance => c.balanceAmount > 0,
       };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Screen
+// ─────────────────────────────────────────────────────────────────────────────
 
 class CustomerListScreen extends ConsumerStatefulWidget {
   const CustomerListScreen({super.key});
@@ -82,7 +87,10 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
           .where((c) =>
               c.name.toLowerCase().contains(q) ||
               c.phone.contains(q) ||
-              c.email.toLowerCase().contains(q))
+              c.email.toLowerCase().contains(q) ||
+              c.address.toLowerCase().contains(q) ||
+              c.tags.any((t) => t.toLowerCase().contains(q)) ||
+              c.id.toLowerCase().contains(q))
           .toList();
     }
     return list;
@@ -90,31 +98,37 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ps = ref.watch(permissionServiceProvider);
     final customersAsync = ref.watch(customerListProvider);
+    final showFinancials = ps.canViewDebt || ps.isOwner;
+
     final all = customersAsync.maybeWhen(
       data: (d) => d,
       orElse: () => <Customer>[],
     );
     final filtered = _filter(all);
 
-    final totalBalance = all.fold<double>(
-      0,
-      (s, c) => s + (double.tryParse(c.balance) ?? 0),
-    );
-    final debtCount = all.where((c) => (double.tryParse(c.balance) ?? 0) > 0).length;
+    final totalBalance = showFinancials
+        ? all.fold<double>(0, (s, c) => s + c.balanceAmount)
+        : 0.0;
+    final debtCount = showFinancials
+        ? all.where((c) => c.balanceAmount > 0).length
+        : 0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddDialog(context),
-        backgroundColor: AppColors.navyPrimary,
-        tooltip: _tr('Add customer', 'Ongeza mteja'),
-        child: const Icon(Icons.person_add_alt_1_rounded,
-            color: AppColors.yellowBrand),
-      ),
+      floatingActionButton: ps.canManageCustomers || ps.isOwner
+          ? FloatingActionButton(
+              onPressed: () => _showAddDialog(context),
+              backgroundColor: AppColors.navyPrimary,
+              tooltip: _tr('Add customer', 'Ongeza mteja'),
+              child: const Icon(Icons.person_add_alt_1_rounded,
+                  color: AppColors.yellowBrand),
+            )
+          : null,
       body: Column(
         children: [
-          // ── Top bar ────────────────────────────────────────────────────────
+          // ── Top bar ──────────────────────────────────────────────────────
           Container(
             color: Colors.white,
             padding: EdgeInsets.fromLTRB(
@@ -144,7 +158,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _tr('Contacts', 'Mawasiliano'),
+                            _tr('My Clients', 'Wateja Wangu'),
                             style: GoogleFonts.dmSans(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -163,12 +177,14 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildStatsRow(all.length, totalBalance, debtCount),
+                _buildStatsRow(all.length, totalBalance, debtCount, showFinancials),
                 const SizedBox(height: 10),
-                // Search bar
                 AppSearchBar(
                   controller: _searchCtrl,
-                  hintText: _tr('Search by name, phone…', 'Tafuta kwa jina, simu…'),
+                  hintText: _tr(
+                    'Search by name, phone, tag…',
+                    'Tafuta kwa jina, simu, lebo…',
+                  ),
                   onChanged: (_) => setState(() {}),
                   padding: const EdgeInsets.symmetric(vertical: 4),
                 ),
@@ -186,13 +202,15 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
                 : filtered.isEmpty
                     ? _Empty(query: _searchCtrl.text, segment: _segment)
                     : ListView.separated(
-                        padding:
-                            const EdgeInsets.fromLTRB(16, 10, 16, 100),
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
                         itemCount: filtered.length,
-                        separatorBuilder: (ctx, i) =>
-                            const SizedBox(height: 12),
-                        itemBuilder: (_, i) =>
-                            _CustomerCard(customer: filtered[i]),
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (_, i) => _CustomerCard(
+                          customer: filtered[i],
+                          showFinancials: showFinancials,
+                          canManage: ps.canManageCustomers || ps.isOwner,
+                        ),
                       ),
           ),
         ],
@@ -200,7 +218,8 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
     );
   }
 
-  Widget _buildStatsRow(int count, double totalBalance, int debtCount) {
+  Widget _buildStatsRow(
+      int count, double totalBalance, int debtCount, bool showFinancials) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -219,22 +238,49 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
         children: [
           _StatChip(
             icon: Icons.people_rounded,
-            label: '$count ${_tr("clients", "wateja")}',
+            label: '$count',
+            label2: _tr('clients', 'wateja'),
             color: Colors.white,
           ),
           const SizedBox(width: 8),
-          _StatChip(
-            icon: Icons.account_balance_wallet_rounded,
-            label: 'TZS ${_fmtShort(totalBalance)}',
-            label2: _tr('receivable', 'inadaiwa'),
-            color: totalBalance > 0 ? AppColors.warning : AppColors.success,
-          ),
-          const SizedBox(width: 8),
-          _StatChip(
-            icon: Icons.warning_amber_rounded,
-            label: '$debtCount ${_tr("with debt", "wenye deni")}',
-            color: debtCount > 0 ? AppColors.error : Colors.white70,
-          ),
+          if (showFinancials) ...[
+            _StatChip(
+              icon: Icons.account_balance_wallet_rounded,
+              label: 'TZS ${_fmtShort(totalBalance)}',
+              label2: _tr('receivable', 'inadaiwa'),
+              color: totalBalance > 0 ? AppColors.warning : AppColors.success,
+            ),
+            const SizedBox(width: 8),
+            _StatChip(
+              icon: Icons.warning_amber_rounded,
+              label: '$debtCount',
+              label2: _tr('with debt', 'wenye deni'),
+              color: debtCount > 0 ? AppColors.error : Colors.white70,
+            ),
+          ] else ...[
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock_outline_rounded,
+                        size: 13, color: Colors.white54),
+                    const SizedBox(width: 6),
+                    Text(
+                      _tr('Financials hidden', 'Fedha zimefichwa'),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 11, color: Colors.white54),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -307,8 +353,9 @@ class _FilterPills extends StatelessWidget {
                             style: GoogleFonts.dmSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color:
-                                    active ? Colors.white : AppColors.textMuted),
+                                color: active
+                                    ? Colors.white
+                                    : AppColors.textMuted),
                           ),
                           if (count > 0) ...[
                             const SizedBox(width: 5),
@@ -352,7 +399,14 @@ class _FilterPills extends StatelessWidget {
 
 class _CustomerCard extends ConsumerWidget {
   final Customer customer;
-  const _CustomerCard({required this.customer});
+  final bool showFinancials;
+  final bool canManage;
+
+  const _CustomerCard({
+    required this.customer,
+    required this.showFinancials,
+    required this.canManage,
+  });
 
   Color get _accentColor {
     if (customer.tags.any((t) =>
@@ -393,7 +447,10 @@ class _CustomerCard extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           backgroundColor: AppColors.error,
-          content: Text(_tr('Could not delete customer. Please try again.', 'Imeshindwa kufuta mteja. Jaribu tena.')),
+          content: Text(_tr(
+            'Could not delete customer. Please try again.',
+            'Imeshindwa kufuta mteja. Jaribu tena.',
+          )),
         ));
       }
     }
@@ -401,51 +458,68 @@ class _CustomerCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final balance = double.tryParse(customer.balance) ?? 0;
+    final balance = customer.balanceAmount;
     final hasBalance = balance > 0;
     final accent = _accentColor;
+    final lastDate = customer.lastTransactionDate;
+    final hasLastDate =
+        lastDate.isNotEmpty && lastDate != '0' && lastDate != '—';
 
     return ListSwipeCard(
       itemKey: ValueKey(customer.id),
-      onEdit: () async {
-        await showModalBottomSheet<void>(
-          context: context,
-          useRootNavigator: true,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          useSafeArea: true,
-          builder: (_) => _EditCustomerSheet(customer: customer),
-        );
-      },
-      onDelete: () async {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Text(_tr('Delete Customer?', 'Futa Mteja?'),
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
-            content: Text(
-              _tr('Delete "${customer.name}"? This cannot be undone.',
-                  'Futa "${customer.name}"? Hii haiwezi kutenduliwa.'),
-              style: GoogleFonts.dmSans(),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(_tr('Cancel', 'Ghairi'),
-                    style: GoogleFonts.dmSans(color: AppColors.textMuted)),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                child: Text(_tr('Delete', 'Futa'),
-                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-        );
-        if (confirmed == true && context.mounted) await _delete(context, ref);
-      },
+      onEdit: canManage
+          ? () async {
+              await showModalBottomSheet<void>(
+                context: context,
+                useRootNavigator: true,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                useSafeArea: true,
+                builder: (_) => _EditCustomerSheet(customer: customer),
+              );
+            }
+          : null,
+      onDelete: canManage
+          ? () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  title: Text(
+                    _tr('Delete Customer?', 'Futa Mteja?'),
+                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                  ),
+                  content: Text(
+                    _tr(
+                      'Delete "${customer.name}"? This cannot be undone.',
+                      'Futa "${customer.name}"? Hii haiwezi kutenduliwa.',
+                    ),
+                    style: GoogleFonts.dmSans(),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: Text(_tr('Cancel', 'Ghairi'),
+                          style:
+                              GoogleFonts.dmSans(color: AppColors.textMuted)),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error),
+                      child: Text(_tr('Delete', 'Futa'),
+                          style:
+                              GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true && context.mounted) {
+                await _delete(context, ref);
+              }
+            }
+          : null,
       child: GestureDetector(
         onTap: () {
           Navigator.of(context).push(MaterialPageRoute(
@@ -460,8 +534,8 @@ class _CustomerCard extends ConsumerWidget {
             boxShadow: const [
               BoxShadow(
                   color: AppColors.shadowCard,
-                  blurRadius: 6,
-                  offset: Offset(0, 1))
+                  blurRadius: 8,
+                  offset: Offset(0, 2))
             ],
           ),
           clipBehavior: Clip.antiAlias,
@@ -469,155 +543,216 @@ class _CustomerCard extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // ── Accent bar ─────────────────────────────────────────────
                 Container(width: 4, color: accent),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 14, 14, 14),
+                    padding: const EdgeInsets.fromLTRB(12, 13, 14, 13),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Avatar
-                        CircleAvatar(
-                radius: 22,
-                backgroundColor: accent.withValues(alpha: 0.1),
-                child: Text(
-                  customer.name.isNotEmpty
-                      ? customer.name[0].toUpperCase()
-                      : '?',
-                  style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: accent),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Name + phone + tags
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
+                        // ── Avatar ─────────────────────────────────────────
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignment: Alignment.center,
                           child: Text(
-                            customer.name,
+                            customer.name.isNotEmpty
+                                ? customer.name[0].toUpperCase()
+                                : '?',
                             style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary),
-                            overflow: TextOverflow.ellipsis,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: accent),
                           ),
                         ),
-                        if (customer.isOrganisation)
-                          Container(
-                            margin: const EdgeInsets.only(left: 6),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: AppColors.tealAccent.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _tr('ORG', 'SHIRIKA'),
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.tealAccent),
-                            ),
+                        const SizedBox(width: 12),
+                        // ── Name + contact + tags ──────────────────────────
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      customer.name,
+                                      style: GoogleFonts.dmSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (customer.isOrganisation)
+                                    _OrgBadge(),
+                                ],
+                              ),
+                              if (customer.displaySubtitle.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  customer.displaySubtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 12,
+                                      color: AppColors.textMuted),
+                                ),
+                              ],
+                              if (customer.tags.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 5,
+                                  runSpacing: 4,
+                                  children: customer.tags.take(3).map((t) {
+                                    final tagColor = _tagColor(t);
+                                    return _TagChip(tag: t, color: tagColor);
+                                  }).toList(),
+                                ),
+                              ],
+                            ],
                           ),
+                        ),
+                        const SizedBox(width: 10),
+                        // ── Balance + last date ────────────────────────────
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (showFinancials) ...[
+                              Text(
+                                _tr('Balance', 'Salio'),
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 10, color: AppColors.textMuted),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                hasBalance
+                                    ? 'TZS ${_fmtShort(balance)}'
+                                    : _tr('Clear', 'Safi'),
+                                style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: hasBalance
+                                        ? AppColors.error
+                                        : AppColors.success),
+                              ),
+                              if (hasBalance && customer.creditLimit > 0) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  customer.isOverCreditLimit
+                                      ? _tr('Over limit!', 'Imezidi!')
+                                      : '${(customer.creditUtilization * 100).toStringAsFixed(0)}% used',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                    color: customer.isOverCreditLimit
+                                        ? AppColors.error
+                                        : AppColors.warning,
+                                  ),
+                                ),
+                              ],
+                            ] else ...[
+                              const Icon(Icons.lock_outline_rounded,
+                                  size: 14, color: AppColors.textDisabled),
+                            ],
+                            if (hasLastDate) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.history_rounded,
+                                      size: 10,
+                                      color: AppColors.textDisabled),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    lastDate,
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 9,
+                                        color: AppColors.textDisabled),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 4),
+                            const Icon(Icons.chevron_right_rounded,
+                                size: 16, color: AppColors.textDisabled),
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      customer.displaySubtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.dmSans(
-                          fontSize: 12, color: AppColors.textMuted),
-                    ),
-                    if (customer.address.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        customer.address,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.dmSans(
-                            fontSize: 11, color: AppColors.textMuted),
-                      ),
-                    ],
-                    if (customer.tags.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 5,
-                        children: customer.tags.take(3).map((t) {
-                          final tagColor = _tagColor(t);
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: tagColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                  color: tagColor.withValues(alpha: 0.25)),
-                            ),
-                            child: Text(
-                              t,
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: tagColor),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              // Balance
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    _tr('Balance', 'Salio'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 10, color: AppColors.textMuted),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    hasBalance
-                        ? 'TZS ${_fmtShort(balance)}'
-                        : _tr('Clear', 'Safi'),
-                    style: GoogleFonts.jetBrainsMono(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: hasBalance ? AppColors.error : AppColors.success),
-                  ),
-                  const SizedBox(height: 4),
-                  const Icon(Icons.chevron_right_rounded,
-                      size: 16, color: AppColors.textDisabled),
-                    ],           // Column (balance)
-                  ),
-                ],               // inner content Row children
-              ),                 // inner content Row
-            ),                   // Padding
-          ),                     // Expanded
-        ],                       // outer accent+content Row children
-      ),                         // outer Row
-      ),                         // IntrinsicHeight
-      ),                         // Container
-    ),                           // GestureDetector
-  );                             // ListSwipeCard
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Color _tagColor(String tag) {
     final t = tag.toLowerCase();
     if (t == 'vip') return const Color(0xFFB45309);
     if (t.contains('black') || t.contains('nyeusi')) return AppColors.error;
-    if (t.contains('jumla') || t.contains('wholesale')) return AppColors.tealAccent;
+    if (t.contains('jumla') || t.contains('wholesale')) {
+      return AppColors.tealAccent;
+    }
     return AppColors.navySecondary;
   }
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared small card sub-widgets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _OrgBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.tealAccent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        _tr('ORG', 'SHIRIKA'),
+        style: GoogleFonts.dmSans(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: AppColors.tealAccent),
+      ),
+    );
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  final String tag;
+  final Color color;
+  const _TagChip({required this.tag, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        tag,
+        style: GoogleFonts.dmSans(
+            fontSize: 10, fontWeight: FontWeight.w600, color: color),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -644,23 +779,22 @@ class _Empty extends StatelessWidget {
           : isFiltered
               ? _tr('No customers in this group',
                   'Hakuna wateja katika kikundi hiki')
-              : _tr('Your customer list is empty',
-                  'Orodha yako ya wateja iko tupu'),
+              : _tr('No customers yet', 'Bado hakuna wateja'),
       subtitle: hasQuery
-          ? _tr('Check the spelling or try a shorter search.',
-              'Angalia tahajia au jaribu utafutaji mfupi.')
+          ? _tr(
+              'Try searching by name, phone, or tag.',
+              'Jaribu kutafuta kwa jina, simu, au lebo.')
           : isFiltered
-              ? _tr('Try a different filter to see more customers.',
-                  'Jaribu kichujio tofauti kuona wateja zaidi.')
+              ? _tr('Try a different filter.', 'Jaribu kichujio tofauti.')
               : _tr(
-                  'Add a customer to start tracking sales and balances.',
-                  'Ongeza mteja ili uanze kufuatilia mauzo na salio.'),
+                  'Add your first customer to start tracking sales and balances.',
+                  'Ongeza mteja wa kwanza kuanza kufuatilia mauzo na salio.'),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Edit Customer Sheet (preserved from original)
+// Edit Customer Sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _EditCustomerSheet extends ConsumerStatefulWidget {
@@ -751,7 +885,10 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
       setState(() => _isSaving = false);
       msg.showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
-        content: Text(_tr('Could not save changes. Please try again.', 'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.')),
+        content: Text(_tr(
+          'Could not save changes. Please try again.',
+          'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.',
+        )),
       ));
     }
   }
@@ -760,8 +897,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
         labelText: label,
         labelStyle: GoogleFonts.dmSans(fontSize: 13),
         prefixIcon: Icon(icon, size: 20),
-        border:
-            OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.border),
@@ -779,13 +915,14 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius:
-          const BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: SafeArea(
         top: false,
         child: Padding(
           padding: EdgeInsets.fromLTRB(
-            20, 12, 20,
+            20,
+            12,
+            20,
             20 + MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Form(
@@ -813,7 +950,6 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                         color: AppColors.navyPrimary),
                   ),
                   const SizedBox(height: 16),
-                  // Individual / Organisation toggle
                   _TypeToggleRow(
                     isOrg: _isOrg,
                     onChanged: (v) => setState(() => _isOrg = v),
@@ -838,9 +974,9 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                   TextFormField(
                     controller: _phoneCtrl,
                     keyboardType: TextInputType.phone,
-                    decoration:
-                        _dec(_tr('Phone Number *', 'Namba ya Simu *'),
-                            Icons.phone_outlined),
+                    decoration: _dec(
+                        _tr('Phone Number *', 'Namba ya Simu *'),
+                        Icons.phone_outlined),
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? _tr('Please enter phone number',
                             'Tafadhali weka namba ya simu')
@@ -860,8 +996,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                       controller: _tinCtrl,
                       textCapitalization: TextCapitalization.characters,
                       decoration: _dec(
-                          _tr('TIN Number (Optional)',
-                              'Namba ya TIN (Hiari)'),
+                          _tr('TIN Number (Optional)', 'Namba ya TIN (Hiari)'),
                           Icons.numbers_outlined),
                     ),
                   ],
@@ -887,12 +1022,10 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: _isSaving
-                              ? null
-                              : () => Navigator.pop(context),
+                          onPressed:
+                              _isSaving ? null : () => Navigator.pop(context),
                           style: OutlinedButton.styleFrom(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
                           ),
@@ -906,8 +1039,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                           onPressed: _isSaving ? null : _save,
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.navyPrimary,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
                           ),
@@ -915,8 +1047,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                               ? const SizedBox.square(
                                   dimension: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Colors.white))
+                                      strokeWidth: 2.5, color: Colors.white))
                               : Text(
                                   _tr('Save Changes', 'Hifadhi Mabadiliko'),
                                   style: GoogleFonts.dmSans(
@@ -1030,7 +1161,10 @@ class _StatChip extends StatelessWidget {
   final Color color;
 
   const _StatChip(
-      {required this.icon, required this.label, this.label2, required this.color});
+      {required this.icon,
+      required this.label,
+      this.label2,
+      required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -1075,7 +1209,7 @@ class _StatChip extends StatelessWidget {
 }
 
 String _fmtShort(double v) {
-  if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-  if (v >= 1000) return '${(v / 1000).toStringAsFixed(0)}K';
+  if (v >= 1_000_000) return '${(v / 1_000_000).toStringAsFixed(1)}M';
+  if (v >= 1_000) return '${(v / 1_000).toStringAsFixed(0)}K';
   return v.toStringAsFixed(0);
 }
