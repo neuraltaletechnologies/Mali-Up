@@ -96,7 +96,7 @@ export function FinalCTA() {
         {/* Subheadline */}
         <motion.p
           className="mt-7 text-lg max-w-xl mx-auto leading-relaxed"
-          style={{ color: "rgba(255,255,255,0.45)" }}
+          style={{ color: "rgba(255,255,255,0.62)" }}
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
@@ -148,7 +148,7 @@ export function FinalCTA() {
             { icon: "✓", label: "Works offline" },
             { icon: "✓", label: "Cancel anytime" },
           ].map((s) => (
-            <div key={s.label} className="flex items-center gap-1.5 text-sm" style={{ color: "rgba(255,255,255,0.35)" }}>
+            <div key={s.label} className="flex items-center gap-1.5 text-sm" style={{ color: "rgba(255,255,255,0.56)" }}>
               <span style={{ color: "#4ade80" }}>{s.icon}</span>
               {s.label}
             </div>

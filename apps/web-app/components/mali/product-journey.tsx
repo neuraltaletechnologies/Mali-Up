@@ -53,7 +53,7 @@ function SalePreview() {
         className="rounded-xl p-4"
         style={{ background: "rgba(212,165,116,0.06)", border: "1px solid rgba(212,165,116,0.1)" }}
       >
-        <p className="text-[11px] mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>New Sale</p>
+        <p className="text-[11px] mb-3" style={{ color: "rgba(255,255,255,0.58)" }}>New Sale</p>
         <div className="space-y-2">
           {[
             { label: "Customer", value: "Amina Hassan" },
@@ -62,7 +62,7 @@ function SalePreview() {
             { label: "Payment", value: "Cash ✓" },
           ].map((f) => (
             <div key={f.label} className="flex justify-between">
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{f.label}</span>
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.56)" }}>{f.label}</span>
               <span className="text-[10px] font-semibold" style={{ color: "rgba(255,255,255,0.8)" }}>{f.value}</span>
             </div>
           ))}
@@ -100,7 +100,7 @@ function InventoryPreview() {
           </span>
           <div className="flex items-center gap-2">
             {row.before !== row.after && (
-              <span className="text-[10px] line-through" style={{ color: "rgba(255,255,255,0.25)" }}>
+              <span className="text-[10px] line-through" style={{ color: "rgba(255,255,255,0.50)" }}>
                 {row.before}
               </span>
             )}
@@ -126,7 +126,7 @@ function DebtPreview() {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-1 px-1">
-        <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>Outstanding Debts</span>
+        <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.56)" }}>Outstanding Debts</span>
         <span className="text-[10px] font-bold" style={{ color: "#a78bfa" }}>Tsh 187,500</span>
       </div>
       {[
@@ -149,7 +149,7 @@ function DebtPreview() {
             </div>
             <div>
               <p className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.75)" }}>{d.name}</p>
-              <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.3)" }}>{d.days} days ago</p>
+              <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.52)" }}>{d.days} days ago</p>
             </div>
           </div>
           <span className="text-[11px] font-bold" style={{ color: "#a78bfa" }}>Tsh {d.amount}</span>
@@ -166,7 +166,7 @@ function ReportsPreview() {
         className="rounded-xl p-3"
         style={{ background: "rgba(74,222,128,0.05)", border: "1px solid rgba(74,222,128,0.1)" }}
       >
-        <p className="text-[10px] mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>
+        <p className="text-[10px] mb-2" style={{ color: "rgba(255,255,255,0.56)" }}>
           This Month vs Last Month
         </p>
         {[
@@ -178,7 +178,7 @@ function ReportsPreview() {
           <div key={r.label} className="flex items-center justify-between py-1.5">
             <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>{r.label}</span>
             <div className="flex items-center gap-3">
-              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Tsh {r.was}</span>
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.52)" }}>Tsh {r.was}</span>
               <span className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.85)" }}>Tsh {r.now}</span>
               <span
                 className="text-[10px] font-semibold"
@@ -238,7 +238,7 @@ function StepRow({
         >
           {step.title}
         </h3>
-        <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+        <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.62)" }}>
           {step.description}
         </p>
       </div>

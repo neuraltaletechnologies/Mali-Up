@@ -32,7 +32,7 @@ function ClarityDashboard({ progress }: { progress: ReturnType<typeof useSpring>
           <span className="text-xs font-semibold" style={{ color: "#d4a574" }}>
             ✦ Business Overview
           </span>
-          <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+          <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.52)" }}>
             Live · Updated now
           </span>
         </div>
@@ -56,7 +56,7 @@ function ClarityDashboard({ progress }: { progress: ReturnType<typeof useSpring>
                 transition={{ delay: 0.4 + i * 0.1 }}
               >
                 <div className="text-lg mb-1">{s.icon}</div>
-                <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{s.label}</p>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.58)" }}>{s.label}</p>
                 <p className="text-sm font-bold mt-0.5" style={{ color: "rgba(255,255,255,0.9)" }}>{s.value}</p>
                 <p className="text-[10px] font-medium" style={{ color: "#4ade80" }}>{s.delta} this month</p>
               </motion.div>
@@ -73,7 +73,7 @@ function ClarityDashboard({ progress }: { progress: ReturnType<typeof useSpring>
             }}
           >
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>
+              <p className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.58)" }}>
                 30-Day Performance
               </p>
               <div
@@ -227,7 +227,7 @@ export function TransformationSection() {
                   <div className="flex-1 flex items-center gap-2">
                     <span
                       className="text-xs line-through flex-1"
-                      style={{ color: "rgba(255,255,255,0.25)" }}
+                      style={{ color: "rgba(255,255,255,0.50)" }}
                     >
                       {item.before}
                     </span>

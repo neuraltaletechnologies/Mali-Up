@@ -40,12 +40,12 @@ const phoneScreens = [
                   <p className="text-[10px] font-medium leading-none" style={{ color: "rgba(255,255,255,0.8)" }}>
                     {s.name}
                   </p>
-                  <p className="text-[8px]" style={{ color: "rgba(255,255,255,0.3)" }}>{s.item}</p>
+                  <p className="text-[8px]" style={{ color: "rgba(255,255,255,0.52)" }}>{s.item}</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-bold" style={{ color: "#4ade80" }}>+{s.amt}</p>
-                <p className="text-[8px]" style={{ color: "rgba(255,255,255,0.25)" }}>{s.time} ago</p>
+                <p className="text-[8px]" style={{ color: "rgba(255,255,255,0.50)" }}>{s.time} ago</p>
               </div>
             </div>
           ))}
@@ -138,7 +138,7 @@ const phoneScreens = [
           ))}
           {/* Mini chart */}
           <div className="px-2.5 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
-            <p className="text-[9px] mb-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>7-day trend</p>
+            <p className="text-[9px] mb-1.5" style={{ color: "rgba(255,255,255,0.52)" }}>7-day trend</p>
             <div className="flex items-end gap-1 h-8">
               {[40, 55, 42, 65, 58, 75, 80].map((h, i) => (
                 <div
@@ -282,7 +282,7 @@ export function MobileShowcase() {
                     <p className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
                       {f.title}
                     </p>
-                    <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.58)" }}>
                       {f.desc}
                     </p>
                   </div>

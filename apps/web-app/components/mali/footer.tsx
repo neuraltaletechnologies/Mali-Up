@@ -63,7 +63,7 @@ export function Footer() {
                 Mali<span style={{ color: "#d4a574" }}>Up</span>
               </span>
             </a>
-            <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>
+            <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.56)" }}>
               Business Operating System for African SMEs.
               <br />
               Built in Tanzania.
@@ -82,7 +82,7 @@ export function Footer() {
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.06)",
-                    color: "rgba(255,255,255,0.4)",
+                    color: "rgba(255,255,255,0.58)",
                   }}
                 >
                   {social.icon}
@@ -96,7 +96,7 @@ export function Footer() {
             <div key={section}>
               <p
                 className="text-xs font-semibold mb-4 tracking-wider uppercase"
-                style={{ color: "rgba(255,255,255,0.35)" }}
+                style={{ color: "rgba(255,255,255,0.56)" }}
               >
                 {section}
               </p>
@@ -106,7 +106,7 @@ export function Footer() {
                     <a
                       href={link.href}
                       className="text-sm transition-colors"
-                      style={{ color: "rgba(255,255,255,0.45)" }}
+                      style={{ color: "rgba(255,255,255,0.62)" }}
                     >
                       {link.label}
                     </a>
@@ -122,7 +122,7 @@ export function Footer() {
           className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8"
           style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
         >
-          <p className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+          <p className="text-xs" style={{ color: "rgba(255,255,255,0.50)" }}>
             © {new Date().getFullYear()} Mali Up. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
