@@ -28,6 +28,31 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 enum _PayStatus { paid, partial, unpaid }
 
+enum _QuickPayMethod { cash, mpesa, bank, card }
+
+extension _QuickPayMethodX on _QuickPayMethod {
+  String get label => switch (this) {
+        _QuickPayMethod.cash => _tr('Cash', 'Taslimu'),
+        _QuickPayMethod.mpesa => 'M-Pesa',
+        _QuickPayMethod.bank => _tr('Bank', 'Benki'),
+        _QuickPayMethod.card => _tr('Card', 'Kadi'),
+      };
+
+  IconData get icon => switch (this) {
+        _QuickPayMethod.cash => Icons.payments_rounded,
+        _QuickPayMethod.mpesa => Icons.phone_android_rounded,
+        _QuickPayMethod.bank => Icons.account_balance_rounded,
+        _QuickPayMethod.card => Icons.credit_card_rounded,
+      };
+
+  String get firestoreKey => switch (this) {
+        _QuickPayMethod.cash => 'cash',
+        _QuickPayMethod.mpesa => 'mpesa',
+        _QuickPayMethod.bank => 'bank_transfer',
+        _QuickPayMethod.card => 'card',
+      };
+}
+
 enum _SalesFilter { all, paid, sent, overdue, draft, cancelled }
 
 extension _SalesFilterX on _SalesFilter {
@@ -276,7 +301,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 d.year == today.year &&
                 d.month == today.month &&
                 d.day == today.day;
-          }).fold<double>(0, (s, i) => s + parseNumericAmount(i['amount']));
+          }).fold<double>(0, (s, i) => s + readInvoiceTotal(i));
 
           final pendingTotal = items
               .where((i) => _matchesFilter(i, _SalesFilter.sent))
@@ -284,8 +309,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   0,
                   (s, i) =>
                       s +
-                      (parseNumericAmount(i['amount']) -
-                          parseNumericAmount(i['amountPaid'])));
+                      (readInvoiceTotal(i) -
+                          parseNumericAmount(i['amountPaid'])).clamp(0, double.infinity));
 
           final overdueCount = counts[_SalesFilter.overdue] ?? 0;
 
@@ -473,7 +498,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             .toString();
     final createdAt = readTimestamp(sale['createdAt'] ?? sale['date']);
     final dueDate = readTimestamp(sale['dueDate']);
-    final amount = parseNumericAmount(sale['amount']);
+    final amount = readInvoiceTotal(sale);
     final amountPaid = parseNumericAmount(sale['amountPaid']);
     final outstanding = (amount - amountPaid).clamp(0, amount);
     final items =
@@ -521,7 +546,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       b.writeln(line);
     }
 
-    final subtotal = parseNumericAmount(sale['subtotal'] ?? sale['amount']);
+    final subtotal = parseNumericAmount(sale['subtotal']) > 0
+        ? parseNumericAmount(sale['subtotal'])
+        : amount;
     final discount = parseNumericAmount(sale['discountAmount']);
     final vat = parseNumericAmount(sale['vatAmount']);
 
@@ -908,7 +935,7 @@ class _InvoiceCard extends StatelessWidget {
             .toString();
     final invoiceNo =
         (item['invoiceNumber'] ?? item['id'] ?? '').toString();
-    final amount = parseNumericAmount(item['amount']);
+    final amount = readInvoiceTotal(item);
     final amountPaid = parseNumericAmount(item['amountPaid']);
     final outstanding = (amount - amountPaid).clamp(0.0, amount);
     final date = readTimestamp(item['createdAt'] ?? item['date']);
@@ -1346,6 +1373,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   List<Customer> _customerSuggs = [];
   bool _showCustomerSuggs = false;
   _PayStatus _payStatus = _PayStatus.paid;
+  _QuickPayMethod _payMethod = _QuickPayMethod.cash;
+  final _mpesaRefCtrl = TextEditingController();
   DateTime? _dueDate;
   bool _vatEnabled = false;
   bool _isSaving = false;
@@ -1373,6 +1402,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     _amtPaidCtrl.dispose();
     _notesCtrl.dispose();
     _discountCtrl.dispose();
+    _mpesaRefCtrl.dispose();
     _customerFocus.dispose();
     for (final e in _items) {
       e.dispose();
@@ -1517,16 +1547,15 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
     // Merge scanner results into the items list.
     for (final scanned in results) {
-      final existing = _items.firstWhere(
+      final matchIdx = _items.indexWhere(
         (e) =>
             e.selectedItem != null &&
             (e.selectedItem!['sku'] ?? '').toString().toLowerCase() ==
                 scanned.barcode.toLowerCase(),
-        orElse: () => _ItemEntry(name: '___not_found___'),
       );
 
-      if (existing.nameCtrl.text != '___not_found___') {
-        existing.qty += scanned.qty - 1; // already counted 1 in the entry
+      if (matchIdx >= 0) {
+        _items[matchIdx].qty += scanned.qty;
       } else {
         final inv = inventory.firstWhere(
           (item) =>
@@ -1618,7 +1647,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
       final now = DateTime.now();
       final invoiceNumber =
-          'INV-${now.millisecondsSinceEpoch.toString().substring(6)}';
+          'INV-${now.year}${now.month.toString().padLeft(2, '0')}-${(now.millisecondsSinceEpoch % 10000).toString().padLeft(4, '0')}';
       final statusStr = _payStatus == _PayStatus.paid
           ? 'paid'
           : _payStatus == _PayStatus.partial
@@ -1644,6 +1673,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
       final notes = _notesCtrl.text.trim();
 
+      final mpesaRef = _mpesaRefCtrl.text.trim();
+
       await invoicesRef.add({
         'invoiceNumber': invoiceNumber,
         'type': 'invoice',
@@ -1658,11 +1689,19 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             'customerTin': _selectedCustomer!.tinNumber,
         },
         'items': itemsData,
+        'lineItems': itemsData,
         'subtotal': _subtotal,
         'discountAmount': _discountAmt,
         'vatAmount': _vatAmt,
         'amount': _grandTotal,
+        'totalAmount': _grandTotal,
         'amountPaid': amountPaid,
+        if (_payStatus != _PayStatus.unpaid)
+          'paymentMethod': _payMethod.firestoreKey,
+        if (_payStatus != _PayStatus.unpaid &&
+            _payMethod == _QuickPayMethod.mpesa &&
+            mpesaRef.isNotEmpty)
+          'mpesaRef': mpesaRef,
         if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
         if (notes.isNotEmpty) 'notes': notes,
         'createdAt': FieldValue.serverTimestamp(),
@@ -2541,6 +2580,80 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ],
           ),
         ),
+        if (_payStatus != _PayStatus.unpaid) ...[
+          const SizedBox(height: 12),
+          Text(
+            _tr('Payment Method', 'Njia ya Malipo'),
+            style: GoogleFonts.dmSans(
+                fontSize: 12,
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: _QuickPayMethod.values.map((m) {
+              final active = m == _payMethod;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _payMethod = m),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? AppColors.navyPrimary
+                            : AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: active
+                              ? AppColors.navyPrimary
+                              : AppColors.border,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(m.icon,
+                              size: 16,
+                              color: active
+                                  ? Colors.white
+                                  : AppColors.textMuted),
+                          const SizedBox(height: 3),
+                          Text(
+                            m.label,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: active
+                                  ? Colors.white
+                                  : AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          if (_payMethod == _QuickPayMethod.mpesa) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _mpesaRefCtrl,
+              textCapitalization: TextCapitalization.characters,
+              decoration: _fieldDec(
+                label: _tr(
+                    'M-Pesa Reference (optional)',
+                    'Nambari ya M-Pesa (hiari)'),
+                prefix: Icons.tag_rounded,
+              ),
+            ),
+          ],
+        ],
         if (_payStatus == _PayStatus.partial) ...[
           const SizedBox(height: 12),
           TextField(
