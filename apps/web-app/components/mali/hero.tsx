@@ -62,7 +62,7 @@ function AnimatedDashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
             >
-              <p className="text-[10px] mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+              <p className="text-[10px] mb-1" style={{ color: "rgba(255,255,255,0.56)" }}>
                 {m.label}
               </p>
               <p className="text-sm font-bold leading-none" style={{ color: "rgba(255,255,255,0.9)" }}>
@@ -85,7 +85,7 @@ function AnimatedDashboard() {
           transition={{ delay: 0.6 }}
         >
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>
+            <p className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.56)" }}>
               Sales This Week
             </p>
             <div className="text-[10px] font-semibold" style={{ color: "#d4a574" }}>
@@ -128,7 +128,7 @@ function AnimatedDashboard() {
             className="px-3 py-2 flex items-center justify-between"
             style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
           >
-            <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>
+            <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.56)" }}>
               Recent Transactions
             </span>
             <span className="text-[10px]" style={{ color: "#d4a574" }}>
@@ -156,7 +156,7 @@ function AnimatedDashboard() {
                     <p className="text-[10px] font-medium leading-none mb-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>
                       {tx.name}
                     </p>
-                    <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.3)" }}>{tx.item}</p>
+                    <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.52)" }}>{tx.item}</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -403,7 +403,7 @@ export function Hero() {
                     <p className="text-lg font-bold font-heading" style={{ color: "#d4a574" }}>
                       {stat.value}
                     </p>
-                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.56)" }}>
                       {stat.label}
                     </p>
                   </div>
@@ -454,7 +454,7 @@ export function Hero() {
                     <p className="text-[10px] font-bold" style={{ color: "#4ade80" }}>
                       +Tsh 24,000
                     </p>
-                    <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.56)" }}>
                       last 30 min
                     </p>
                   </div>
@@ -483,7 +483,7 @@ export function Hero() {
                     <p className="text-[10px] font-bold" style={{ color: "#fbbf24" }}>
                       Low stock alert
                     </p>
-                    <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.56)" }}>
                       Sugar 1kg · 4 left
                     </p>
                   </div>
@@ -503,7 +503,7 @@ export function Hero() {
         >
           <span
             className="text-[9px] font-semibold tracking-[0.25em] uppercase"
-            style={{ color: "rgba(255,255,255,0.25)" }}
+            style={{ color: "rgba(255,255,255,0.50)" }}
           >
             Scroll
           </span>

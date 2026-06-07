@@ -81,7 +81,7 @@ function ChaosItem({
       >
         <span className="text-2xl">{emoji}</span>
         <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.8)" }}>{label}</p>
-        <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{subtitle}</p>
+        <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.56)" }}>{subtitle}</p>
       </div>
     </motion.div>
   )
@@ -199,7 +199,7 @@ export function ProblemSection() {
           </motion.h2>
           <motion.p
             className="mt-4 text-base max-w-lg mx-auto"
-            style={{ color: "rgba(255,255,255,0.45)", opacity: subOpacity }}
+            style={{ color: "rgba(255,255,255,0.62)", opacity: subOpacity }}
           >
             Scattered notebooks. Missing receipts. Customer debts you can&apos;t track.
             Stock running out without warning.

@@ -99,7 +99,7 @@ export function WebServices() {
                     <p className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.85)" }}>
                       {ex.name}
                     </p>
-                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.56)" }}>
                       {ex.type}
                     </p>
                   </div>
@@ -108,7 +108,7 @@ export function WebServices() {
                   className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg"
                   style={{
                     background: "rgba(255,255,255,0.04)",
-                    color: "rgba(255,255,255,0.3)",
+                    color: "rgba(255,255,255,0.52)",
                   }}
                 >
                   <div className="w-1.5 h-1.5 rounded-full bg-green-400/60" />

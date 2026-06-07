@@ -138,7 +138,7 @@ export function TeamSection() {
           </h2>
           <p
             className="mt-4 text-base max-w-md mx-auto"
-            style={{ color: "rgba(255,255,255,0.45)" }}
+            style={{ color: "rgba(255,255,255,0.62)" }}
           >
             Role-based access keeps your business data secure. Each team member
             gets a tailored view.
@@ -155,7 +155,7 @@ export function TeamSection() {
               style={{
                 background: activeId === role.id ? `${role.color}14` : "rgba(255,255,255,0.03)",
                 border: `1px solid ${activeId === role.id ? `${role.color}30` : "rgba(255,255,255,0.06)"}`,
-                color: activeId === role.id ? role.color : "rgba(255,255,255,0.45)",
+                color: activeId === role.id ? role.color : "rgba(255,255,255,0.62)",
               }}
             >
               <span>{role.icon}</span>
@@ -195,20 +195,20 @@ export function TeamSection() {
                   <p className="font-heading font-bold" style={{ color: active.color }}>
                     {active.title}
                   </p>
-                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.58)" }}>
                     {active.description}
                   </p>
                 </div>
               </div>
 
               <div className="p-5">
-                <p className="text-[10px] font-semibold mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>
+                <p className="text-[10px] font-semibold mb-3" style={{ color: "rgba(255,255,255,0.52)" }}>
                   ACCESS PERMISSIONS
                 </p>
                 <div className="space-y-2">
                   {active.permissions.map((perm) => (
                     <div key={perm.name} className="flex items-center justify-between">
-                      <span className="text-sm" style={{ color: perm.granted ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)" }}>
+                      <span className="text-sm" style={{ color: perm.granted ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.50)" }}>
                         {perm.name}
                       </span>
                       <div
@@ -252,7 +252,7 @@ export function TeamSection() {
                 className="px-5 py-4"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
               >
-                <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.4)" }}>
+                <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.58)" }}>
                   What {active.title} sees
                 </p>
               </div>
@@ -268,10 +268,10 @@ export function TeamSection() {
                     }}
                   >
                     <div>
-                      <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{d.label}</p>
+                      <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.56)" }}>{d.label}</p>
                       <p className="text-sm font-bold mt-0.5" style={{ color: active.color }}>{d.value}</p>
                     </div>
-                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{d.sub}</p>
+                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.52)" }}>{d.sub}</p>
                   </div>
                 ))}
 
@@ -280,7 +280,7 @@ export function TeamSection() {
                   style={{
                     background: "rgba(255,255,255,0.02)",
                     border: "1px solid rgba(255,255,255,0.04)",
-                    color: "rgba(255,255,255,0.25)",
+                    color: "rgba(255,255,255,0.50)",
                   }}
                 >
                   Restricted sections are hidden automatically

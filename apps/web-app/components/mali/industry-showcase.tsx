@@ -141,7 +141,7 @@ export function IndustryShowcase() {
           </h2>
           <p
             className="mt-4 text-base max-w-md mx-auto"
-            style={{ color: "rgba(255,255,255,0.45)" }}
+            style={{ color: "rgba(255,255,255,0.62)" }}
           >
             Mali Up adapts to how you work — not the other way around.
           </p>
@@ -194,7 +194,7 @@ export function IndustryShowcase() {
                     <p className="font-heading font-semibold text-sm" style={{ color: "rgba(255,255,255,0.9)" }}>
                       {active.label} Dashboard
                     </p>
-                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.56)" }}>
                       Customized for your business type
                     </p>
                   </div>
@@ -214,7 +214,7 @@ export function IndustryShowcase() {
               <div className="p-5 grid sm:grid-cols-3 gap-4">
                 {/* Categories */}
                 <div>
-                  <p className="text-[10px] font-semibold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  <p className="text-[10px] font-semibold mb-2" style={{ color: "rgba(255,255,255,0.56)" }}>
                     CATEGORIES
                   </p>
                   <div className="space-y-1">
@@ -236,7 +236,7 @@ export function IndustryShowcase() {
 
                 {/* Key metrics */}
                 <div>
-                  <p className="text-[10px] font-semibold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  <p className="text-[10px] font-semibold mb-2" style={{ color: "rgba(255,255,255,0.56)" }}>
                     KEY METRICS
                   </p>
                   <div className="space-y-2">
@@ -249,7 +249,7 @@ export function IndustryShowcase() {
                           border: `1px solid ${m.alert ? "rgba(251,191,36,0.15)" : `${active.color}12`}`,
                         }}
                       >
-                        <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.35)" }}>{m.label}</p>
+                        <p className="text-[9px]" style={{ color: "rgba(255,255,255,0.56)" }}>{m.label}</p>
                         <p
                           className="text-xs font-semibold mt-0.5"
                           style={{ color: m.alert ? "#fbbf24" : active.color }}
@@ -263,7 +263,7 @@ export function IndustryShowcase() {
 
                 {/* Top items */}
                 <div>
-                  <p className="text-[10px] font-semibold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  <p className="text-[10px] font-semibold mb-2" style={{ color: "rgba(255,255,255,0.56)" }}>
                     TOP ITEMS
                   </p>
                   <div className="space-y-1.5">
@@ -280,7 +280,7 @@ export function IndustryShowcase() {
                           {item.name}
                         </p>
                         <div className="flex items-center justify-between mt-1">
-                          <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.3)" }}>{item.qty}</span>
+                          <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.52)" }}>{item.qty}</span>
                           <span
                             className="text-[9px] font-semibold"
                             style={{

@@ -69,7 +69,7 @@ export function TrustSection() {
           </h2>
           <p
             className="mt-4 text-base max-w-md mx-auto"
-            style={{ color: "rgba(255,255,255,0.45)" }}
+            style={{ color: "rgba(255,255,255,0.62)" }}
           >
             We protect your business the same way banks protect their customers.
           </p>
@@ -107,7 +107,7 @@ export function TrustSection() {
               >
                 {item.title}
               </h3>
-              <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>
+              <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.58)" }}>
                 {item.description}
               </p>
             </motion.div>
