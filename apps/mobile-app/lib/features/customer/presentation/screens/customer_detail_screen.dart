@@ -9,20 +9,27 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../rbac/data/rbac_providers.dart';
 import '../../../sales/data/sales_providers.dart';
 import '../../data/customer_providers.dart';
 import '../../domain/models/customer.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-// Standard segment tags
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
 const _kTagVip = 'VIP';
 const _kTagWholesale = 'Jumla';
 const _kTagRetail = 'Reja reja';
 const _kTagBlacklisted = 'Orodha Nyeusi';
 const _kStandardTags = [_kTagVip, _kTagWholesale, _kTagRetail, _kTagBlacklisted];
 
+// ─────────────────────────────────────────────────────────────────────────────
 // Note types
+// ─────────────────────────────────────────────────────────────────────────────
+
 enum _NoteType { note, call, email, meeting, reminder }
 
 extension _NoteTypeX on _NoteType {
@@ -49,6 +56,99 @@ extension _NoteTypeX on _NoteType {
         _NoteType.meeting => const Color(0xFFB45309),
         _NoteType.reminder => AppColors.warning,
       };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Insight computation helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Insights {
+  final double totalSpent;
+  final double totalPending;
+  final int totalInvoices;
+  final int overdueCount;
+  final DateTime? lastPurchase;
+  final double avgOrderValue;
+  final int avgDaysBetweenOrders; // -1 = insufficient data
+  final int daysSinceLastPurchase; // -1 = no data
+
+  const _Insights({
+    required this.totalSpent,
+    required this.totalPending,
+    required this.totalInvoices,
+    required this.overdueCount,
+    required this.lastPurchase,
+    required this.avgOrderValue,
+    required this.avgDaysBetweenOrders,
+    required this.daysSinceLastPurchase,
+  });
+
+  factory _Insights.fromInvoices(List<Map<String, dynamic>> invoices) {
+    if (invoices.isEmpty) {
+      return const _Insights(
+        totalSpent: 0,
+        totalPending: 0,
+        totalInvoices: 0,
+        overdueCount: 0,
+        lastPurchase: null,
+        avgOrderValue: 0,
+        avgDaysBetweenOrders: -1,
+        daysSinceLastPurchase: -1,
+      );
+    }
+
+    double totalSpent = 0;
+    double totalPending = 0;
+    int overdueCount = 0;
+    final dates = <DateTime>[];
+
+    for (final inv in invoices) {
+      final status = (inv['status'] ?? '').toString().toLowerCase();
+      final amount = parseNumericAmount(inv['totalAmount']);
+      final date = readTimestamp(inv['createdAt'] ?? inv['invoiceDate']);
+
+      if (status == 'paid') {
+        totalSpent += amount;
+      } else if (status != 'cancelled' && status != 'draft') {
+        totalPending += amount;
+        if (status == 'overdue') overdueCount++;
+      }
+
+      if (date != null) dates.add(date);
+    }
+
+    dates.sort();
+    final DateTime? lastPurchase = dates.isNotEmpty ? dates.last : null;
+
+    final int daysSinceLast = lastPurchase != null
+        ? DateTime.now().difference(lastPurchase).inDays
+        : -1;
+
+    int avgDays = -1;
+    if (dates.length >= 2) {
+      final gaps = <int>[];
+      for (int i = 1; i < dates.length; i++) {
+        gaps.add(dates[i].difference(dates[i - 1]).inDays);
+      }
+      final sum = gaps.fold(0, (a, b) => a + b);
+      avgDays = (sum / gaps.length).round();
+    }
+
+    final paidCount =
+        invoices.where((i) => (i['status'] ?? '') == 'paid').length;
+    final avgOrder = paidCount > 0 ? totalSpent / paidCount : 0.0;
+
+    return _Insights(
+      totalSpent: totalSpent,
+      totalPending: totalPending,
+      totalInvoices: invoices.length,
+      overdueCount: overdueCount,
+      lastPurchase: lastPurchase,
+      avgOrderValue: avgOrder,
+      avgDaysBetweenOrders: avgDays,
+      daysSinceLastPurchase: daysSinceLast,
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -106,13 +206,12 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
   }
 
   void _sendReminder() async {
-    final balance = double.tryParse(_customer.balance) ?? 0;
+    final balance = _customer.balanceAmount;
     if (balance <= 0) {
       _showSnack(_tr('No outstanding balance', 'Hakuna deni linalodaiwa'));
       return;
     }
 
-    // Build overdue invoices for message
     final invoices = ref
         .read(customerInvoicesProvider(_customer.id))
         .maybeWhen(data: (d) => d, orElse: () => <Map<String, dynamic>>[]);
@@ -126,7 +225,6 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     final url = 'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}';
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
-    // Log the reminder as a note
     await _saveNote(
       type: _NoteType.reminder,
       text: _tr('Payment reminder sent via WhatsApp',
@@ -146,7 +244,8 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     if (overdue.isNotEmpty) {
       buf.writeln(_tr('Unpaid invoices:', 'Ankara ambazo hazijalipwa:'));
       for (final inv in overdue.take(5)) {
-        final num = inv['invoiceNumber']?.toString() ?? inv['id']?.toString() ?? '';
+        final num =
+            inv['invoiceNumber']?.toString() ?? inv['id']?.toString() ?? '';
         final amt = parseNumericAmount(inv['totalAmount']);
         buf.writeln('• $num — TZS ${_fmtNum(amt)}');
       }
@@ -177,6 +276,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         'type': type.name,
         'text': text,
         'addedAt': FieldValue.serverTimestamp(),
+        'addedBy': user.uid,
         if (scheduledFor != null)
           'scheduledFor': Timestamp.fromDate(scheduledFor),
         if (type == _NoteType.reminder) 'reminderSent': false,
@@ -191,11 +291,15 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo
-          .scopeCollection(uid: user.uid, context: ctx, childCollection: 'customers')
+          .scopeCollection(
+              uid: user.uid, context: ctx, childCollection: 'customers')
           .doc(_customer.id)
-          .update({'tags': newTags, 'updatedAt': FieldValue.serverTimestamp()});
+          .update({
+        'tags': newTags,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
       setState(() => _customer = _customer.copyWith(tags: newTags));
-    } catch (e) {
+    } catch (_) {
       _showSnack(_tr('Update failed', 'Imeshindwa kusasisha'));
     }
   }
@@ -207,9 +311,13 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo
-          .scopeCollection(uid: user.uid, context: ctx, childCollection: 'customers')
+          .scopeCollection(
+              uid: user.uid, context: ctx, childCollection: 'customers')
           .doc(_customer.id)
-          .update({'creditLimit': limit, 'updatedAt': FieldValue.serverTimestamp()});
+          .update({
+        'creditLimit': limit,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
       setState(() => _customer = _customer.copyWith(creditLimit: limit));
       _showSnack(_tr('Credit limit updated', 'Kikomo cha mkopo kimesasishwa'));
     } catch (_) {}
@@ -229,10 +337,11 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     );
   }
 
-  void _showSnack(String msg) {
+  void _showSnack(String msg, {Color? color}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
+      backgroundColor: color,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
@@ -242,13 +351,18 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final ps = ref.watch(permissionServiceProvider);
+    final showFinancials = ps.canViewDebt || ps.isOwner;
+    final canManage = ps.canManageCustomers || ps.isOwner;
+    final canEditCredit = ps.canGrantCredit || ps.isOwner;
+
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: FadeTransition(
         opacity: _fadeAnim,
         child: NestedScrollView(
           headerSliverBuilder: (_, _) => [
-            _buildSliverAppBar(),
+            _buildSliverAppBar(canManage: canManage, showFinancials: showFinancials),
             SliverToBoxAdapter(child: _buildTabBar()),
           ],
           body: TabBarView(
@@ -256,13 +370,18 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
             children: [
               _OverviewTab(
                 customer: _customer,
+                showFinancials: showFinancials,
+                canEditCredit: canEditCredit,
                 onTagsChanged: _updateTags,
                 onCreditLimitSave: _updateCreditLimit,
                 onCall: _callCustomer,
                 onWhatsApp: _whatsappCustomer,
                 onReminder: _sendReminder,
               ),
-              _InvoicesTab(customerId: _customer.id),
+              _InvoicesTab(
+                customerId: _customer.id,
+                showFinancials: showFinancials,
+              ),
               _NotesTab(
                 customerId: _customer.id,
                 customerName: _customer.name,
@@ -275,8 +394,11 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     );
   }
 
-  Widget _buildSliverAppBar() {
-    final balance = double.tryParse(_customer.balance) ?? 0;
+  Widget _buildSliverAppBar({
+    required bool canManage,
+    required bool showFinancials,
+  }) {
+    final balance = _customer.balanceAmount;
     final hasBalance = balance > 0;
     final initials = _customer.name.isNotEmpty
         ? _customer.name
@@ -297,26 +419,24 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         onPressed: () => Navigator.of(context).pop(),
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_rounded, size: 20),
-          tooltip: _tr('Edit', 'Hariri'),
-          onPressed: _openEdit,
-        ),
-        IconButton(
-          icon: const Icon(Icons.phone_rounded, size: 20),
-          tooltip: _tr('Call', 'Piga Simu'),
-          onPressed: _callCustomer,
-        ),
+        if (canManage)
+          IconButton(
+            icon: const Icon(Icons.edit_rounded, size: 20),
+            tooltip: _tr('Edit', 'Hariri'),
+            onPressed: _openEdit,
+          ),
+        if (_customer.phone.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.phone_rounded, size: 20),
+            tooltip: _tr('Call', 'Piga Simu'),
+            onPressed: _callCustomer,
+          ),
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                AppColors.navyPrimary,
-                AppColors.navyPrimary.withValues(alpha: 0.85),
-                AppColors.navySecondary,
-              ],
+              colors: [AppColors.navyPrimary, AppColors.navySecondary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -327,23 +447,31 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar
+                  // ── Avatar ────────────────────────────────────────────────
                   Hero(
                     tag: 'customer-${_customer.id}',
-                    child: CircleAvatar(
-                      radius: 34,
-                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                    child: Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            width: 1.5),
+                      ),
+                      alignment: Alignment.center,
                       child: Text(
                         initials,
                         style: GoogleFonts.dmSans(
-                            fontSize: 22,
+                            fontSize: 24,
                             fontWeight: FontWeight.w800,
                             color: Colors.white),
                       ),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  // Name + meta
+                  // ── Name + meta ───────────────────────────────────────────
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,59 +508,79 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                               ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         if (_customer.phone.isNotEmpty)
                           Text(_customer.phone,
                               style: GoogleFonts.dmSans(
                                   fontSize: 13, color: Colors.white60)),
-                        const SizedBox(height: 12),
-                        // Tags row
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: _customer.tags.map((tag) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.25)),
-                              ),
-                              child: Text(
-                                tag,
+                        const SizedBox(height: 10),
+                        // Tags
+                        if (_customer.tags.isNotEmpty)
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: _customer.tags.map((tag) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.25)),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        const SizedBox(height: 10),
+                        // Balance (hidden for stock clerks)
+                        if (showFinancials)
+                          Row(
+                            children: [
+                              Text(
+                                _tr('Balance: ', 'Salio: '),
                                 style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white),
+                                    fontSize: 12, color: Colors.white54),
                               ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 12),
-                        // Balance
-                        Row(
-                          children: [
-                            Text(
-                              _tr('Balance: ', 'Salio: '),
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 12, color: Colors.white54),
-                            ),
-                            Text(
-                              hasBalance
-                                  ? 'TZS ${_fmtNum(balance)}'
-                                  : _tr('No outstanding balance',
-                                      'Hakuna deni'),
-                              style: GoogleFonts.dmSerifDisplay(
-                                fontSize: 16,
-                                color: hasBalance
-                                    ? const Color(0xFFFC8181)
-                                    : const Color(0xFF86EFAC),
+                              Text(
+                                hasBalance
+                                    ? 'TZS ${_fmtNum(balance)}'
+                                    : _tr('All clear', 'Hakuna deni'),
+                                style: GoogleFonts.dmSerifDisplay(
+                                  fontSize: 16,
+                                  color: hasBalance
+                                      ? const Color(0xFFFC8181)
+                                      : const Color(0xFF86EFAC),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                              if (_customer.isOverCreditLimit)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error
+                                        .withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: Text(
+                                    _tr('OVER LIMIT', 'IMEZIDI'),
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFFC8181)),
+                                  ),
+                                ),
+                            ],
+                          ),
                       ],
                     ),
                   ),
@@ -452,8 +600,8 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         children: [
           TabBar(
             controller: _tabCtrl,
-            labelStyle: GoogleFonts.dmSans(
-                fontSize: 13, fontWeight: FontWeight.w700),
+            labelStyle:
+                GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700),
             unselectedLabelStyle:
                 GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w500),
             labelColor: AppColors.navyPrimary,
@@ -482,8 +630,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _AddNoteSheet(
         onSave: (type, text, scheduledFor) async {
-          await _saveNote(
-              type: type, text: text, scheduledFor: scheduledFor);
+          await _saveNote(type: type, text: text, scheduledFor: scheduledFor);
           if (mounted) Navigator.of(context).pop();
         },
       ),
@@ -495,8 +642,10 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
 // Tab 1 — Overview
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _OverviewTab extends StatefulWidget {
+class _OverviewTab extends ConsumerStatefulWidget {
   final Customer customer;
+  final bool showFinancials;
+  final bool canEditCredit;
   final ValueChanged<List<String>> onTagsChanged;
   final ValueChanged<double> onCreditLimitSave;
   final VoidCallback onCall;
@@ -505,6 +654,8 @@ class _OverviewTab extends StatefulWidget {
 
   const _OverviewTab({
     required this.customer,
+    required this.showFinancials,
+    required this.canEditCredit,
     required this.onTagsChanged,
     required this.onCreditLimitSave,
     required this.onCall,
@@ -513,10 +664,10 @@ class _OverviewTab extends StatefulWidget {
   });
 
   @override
-  State<_OverviewTab> createState() => _OverviewTabState();
+  ConsumerState<_OverviewTab> createState() => _OverviewTabState();
 }
 
-class _OverviewTabState extends State<_OverviewTab> {
+class _OverviewTabState extends ConsumerState<_OverviewTab> {
   late List<String> _tags;
   final _limitCtrl = TextEditingController();
 
@@ -546,53 +697,89 @@ class _OverviewTabState extends State<_OverviewTab> {
     widget.onTagsChanged(updated);
   }
 
+  void _addCustomTag(String tag) {
+    if (tag.isEmpty || _tags.contains(tag)) return;
+    final updated = List<String>.from(_tags)..add(tag);
+    setState(() => _tags = updated);
+    widget.onTagsChanged(updated);
+  }
+
+  void _removeCustomTag(String tag) {
+    final updated = List<String>.from(_tags)..remove(tag);
+    setState(() => _tags = updated);
+    widget.onTagsChanged(updated);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final balance = double.tryParse(widget.customer.balance) ?? 0;
+    final balance = widget.customer.balanceAmount;
     final limit = widget.customer.creditLimit;
     final c = widget.customer;
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       children: [
-        // Quick actions
+        // ── Quick actions ─────────────────────────────────────────────────
         _QuickActions(
           onCall: widget.onCall,
           onWhatsApp: widget.onWhatsApp,
           onReminder: widget.onReminder,
+          showReminder: widget.showFinancials,
         ),
         const SizedBox(height: 16),
-        // Balance + credit limit card
-        _BalanceCard(
-          balance: balance,
-          limit: limit,
-          limitCtrl: _limitCtrl,
-          onSaveLimit: (v) => widget.onCreditLimitSave(v),
-        ),
-        const SizedBox(height: 16),
-        // Contact info
+
+        // ── Balance + credit limit ────────────────────────────────────────
+        if (widget.showFinancials) ...[
+          _BalanceCard(
+            balance: balance,
+            limit: limit,
+            limitCtrl: _limitCtrl,
+            canEditCredit: widget.canEditCredit,
+            onSaveLimit: (v) => widget.onCreditLimitSave(v),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // ── Smart Insights ────────────────────────────────────────────────
+        if (widget.showFinancials)
+          _InsightsCard(customerId: c.id),
+        if (widget.showFinancials) const SizedBox(height: 16),
+
+        // ── Contact info ──────────────────────────────────────────────────
         _ContactCard(customer: c),
         const SizedBox(height: 16),
-        // Segmentation tags
+
+        // ── Segmentation tags ─────────────────────────────────────────────
         _TagsCard(
           tags: _tags,
           standardTags: _kStandardTags,
           onToggle: _toggleTag,
+          onAddCustom: _addCustomTag,
+          onRemoveCustom: _removeCustomTag,
         ),
+
+        const SizedBox(height: 32),
       ],
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Quick actions row
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _QuickActions extends StatelessWidget {
   final VoidCallback onCall;
   final VoidCallback onWhatsApp;
   final VoidCallback onReminder;
+  final bool showReminder;
 
-  const _QuickActions(
-      {required this.onCall,
-      required this.onWhatsApp,
-      required this.onReminder});
+  const _QuickActions({
+    required this.onCall,
+    required this.onWhatsApp,
+    required this.onReminder,
+    required this.showReminder,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -615,15 +802,17 @@ class _QuickActions extends StatelessWidget {
             onTap: onWhatsApp,
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _ActionBtn(
-            icon: Icons.alarm_rounded,
-            label: _tr('Remind', 'Kumbushia'),
-            color: AppColors.warning,
-            onTap: onReminder,
+        if (showReminder) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: _ActionBtn(
+              icon: Icons.alarm_rounded,
+              label: _tr('Remind', 'Kumbushia'),
+              color: AppColors.warning,
+              onTap: onReminder,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -651,6 +840,10 @@ class _ActionBtn extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.border),
+          boxShadow: const [
+            BoxShadow(
+                color: AppColors.shadowCard, blurRadius: 4, offset: Offset(0, 1))
+          ],
         ),
         child: Column(
           children: [
@@ -676,16 +869,22 @@ class _ActionBtn extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Balance card
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _BalanceCard extends StatefulWidget {
   final double balance;
   final double limit;
   final TextEditingController limitCtrl;
+  final bool canEditCredit;
   final ValueChanged<double> onSaveLimit;
 
   const _BalanceCard({
     required this.balance,
     required this.limit,
     required this.limitCtrl,
+    required this.canEditCredit,
     required this.onSaveLimit,
   });
 
@@ -699,22 +898,52 @@ class _BalanceCardState extends State<_BalanceCard> {
   @override
   Widget build(BuildContext context) {
     final hasLimit = widget.limit > 0;
-    final progress =
-        hasLimit ? (widget.balance / widget.limit).clamp(0.0, 1.0) : 0.0;
+    final progress = hasLimit
+        ? (widget.balance / widget.limit).clamp(0.0, 1.0)
+        : 0.0;
     final overLimit = hasLimit && widget.balance > widget.limit;
+    final availableCredit =
+        hasLimit ? (widget.limit - widget.balance).clamp(0.0, widget.limit) : 0.0;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: overLimit
+              ? AppColors.error.withValues(alpha: 0.4)
+              : AppColors.border,
+        ),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard, blurRadius: 6, offset: Offset(0, 2))
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header row ─────────────────────────────────────────────────
           Row(
             children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: widget.balance > 0
+                      ? AppColors.errorBg
+                      : AppColors.successBg,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(
+                  widget.balance > 0
+                      ? Icons.account_balance_wallet_rounded
+                      : Icons.check_circle_rounded,
+                  size: 16,
+                  color: widget.balance > 0 ? AppColors.error : AppColors.success,
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -726,13 +955,12 @@ class _BalanceCardState extends State<_BalanceCard> {
                           color: AppColors.textMuted,
                           letterSpacing: 0.4),
                     ),
-                    const SizedBox(height: 4),
                     Text(
                       widget.balance > 0
                           ? 'TZS ${_fmtNum(widget.balance)}'
                           : _tr('All clear', 'Hakuna deni'),
                       style: GoogleFonts.dmSerifDisplay(
-                          fontSize: 24,
+                          fontSize: 22,
                           color: widget.balance > 0
                               ? AppColors.error
                               : AppColors.success),
@@ -742,8 +970,8 @@ class _BalanceCardState extends State<_BalanceCard> {
               ),
               if (overLimit)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.errorBg,
                     borderRadius: BorderRadius.circular(6),
@@ -758,8 +986,10 @@ class _BalanceCardState extends State<_BalanceCard> {
                 ),
             ],
           ),
+
+          // ── Credit utilization ────────────────────────────────────────
           if (hasLimit) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
@@ -770,105 +1000,137 @@ class _BalanceCardState extends State<_BalanceCard> {
                     overLimit ? AppColors.error : AppColors.warning),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${(progress * 100).toStringAsFixed(0)}% ${_tr('of limit used', 'ya kikomo kimetumika')}',
-                  style: GoogleFonts.dmSans(
-                      fontSize: 11, color: AppColors.textMuted),
+                Expanded(
+                  child: _CreditStat(
+                    label: _tr('Used', 'Imetumika'),
+                    value: 'TZS ${_fmtShort(widget.balance)}',
+                    color: overLimit ? AppColors.error : AppColors.warning,
+                  ),
                 ),
-                Text(
-                  _tr('Limit: TZS ${_fmtNum(widget.limit)}',
-                      'Kikomo: TZS ${_fmtNum(widget.limit)}'),
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11, color: AppColors.textMuted),
+                Expanded(
+                  child: _CreditStat(
+                    label: _tr('Available', 'Inabaki'),
+                    value: overLimit
+                        ? _tr('Exceeded', 'Imezidi')
+                        : 'TZS ${_fmtShort(availableCredit)}',
+                    color:
+                        overLimit ? AppColors.error : AppColors.success,
+                  ),
+                ),
+                Expanded(
+                  child: _CreditStat(
+                    label: _tr('Limit', 'Kikomo'),
+                    value: 'TZS ${_fmtShort(widget.limit)}',
+                    color: AppColors.navyPrimary,
+                  ),
                 ),
               ],
             ),
           ],
+
           const SizedBox(height: 12),
           const Divider(height: 1, color: AppColors.border),
           const SizedBox(height: 10),
-          // Credit limit editor
-          if (_editingLimit)
+
+          // ── Credit limit editor ───────────────────────────────────────
+          if (widget.canEditCredit)
+            _editingLimit
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: widget.limitCtrl,
+                          autofocus: true,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          style: GoogleFonts.jetBrainsMono(fontSize: 14),
+                          decoration: InputDecoration(
+                            prefixText: 'TZS ',
+                            prefixStyle: GoogleFonts.dmSans(
+                                fontSize: 12, color: AppColors.textMuted),
+                            hintText: _tr('0 = no limit', '0 = bila kikomo'),
+                            isDense: true,
+                            filled: true,
+                            fillColor: AppColors.surfaceVariant,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () {
+                          final v =
+                              double.tryParse(widget.limitCtrl.text) ?? 0;
+                          widget.onSaveLimit(v);
+                          setState(() => _editingLimit = false);
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.navyPrimary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: Text(_tr('Save', 'Hifadhi'),
+                            style: GoogleFonts.dmSans(fontSize: 13)),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () => setState(() => _editingLimit = false),
+                        child: const Icon(Icons.close_rounded,
+                            size: 18, color: AppColors.textMuted),
+                      ),
+                    ],
+                  )
+                : GestureDetector(
+                    onTap: () => setState(() => _editingLimit = true),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.credit_score_rounded,
+                            size: 16, color: AppColors.textMuted),
+                        const SizedBox(width: 6),
+                        Text(
+                          hasLimit
+                              ? _tr('Edit credit limit',
+                                  'Badilisha kikomo cha mkopo')
+                              : _tr('Set credit limit',
+                                  'Weka kikomo cha mkopo'),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              color: AppColors.navyPrimary,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.chevron_right_rounded,
+                            size: 16, color: AppColors.textMuted),
+                      ],
+                    ),
+                  )
+          else
             Row(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: widget.limitCtrl,
-                    autofocus: true,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    style: GoogleFonts.jetBrainsMono(fontSize: 14),
-                    decoration: InputDecoration(
-                      prefixText: 'TZS ',
-                      prefixStyle: GoogleFonts.dmSans(
-                          fontSize: 12, color: AppColors.textMuted),
-                      hintText:
-                          _tr('0 = no limit', '0 = bila kikomo'),
-                      isDense: true,
-                      filled: true,
-                      fillColor: AppColors.surfaceVariant,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 10),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () {
-                    final v = double.tryParse(widget.limitCtrl.text) ?? 0;
-                    widget.onSaveLimit(v);
-                    setState(() => _editingLimit = false);
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.navyPrimary,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: Text(_tr('Save', 'Hifadhi'),
-                      style: GoogleFonts.dmSans(fontSize: 13)),
-                ),
+                const Icon(Icons.credit_score_rounded,
+                    size: 16, color: AppColors.textDisabled),
                 const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: () => setState(() => _editingLimit = false),
-                  child: const Icon(Icons.close_rounded,
-                      size: 18, color: AppColors.textMuted),
+                Text(
+                  hasLimit
+                      ? _tr('Credit limit: TZS ${_fmtNum(widget.limit)}',
+                          'Kikomo cha mkopo: TZS ${_fmtNum(widget.limit)}')
+                      : _tr('No credit limit set', 'Hakuna kikomo cha mkopo'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 13, color: AppColors.textMuted),
                 ),
               ],
-            )
-          else
-            GestureDetector(
-              onTap: () => setState(() => _editingLimit = true),
-              child: Row(
-                children: [
-                  const Icon(Icons.credit_score_rounded,
-                      size: 16, color: AppColors.textMuted),
-                  const SizedBox(width: 6),
-                  Text(
-                    hasLimit
-                        ? _tr('Edit credit limit',
-                            'Badilisha kikomo cha mkopo')
-                        : _tr('Set credit limit',
-                            'Weka kikomo cha mkopo'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        color: AppColors.navyPrimary,
-                        fontWeight: FontWeight.w600),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.chevron_right_rounded,
-                      size: 16, color: AppColors.textMuted),
-                ],
-              ),
             ),
         ],
       ),
@@ -876,17 +1138,291 @@ class _BalanceCardState extends State<_BalanceCard> {
   }
 }
 
+class _CreditStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _CreditStat(
+      {required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style:
+                GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
+        Text(value,
+            style: GoogleFonts.jetBrainsMono(
+                fontSize: 11, fontWeight: FontWeight.w700, color: color),
+            overflow: TextOverflow.ellipsis),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Smart Insights card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _InsightsCard extends ConsumerWidget {
+  final String customerId;
+  const _InsightsCard({required this.customerId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final invoicesAsync = ref.watch(customerInvoicesProvider(customerId));
+
+    return invoicesAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (invoices) {
+        if (invoices.isEmpty) return const SizedBox.shrink();
+        final ins = _Insights.fromInvoices(invoices);
+        final items = _buildInsightItems(ins);
+        if (items.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                  color: AppColors.shadowCard,
+                  blurRadius: 6,
+                  offset: Offset(0, 2))
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.navyPrimary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.insights_rounded,
+                        size: 15, color: AppColors.navyPrimary),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _tr('Customer Insights', 'Uchambuzi wa Mteja'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...items.map((item) => _InsightRow(
+                    icon: item.icon,
+                    text: item.text,
+                    color: item.color,
+                  )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  List<_InsightItem> _buildInsightItems(_Insights ins) {
+    final items = <_InsightItem>[];
+
+    // Total spent
+    if (ins.totalSpent > 0) {
+      items.add(_InsightItem(
+        icon: Icons.payments_rounded,
+        text: _tr(
+          'Spent TZS ${_fmtNum(ins.totalSpent)} in total',
+          'Ametumia TZS ${_fmtNum(ins.totalSpent)} jumla',
+        ),
+        color: AppColors.navyPrimary,
+      ));
+    }
+
+    // Invoice count
+    if (ins.totalInvoices > 0) {
+      items.add(_InsightItem(
+        icon: Icons.receipt_long_rounded,
+        text: _tr(
+          '${ins.totalInvoices} invoice${ins.totalInvoices == 1 ? '' : 's'} recorded',
+          'Ankara ${ins.totalInvoices} zimerekodiwa',
+        ),
+        color: AppColors.tealAccent,
+      ));
+    }
+
+    // Average order value
+    if (ins.avgOrderValue > 0) {
+      items.add(_InsightItem(
+        icon: Icons.bar_chart_rounded,
+        text: _tr(
+          'Avg. order: TZS ${_fmtNum(ins.avgOrderValue)}',
+          'Wastani wa agizo: TZS ${_fmtNum(ins.avgOrderValue)}',
+        ),
+        color: AppColors.navySecondary,
+      ));
+    }
+
+    // Purchase frequency
+    if (ins.avgDaysBetweenOrders > 0) {
+      items.add(_InsightItem(
+        icon: Icons.autorenew_rounded,
+        text: _tr(
+          'Purchases every ~${ins.avgDaysBetweenOrders} days on average',
+          'Ananunua kila ~${ins.avgDaysBetweenOrders} siku kwa wastani',
+        ),
+        color: AppColors.success,
+      ));
+    }
+
+    // Days since last purchase
+    if (ins.daysSinceLastPurchase >= 0) {
+      if (ins.daysSinceLastPurchase == 0) {
+        items.add(_InsightItem(
+          icon: Icons.today_rounded,
+          text: _tr('Last purchase: Today', 'Ununuzi wa mwisho: Leo'),
+          color: AppColors.success,
+        ));
+      } else if (ins.daysSinceLastPurchase <= 30) {
+        items.add(_InsightItem(
+          icon: Icons.history_rounded,
+          text: _tr(
+            'Last purchase: ${ins.daysSinceLastPurchase} days ago',
+            'Ununuzi wa mwisho: siku ${ins.daysSinceLastPurchase} zilizopita',
+          ),
+          color: AppColors.success,
+        ));
+      } else if (ins.daysSinceLastPurchase <= 60) {
+        items.add(_InsightItem(
+          icon: Icons.history_rounded,
+          text: _tr(
+            'No purchases in ${ins.daysSinceLastPurchase} days',
+            'Hakuna ununuzi kwa siku ${ins.daysSinceLastPurchase}',
+          ),
+          color: AppColors.warning,
+        ));
+      } else {
+        items.add(_InsightItem(
+          icon: Icons.history_rounded,
+          text: _tr(
+            'Inactive for ${ins.daysSinceLastPurchase} days — follow up!',
+            'Hamna shughuli kwa siku ${ins.daysSinceLastPurchase} — wasiliana!',
+          ),
+          color: AppColors.error,
+        ));
+      }
+    }
+
+    // Pending amount
+    if (ins.totalPending > 0) {
+      items.add(_InsightItem(
+        icon: Icons.pending_actions_rounded,
+        text: _tr(
+          'TZS ${_fmtNum(ins.totalPending)} pending payment',
+          'TZS ${_fmtNum(ins.totalPending)} inasubiri malipo',
+        ),
+        color: AppColors.warning,
+      ));
+    }
+
+    // Overdue warning
+    if (ins.overdueCount > 0) {
+      items.add(_InsightItem(
+        icon: Icons.warning_amber_rounded,
+        text: _tr(
+          '${ins.overdueCount} overdue invoice${ins.overdueCount == 1 ? '' : 's'} — action needed',
+          'Ankara ${ins.overdueCount} zimekwisha muda — hatua inahitajika',
+        ),
+        color: AppColors.error,
+      ));
+    }
+
+    return items;
+  }
+}
+
+class _InsightItem {
+  final IconData icon;
+  final String text;
+  final Color color;
+  const _InsightItem({required this.icon, required this.text, required this.color});
+}
+
+class _InsightRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+  const _InsightRow(
+      {required this.icon, required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, size: 12, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Contact card
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _ContactCard extends StatelessWidget {
   final Customer customer;
   const _ContactCard({required this.customer});
 
   @override
   Widget build(BuildContext context) {
+    if (customer.phone.isEmpty &&
+        customer.email.isEmpty &&
+        customer.address.isEmpty &&
+        customer.tinNumber.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard, blurRadius: 4, offset: Offset(0, 1))
+        ],
       ),
       child: Column(
         children: [
@@ -895,10 +1431,9 @@ class _ContactCard extends StatelessWidget {
               icon: Icons.phone_rounded,
               label: _tr('Phone', 'Simu'),
               value: customer.phone,
-              onTap: () async {
-                await Clipboard.setData(
-                    ClipboardData(text: customer.phone));
-              },
+              copyValue: customer.phone,
+              onCopied: (ctx) => _toast(ctx,
+                  _tr('Phone number copied', 'Namba ya simu imenakiliwa')),
             ),
           if (customer.email.isNotEmpty) ...[
             const Divider(height: 1, color: AppColors.border),
@@ -906,6 +1441,9 @@ class _ContactCard extends StatelessWidget {
               icon: Icons.email_rounded,
               label: _tr('Email', 'Barua pepe'),
               value: customer.email,
+              copyValue: customer.email,
+              onCopied: (ctx) =>
+                  _toast(ctx, _tr('Email copied', 'Barua pepe imenakiliwa')),
             ),
           ],
           if (customer.address.isNotEmpty) ...[
@@ -914,6 +1452,9 @@ class _ContactCard extends StatelessWidget {
               icon: Icons.location_on_rounded,
               label: _tr('Address', 'Anwani'),
               value: customer.address,
+              copyValue: customer.address,
+              onCopied: (ctx) =>
+                  _toast(ctx, _tr('Address copied', 'Anwani imenakiliwa')),
             ),
           ],
           if (customer.tinNumber.isNotEmpty) ...[
@@ -922,11 +1463,23 @@ class _ContactCard extends StatelessWidget {
               icon: Icons.numbers_rounded,
               label: 'TIN',
               value: customer.tinNumber,
+              copyValue: customer.tinNumber,
+              onCopied: (ctx) =>
+                  _toast(ctx, _tr('TIN copied', 'TIN imenakiliwa')),
             ),
           ],
         ],
       ),
     );
+  }
+
+  void _toast(BuildContext ctx, String msg) {
+    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+      content: Text(msg),
+      duration: const Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
   }
 }
 
@@ -934,23 +1487,40 @@ class _ContactRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final VoidCallback? onTap;
+  final String? copyValue;
+  final void Function(BuildContext ctx)? onCopied;
 
-  const _ContactRow(
-      {required this.icon,
-      required this.label,
-      required this.value,
-      this.onTap});
+  const _ContactRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.copyValue,
+    this.onCopied,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: copyValue != null
+          ? () async {
+              await Clipboard.setData(ClipboardData(text: copyValue!));
+              if (context.mounted) onCopied?.call(context);
+            }
+          : null,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: AppColors.textMuted),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 15, color: AppColors.textMuted),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -967,7 +1537,7 @@ class _ContactRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (onTap != null)
+            if (copyValue != null)
               const Icon(Icons.copy_rounded,
                   size: 14, color: AppColors.textDisabled),
           ],
@@ -977,15 +1547,38 @@ class _ContactRow extends StatelessWidget {
   }
 }
 
-class _TagsCard extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// Tags card (standard + custom creation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TagsCard extends StatefulWidget {
   final List<String> tags;
   final List<String> standardTags;
   final ValueChanged<String> onToggle;
+  final ValueChanged<String> onAddCustom;
+  final ValueChanged<String> onRemoveCustom;
 
-  const _TagsCard(
-      {required this.tags,
-      required this.standardTags,
-      required this.onToggle});
+  const _TagsCard({
+    required this.tags,
+    required this.standardTags,
+    required this.onToggle,
+    required this.onAddCustom,
+    required this.onRemoveCustom,
+  });
+
+  @override
+  State<_TagsCard> createState() => _TagsCardState();
+}
+
+class _TagsCardState extends State<_TagsCard> {
+  bool _addingCustom = false;
+  final _customTagCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _customTagCtrl.dispose();
+    super.dispose();
+  }
 
   Color _color(String tag) {
     final t = tag.toLowerCase();
@@ -999,32 +1592,82 @@ class _TagsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final customTags =
+        widget.tags.where((t) => !widget.standardTags.contains(t)).toList();
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard, blurRadius: 4, offset: Offset(0, 1))
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _tr('Segment Tags', 'Lebo za Kundi'),
-            style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary),
+          Row(
+            children: [
+              Text(
+                _tr('Segment Tags', 'Lebo za Kundi'),
+                style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() {
+                  _addingCustom = !_addingCustom;
+                  if (!_addingCustom) _customTagCtrl.clear();
+                }),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.navyPrimary.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _addingCustom
+                            ? Icons.close_rounded
+                            : Icons.add_rounded,
+                        size: 14,
+                        color: AppColors.navyPrimary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _addingCustom
+                            ? _tr('Cancel', 'Ghairi')
+                            : _tr('Custom tag', 'Lebo maalum'),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.navyPrimary),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
+
+          // ── Standard tags ─────────────────────────────────────────────
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: standardTags.map((tag) {
-              final active = tags.contains(tag);
+            children: widget.standardTags.map((tag) {
+              final active = widget.tags.contains(tag);
               final color = _color(tag);
               return GestureDetector(
-                onTap: () => onToggle(tag),
+                onTap: () => widget.onToggle(tag),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   padding: const EdgeInsets.symmetric(
@@ -1032,8 +1675,8 @@ class _TagsCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: active ? color : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
-                    border:
-                        Border.all(color: active ? color : AppColors.border),
+                    border: Border.all(
+                        color: active ? color : AppColors.border),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1049,7 +1692,9 @@ class _TagsCard extends StatelessWidget {
                         style: GoogleFonts.dmSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: active ? Colors.white : AppColors.textMuted),
+                            color: active
+                                ? Colors.white
+                                : AppColors.textMuted),
                       ),
                     ],
                   ),
@@ -1057,38 +1702,126 @@ class _TagsCard extends StatelessWidget {
               );
             }).toList(),
           ),
-          if (tags.any((t) => !standardTags.contains(t))) ...[
-            const SizedBox(height: 10),
+
+          // ── Custom tag input ──────────────────────────────────────────
+          if (_addingCustom) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _customTagCtrl,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.words,
+                    style: GoogleFonts.dmSans(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: _tr(
+                          'e.g. Frequent Buyer, Corporate…',
+                          'mfano: Mnunuzi wa kawaida, Kampuni…'),
+                      hintStyle: GoogleFonts.dmSans(
+                          fontSize: 12, color: AppColors.textMuted),
+                      isDense: true,
+                      filled: true,
+                      fillColor: AppColors.surfaceVariant,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                    ),
+                    onSubmitted: (v) {
+                      final tag = v.trim();
+                      if (tag.isNotEmpty) {
+                        widget.onAddCustom(tag);
+                        _customTagCtrl.clear();
+                        setState(() => _addingCustom = false);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () {
+                    final tag = _customTagCtrl.text.trim();
+                    if (tag.isNotEmpty) {
+                      widget.onAddCustom(tag);
+                      _customTagCtrl.clear();
+                      setState(() => _addingCustom = false);
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.navyPrimary,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Text(_tr('Add', 'Ongeza'),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 13, color: Colors.white)),
+                ),
+              ],
+            ),
+          ],
+
+          // ── Custom tags list ──────────────────────────────────────────
+          if (customTags.isNotEmpty) ...[
+            const SizedBox(height: 12),
             const Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 10),
             Text(
               _tr('Custom Tags', 'Lebo za Mtumiaji'),
               style: GoogleFonts.dmSans(
-                  fontSize: 11,
-                  color: AppColors.textMuted),
+                  fontSize: 11, color: AppColors.textMuted),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: tags
-                  .where((t) => !standardTags.contains(t))
-                  .map((tag) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.navyPrimary
-                              .withValues(alpha: 0.07),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(tag,
-                            style: GoogleFonts.dmSans(
-                                fontSize: 12,
-                                color: AppColors.navyPrimary)),
+              children: customTags
+                  .map((tag) => _CustomTagPill(
+                        tag: tag,
+                        onRemove: () => widget.onRemoveCustom(tag),
                       ))
                   .toList(),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomTagPill extends StatelessWidget {
+  final String tag;
+  final VoidCallback onRemove;
+  const _CustomTagPill({required this.tag, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 5, 6, 5),
+      decoration: BoxDecoration(
+        color: AppColors.navyPrimary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: AppColors.navyPrimary.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(tag,
+              style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.navyPrimary)),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(Icons.close_rounded,
+                size: 14, color: AppColors.textMuted),
+          ),
         ],
       ),
     );
@@ -1101,7 +1834,9 @@ class _TagsCard extends StatelessWidget {
 
 class _InvoicesTab extends ConsumerWidget {
   final String customerId;
-  const _InvoicesTab({required this.customerId});
+  final bool showFinancials;
+
+  const _InvoicesTab({required this.customerId, required this.showFinancials});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1114,57 +1849,91 @@ class _InvoicesTab extends ConsumerWidget {
       error: (e, _) => Center(child: Text('$e')),
       data: (invoices) {
         if (invoices.isEmpty) {
-          return const EmptyState(
+          return EmptyState(
             icon: Icons.receipt_long_outlined,
-            title: 'No invoices with this customer yet',
-            subtitle: 'Record a sale to see invoices here.',
+            title: _tr(
+                'No invoices yet', 'Bado hakuna ankara'),
+            subtitle: _tr(
+                'Record a sale to see invoices here.',
+                'Rekodi uuzaji ili kuona ankara hapa.'),
           );
         }
 
-        // Stats row
-        final totalPaid = invoices
-            .where((i) =>
-                (i['status'] ?? '').toString().toLowerCase() == 'paid')
-            .fold<double>(0, (s, i) => s + parseNumericAmount(i['totalAmount']));
-        final totalPending = invoices
-            .where((i) {
-              final s = (i['status'] ?? '').toString().toLowerCase();
-              return s != 'paid' && s != 'cancelled' && s != 'draft';
-            })
-            .fold<double>(0, (s, i) => s + parseNumericAmount(i['totalAmount']));
+        // ── Compute stats ───────────────────────────────────────────────
+        final ins = _Insights.fromInvoices(invoices);
+        final totalCount = invoices.length;
+        final paidCount =
+            invoices.where((i) => (i['status'] ?? '') == 'paid').length;
 
         return Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _MiniStat(
-                      label: _tr('Paid', 'Imelipwa'),
-                      value: 'TZS ${_fmtShort(totalPaid)}',
-                      color: AppColors.success,
+            if (showFinancials) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _MiniStat(
+                        label: _tr('Total Spent', 'Jumla Iliyolipwa'),
+                        value: 'TZS ${_fmtShort(ins.totalSpent)}',
+                        color: AppColors.success,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _MiniStat(
-                      label: _tr('Pending', 'Inasubiri'),
-                      value: 'TZS ${_fmtShort(totalPending)}',
-                      color: AppColors.warning,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _MiniStat(
+                        label: _tr('Pending', 'Inasubiri'),
+                        value: 'TZS ${_fmtShort(ins.totalPending)}',
+                        color: AppColors.warning,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _MiniStat(
-                      label: _tr('Total', 'Jumla'),
-                      value: '${invoices.length}',
-                      color: AppColors.navyPrimary,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _MiniStat(
+                        label: _tr('Invoices', 'Ankara'),
+                        value: '$paidCount / $totalCount',
+                        color: AppColors.navyPrimary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+              if (ins.avgOrderValue > 0)
+                Padding(
+                  padding:
+                      const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.navyPrimary.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: AppColors.navyPrimary
+                              .withValues(alpha: 0.08)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.bar_chart_rounded,
+                            size: 14, color: AppColors.navyPrimary),
+                        const SizedBox(width: 8),
+                        Text(
+                          _tr(
+                            'Avg. order value: TZS ${_fmtNum(ins.avgOrderValue)}',
+                            'Wastani wa agizo: TZS ${_fmtNum(ins.avgOrderValue)}',
+                          ),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              color: AppColors.navyPrimary,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+            const SizedBox(height: 8),
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 60),
@@ -1191,7 +1960,8 @@ class _InvoiceTile extends StatelessWidget {
     final number = invoice['invoiceNumber']?.toString() ??
         invoice['id']?.toString() ??
         '—';
-    final createdAt = readTimestamp(invoice['createdAt'] ?? invoice['invoiceDate']);
+    final createdAt =
+        readTimestamp(invoice['createdAt'] ?? invoice['invoiceDate']);
     final isQuotation =
         (invoice['type'] ?? '').toString().toLowerCase() == 'quotation';
 
@@ -1203,6 +1973,7 @@ class _InvoiceTile extends StatelessWidget {
       'cancelled' => AppColors.textDisabled,
       _ => AppColors.warning,
     };
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1236,8 +2007,8 @@ class _InvoiceTile extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
-                          color: AppColors.tealAccent
-                              .withValues(alpha: 0.1),
+                          color:
+                              AppColors.tealAccent.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -1309,11 +2080,10 @@ class _NotesTab extends ConsumerWidget {
           notes.isEmpty
               ? EmptyState(
                   icon: Icons.sticky_note_2_outlined,
-                  title: _tr('No notes or activity yet',
-                      'Hakuna maelezo au shughuli bado'),
+                  title: _tr('No notes yet', 'Bado hakuna maelezo'),
                   subtitle: _tr(
-                    'Log a call, reminder, or note for this customer.',
-                    'Rekodi simu, kumbusho, au maelezo kwa mteja huyu.',
+                    'Log a call, meeting, or reminder for this customer.',
+                    'Rekodi simu, mkutano, au kumbusho kwa mteja huyu.',
                   ),
                 )
               : ListView.separated(
@@ -1322,7 +2092,6 @@ class _NotesTab extends ConsumerWidget {
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (_, i) => _NoteTile(note: notes[i]),
                 ),
-          // FAB-style add button
           Positioned(
             bottom: 20,
             right: 16,
@@ -1417,9 +2186,7 @@ class _NoteTile extends StatelessWidget {
                 Icon(
                   Icons.schedule_rounded,
                   size: 12,
-                  color: reminderSent
-                      ? AppColors.success
-                      : AppColors.warning,
+                  color: reminderSent ? AppColors.success : AppColors.warning,
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -1528,8 +2295,7 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                           color: active ? t.color : Colors.transparent,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: active ? t.color : AppColors.border,
-                          ),
+                              color: active ? t.color : AppColors.border),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1554,7 +2320,6 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
               ),
             ),
             const SizedBox(height: 14),
-            // Text area
             Container(
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
@@ -1569,7 +2334,9 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                       ? _tr('What was discussed?', 'Nini kilijadiliwa?')
                       : _type == _NoteType.reminder
                           ? _tr('Reminder details…', 'Maelezo ya kumbusho…')
-                          : _tr('Add notes…', 'Ongeza maelezo…'),
+                          : _type == _NoteType.meeting
+                              ? _tr('Meeting outcome…', 'Matokeo ya mkutano…')
+                              : _tr('Add notes…', 'Ongeza maelezo…'),
                   hintStyle: GoogleFonts.dmSans(
                       fontSize: 13, color: AppColors.textMuted),
                   border: InputBorder.none,
@@ -1599,8 +2366,8 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                       Text(
                         _scheduledFor != null
                             ? _fmtDate(_scheduledFor!)
-                            : _tr('Set reminder date',
-                                'Weka tarehe ya kumbusho'),
+                            : _tr(
+                                'Set reminder date', 'Weka tarehe ya kumbusho'),
                         style: GoogleFonts.dmSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -1641,7 +2408,7 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
                     : Text(
-                        _tr('Save', 'Hifadhi'),
+                        _tr('Save Note', 'Hifadhi Maelezo'),
                         style: GoogleFonts.dmSans(
                             fontSize: 15, fontWeight: FontWeight.w700),
                       ),
@@ -1732,7 +2499,8 @@ class _EditCustomerFullSheetState
       if (tin.isNotEmpty) data['tinNumber'] = tin;
 
       await repo
-          .scopeCollection(uid: user.uid, context: ctx, childCollection: 'customers')
+          .scopeCollection(
+              uid: user.uid, context: ctx, childCollection: 'customers')
           .doc(widget.customer.id)
           .update(data);
 
@@ -1767,7 +2535,8 @@ class _EditCustomerFullSheetState
           borderSide: const BorderSide(color: AppColors.navyPrimary, width: 2),
         ),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       );
 
   @override
@@ -1847,8 +2616,9 @@ class _EditCustomerFullSheetState
                     TextFormField(
                       controller: _tinCtrl,
                       textCapitalization: TextCapitalization.characters,
-                      decoration:
-                          _dec(_tr('TIN Number', 'Namba ya TIN'), Icons.numbers_outlined),
+                      decoration: _dec(
+                          _tr('TIN Number', 'Namba ya TIN'),
+                          Icons.numbers_outlined),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -1873,11 +2643,11 @@ class _EditCustomerFullSheetState
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: _saving
-                              ? null
-                              : () => Navigator.of(context).pop(),
+                          onPressed:
+                              _saving ? null : () => Navigator.of(context).pop(),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
@@ -1921,47 +2691,7 @@ class _EditCustomerFullSheetState
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared small widgets
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MiniStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _MiniStat(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value,
-              style: GoogleFonts.jetBrainsMono(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: color),
-              overflow: TextOverflow.ellipsis),
-          Text(label,
-              style: GoogleFonts.dmSans(
-                  fontSize: 10, color: AppColors.textMuted)),
-        ],
-      ),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Individual / Organisation toggle (duplicated from customer_list_screen)
+// Shared detail-screen sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TypeToggleRow extends StatelessWidget {
@@ -2046,6 +2776,39 @@ class _ToggleTab extends StatelessWidget {
   }
 }
 
+class _MiniStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _MiniStat(
+      {required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value,
+              style: GoogleFonts.jetBrainsMono(
+                  fontSize: 13, fontWeight: FontWeight.w700, color: color),
+              overflow: TextOverflow.ellipsis),
+          Text(label,
+              style: GoogleFonts.dmSans(
+                  fontSize: 10, color: AppColors.textMuted)),
+        ],
+      ),
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2062,8 +2825,8 @@ String _fmtNum(double v) {
 }
 
 String _fmtShort(double v) {
-  if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-  if (v >= 1000) return '${(v / 1000).toStringAsFixed(0)}K';
+  if (v >= 1_000_000) return '${(v / 1_000_000).toStringAsFixed(1)}M';
+  if (v >= 1_000) return '${(v / 1_000).toStringAsFixed(0)}K';
   return v.toStringAsFixed(0);
 }
 
