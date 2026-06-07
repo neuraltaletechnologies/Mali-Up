@@ -262,6 +262,9 @@ class TeamMember {
   final DateTime? acceptedAt;
   final String invitedBy;
   final String? notes;
+  /// Firebase Auth UID of this member — set when they accept the invite.
+  /// Used as the doc ID in `memberAccess/{userId}` for Firestore rules.
+  final String? userId;
 
   const TeamMember({
     required this.id,
@@ -275,12 +278,18 @@ class TeamMember {
     this.acceptedAt,
     required this.invitedBy,
     this.notes,
+    this.userId,
   });
 
   Set<AppPermission> get effectivePermissions =>
       role == TeamRole.custom ? customPermissions : defaultPermissionsFor(role);
 
   bool can(AppPermission p) => effectivePermissions.contains(p);
+
+  /// Flat list of effective permission names — stored in Firestore so that
+  /// security rules can call `.hasAny([permission])` without a client round-trip.
+  List<String> get effectivePermissionsList =>
+      effectivePermissions.map((p) => p.name).toList();
 
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -313,6 +322,7 @@ class TeamMember {
           : null,
       invitedBy: (data['invitedBy'] as String?) ?? '',
       notes: data['notes'] as String?,
+      userId: data['userId'] as String?,
     );
   }
 
@@ -321,14 +331,16 @@ class TeamMember {
         'email': email,
         'phone': phone,
         'role': role.name,
-        'customPermissions':
-            customPermissions.map((p) => p.name).toList(),
+        'customPermissions': customPermissions.map((p) => p.name).toList(),
+        // Flat effective-permissions list for Firestore security rule checks.
+        'permissions': effectivePermissionsList,
         'status': status,
         'invitedAt': Timestamp.fromDate(invitedAt),
         if (acceptedAt != null)
           'acceptedAt': Timestamp.fromDate(acceptedAt!),
         'invitedBy': invitedBy,
         if (notes != null && notes!.isNotEmpty) 'notes': notes,
+        if (userId != null && userId!.isNotEmpty) 'userId': userId,
       };
 
   TeamMember copyWith({
@@ -340,6 +352,7 @@ class TeamMember {
     String? status,
     DateTime? acceptedAt,
     String? notes,
+    String? userId,
   }) =>
       TeamMember(
         id: id,
@@ -353,5 +366,6 @@ class TeamMember {
         acceptedAt: acceptedAt ?? this.acceptedAt,
         invitedBy: invitedBy,
         notes: notes ?? this.notes,
+        userId: userId ?? this.userId,
       );
 }

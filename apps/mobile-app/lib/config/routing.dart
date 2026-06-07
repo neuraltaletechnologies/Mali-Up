@@ -62,6 +62,9 @@ import '../features/reports/presentation/screens/balance_sheet_screen.dart'
     deferred as screen_balance;
 import '../features/reports/presentation/screens/inventory_valuation_screen.dart'
     deferred as screen_inv_val;
+import '../features/rbac/data/rbac_providers.dart';
+import '../features/rbac/presentation/screens/access_denied_screen.dart';
+import '../features/team/domain/models/team_member.dart';
 
 // ─── ROUTE PATHS ─────────────────────────────────────────────────────────────
 
@@ -79,25 +82,50 @@ abstract final class AppRoutes {
   static const success    = '/success';    // Screen 7 — success
 
   // ── Main app shell ────────────────────────────────────────────────────────
-  static const dashboard   = '/';
-  static const sales       = '/sales';
-  static const inventory   = '/inventory';
-  static const crm         = '/crm';
-  static const debt        = '/debt';
-  static const expenses    = '/expenses';
-  static const cashflow    = '/cashflow';
-  static const team        = '/team';
-  static const settings    = '/settings';
+  static const dashboard    = '/';
+  static const sales        = '/sales';
+  static const inventory    = '/inventory';
+  static const crm          = '/crm';
+  static const debt         = '/debt';
+  static const expenses     = '/expenses';
+  static const cashflow     = '/cashflow';
+  static const team         = '/team';
+  static const settings     = '/settings';
   static const subscription = '/subscription';
-  static const businesses  = '/businesses';
-  static const reports     = '/reports';
-  static const login       = '/login';
+  static const businesses   = '/businesses';
+  static const reports      = '/reports';
+  static const login        = '/login';
+  static const accessDenied = '/access-denied';
 
   static const _onboardingPaths = {
     welcome, intro, phone, pinLogin, teamSetup, newUser, business, security, success,
   };
 
   static bool isOnboardingPath(String path) => _onboardingPaths.contains(path);
+
+  // ── Permission requirements per route ─────────────────────────────────────
+
+  /// Returns the AppPermission required to visit [path], or null if the route
+  /// is always accessible to authenticated users (dashboard, access-denied).
+  static AppPermission? requiredPermission(String path) {
+    // Match on prefix so sub-routes (e.g. /reports/pnl) inherit the guard.
+    if (path.startsWith(sales))        return AppPermission.viewSales;
+    if (path.startsWith(inventory))    return AppPermission.viewInventory;
+    if (path.startsWith(crm))          return AppPermission.viewCustomers;
+    if (path.startsWith(debt))         return AppPermission.viewDebt;
+    if (path.startsWith(expenses))     return AppPermission.manageExpenses;
+    if (path.startsWith(cashflow))     return AppPermission.viewCashFlow;
+    if (path.startsWith(team))         return AppPermission.manageTeam;
+    if (path.startsWith(reports))      return AppPermission.viewFinancialReports;
+    return null;
+  }
+
+  /// Routes that only the business owner may access (no team-member permission
+  /// maps to these — they control the business itself, not day-to-day ops).
+  static bool isOwnerOnly(String path) =>
+      path.startsWith(settings) ||
+      path.startsWith(subscription) ||
+      path.startsWith(businesses);
 }
 
 // ─── ROUTER PROVIDER ─────────────────────────────────────────────────────────
@@ -118,6 +146,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
     _ref.listen(onboardingNotifierProvider, (prev, next) => notifyListeners());
+    // Re-evaluate routes whenever the user's permissions change
+    // (e.g. profile loads, role changes, member is suspended).
+    _ref.listen(permissionServiceProvider, (prev, next) => notifyListeners());
+    _ref.listen(permissionsLoadedProvider, (prev, next) => notifyListeners());
   }
 
   final Ref _ref;
@@ -129,10 +161,34 @@ class _RouterNotifier extends ChangeNotifier {
     // Splash always allowed — it runs the completion check.
     if (path == AppRoutes.splash) return null;
 
+    // Access-denied screen is always reachable once onboarding is complete.
+    if (path == AppRoutes.accessDenied) {
+      return ob.isComplete ? null : AppRoutes.welcome;
+    }
+
     // ── Post-completion guards ────────────────────────────────────────────
     if (ob.isComplete) {
       if (path == AppRoutes.success) return null;
       if (AppRoutes.isOnboardingPath(path)) return AppRoutes.dashboard;
+
+      // ── Permission guards ─────────────────────────────────────────────
+      // Skip checks while permissions are still loading to avoid a flash.
+      final loaded = _ref.read(permissionsLoadedProvider);
+      if (loaded) {
+        final ps = _ref.read(permissionServiceProvider);
+
+        // Owner-only routes (billing, subscription, business management).
+        if (AppRoutes.isOwnerOnly(path) && !ps.isOwner) {
+          return AppRoutes.accessDenied;
+        }
+
+        // Module-level permission check.
+        final required = AppRoutes.requiredPermission(path);
+        if (required != null && !ps.can(required)) {
+          return AppRoutes.accessDenied;
+        }
+      }
+
       return null;
     }
 
@@ -404,6 +460,10 @@ List<RouteBase> _buildRoutes() {
             load: screen_team.loadLibrary,
             build: () => screen_team.TeamScreen(),
           ),
+        ),
+        GoRoute(
+          path: AppRoutes.accessDenied,
+          builder: (context, state) => const AccessDeniedScreen(),
         ),
         GoRoute(
           path: AppRoutes.reports,

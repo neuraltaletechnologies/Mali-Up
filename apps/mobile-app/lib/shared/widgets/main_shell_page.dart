@@ -10,6 +10,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
 import '../../features/onboarding/providers/onboarding_notifier.dart';
+import '../../features/rbac/data/rbac_providers.dart';
+import '../../features/rbac/domain/permission_service.dart';
+import '../../features/team/domain/models/team_member.dart';
 
 class MainShellPage extends ConsumerStatefulWidget {
   final Widget child;
@@ -175,6 +178,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     required BuildContext context,
     required String location,
     required _DrawerProfileData profile,
+    required PermissionService ps,
+    TeamMember? member,
   }) async {
     await showGeneralDialog<void>(
       context: context,
@@ -306,61 +311,86 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                   ],
                                 ),
                                 const SizedBox(height: 14),
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.14),
-                                        borderRadius: BorderRadius.circular(999),
+                                if (ps.isOwner)
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.14),
+                                          borderRadius: BorderRadius.circular(999),
                                           border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
                                             const Icon(Icons.stars_rounded, size: 12, color: Colors.white),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            _tr('Free', 'Bure'),
-                                            style: const TextStyle(
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _tr('Free', 'Bure'),
+                                              style: const TextStyle(
                                                 color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(999),
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.business_center_rounded,
-                                            size: 12,
-                                            color: AppColors.secondary,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            _tr('Business', 'Biashara'),
-                                            style: const TextStyle(
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(999),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.business_center_rounded,
+                                              size: 12,
                                               color: AppColors.secondary,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _tr('Business', 'Biashara'),
+                                              style: const TextStyle(
+                                                color: AppColors.secondary,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
+                                    ],
+                                  )
+                                else if (member != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
                                     ),
-                                  ],
-                                ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.badge_outlined, size: 12, color: Colors.white),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          member.role.label,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -379,90 +409,103 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                               selected: isDashboard,
                               onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
                             ),
-                            _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
-                            _DrawerItemLight(
-                              icon: Icons.receipt_long_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Tuma ankara', 'Tuma ankara'),
-                              semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
-                              selected: _isSelected(location, AppRouter.salesPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
-                            ),
-                            _DrawerItemLight(
-                              icon: Icons.inventory_2_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Bidhaa zangu', 'Bidhaa zangu'),
-                              semanticsLabel: _tr('My stock and inventory', 'Bidhaa zangu, usimamizi wa bidhaaa'),
-                              selected: _isSelected(location, AppRouter.inventoryPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
-                            ),
-                            _DrawerItemLight(
-                              icon: Icons.people_alt_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Wateja wangu', 'Wateja wangu'),
-                              semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
-                              selected: _isSelected(location, AppRouter.crmPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
-                            ),
-                            _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
-                            _DrawerItemLight(
-                              icon: Icons.account_balance_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Madeni', 'Madeni'),
-                              semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
-                              selected: _isSelected(location, AppRouter.debtPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
-                            ),
-                            _DrawerItemLight(
-                              icon: Icons.payments_outlined,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Gharama zangu', 'Gharama zangu'),
-                              semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
-                              selected: _isSelected(location, AppRouter.expensesPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
-                            ),
-                            _DrawerItemLight(
-                              icon: Icons.account_balance_wallet_outlined,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
-                              semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
-                              selected: _isSelected(location, AppRouter.cashFlowPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
-                            ),
-                            _DrawerItemLight(
-                              icon: Icons.bar_chart_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Ripoti za Fedha', 'Ripoti za Fedha'),
-                              semanticsLabel: _tr('Financial reports — P&L, Balance Sheet, VAT', 'Ripoti za fedha — P&L, Mizania, VAT'),
-                              selected: _isSelected(location, AppRouter.reportsPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.reportsPath),
-                            ),
-                            _DrawerSectionLabel(label: _tr('TEAM', 'TIMU')),
-                            _DrawerItemLight(
-                              icon: Icons.group_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr('My Team', 'Timu yangu'),
-                              semanticsLabel: _tr('Team and role management', 'Timu yangu, usimamizi wa majukumu'),
-                              selected: _isSelected(location, AppRouter.teamPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.teamPath),
-                            ),
-                            _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
-                            _DrawerItemLight(
-                              icon: Icons.storefront_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Simamia Biashara', 'Simamia Biashara'),
-                              semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
-                              selected: _isSelected(location, AppRouter.businessesPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
-                            ),
-                            _DrawerItemLight(
-                              icon: Icons.settings_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr('Mipangilio', 'Mipangilio'),
-                              semanticsLabel: _tr('App settings', 'Mipangilio ya programu'),
-                              selected: _isSelected(location, AppRouter.settingsPath),
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
-                            ),
+                            if (ps.canViewSales || ps.canViewInventory || ps.canViewCustomers)
+                              _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
+                            if (ps.canViewSales)
+                              _DrawerItemLight(
+                                icon: Icons.receipt_long_rounded,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Tuma ankara', 'Tuma ankara'),
+                                semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
+                                selected: _isSelected(location, AppRouter.salesPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
+                              ),
+                            if (ps.canViewInventory)
+                              _DrawerItemLight(
+                                icon: Icons.inventory_2_rounded,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Bidhaa zangu', 'Bidhaa zangu'),
+                                semanticsLabel: _tr('My stock and inventory', 'Bidhaa zangu, usimamizi wa bidhaaa'),
+                                selected: _isSelected(location, AppRouter.inventoryPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
+                              ),
+                            if (ps.canViewCustomers)
+                              _DrawerItemLight(
+                                icon: Icons.people_alt_rounded,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Wateja wangu', 'Wateja wangu'),
+                                semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
+                                selected: _isSelected(location, AppRouter.crmPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
+                              ),
+                            if (ps.canViewDebt || ps.canManageExpenses || ps.canViewCashFlow || ps.canViewFinancialReports)
+                              _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
+                            if (ps.canViewDebt)
+                              _DrawerItemLight(
+                                icon: Icons.account_balance_rounded,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Madeni', 'Madeni'),
+                                semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
+                                selected: _isSelected(location, AppRouter.debtPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
+                              ),
+                            if (ps.canManageExpenses)
+                              _DrawerItemLight(
+                                icon: Icons.payments_outlined,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Gharama zangu', 'Gharama zangu'),
+                                semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
+                                selected: _isSelected(location, AppRouter.expensesPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
+                              ),
+                            if (ps.canViewCashFlow)
+                              _DrawerItemLight(
+                                icon: Icons.account_balance_wallet_outlined,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
+                                semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
+                                selected: _isSelected(location, AppRouter.cashFlowPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
+                              ),
+                            if (ps.canViewFinancialReports)
+                              _DrawerItemLight(
+                                icon: Icons.bar_chart_rounded,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Ripoti za Fedha', 'Ripoti za Fedha'),
+                                semanticsLabel: _tr('Financial reports — P&L, Balance Sheet, VAT', 'Ripoti za fedha — P&L, Mizania, VAT'),
+                                selected: _isSelected(location, AppRouter.reportsPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.reportsPath),
+                              ),
+                            if (ps.canManageTeam) ...[
+                              _DrawerSectionLabel(label: _tr('TEAM', 'TIMU')),
+                              _DrawerItemLight(
+                                icon: Icons.group_rounded,
+                                iconColor: AppColors.secondary,
+                                label: _tr('My Team', 'Timu yangu'),
+                                semanticsLabel: _tr('Team and role management', 'Timu yangu, usimamizi wa majukumu'),
+                                selected: _isSelected(location, AppRouter.teamPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.teamPath),
+                              ),
+                            ],
+                            if (ps.isOwner) ...[
+                              _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
+                              _DrawerItemLight(
+                                icon: Icons.storefront_rounded,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Simamia Biashara', 'Simamia Biashara'),
+                                semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
+                                selected: _isSelected(location, AppRouter.businessesPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
+                              ),
+                              _DrawerItemLight(
+                                icon: Icons.settings_rounded,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Mipangilio', 'Mipangilio'),
+                                semanticsLabel: _tr('App settings', 'Mipangilio ya programu'),
+                                selected: _isSelected(location, AppRouter.settingsPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -482,7 +525,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     return index >= 0 ? index : 0;
   }
 
-  List<_NavDestination> _businessNavDestinations() {
+  List<_NavDestination> _buildNavDestinations(PermissionService ps) {
     return [
       _NavDestination(
         route: AppRouter.dashboardPath,
@@ -490,24 +533,27 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
         icon: Icons.grid_view_outlined,
         activeIcon: Icons.grid_view_rounded,
       ),
-      _NavDestination(
-        route: AppRouter.salesPath,
-        label: _tr('Invoices', 'Ankara'),
-        icon: Icons.receipt_outlined,
-        activeIcon: Icons.receipt_rounded,
-      ),
-      _NavDestination(
-        route: AppRouter.inventoryPath,
-        label: _tr('Stock', 'Bidhaa'),
-        icon: Icons.inventory_2_outlined,
-        activeIcon: Icons.inventory_2_rounded,
-      ),
-      _NavDestination(
-        route: AppRouter.crmPath,
-        label: _tr('Clients', 'Wateja'),
-        icon: Icons.people_outline_rounded,
-        activeIcon: Icons.people_rounded,
-      ),
+      if (ps.canViewSales)
+        _NavDestination(
+          route: AppRouter.salesPath,
+          label: _tr('Invoices', 'Ankara'),
+          icon: Icons.receipt_outlined,
+          activeIcon: Icons.receipt_rounded,
+        ),
+      if (ps.canViewInventory)
+        _NavDestination(
+          route: AppRouter.inventoryPath,
+          label: _tr('Stock', 'Bidhaa'),
+          icon: Icons.inventory_2_outlined,
+          activeIcon: Icons.inventory_2_rounded,
+        ),
+      if (ps.canViewCustomers)
+        _NavDestination(
+          route: AppRouter.crmPath,
+          label: _tr('Clients', 'Wateja'),
+          icon: Icons.people_outline_rounded,
+          activeIcon: Icons.people_rounded,
+        ),
     ];
   }
 
@@ -549,6 +595,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     final currentUser = _currentUser;
+    final ps = ref.watch(permissionServiceProvider);
+    final memberAsync = ref.watch(currentMemberProvider);
+    final member = memberAsync.valueOrNull;
 
     return FutureBuilder<Map<String, dynamic>?>(
       future: _profileFuture,
@@ -558,7 +607,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
         final businesses = _businessesFromProfile(profileData);
         final selectedContext = _defaultContextFromProfile(profileData);
         final canSwitch = businesses.length > 1;
-        final destinations = _businessNavDestinations();
+        final destinations = _buildNavDestinations(ps);
         final currentIndex = _calculateIndex(location, destinations);
 
         return Scaffold(
@@ -600,6 +649,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                               context: context,
                               location: location,
                               profile: profile,
+                              ps: ps,
+                              member: member,
                             ),
                           ),
                           Padding(

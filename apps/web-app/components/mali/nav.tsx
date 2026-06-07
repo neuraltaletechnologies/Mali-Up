@@ -6,6 +6,13 @@ import { Menu, X } from "lucide-react"
 import NextImage from "next/image"
 import { LoginModal } from "@/components/mali/login-modal"
 
+const links = [
+  { label: "Features", href: "#features" },
+  { label: "How It Works", href: "#journey" },
+  { label: "Industries", href: "#industries" },
+  { label: "Download", href: "#download" },
+]
+
 export function Nav() {
   const [scrolled, setScrolled] = useState(false)
   const [hidden, setHidden] = useState(false)
@@ -16,60 +23,75 @@ export function Nav() {
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     const previous = scrollY.getPrevious() ?? 0
-    if (latest > previous && latest > 150) {
-      setHidden(true)
-    } else {
-      setHidden(false)
-    }
-    setScrolled(latest > 50)
+    setHidden(latest > previous && latest > 200)
+    setScrolled(latest > 40)
   })
-
-  const links = [
-    { label: "Features", href: "#features" },
-    { label: "How It Works", href: "#journey" },
-    { label: "Download", href: "#download" },
-  ]
 
   return (
     <>
       <motion.header
         className="fixed top-0 left-0 right-0 z-50"
-        initial={{ y: 0 }}
-        animate={{ y: hidden ? -100 : 0 }}
-        transition={{ duration: 0.3 }}
+        initial={{ y: -80, opacity: 0 }}
+        animate={{ y: hidden ? -80 : 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       >
         <div
-          className={`transition-all duration-500 ${
-            scrolled
-              ? "py-3 bg-background/85 backdrop-blur-xl border-b border-border/50"
-              : "py-5"
-          }`}
+          className="transition-all duration-500"
+          style={{
+            paddingTop: scrolled ? "12px" : "20px",
+            paddingBottom: scrolled ? "12px" : "20px",
+            background: scrolled
+              ? "rgba(6, 15, 30, 0.88)"
+              : "transparent",
+            backdropFilter: scrolled ? "blur(20px)" : "none",
+            WebkitBackdropFilter: scrolled ? "blur(20px)" : "none",
+            borderBottom: scrolled ? "1px solid rgba(255,255,255,0.06)" : "none",
+          }}
         >
-          <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
             {/* Logo */}
             <a href="#" className="flex items-center gap-2.5 group">
-              <NextImage
-                src="/maliup-logo.png"
-                alt="Mali Up logo"
-                width={36}
-                height={36}
-                className="rounded-xl shadow-md transition-transform group-hover:scale-105"
-                priority
-              />
-              <span className="font-heading font-semibold text-foreground text-lg tracking-tight">
-                Mali<span className="text-accent">Up</span>
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
+                style={{ background: "rgba(212,165,116,0.12)", border: "1px solid rgba(212,165,116,0.2)" }}
+              >
+                <NextImage
+                  src="/maliup-logo.png"
+                  alt="Mali Up"
+                  width={24}
+                  height={24}
+                  className="rounded-lg"
+                  priority
+                />
+              </div>
+              <span
+                className="font-heading font-bold text-lg tracking-tight"
+                style={{ color: "rgba(255,255,255,0.95)" }}
+              >
+                Mali<span style={{ color: "#d4a574" }}>Up</span>
               </span>
             </a>
 
             {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-8" aria-label="Main navigation">
+            <nav className="hidden md:flex items-center gap-8">
               {links.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="nav-link text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm font-medium transition-colors relative group"
+                  style={{ color: "rgba(255,255,255,0.55)" }}
+                  onMouseEnter={(e) => {
+                    ;(e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.9)"
+                  }}
+                  onMouseLeave={(e) => {
+                    ;(e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)"
+                  }}
                 >
                   {link.label}
+                  <span
+                    className="absolute -bottom-0.5 left-0 w-0 h-px group-hover:w-full transition-all duration-300"
+                    style={{ background: "#d4a574" }}
+                  />
                 </a>
               ))}
             </nav>
@@ -77,21 +99,38 @@ export function Nav() {
             {/* Desktop CTAs */}
             <div className="hidden md:flex items-center gap-3">
               <button
-               onClick={() => setLoginOpen(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-foreground text-primary-foreground rounded-xl text-sm font-medium transition-all hover:scale-105 hover:shadow-lg"
+                onClick={() => setLoginOpen(true)}
+                className="text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                style={{ color: "rgba(255,255,255,0.55)" }}
+                onMouseEnter={(e) => {
+                  ;(e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.9)"
+                }}
+                onMouseLeave={(e) => {
+                  ;(e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)"
+                }}
               >
                 Sign in
               </button>
+              <a
+                href="#download"
+                className="btn-primary px-5 py-2.5 text-sm font-semibold"
+              >
+                Start Free
+              </a>
             </div>
 
             {/* Mobile menu button */}
             <button
-              className="md:hidden w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-foreground"
+              className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center transition-colors"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.8)",
+              }}
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
-              aria-expanded={menuOpen}
             >
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              {menuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
@@ -105,53 +144,57 @@ export function Nav() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="absolute inset-0 bg-foreground/20 backdrop-blur-sm"
+              className="absolute inset-0"
+              style={{ background: "rgba(2, 8, 18, 0.85)", backdropFilter: "blur(8px)" }}
               onClick={() => setMenuOpen(false)}
             />
             <motion.div
-              className="absolute top-20 left-4 right-4 bg-background rounded-2xl shadow-2xl border border-border p-6"
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              className="absolute top-20 left-4 right-4 rounded-2xl p-6"
+              style={{
+                background: "rgba(10, 22, 40, 0.96)",
+                backdropFilter: "blur(20px)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+              initial={{ opacity: 0, y: -12, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              exit={{ opacity: 0, y: -12, scale: 0.97 }}
+              transition={{ type: "spring", damping: 28, stiffness: 350 }}
             >
-              <nav className="flex flex-col gap-4">
+              <nav className="flex flex-col gap-1">
                 {links.map((link, i) => (
                   <motion.a
                     key={link.href}
                     href={link.href}
-                    className="text-lg font-medium text-foreground hover:text-accent transition-colors py-2"
-                    initial={{ opacity: 0, x: -20 }}
+                    className="text-base font-medium py-3 px-3 rounded-xl transition-colors"
+                    style={{ color: "rgba(255,255,255,0.65)" }}
+                    initial={{ opacity: 0, x: -16 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.08 }}
+                    transition={{ delay: i * 0.06 }}
                     onClick={() => setMenuOpen(false)}
                   >
                     {link.label}
                   </motion.a>
                 ))}
-
-                <div className="h-px bg-border my-1" />
-                <motion.button
-                  className="mt-1 flex items-center justify-center px-5 py-3 bg-foreground text-primary-foreground rounded-xl text-base font-medium"
-                  initial={{ opacity: 0, y: 16 }}
+                <div className="h-px my-2" style={{ background: "rgba(255,255,255,0.06)" }} />
+                <motion.a
+                  href="#download"
+                  className="btn-primary mt-1 py-3 text-center text-sm font-semibold"
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: (links.length + 1) * 0.08 }}
-                  onClick={() => {
-                    setMenuOpen(false)
-                    setLoginOpen(true)
-                  }}
+                  transition={{ delay: links.length * 0.06 + 0.05 }}
+                  onClick={() => setMenuOpen(false)}
                 >
-                  Sign In
-                </motion.button>
+                  Start Free
+                </motion.a>
               </nav>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Login modal */}
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </>
   )

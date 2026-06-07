@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/repositories/context_firestore_repository.dart';
 import '../../customer/data/customer_providers.dart';
+import '../../rbac/data/rbac_providers.dart';
 import '../domain/models/team_member.dart';
 
 final teamMembersProvider = StreamProvider<List<TeamMember>>((ref) async* {
@@ -11,6 +12,7 @@ final teamMembersProvider = StreamProvider<List<TeamMember>>((ref) async* {
     yield const [];
     return;
   }
+  final ownerUid = ref.watch(tenantOwnerUidProvider) ?? user.uid;
   final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
   if (bizId == null || bizId.isEmpty) {
     yield const [];
@@ -18,7 +20,7 @@ final teamMembersProvider = StreamProvider<List<TeamMember>>((ref) async* {
   }
   final repo = ref.read(contextFirestoreRepositoryProvider);
   yield* repo.watchTeamMembers(
-    uid: user.uid,
+    uid: ownerUid,
     context: ResolvedFinanceContext.business(bizId),
   );
 });

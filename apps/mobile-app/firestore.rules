@@ -32,6 +32,23 @@ service cloud.firestore {
       );
     }
 
+    // Returns true when the current user is an active team member of [tenantId]
+    // holding at least one of the given [permissions].
+    // The `let`-bound path avoids redundant get() calls per rule evaluation.
+    function isMemberWithAnyPermission(tenantId, permissions) {
+      let ref = /databases/$(database)/documents/tenants/$(tenantId)/memberAccess/$(request.auth.uid);
+      return isSignedIn() &&
+        exists(ref) &&
+        get(ref).data.status == 'active' &&
+        get(ref).data.permissions.hasAny(permissions);
+    }
+
+    // True when the caller is the tenant owner OR an active team member with
+    // at least one of the listed permissions.
+    function isOwnerOrMemberWithAny(tenantId, permissions) {
+      return isSignedIn() && (isOwner(tenantId) || isMemberWithAnyPermission(tenantId, permissions));
+    }
+
     // ── Validators ────────────────────────────────────────────────────────────
 
     // Customer (individual or organisation)
@@ -379,6 +396,15 @@ service cloud.firestore {
           isValidExpenseTemplate(request.resource.data);
       }
 
+      // memberAccess — flat permissions list written by the owner when a member
+      // accepts their invite. Doc ID equals the member's Firebase Auth UID so
+      // rules can check it via $(request.auth.uid) without an extra lookup.
+      match /memberAccess/{memberUid} {
+        allow read, write: if isSignedIn() && isOwner(tenantId);
+        // Members can read their own access doc (e.g. to show their permissions).
+        allow read: if isSignedIn() && request.auth.uid == memberUid;
+      }
+
       // Fallback for any other direct subcollection
       match /{collection}/{docId} {
         allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
@@ -392,37 +418,44 @@ service cloud.firestore {
           isValidBusinessCreate(request.resource.data, tenantId);
 
         match /customers/{customerId} {
-          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-          allow create: if isSignedIn() && isOwner(tenantId) &&
+          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewCustomers', 'manageCustomers']);
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers']) &&
             isValidCustomer(request.resource.data);
+          allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers']);
 
           match /notes/{noteId} {
-            allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+            allow read, create, update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers']);
           }
         }
 
         match /sales_invoices/{invoiceId} {
-          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-          allow create: if isSignedIn() && isOwner(tenantId) &&
+          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewSales', 'createSale']);
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['createSale']) &&
             isValidSaleInvoice(request.resource.data);
+          allow update: if isOwnerOrMemberWithAny(tenantId, ['editSale']);
+          allow delete: if isOwnerOrMemberWithAny(tenantId, ['deleteSale']);
         }
 
         match /inventory_items/{itemId} {
-          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-          allow create: if isSignedIn() && isOwner(tenantId) &&
+          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewInventory']);
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['addStock']) &&
             isValidInventoryItem(request.resource.data);
+          allow update: if isOwnerOrMemberWithAny(tenantId, ['editStock', 'adjustStock']);
+          allow delete: if isOwnerOrMemberWithAny(tenantId, ['deleteStock']);
         }
 
         match /expenses/{expenseId} {
-          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-          allow create: if isSignedIn() && isOwner(tenantId) &&
+          allow read: if isOwnerOrMemberWithAny(tenantId, ['manageExpenses']);
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['manageExpenses']) &&
             isValidExpense(request.resource.data);
+          allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageExpenses']);
         }
 
         match /cash_accounts/{accountId} {
-          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
+          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewCashFlow']);
           allow create: if isSignedIn() && isOwner(tenantId) &&
             isValidCashAccount(request.resource.data);
+          allow update, delete: if isSignedIn() && isOwner(tenantId);
         }
 
         match /budgets/{budgetId} {
@@ -457,6 +490,14 @@ service cloud.firestore {
         // is handled by the wildcard /{path=**}/team_members rule above).
         match /team_members/{memberId} {
           allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+          // Members can read their own record (role, status, permissions).
+          allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+        }
+
+        // Audit logs — owner writes and reads; team member operations are always
+        // performed via the owner session so no member write access needed.
+        match /audit_logs/{logId} {
+          allow read, create: if isSignedIn() && isOwner(tenantId);
         }
 
         // Fallback for any other subcollection (debts, etc.)
