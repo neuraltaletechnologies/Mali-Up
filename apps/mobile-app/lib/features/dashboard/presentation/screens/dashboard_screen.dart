@@ -70,7 +70,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String _timeBasedGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) return _tr('Good morning', 'Habari za asubuhi');
-    if (hour >= 12 && hour < 17) return _tr('Good afternoon', 'Habari za mchana');
+    if (hour >= 12 && hour < 17)
+      return _tr('Good afternoon', 'Habari za mchana');
     if (hour >= 17 && hour < 21) return _tr('Good evening', 'Habari za jioni');
     if (hour >= 21) return _tr('Good night', 'Usiku mwema');
     return _tr('Good midnight', 'Usiku wa manane mwema');
@@ -151,50 +152,67 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // ── Data ────────────────────────────────────────────────────────────────
     final permissions = ref.watch(permissionServiceProvider);
     final customers = ref.watch(customerListProvider);
-    final customerCount = customers.maybeWhen(data: (items) => items.length, orElse: () => 0);
+    final customerCount = customers.maybeWhen(
+      data: (items) => items.length,
+      orElse: () => 0,
+    );
     final AsyncValue<List<Expense>> expenses = ref.watch(expenseListProvider);
-    final AsyncValue<List<CashAccount>> cashAccounts = ref.watch(cashAccountListProvider);
-    final expenseItems = expenses.maybeWhen(data: (items) => items, orElse: () => const <Expense>[]);
-    final cashAccountItems = cashAccounts.maybeWhen(data: (items) => items, orElse: () => const <CashAccount>[]);
-    final totalExpenses = expenseItems.fold<double>(0, (t, e) => t + _numericValue(e.amount));
+    final AsyncValue<List<CashAccount>> cashAccounts = ref.watch(
+      cashAccountListProvider,
+    );
+    final expenseItems = expenses.maybeWhen(
+      data: (items) => items,
+      orElse: () => const <Expense>[],
+    );
+    final cashAccountItems = cashAccounts.maybeWhen(
+      data: (items) => items,
+      orElse: () => const <CashAccount>[],
+    );
+    final totalExpenses = expenseItems.fold<double>(
+      0,
+      (t, e) => t + _numericValue(e.amount),
+    );
     final totalCash = cashAccountItems.fold<double>(0, (t, a) => t + a.balance);
-    final salesItems = ref.watch(salesInvoiceListProvider).maybeWhen(
+    final salesItems = ref
+        .watch(salesInvoiceListProvider)
+        .maybeWhen(
           data: (items) => items,
           orElse: () => const <Map<String, dynamic>>[],
         );
-    final inventoryItems = ref.watch(inventoryItemListProvider).maybeWhen(
+    final inventoryItems = ref
+        .watch(inventoryItemListProvider)
+        .maybeWhen(
           data: (items) => items,
           orElse: () => const <Map<String, dynamic>>[],
         );
 
     // ── Revenue calculations ─────────────────────────────────────────────────
-    final todayRevenue   = _revenueForPeriod(salesItems, 0);
-    final weekRevenue    = _revenueForPeriod(salesItems, 6);
-    final monthRevenue   = _monthRevenue(salesItems);
-    final yearRevenue    = _yearRevenue(salesItems);
-    final yesterdayRevenue   = _revenueForRange(salesItems, 1, 1);
-    final lastWeekRevenue    = _revenueForRange(salesItems, 13, 7);
-    final lastMonthRevenue   = _revenueForLastMonth(salesItems);
+    final todayRevenue = _revenueForPeriod(salesItems, 0);
+    final weekRevenue = _revenueForPeriod(salesItems, 6);
+    final monthRevenue = _monthRevenue(salesItems);
+    final yearRevenue = _yearRevenue(salesItems);
+    final yesterdayRevenue = _revenueForRange(salesItems, 1, 1);
+    final lastWeekRevenue = _revenueForRange(salesItems, 13, 7);
+    final lastMonthRevenue = _revenueForLastMonth(salesItems);
 
     final selectedRevenue = switch (_selectedPeriod) {
       _DashPeriod.today => todayRevenue,
-      _DashPeriod.week  => weekRevenue,
+      _DashPeriod.week => weekRevenue,
       _DashPeriod.month => monthRevenue,
-      _DashPeriod.year  => yearRevenue,
+      _DashPeriod.year => yearRevenue,
     };
     final comparisonRevenue = switch (_selectedPeriod) {
       _DashPeriod.today => yesterdayRevenue,
-      _DashPeriod.week  => lastWeekRevenue,
+      _DashPeriod.week => lastWeekRevenue,
       _DashPeriod.month => lastMonthRevenue,
-      _DashPeriod.year  => 0.0,
+      _DashPeriod.year => 0.0,
     };
     final periodChange = comparisonRevenue > 0
         ? ((selectedRevenue - comparisonRevenue) / comparisonRevenue * 100)
         : (selectedRevenue > 0 ? 100.0 : 0.0);
 
-    // ── Profit & margin ──────────────────────────────────────────────────────
-    final netProfit    = monthRevenue - totalExpenses;
-    final profitMargin = monthRevenue > 0 ? netProfit / monthRevenue * 100 : 0.0;
+    // ── Profit snapshot inputs ──────────────────────────────────────────────
+    final netProfit = monthRevenue - totalExpenses;
 
     // ── Receivables ──────────────────────────────────────────────────────────
     final now = DateTime.now();
@@ -203,7 +221,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return s == 'unpaid' || s == 'partial';
     }).toList();
     final totalOutstanding = unpaidSales.fold<double>(0, (sum, inv) {
-      final amt  = parseNumericAmount(inv['amount']);
+      final amt = parseNumericAmount(inv['amount']);
       final paid = parseNumericAmount(inv['amountPaid']);
       return sum + (amt - paid).clamp(0.0, amt);
     });
@@ -213,30 +231,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final d = readTimestamp(inv['createdAt']);
       if (d == null) continue;
       final age = now.difference(d).inDays;
-      final balance = parseNumericAmount(inv['amount']) - parseNumericAmount(inv['amountPaid']);
+      final balance =
+          parseNumericAmount(inv['amount']) -
+          parseNumericAmount(inv['amountPaid']);
       if (age > 30) overdueCount++;
-      if (age <= 30)        aging30     += balance;
-      else if (age <= 60)   aging60     += balance;
-      else                  aging90plus += balance;
+      if (age <= 30)
+        aging30 += balance;
+      else if (age <= 60)
+        aging60 += balance;
+      else
+        aging90plus += balance;
     }
 
     // ── Low stock ────────────────────────────────────────────────────────────
     final lowStockItems = inventoryItems.where((item) {
-      final stock   = parseStock(item['currentStock'] ?? item['stock']);
+      final stock = parseStock(item['currentStock'] ?? item['stock']);
       final reorder = parseStock(item['reorderPoint'] ?? 5);
       return stock <= reorder;
     }).toList();
 
     // ── Chart data ───────────────────────────────────────────────────────────
-    final chartData   = _buildChartData(salesItems);
-    final chartSpots  = chartData.spots;
+    final chartData = _buildChartData(salesItems);
+    final chartSpots = chartData.spots;
     final dailyValues = chartData.dailyValues;
 
     // ── Date label ───────────────────────────────────────────────────────────
-    final weekdays   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    final weekdaysSw = ['Jt3','Jn4','Jt5','Alh','Ijm','Jm1','Jp2'];
-    final months     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    final dateLabel  = '${_tr(weekdays[now.weekday - 1], weekdaysSw[now.weekday - 1])}, ${now.day} ${months[now.month - 1]}';
+    final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final weekdaysSw = ['Jt3', 'Jn4', 'Jt5', 'Alh', 'Ijm', 'Jm1', 'Jp2'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final dateLabel =
+        '${_tr(weekdays[now.weekday - 1], weekdaysSw[now.weekday - 1])}, ${now.day} ${months[now.month - 1]}';
 
     // ── Insights ─────────────────────────────────────────────────────────────
     final insights = _generateInsights(
@@ -278,22 +315,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               children: [
                                 Text(
                                   dateLabel,
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textMuted,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 0.4,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.textMuted,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        letterSpacing: 0.4,
+                                      ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '${_timeBasedGreeting()}, ${_displayName(snapshot.data)} 👋',
-                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.secondary,
-                                    height: 1.2,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.secondary,
+                                        height: 1.2,
+                                      ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
@@ -301,10 +342,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     "Here's your business at a glance",
                                     'Muhtasari wa biashara yako leo',
                                   ),
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textMuted,
-                                    fontSize: 13,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.textMuted,
+                                        fontSize: 13,
+                                      ),
                                 ),
                               ],
                             ),
@@ -339,11 +381,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       children: [
                         Text(
                           _tr('Quick Access', 'Ufikiaji wa Haraka'),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.secondary,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.secondary,
+                              ),
                         ),
                       ],
                     ),
@@ -359,18 +402,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         revenue: selectedRevenue,
                         comparisonRevenue: comparisonRevenue,
                         periodChange: periodChange,
-                        onPeriodChanged: (p) => setState(() => _selectedPeriod = p),
+                        onPeriodChanged: (p) =>
+                            setState(() => _selectedPeriod = p),
                       ),
                       const SizedBox(height: 16),
-                    ],
-
-                    // ── Profit snapshot ──────────────────────────────────
-                    if (permissions.canViewFinancialReports || permissions.isOwner) ...[
-                      _ProfitSnapshotCard(
-                        netProfit: netProfit,
-                        profitMargin: profitMargin,
-                      ),
-                      const SizedBox(height: 24),
                     ],
 
                     // ── Outstanding receivables ──────────────────────────
@@ -397,26 +432,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               children: [
                                 Text(
                                   _tr('Sales Performance', 'Utendaji wa Mauzo'),
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.secondary,
-                                  ),
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.secondary,
+                                      ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   _tr('Last 7 days', 'Siku 7 zilizopita'),
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textMuted,
-                                    fontSize: 12,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.textMuted,
+                                        fontSize: 12,
+                                      ),
                                 ),
                               ],
                             ),
                           ),
-                          _ChangeBadge(change: lastWeekRevenue > 0
-                              ? ((weekRevenue - lastWeekRevenue) / lastWeekRevenue * 100)
-                              : (weekRevenue > 0 ? 100.0 : 0.0)),
+                          _ChangeBadge(
+                            change: lastWeekRevenue > 0
+                                ? ((weekRevenue - lastWeekRevenue) /
+                                      lastWeekRevenue *
+                                      100)
+                                : (weekRevenue > 0 ? 100.0 : 0.0),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -533,7 +574,9 @@ class _ChangeBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isPositive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+            isPositive
+                ? Icons.arrow_upward_rounded
+                : Icons.arrow_downward_rounded,
             size: 10,
             color: color,
           ),
@@ -569,18 +612,18 @@ class _RevenueSnapshotCard extends StatelessWidget {
   });
 
   String _periodLabel(_DashPeriod p) => switch (p) {
-        _DashPeriod.today => _tr('Today', 'Leo'),
-        _DashPeriod.week  => _tr('Week', 'Wiki'),
-        _DashPeriod.month => _tr('Month', 'Mwezi'),
-        _DashPeriod.year  => _tr('Year', 'Mwaka'),
-      };
+    _DashPeriod.today => _tr('Today', 'Leo'),
+    _DashPeriod.week => _tr('Week', 'Wiki'),
+    _DashPeriod.month => _tr('Month', 'Mwezi'),
+    _DashPeriod.year => _tr('Year', 'Mwaka'),
+  };
 
   String _comparisonLabel(_DashPeriod p) => switch (p) {
-        _DashPeriod.today => _tr('vs yesterday', 'vs jana'),
-        _DashPeriod.week  => _tr('vs last week', 'vs wiki iliyopita'),
-        _DashPeriod.month => _tr('vs last month', 'vs mwezi uliopita'),
-        _DashPeriod.year  => '',
-      };
+    _DashPeriod.today => _tr('vs yesterday', 'vs jana'),
+    _DashPeriod.week => _tr('vs last week', 'vs wiki iliyopita'),
+    _DashPeriod.month => _tr('vs last month', 'vs mwezi uliopita'),
+    _DashPeriod.year => '',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +660,10 @@ class _RevenueSnapshotCard extends StatelessWidget {
                     onTap: () => onPeriodChanged(p),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
                         color: selected
                             ? AppColors.navyPrimary
@@ -719,122 +765,6 @@ class _RevenueSnapshotCard extends StatelessWidget {
   }
 }
 
-// ── Profit Snapshot Card ──────────────────────────────────────────────────────
-class _ProfitSnapshotCard extends StatelessWidget {
-  final double netProfit;
-  final double profitMargin;
-
-  const _ProfitSnapshotCard({
-    required this.netProfit,
-    required this.profitMargin,
-  });
-
-  String _healthLabel(double margin) {
-    if (margin >= 30) return _tr('Excellent', 'Bora Sana');
-    if (margin >= 15) return _tr('Healthy', 'Nzuri');
-    if (margin >= 0)  return _tr('Needs Attention', 'Inahitaji Umakini');
-    return _tr('Loss', 'Hasara');
-  }
-
-  Color _healthColor(double margin) {
-    if (margin >= 30) return AppColors.success;
-    if (margin >= 15) return AppColors.tealAccent;
-    if (margin >= 0)  return AppColors.warning;
-    return AppColors.error;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isProfit = netProfit >= 0;
-    final amountColor = isProfit ? AppColors.success : AppColors.error;
-    final healthColor = _healthColor(profitMargin);
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowCard,
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tr('Net Profit (This Month)', 'Faida Halisi (Mwezi Huu)'),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${isProfit ? '+' : ''}${_fmtAmount(netProfit)}',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: amountColor,
-                    height: 1.0,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${_tr('Margin', 'Asilimia')}: ${profitMargin.toStringAsFixed(1)}%',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: healthColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: healthColor.withValues(alpha: 0.25)),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  profitMargin >= 15
-                      ? Icons.check_circle_rounded
-                      : profitMargin >= 0
-                          ? Icons.info_rounded
-                          : Icons.warning_rounded,
-                  color: healthColor,
-                  size: 20,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _healthLabel(profitMargin),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: healthColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Outstanding Receivables Card ──────────────────────────────────────────────
 class _OutstandingReceivablesCard extends StatelessWidget {
   final double totalOutstanding;
@@ -862,7 +792,11 @@ class _OutstandingReceivablesCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
         boxShadow: [
-          BoxShadow(color: AppColors.shadowCard, blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -898,11 +832,16 @@ class _OutstandingReceivablesCard extends StatelessWidget {
               ),
               if (overdueCount > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -964,8 +903,13 @@ class _OutstandingReceivablesCard extends StatelessWidget {
                 foregroundColor: AppColors.navyPrimary,
                 side: const BorderSide(color: AppColors.border),
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                textStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ),
@@ -980,7 +924,11 @@ class _AgingChip extends StatelessWidget {
   final double amount;
   final Color color;
 
-  const _AgingChip({required this.label, required this.amount, required this.color});
+  const _AgingChip({
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -995,11 +943,22 @@ class _AgingChip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(
             _fmtCompactAmount(amount),
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -1017,13 +976,15 @@ class _CashPositionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Group by type
-    final cash   = accounts.where((a) => a.type.toLowerCase() == 'cash').toList();
-    final mpesa  = accounts.where((a) => a.type.toLowerCase().contains('mobile')).toList();
-    final bank   = accounts.where((a) => a.type.toLowerCase() == 'bank').toList();
+    final cash = accounts.where((a) => a.type.toLowerCase() == 'cash').toList();
+    final mpesa = accounts
+        .where((a) => a.type.toLowerCase().contains('mobile'))
+        .toList();
+    final bank = accounts.where((a) => a.type.toLowerCase() == 'bank').toList();
 
-    final cashTotal  = cash.fold(0.0,  (s, a) => s + a.balance);
+    final cashTotal = cash.fold(0.0, (s, a) => s + a.balance);
     final mpesaTotal = mpesa.fold(0.0, (s, a) => s + a.balance);
-    final bankTotal  = bank.fold(0.0,  (s, a) => s + a.balance);
+    final bankTotal = bank.fold(0.0, (s, a) => s + a.balance);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1032,7 +993,11 @@ class _CashPositionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
         boxShadow: [
-          BoxShadow(color: AppColors.shadowCard, blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -1040,8 +1005,11 @@ class _CashPositionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.account_balance_wallet_rounded,
-                  size: 16, color: AppColors.tealAccent),
+              const Icon(
+                Icons.account_balance_wallet_rounded,
+                size: 16,
+                color: AppColors.tealAccent,
+              ),
               const SizedBox(width: 7),
               Text(
                 _tr('Cash Position', 'Hali ya Fedha'),
@@ -1127,13 +1095,21 @@ class _CashChip extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
               Text(
                 _fmtCompactAmount(amount),
                 style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w800, color: color),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -1176,8 +1152,11 @@ class _BusinessInsightsCard extends StatelessWidget {
                   color: AppColors.navyPrimary,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded,
-                    size: 14, color: AppColors.yellowBrand),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 14,
+                  color: AppColors.yellowBrand,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
@@ -1245,15 +1224,31 @@ class _DashboardHeroSkeleton extends StatelessWidget {
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ShimmerBox(width: 100, height: 12, borderRadius: BorderRadius.all(Radius.circular(999))),
+          ShimmerBox(
+            width: 100,
+            height: 12,
+            borderRadius: BorderRadius.all(Radius.circular(999)),
+          ),
           SizedBox(height: 12),
-          ShimmerBox(width: 180, height: 28, borderRadius: BorderRadius.all(Radius.circular(8))),
+          ShimmerBox(
+            width: 180,
+            height: 28,
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+          ),
           SizedBox(height: 16),
           Row(
             children: [
-              ShimmerBox(width: 80, height: 10, borderRadius: BorderRadius.all(Radius.circular(999))),
+              ShimmerBox(
+                width: 80,
+                height: 10,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
               SizedBox(width: 24),
-              ShimmerBox(width: 80, height: 10, borderRadius: BorderRadius.all(Radius.circular(999))),
+              ShimmerBox(
+                width: 80,
+                height: 10,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
             ],
           ),
         ],
@@ -1273,14 +1268,26 @@ class _DashboardHeaderSkeleton extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ShimmerBox(width: 220, height: 18, borderRadius: BorderRadius.all(Radius.circular(999))),
+              ShimmerBox(
+                width: 220,
+                height: 18,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
               SizedBox(height: 10),
-              ShimmerBox(width: 260, height: 12, borderRadius: BorderRadius.all(Radius.circular(999))),
+              ShimmerBox(
+                width: 260,
+                height: 12,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
             ],
           ),
         ),
         SizedBox(width: 10),
-        ShimmerBox(width: 72, height: 72, borderRadius: BorderRadius.all(Radius.circular(18))),
+        ShimmerBox(
+          width: 72,
+          height: 72,
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+        ),
       ],
     );
   }
@@ -1316,14 +1323,20 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
 
   @override
   Widget build(BuildContext context) {
-    final name       = widget.businessName ?? _tr('My Business', 'Biashara yangu');
-    final initial    = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
-    final amountText = _detailsVisible ? _fmtCompactAmount(widget.totalCash) : '••••••••';
+    final name = widget.businessName ?? _tr('My Business', 'Biashara yangu');
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
+    final amountText = _detailsVisible
+        ? _fmtCompactAmount(widget.totalCash)
+        : '••••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
-    final expText    = _detailsVisible ? _fmtCompactAmount(widget.totalExpenses) : '••••';
-    final net        = widget.totalCash - widget.totalExpenses;
-    final netText    = _detailsVisible ? _fmtCompactAmount(net) : '••••';
-    final netColor   = net >= 0 ? const Color(0xFF34D399) : const Color(0xFFF87171);
+    final expText = _detailsVisible
+        ? _fmtCompactAmount(widget.totalExpenses)
+        : '••••';
+    final net = widget.totalCash - widget.totalExpenses;
+    final netText = _detailsVisible ? _fmtCompactAmount(net) : '••••';
+    final netColor = net >= 0
+        ? const Color(0xFF34D399)
+        : const Color(0xFFF87171);
 
     return Center(
       child: ConstrainedBox(
@@ -1357,9 +1370,11 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
             child: Stack(
               children: [
                 Positioned(
-                  right: -60, top: -60,
+                  right: -60,
+                  top: -60,
                   child: Container(
-                    width: 220, height: 220,
+                    width: 220,
+                    height: 220,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white.withValues(alpha: 0.035),
@@ -1367,9 +1382,11 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                   ),
                 ),
                 Positioned(
-                  left: -35, bottom: -35,
+                  left: -35,
+                  bottom: -35,
                   child: Container(
-                    width: 160, height: 160,
+                    width: 160,
+                    height: 160,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.yellowBrand.withValues(alpha: 0.07),
@@ -1377,7 +1394,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                   ),
                 ),
                 Positioned(
-                  top: 0, left: 0, right: 0,
+                  top: 0,
+                  left: 0,
+                  right: 0,
                   child: Container(
                     height: 1.5,
                     decoration: BoxDecoration(
@@ -1414,7 +1433,10 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                   ),
                                 ),
                                 Text(
-                                  _tr('Business Account', 'Akaunti ya Biashara'),
+                                  _tr(
+                                    'Business Account',
+                                    'Akaunti ya Biashara',
+                                  ),
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.48),
                                     fontSize: 8.5,
@@ -1425,7 +1447,8 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                             ),
                           ),
                           Container(
-                            width: 42, height: 42,
+                            width: 42,
+                            height: 42,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: AppColors.yellowBrand,
@@ -1435,14 +1458,18 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.yellowBrand.withValues(alpha: 0.35),
+                                  color: AppColors.yellowBrand.withValues(
+                                    alpha: 0.35,
+                                  ),
                                   blurRadius: 10,
                                   offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
                             clipBehavior: Clip.antiAlias,
-                            child: widget.logoUrl != null && widget.logoUrl!.isNotEmpty
+                            child:
+                                widget.logoUrl != null &&
+                                    widget.logoUrl!.isNotEmpty
                                 ? Image.network(
                                     widget.logoUrl!,
                                     fit: BoxFit.cover,
@@ -1473,7 +1500,10 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                 AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 260),
                                   transitionBuilder: (child, anim) =>
-                                      FadeTransition(opacity: anim, child: child),
+                                      FadeTransition(
+                                        opacity: anim,
+                                        child: child,
+                                      ),
                                   child: Text(
                                     amountText,
                                     key: ValueKey(_detailsVisible),
@@ -1490,7 +1520,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () => setState(() => _detailsVisible = !_detailsVisible),
+                            onTap: () => setState(
+                              () => _detailsVisible = !_detailsVisible,
+                            ),
                             child: Container(
                               padding: const EdgeInsets.all(7),
                               decoration: BoxDecoration(
@@ -1525,20 +1557,35 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                         padding: const EdgeInsets.only(top: 8),
                         decoration: BoxDecoration(
                           border: Border(
-                            top: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+                            top: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.12),
+                            ),
                           ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _CardStatItem(label: _tr('Clients', 'Wateja'), value: clientsText),
-                            Container(width: 1, height: 22, color: Colors.white.withValues(alpha: 0.12)),
+                            _CardStatItem(
+                              label: _tr('Clients', 'Wateja'),
+                              value: clientsText,
+                            ),
+                            Container(
+                              width: 1,
+                              height: 22,
+                              color: Colors.white.withValues(alpha: 0.12),
+                            ),
                             _CardStatItem(
                               label: _tr('Expenses', 'Gharama'),
                               value: expText,
-                              color: expText == '••••' ? null : const Color(0xFFF87171),
+                              color: expText == '••••'
+                                  ? null
+                                  : const Color(0xFFF87171),
                             ),
-                            Container(width: 1, height: 22, color: Colors.white.withValues(alpha: 0.12)),
+                            Container(
+                              width: 1,
+                              height: 22,
+                              color: Colors.white.withValues(alpha: 0.12),
+                            ),
                             _CardStatItem(
                               label: _tr('Net', 'Faida'),
                               value: netText,
@@ -1587,7 +1634,8 @@ class _CardChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 42, height: 32,
+      width: 42,
+      height: 32,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFCFA23A), Color(0xFFEDC84A), Color(0xFFAF8520)],
@@ -1677,9 +1725,27 @@ class _ModuleGrid extends StatelessWidget {
   const _ModuleGrid({required this.showHeavyContent});
 
   static const _modules = [
-    (icon: Icons.payments_rounded, labelEn: 'Gharama zangu', labelSw: 'Gharama zangu', color: Color(0xFFD97706), route: AppRouter.expensesPath),
-    (icon: Icons.account_balance_rounded, labelEn: 'Madeni', labelSw: 'Madeni', color: Color(0xFFDC2626), route: AppRouter.debtPath),
-    (icon: Icons.account_balance_wallet_rounded, labelEn: 'Mtiririko wa Fedha', labelSw: 'Mtiririko wa Fedha', color: Color(0xFF7C3AED), route: AppRouter.cashFlowPath),
+    (
+      icon: Icons.payments_rounded,
+      labelEn: 'Gharama zangu',
+      labelSw: 'Gharama zangu',
+      color: Color(0xFFD97706),
+      route: AppRouter.expensesPath,
+    ),
+    (
+      icon: Icons.account_balance_rounded,
+      labelEn: 'Madeni',
+      labelSw: 'Madeni',
+      color: Color(0xFFDC2626),
+      route: AppRouter.debtPath,
+    ),
+    (
+      icon: Icons.account_balance_wallet_rounded,
+      labelEn: 'Mtiririko wa Fedha',
+      labelSw: 'Mtiririko wa Fedha',
+      color: Color(0xFF7C3AED),
+      route: AppRouter.cashFlowPath,
+    ),
   ];
 
   @override
@@ -1697,7 +1763,7 @@ class _ModuleGrid extends StatelessWidget {
           if (!showHeavyContent) return const _HorizontalModuleSkeleton();
 
           final module = _modules[index];
-          final label  = _tr(module.labelEn, module.labelSw);
+          final label = _tr(module.labelEn, module.labelSw);
           return SizedBox(
             width: 106,
             child: Material(
@@ -1731,13 +1797,20 @@ class _ModuleGrid extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          width: 36, height: 36,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             color: module.color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: module.color.withValues(alpha: 0.15)),
+                            border: Border.all(
+                              color: module.color.withValues(alpha: 0.15),
+                            ),
                           ),
-                          child: Icon(module.icon, size: 18, color: module.color),
+                          child: Icon(
+                            module.icon,
+                            size: 18,
+                            color: module.color,
+                          ),
                         ),
                         Text(
                           label,
@@ -1787,10 +1860,7 @@ class _HorizontalModuleSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 106,
-      child: ShimmerBox(height: 108),
-    );
+    return const SizedBox(width: 106, child: ShimmerBox(height: 108));
   }
 }
 
@@ -1827,11 +1897,22 @@ class _SalesLineChart extends StatelessWidget {
               showTitles: true,
               interval: 1,
               getTitlesWidget: (value, meta) {
-                final now  = DateTime.now();
-                final date = DateTime(now.year, now.month, now.day)
-                    .subtract(Duration(days: 6 - value.toInt()));
-                const days   = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                const daysSw = ['Jt3', 'Jn4', 'Jt5', 'Alh', 'Ijm', 'Jm1', 'Jp2'];
+                final now = DateTime.now();
+                final date = DateTime(
+                  now.year,
+                  now.month,
+                  now.day,
+                ).subtract(Duration(days: 6 - value.toInt()));
+                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                const daysSw = [
+                  'Jt3',
+                  'Jn4',
+                  'Jt5',
+                  'Alh',
+                  'Ijm',
+                  'Jm1',
+                  'Jp2',
+                ];
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
@@ -1910,7 +1991,11 @@ class _ChartLegendRow extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _LegendChip(label: 'Sales / Mauzo', color: AppColors.primary, selected: true),
+        _LegendChip(
+          label: 'Sales / Mauzo',
+          color: AppColors.primary,
+          selected: true,
+        ),
       ],
     );
   }
@@ -1921,7 +2006,11 @@ class _LegendChip extends StatelessWidget {
   final Color color;
   final bool selected;
 
-  const _LegendChip({required this.label, required this.color, required this.selected});
+  const _LegendChip({
+    required this.label,
+    required this.color,
+    required this.selected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1945,7 +2034,8 @@ class _LegendChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 8, height: 8,
+              width: 8,
+              height: 8,
               decoration: BoxDecoration(
                 color: selected ? color : color.withValues(alpha: 0.45),
                 shape: BoxShape.circle,
@@ -1982,8 +2072,12 @@ class _LowStockAlertsSection extends StatelessWidget {
         Row(
           children: [
             Container(
-              width: 6, height: 6,
-              decoration: const BoxDecoration(color: AppColors.warning, shape: BoxShape.circle),
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: AppColors.warning,
+                shape: BoxShape.circle,
+              ),
             ),
             const SizedBox(width: 6),
             Text(
@@ -2037,12 +2131,12 @@ class _LowStockAlertsSection extends StatelessWidget {
             itemCount: items.length,
             separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
-              final item    = items[index];
-              final name    = (item['name'] ?? '').toString();
-              final stock   = parseStock(item['currentStock'] ?? item['stock']);
+              final item = items[index];
+              final name = (item['name'] ?? '').toString();
+              final stock = parseStock(item['currentStock'] ?? item['stock']);
               final reorder = parseStock(item['reorderPoint'] ?? 5);
-              final unit    = (item['unit'] ?? 'pcs').toString();
-              final isOut   = stock <= 0;
+              final unit = (item['unit'] ?? 'pcs').toString();
+              final isOut = stock <= 0;
               final alertColor = isOut ? AppColors.error : AppColors.warning;
 
               return InkWell(
@@ -2054,7 +2148,9 @@ class _LowStockAlertsSection extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: alertColor.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: alertColor.withValues(alpha: 0.25)),
+                    border: Border.all(
+                      color: alertColor.withValues(alpha: 0.25),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2071,7 +2167,9 @@ class _LowStockAlertsSection extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isOut ? _tr('Out', 'Imekwisha') : _tr('Low', 'Ndogo'),
+                            isOut
+                                ? _tr('Out', 'Imekwisha')
+                                : _tr('Low', 'Ndogo'),
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
@@ -2093,7 +2191,10 @@ class _LowStockAlertsSection extends StatelessWidget {
                       ),
                       Text(
                         '$stock / $reorder $unit',
-                        style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -2147,14 +2248,16 @@ class _TopPerformersSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final products = (_topProducts().entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(3)
-        .toList();
-    final customers = (_topCustomers().entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(3)
-        .toList();
+    final products =
+        (_topProducts().entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value)))
+            .take(3)
+            .toList();
+    final customers =
+        (_topCustomers().entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value)))
+            .take(3)
+            .toList();
 
     if (products.isEmpty && customers.isEmpty) return const SizedBox.shrink();
 
@@ -2185,7 +2288,8 @@ class _TopPerformersSection extends StatelessWidget {
             color: AppColors.tealAccent,
             entries: products,
           ),
-        if (products.isNotEmpty && customers.isNotEmpty) const SizedBox(height: 10),
+        if (products.isNotEmpty && customers.isNotEmpty)
+          const SizedBox(height: 10),
         if (customers.isNotEmpty)
           _PerformerSubsection(
             icon: Icons.star_outline_rounded,
@@ -2231,7 +2335,11 @@ class _PerformerSubsection extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -2244,9 +2352,11 @@ class _PerformerSubsection extends StatelessWidget {
               itemCount: entries.length,
               separatorBuilder: (_, _) => const SizedBox(width: 10),
               itemBuilder: (context, index) {
-                final rank  = index + 1;
+                final rank = index + 1;
                 final entry = entries[index];
-                final pct   = maxVal > 0 ? (entry.value / maxVal).clamp(0.0, 1.0) : 0.0;
+                final pct = maxVal > 0
+                    ? (entry.value / maxVal).clamp(0.0, 1.0)
+                    : 0.0;
                 return Container(
                   width: 240,
                   padding: const EdgeInsets.all(12),
@@ -2263,7 +2373,10 @@ class _PerformerSubsection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: color.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
@@ -2307,7 +2420,9 @@ class _PerformerSubsection extends StatelessWidget {
                             child: LinearProgressIndicator(
                               value: pct,
                               backgroundColor: color.withValues(alpha: 0.12),
-                              valueColor: AlwaysStoppedAnimation(color.withValues(alpha: 0.65)),
+                              valueColor: AlwaysStoppedAnimation(
+                                color.withValues(alpha: 0.65),
+                              ),
                               minHeight: 4,
                             ),
                           ),
@@ -2350,30 +2465,32 @@ class _RecentTransactionsList extends StatelessWidget {
   List<Map<String, dynamic>> get _sortedItems {
     final result = <Map<String, dynamic>>[];
     for (final inv in salesItems) {
-      final date   = readTimestamp(inv['createdAt']);
+      final date = readTimestamp(inv['createdAt']);
       final amount = parseNumericAmount(inv['amount']);
       final customer = (inv['customerName'] ?? '').toString().trim();
       result.add({
-        'kind':     'sale',
-        'title':    customer.isEmpty ? _tr('Walk-in', 'Mteja wa kawaida') : customer,
+        'kind': 'sale',
+        'title': customer.isEmpty
+            ? _tr('Walk-in', 'Mteja wa kawaida')
+            : customer,
         'subtitle': (inv['invoiceNumber'] ?? _tr('Sale', 'Mauzo')).toString(),
-        'amount':   '+${_fmtCompactAmount(amount)}',
-        'date':     date,
+        'amount': '+${_fmtCompactAmount(amount)}',
+        'date': date,
       });
     }
     for (final expense in expenses) {
-      final amount   = _numericValue(expense.amount);
+      final amount = _numericValue(expense.amount);
       final category = (expense.category as String?)?.trim().isNotEmpty == true
           ? expense.category as String
           : _tr('Expense', 'Matumizi');
       final dateStr = (expense.date as String?)?.trim() ?? '';
-      final date    = DateTime.tryParse(dateStr);
+      final date = DateTime.tryParse(dateStr);
       result.add({
-        'kind':     'expense',
-        'title':    category,
+        'kind': 'expense',
+        'title': category,
         'subtitle': '${_tr('Expense', 'Matumizi')}  $dateStr',
-        'amount':   '-${_fmtCompactAmount(amount)}',
-        'date':     date,
+        'amount': '-${_fmtCompactAmount(amount)}',
+        'date': date,
       });
     }
     result.sort((a, b) {
@@ -2389,10 +2506,10 @@ class _RecentTransactionsList extends StatelessWidget {
 
   String _groupLabel(DateTime? date) {
     if (date == null) return _tr('Earlier', 'Mapema');
-    final now   = DateTime.now();
+    final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final d     = DateTime(date.year, date.month, date.day);
-    final diff  = today.difference(d).inDays;
+    final d = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(d).inDays;
     if (diff == 0) return _tr('Today', 'Leo');
     if (diff == 1) return _tr('Yesterday', 'Jana');
     if (diff <= 7) return _tr('This Week', 'Wiki Hii');
@@ -2452,8 +2569,11 @@ class _RecentTransactionsList extends StatelessWidget {
             alignment: Alignment.center,
             child: Column(
               children: [
-                Icon(Icons.receipt_long_outlined,
-                    size: 36, color: AppColors.textDisabled),
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 36,
+                  color: AppColors.textDisabled,
+                ),
                 const SizedBox(height: 10),
                 Text(
                   _tr(
@@ -2492,8 +2612,8 @@ class _RecentTransactionsList extends StatelessWidget {
                 );
               }
 
-              final isSale     = row['kind'] == 'sale';
-              final amountStr  = row['amount'] as String;
+              final isSale = row['kind'] == 'sale';
+              final amountStr = row['amount'] as String;
               final isPositive = amountStr.startsWith('+');
 
               return Padding(
@@ -2505,13 +2625,17 @@ class _RecentTransactionsList extends StatelessWidget {
                     border: Border.all(color: AppColors.border),
                   ),
                   child: ListTile(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 2,
+                    ),
                     leading: Container(
-                      width: 38, height: 38,
+                      width: 38,
+                      height: 38,
                       decoration: BoxDecoration(
-                        color: (isPositive ? AppColors.success : AppColors.error)
-                            .withValues(alpha: 0.1),
+                        color:
+                            (isPositive ? AppColors.success : AppColors.error)
+                                .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(11),
                       ),
                       child: Icon(
@@ -2570,7 +2694,9 @@ class _WebsiteInterestSheetState extends State<_WebsiteInterestSheet> {
   @override
   Widget build(BuildContext context) {
     if (_showForm) {
-      return _WebsiteRequirementsForm(onDone: () => Navigator.of(context).pop());
+      return _WebsiteRequirementsForm(
+        onDone: () => Navigator.of(context).pop(),
+      );
     }
     return _WebsiteNudgeBanner(
       onGetStarted: () => setState(() => _showForm = true),
@@ -2580,7 +2706,10 @@ class _WebsiteInterestSheetState extends State<_WebsiteInterestSheet> {
 }
 
 class _WebsiteNudgeBanner extends StatelessWidget {
-  const _WebsiteNudgeBanner({required this.onGetStarted, required this.onDismiss});
+  const _WebsiteNudgeBanner({
+    required this.onGetStarted,
+    required this.onDismiss,
+  });
 
   final VoidCallback onGetStarted;
   final VoidCallback onDismiss;
@@ -2591,16 +2720,28 @@ class _WebsiteNudgeBanner extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 24, offset: Offset(0, -4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 24,
+            offset: Offset(0, -4),
+          ),
+        ],
       ),
-      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        20,
+        24,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
             child: Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
                 color: AppColors.border,
@@ -2609,16 +2750,24 @@ class _WebsiteNudgeBanner extends StatelessWidget {
             ),
           ),
           Container(
-            width: 52, height: 52,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: AppColors.navyPrimary,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.language_rounded, color: AppColors.yellowBrand, size: 26),
+            child: const Icon(
+              Icons.language_rounded,
+              color: AppColors.yellowBrand,
+              size: 26,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
-            _tr("Let's build you a website for your business?", 'Tujenge tovuti ya biashara yako?'),
+            _tr(
+              "Let's build you a website for your business?",
+              'Tujenge tovuti ya biashara yako?',
+            ),
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
@@ -2633,7 +2782,11 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               'Get a professional website designed for your business and start reaching more customers online.',
               'Pata tovuti ya kitaalamu iliyoundwa kwa biashara yako na uanze kufikia wateja zaidi mtandaoni.',
             ),
-            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.55),
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.55,
+            ),
           ),
           const SizedBox(height: 28),
           SizedBox(
@@ -2644,12 +2797,17 @@ class _WebsiteNudgeBanner extends StatelessWidget {
                 backgroundColor: AppColors.navyPrimary,
                 foregroundColor: AppColors.yellowBrand,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: onGetStarted,
               child: Text(
                 _tr('Get Started', 'Anza Sasa'),
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
               ),
             ),
           ),
@@ -2659,7 +2817,11 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               onPressed: onDismiss,
               child: Text(
                 _tr('Maybe Later', 'Labda Baadaye'),
-                style: const TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -2675,13 +2837,14 @@ class _WebsiteRequirementsForm extends StatefulWidget {
   final VoidCallback onDone;
 
   @override
-  State<_WebsiteRequirementsForm> createState() => _WebsiteRequirementsFormState();
+  State<_WebsiteRequirementsForm> createState() =>
+      _WebsiteRequirementsFormState();
 }
 
 class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
   final _notesCtrl = TextEditingController();
   bool _submitting = false;
-  bool _submitted  = false;
+  bool _submitted = false;
 
   @override
   void dispose() {
@@ -2691,38 +2854,72 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
 
   Future<void> _submit() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) { widget.onDone(); return; }
+    if (user == null) {
+      widget.onDone();
+      return;
+    }
     setState(() => _submitting = true);
     try {
       String personName = '', businessName = '', businessType = '', phone = '';
       try {
-        final doc  = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
         final data = doc.data() ?? {};
-        personName   = ((data['displayName'] ?? data['name']) as String?)?.trim() ?? '';
-        phone        = (data['phone'] as String?)?.trim() ?? user.phoneNumber ?? '';
+        personName =
+            ((data['displayName'] ?? data['name']) as String?)?.trim() ?? '';
+        phone = (data['phone'] as String?)?.trim() ?? user.phoneNumber ?? '';
         final businesses = data['businesses'];
         if (businesses is List && businesses.isNotEmpty) {
-          final biz    = businesses.first as Map;
+          final biz = businesses.first as Map;
           businessName = (biz['name'] as String?)?.trim() ?? '';
           businessType = (biz['category'] as String?)?.trim() ?? '';
         }
       } catch (_) {}
 
       final notes = _notesCtrl.text.trim();
-      await FirebaseFirestore.instance.collection('websiteRequests').doc(user.uid).set({
-        'uid': user.uid, 'personName': personName, 'businessName': businessName,
-        'businessType': businessType, 'phone': phone, 'notes': notes,
-        'requestedAt': FieldValue.serverTimestamp(), 'status': 'pending',
-      }, SetOptions(merge: true));
+      await FirebaseFirestore.instance
+          .collection('websiteRequests')
+          .doc(user.uid)
+          .set({
+            'uid': user.uid,
+            'personName': personName,
+            'businessName': businessName,
+            'businessType': businessType,
+            'phone': phone,
+            'notes': notes,
+            'requestedAt': FieldValue.serverTimestamp(),
+            'status': 'pending',
+          }, SetOptions(merge: true));
 
-      if (mounted) setState(() { _submitting = false; _submitted = true; });
+      if (mounted)
+        setState(() {
+          _submitting = false;
+          _submitted = true;
+        });
 
-      final msg    = _buildWhatsAppMessage(personName: personName.isNotEmpty ? personName : _tr('Business Owner', 'Mmiliki wa Biashara'), businessName: businessName, businessType: businessType, phone: phone, notes: notes);
+      final msg = _buildWhatsAppMessage(
+        personName: personName.isNotEmpty
+            ? personName
+            : _tr('Business Owner', 'Mmiliki wa Biashara'),
+        businessName: businessName,
+        businessType: businessType,
+        phone: phone,
+        notes: notes,
+      );
       final opened = await _launchWhatsApp(msg);
       if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('Could not open WhatsApp. Please make sure it is installed.', 'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.')),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _tr(
+                'Could not open WhatsApp. Please make sure it is installed.',
+                'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.',
+              ),
+            ),
+          ),
+        );
       }
       await Future.delayed(const Duration(milliseconds: 1600));
       if (mounted) widget.onDone();
@@ -2732,19 +2929,38 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
   }
 
   String _buildWhatsAppMessage({
-    required String personName, required String businessName,
-    required String businessType, required String phone, required String notes,
+    required String personName,
+    required String businessName,
+    required String businessType,
+    required String phone,
+    required String notes,
   }) {
     final b = StringBuffer();
-    b.writeln(_tr('Hello Neuraltale Technologies Team,', 'Habari Timu ya Neuraltale Technologies,'));
+    b.writeln(
+      _tr(
+        'Hello Neuraltale Technologies Team,',
+        'Habari Timu ya Neuraltale Technologies,',
+      ),
+    );
     b.writeln();
-    b.writeln(_tr('I would like assistance creating a website for my business.', 'Ningependa msaada wa kuunda tovuti kwa biashara yangu.'));
+    b.writeln(
+      _tr(
+        'I would like assistance creating a website for my business.',
+        'Ningependa msaada wa kuunda tovuti kwa biashara yangu.',
+      ),
+    );
     b.writeln();
     b.writeln('${_tr("Name", "Jina")}: $personName');
-    if (businessName.isNotEmpty) b.writeln('${_tr("Business", "Biashara")}: $businessName');
-    if (businessType.isNotEmpty) b.writeln('${_tr("Business Type", "Aina ya Biashara")}: $businessType');
+    if (businessName.isNotEmpty)
+      b.writeln('${_tr("Business", "Biashara")}: $businessName');
+    if (businessType.isNotEmpty)
+      b.writeln('${_tr("Business Type", "Aina ya Biashara")}: $businessType');
     if (phone.isNotEmpty) b.writeln('${_tr("Phone", "Simu")}: $phone');
-    if (notes.isNotEmpty) { b.writeln(); b.writeln('${_tr("Additional Notes", "Maelezo ya Ziada")}:'); b.writeln(notes); }
+    if (notes.isNotEmpty) {
+      b.writeln();
+      b.writeln('${_tr("Additional Notes", "Maelezo ya Ziada")}:');
+      b.writeln(notes);
+    }
     b.writeln();
     b.writeln(_tr('Thank you.', 'Asante.'));
     return b.toString().trim();
@@ -2752,12 +2968,20 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
 
   Future<bool> _launchWhatsApp(String message) async {
     const phone = '255653520829';
-    final primaryUrl  = Uri.https('wa.me', '/$phone', {'text': message});
-    final fallbackUrl = Uri.https('api.whatsapp.com', '/send', {'phone': phone, 'text': message});
+    final primaryUrl = Uri.https('wa.me', '/$phone', {'text': message});
+    final fallbackUrl = Uri.https('api.whatsapp.com', '/send', {
+      'phone': phone,
+      'text': message,
+    });
     try {
-      if (await launchUrl(primaryUrl, mode: LaunchMode.externalApplication)) return true;
+      if (await launchUrl(primaryUrl, mode: LaunchMode.externalApplication))
+        return true;
     } catch (_) {}
-    try { return await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication); } catch (_) { return false; }
+    try {
+      return await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -2766,75 +2990,158 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
       decoration: const BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 24, offset: Offset(0, -4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 24,
+            offset: Offset(0, -4),
+          ),
+        ],
       ),
-      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        20,
+        24,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
             child: Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(99)),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
           ),
           if (_submitted) ...[
-            const Center(child: Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48)),
+            const Center(
+              child: Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.success,
+                size: 48,
+              ),
+            ),
             const SizedBox(height: 14),
             Center(
               child: Text(
                 _tr("We'll be in touch!", 'Tutawasiliana nawe hivi karibuni!'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.navyPrimary),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
+                ),
               ),
             ),
           ] else ...[
             Text(
               _tr('Tell us what you need', 'Tuambie unachohitaji'),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.navyPrimary, letterSpacing: -0.2),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
+                letterSpacing: -0.2,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
-              _tr('Any requirements or ideas for your website? (optional)', 'Je, una mahitaji au mawazo yoyote kwa tovuti yako? (si lazima)'),
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.5),
+              _tr(
+                'Any requirements or ideas for your website? (optional)',
+                'Je, una mahitaji au mawazo yoyote kwa tovuti yako? (si lazima)',
+              ),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textMuted,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _notesCtrl,
-              maxLines: 4, minLines: 3,
+              maxLines: 4,
+              minLines: 3,
               textInputAction: TextInputAction.newline,
-              style: const TextStyle(fontSize: 14, color: AppColors.navyPrimary),
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.navyPrimary,
+              ),
               decoration: InputDecoration(
-                hintText: _tr('e.g. I sell clothing and want an online store…', 'mfano Nauza nguo na nataka duka la mtandaoni…'),
-                hintStyle: const TextStyle(fontSize: 13, color: AppColors.textDisabled),
-                filled: true, fillColor: AppColors.surface,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.border)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: AppColors.navyPrimary.withValues(alpha: 0.4), width: 1.5)),
+                hintText: _tr(
+                  'e.g. I sell clothing and want an online store…',
+                  'mfano Nauza nguo na nataka duka la mtandaoni…',
+                ),
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textDisabled,
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: AppColors.navyPrimary.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
                 contentPadding: const EdgeInsets.all(14),
               ),
             ),
             const SizedBox(height: 20),
             SizedBox(
-              width: double.infinity, height: 50,
+              width: double.infinity,
+              height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navyPrimary, foregroundColor: AppColors.yellowBrand,
+                  backgroundColor: AppColors.navyPrimary,
+                  foregroundColor: AppColors.yellowBrand,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _submitting ? null : _submit,
                 child: _submitting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.yellowBrand))
-                    : Text(_tr('Submit', 'Wasilisha'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.yellowBrand,
+                        ),
+                      )
+                    : Text(
+                        _tr('Submit', 'Wasilisha'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 8),
             Center(
               child: TextButton(
                 onPressed: widget.onDone,
-                child: Text(_tr('Cancel', 'Ghairi'), style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+                child: Text(
+                  _tr('Cancel', 'Ghairi'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ),
             ),
           ],
@@ -2855,23 +3162,27 @@ double _numericValue(Object? raw) {
 
 String _fmtCompactAmount(double amount) {
   if (amount >= 1000000) return 'TSh ${(amount / 1000000).toStringAsFixed(1)}M';
-  if (amount >= 1000)    return 'TSh ${(amount / 1000).toStringAsFixed(0)}K';
+  if (amount >= 1000) return 'TSh ${(amount / 1000).toStringAsFixed(0)}K';
   return 'TSh ${amount.toStringAsFixed(0)}';
 }
 
 String _fmtAmount(double amount) {
   final abs = amount.abs();
   String formatted;
-  if (abs >= 1000000)      formatted = '${(abs / 1000000).toStringAsFixed(1)}M';
-  else if (abs >= 1000)    formatted = '${(abs / 1000).toStringAsFixed(0)}K';
-  else                     formatted = abs.toStringAsFixed(0);
+  if (abs >= 1000000)
+    formatted = '${(abs / 1000000).toStringAsFixed(1)}M';
+  else if (abs >= 1000)
+    formatted = '${(abs / 1000).toStringAsFixed(0)}K';
+  else
+    formatted = abs.toStringAsFixed(0);
   return 'TSh $formatted';
 }
 
 String _displayName(Map<String, dynamic>? profile) {
-  String? nameValue = profile?['displayName'] as String? ??
-                      profile?['name'] as String? ??
-                      profile?['fullName'] as String?;
+  String? nameValue =
+      profile?['displayName'] as String? ??
+      profile?['name'] as String? ??
+      profile?['fullName'] as String?;
   if (nameValue == null || nameValue.trim().isEmpty) {
     nameValue = FirebaseAuth.instance.currentUser?.displayName;
   }
@@ -2884,8 +3195,12 @@ String _displayName(Map<String, dynamic>? profile) {
 // ── Revenue helpers ───────────────────────────────────────────────────────────
 
 double _revenueForPeriod(List<Map<String, dynamic>> invoices, int daysBack) {
-  final now    = DateTime.now();
-  final cutoff = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysBack));
+  final now = DateTime.now();
+  final cutoff = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).subtract(Duration(days: daysBack));
   return invoices.fold<double>(0, (total, inv) {
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
@@ -2896,7 +3211,7 @@ double _revenueForPeriod(List<Map<String, dynamic>> invoices, int daysBack) {
 }
 
 double _monthRevenue(List<Map<String, dynamic>> invoices) {
-  final now        = DateTime.now();
+  final now = DateTime.now();
   final monthStart = DateTime(now.year, now.month);
   return invoices.fold<double>(0, (total, inv) {
     final ts = readTimestamp(inv['createdAt']);
@@ -2908,7 +3223,7 @@ double _monthRevenue(List<Map<String, dynamic>> invoices) {
 }
 
 double _yearRevenue(List<Map<String, dynamic>> invoices) {
-  final now       = DateTime.now();
+  final now = DateTime.now();
   final yearStart = DateTime(now.year, 1, 1);
   return invoices.fold<double>(0, (total, inv) {
     final ts = readTimestamp(inv['createdAt']);
@@ -2920,11 +3235,14 @@ double _yearRevenue(List<Map<String, dynamic>> invoices) {
 }
 
 double _revenueForRange(
-    List<Map<String, dynamic>> invoices, int fromDaysAgo, int toDaysAgo) {
-  final now   = DateTime.now();
+  List<Map<String, dynamic>> invoices,
+  int fromDaysAgo,
+  int toDaysAgo,
+) {
+  final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
-  final from  = today.subtract(Duration(days: fromDaysAgo));
-  final to    = today.subtract(Duration(days: toDaysAgo));
+  final from = today.subtract(Duration(days: fromDaysAgo));
+  final to = today.subtract(Duration(days: toDaysAgo));
   return invoices.fold<double>(0, (total, inv) {
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
@@ -2935,9 +3253,9 @@ double _revenueForRange(
 }
 
 double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
-  final now            = DateTime.now();
+  final now = DateTime.now();
   final lastMonthStart = DateTime(now.year, now.month - 1, 1);
-  final lastMonthEnd   = DateTime(now.year, now.month, 1);
+  final lastMonthEnd = DateTime(now.year, now.month, 1);
   return invoices.fold<double>(0, (total, inv) {
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
@@ -2950,21 +3268,23 @@ double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
 // ── Chart data builder (fixes tooltip normalisation bug) ──────────────────────
 
 ({List<FlSpot> spots, Map<int, double> dailyValues}) _buildChartData(
-    List<Map<String, dynamic>> invoices) {
-  final now   = DateTime.now();
+  List<Map<String, dynamic>> invoices,
+) {
+  final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final daily = <int, double>{};
   for (final inv in invoices) {
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) continue;
-    final d       = DateTime(ts.year, ts.month, ts.day);
+    final d = DateTime(ts.year, ts.month, ts.day);
     final daysAgo = today.difference(d).inDays;
     if (daysAgo < 0 || daysAgo > 6) continue;
     final idx = 6 - daysAgo;
     daily[idx] = (daily[idx] ?? 0) + parseNumericAmount(inv['amount']);
   }
-  final maxVal =
-      daily.values.isEmpty ? 1.0 : daily.values.reduce((a, b) => a > b ? a : b);
+  final maxVal = daily.values.isEmpty
+      ? 1.0
+      : daily.values.reduce((a, b) => a > b ? a : b);
   final spots = List.generate(7, (i) {
     final v = daily[i] ?? 0;
     return FlSpot(i.toDouble(), maxVal > 0 ? (v / maxVal) * 5 : 0);
@@ -2990,21 +3310,25 @@ List<String> _generateInsights({
     final change = (weekRevenue - lastWeekRevenue) / lastWeekRevenue * 100;
     if (change.abs() >= 5) {
       if (change > 0) {
-        insights.add(_tr(
-          'Sales increased ${change.toStringAsFixed(0)}% compared to last week. Keep it up!',
-          'Mauzo yaliongezeka ${change.toStringAsFixed(0)}% ikilinganishwa na wiki iliyopita.',
-        ));
+        insights.add(
+          _tr(
+            'Sales increased ${change.toStringAsFixed(0)}% compared to last week. Keep it up!',
+            'Mauzo yaliongezeka ${change.toStringAsFixed(0)}% ikilinganishwa na wiki iliyopita.',
+          ),
+        );
       } else {
-        insights.add(_tr(
-          'Sales dropped ${change.abs().toStringAsFixed(0)}% vs last week. Consider a promotion.',
-          'Mauzo yalishuka ${change.abs().toStringAsFixed(0)}% ikilinganishwa na wiki iliyopita.',
-        ));
+        insights.add(
+          _tr(
+            'Sales dropped ${change.abs().toStringAsFixed(0)}% vs last week. Consider a promotion.',
+            'Mauzo yalishuka ${change.abs().toStringAsFixed(0)}% ikilinganishwa na wiki iliyopita.',
+          ),
+        );
       }
     }
   }
 
   // Top customers concentration
-  final now        = DateTime.now();
+  final now = DateTime.now();
   final monthStart = DateTime(now.year, now.month);
   final customerRevenue = <String, double>{};
   double monthTotal = 0;
@@ -3014,50 +3338,64 @@ List<String> _generateInsights({
     final key = (inv['customerName'] ?? '').toString().trim();
     final amt = parseNumericAmount(inv['amount']);
     monthTotal += amt;
-    if (key.isNotEmpty) customerRevenue[key] = (customerRevenue[key] ?? 0) + amt;
+    if (key.isNotEmpty)
+      customerRevenue[key] = (customerRevenue[key] ?? 0) + amt;
   }
   if (monthTotal > 0 && customerRevenue.length >= 3) {
-    final sorted   = customerRevenue.values.toList()..sort((a, b) => b.compareTo(a));
-    final top3     = sorted.take(3).fold(0.0, (s, v) => s + v);
-    final top3Pct  = (top3 / monthTotal * 100).round();
+    final sorted = customerRevenue.values.toList()
+      ..sort((a, b) => b.compareTo(a));
+    final top3 = sorted.take(3).fold(0.0, (s, v) => s + v);
+    final top3Pct = (top3 / monthTotal * 100).round();
     if (top3Pct >= 40) {
-      insights.add(_tr(
-        'Your top 3 customers account for $top3Pct% of this month\'s revenue.',
-        'Wateja wako 3 bora wanachangia $top3Pct% ya mapato ya mwezi huu.',
-      ));
+      insights.add(
+        _tr(
+          'Your top 3 customers account for $top3Pct% of this month\'s revenue.',
+          'Wateja wako 3 bora wanachangia $top3Pct% ya mapato ya mwezi huu.',
+        ),
+      );
     }
   }
 
   // Low stock warning
   if (lowStockCount > 0) {
-    final outOfStock = lowStockItems.where((i) => parseStock(i['currentStock'] ?? i['stock']) <= 0).length;
+    final outOfStock = lowStockItems
+        .where((i) => parseStock(i['currentStock'] ?? i['stock']) <= 0)
+        .length;
     if (outOfStock > 0) {
-      insights.add(_tr(
-        '$outOfStock product${outOfStock > 1 ? 's are' : ' is'} out of stock. Reorder to avoid lost sales.',
-        'Bidhaa $outOfStock zimekwisha. Agiza upya kuzuia kupoteza mauzo.',
-      ));
+      insights.add(
+        _tr(
+          '$outOfStock product${outOfStock > 1 ? 's are' : ' is'} out of stock. Reorder to avoid lost sales.',
+          'Bidhaa $outOfStock zimekwisha. Agiza upya kuzuia kupoteza mauzo.',
+        ),
+      );
     } else {
-      insights.add(_tr(
-        '$lowStockCount product${lowStockCount > 1 ? 's are' : ' is'} running low. Consider restocking soon.',
-        'Bidhaa $lowStockCount zinaisha. Fikiria kuagiza upya hivi karibuni.',
-      ));
+      insights.add(
+        _tr(
+          '$lowStockCount product${lowStockCount > 1 ? 's are' : ' is'} running low. Consider restocking soon.',
+          'Bidhaa $lowStockCount zinaisha. Fikiria kuagiza upya hivi karibuni.',
+        ),
+      );
     }
   }
 
   // Outstanding debt
   if (totalOutstanding > 0) {
-    insights.add(_tr(
-      'You have ${_fmtCompactAmount(totalOutstanding)} in outstanding receivables. Follow up to improve cash flow.',
-      'Una ${_fmtCompactAmount(totalOutstanding)} katika madeni yanayosubiri. Fuatilia kuboresha mtiririko wa fedha.',
-    ));
+    insights.add(
+      _tr(
+        'You have ${_fmtCompactAmount(totalOutstanding)} in outstanding receivables. Follow up to improve cash flow.',
+        'Una ${_fmtCompactAmount(totalOutstanding)} katika madeni yanayosubiri. Fuatilia kuboresha mtiririko wa fedha.',
+      ),
+    );
   }
 
   // Profitability
   if (netProfit > 0) {
-    insights.add(_tr(
-      'Business is profitable this month — great work!',
-      'Biashara inafanya faida mwezi huu — kazi nzuri!',
-    ));
+    insights.add(
+      _tr(
+        'Business is profitable this month — great work!',
+        'Biashara inafanya faida mwezi huu — kazi nzuri!',
+      ),
+    );
   }
 
   return insights.take(3).toList();
