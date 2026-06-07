@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/list_swipe_card.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/expense.dart';
@@ -138,23 +140,26 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen>
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: NestedScrollView(
-        headerSliverBuilder: (_, __) => [
-          _buildSliverHeader(month, total, pendingCount, withReceipt, isLoading),
-          SliverToBoxAdapter(child: _buildTabBar()),
-        ],
-        body: TabBarView(
-          controller: _tabCtrl,
-          children: [
-            _ExpensesTab(
-              filterCat: _filterCat,
-              onFilterChanged: (c) => setState(() => _filterCat = c),
-              onTap: _openDetail,
-              onEdit: (e) => _openAdd(edit: e),
-            ),
-            const _BudgetTab(),
-            const _RecurringTab(),
+      body: Padding(
+        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 50),
+        child: NestedScrollView(
+          headerSliverBuilder: (_, _) => [
+            _buildSliverHeader(month, total, pendingCount, withReceipt, isLoading),
+            SliverToBoxAdapter(child: _buildTabBar()),
           ],
+          body: TabBarView(
+            controller: _tabCtrl,
+            children: [
+              _ExpensesTab(
+                filterCat: _filterCat,
+                onFilterChanged: (c) => setState(() => _filterCat = c),
+                onTap: _openDetail,
+                onEdit: (e) => _openAdd(edit: e),
+              ),
+              const _BudgetTab(),
+              const _RecurringTab(),
+            ],
+          ),
         ),
       ),
       floatingActionButton: _tabCtrl.index == 0
@@ -320,6 +325,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen>
   void _showAddRecurringSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
@@ -356,9 +362,7 @@ class _ExpensesTab extends ConsumerWidget {
         : expenses.where((e) => e.category == filterCat!.key).toList();
 
     if (isLoading) {
-      return const Center(
-          child: CircularProgressIndicator(
-              color: AppColors.navyPrimary, strokeWidth: 2));
+      return const ExpensePageSkeleton();
     }
 
     return Column(
@@ -370,18 +374,22 @@ class _ExpensesTab extends ConsumerWidget {
         ),
         Expanded(
           child: filtered.isEmpty
-              ? _EmptyState(
-                  icon: Icons.receipt_long_rounded,
-                  message: filterCat == null
+              ? EmptyState(
+                  icon: Icons.receipt_outlined,
+                  title: filterCat == null
                       ? _tr('No expenses this month',
                           'Hakuna matumizi mwezi huu')
                       : _tr('No ${filterCat!.label} expenses',
                           'Hakuna matumizi ya ${filterCat!.label}'),
+                  subtitle: _tr(
+                    'Tap + to log a purchase or bill.',
+                    'Bonyeza + kurekodi ununuzi au bili.',
+                  ),
                 )
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (ctx, i) => _ExpenseCard(
                     expense: filtered[i],
                     onTap: () => onTap(filtered[i]),
@@ -561,159 +569,139 @@ class _ExpenseCard extends StatelessWidget {
     final isPending = expense.status == 'pending';
     final isRejected = expense.status == 'rejected';
 
-    return Dismissible(
-      key: ValueKey(expense.id),
-      confirmDismiss: (dir) async {
-        if (dir == DismissDirection.startToEnd) {
-          onEdit();
-          return false;
-        }
-        onDelete();
-        return false;
-      },
-      background: _swipeHint(
-        icon: Icons.edit_rounded,
-        color: AppColors.navyPrimary,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-      ),
-      secondaryBackground: _swipeHint(
-        icon: Icons.delete_outline_rounded,
-        color: AppColors.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-      ),
+    return ListSwipeCard(
+      itemKey: ValueKey(expense.id),
+      onEdit: onEdit,
+      onDelete: onDelete,
       child: GestureDetector(
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: isRejected
-                ? AppColors.errorBg
-                : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border(
-              left: BorderSide(color: cat.color, width: 3.5),
-              right: const BorderSide(color: AppColors.border),
-              top: const BorderSide(color: AppColors.border),
-              bottom: const BorderSide(color: AppColors.border),
-            ),
+            color: isRejected ? AppColors.errorBg : AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                  color: AppColors.shadowCard,
+                  blurRadius: 6,
+                  offset: Offset(0, 1)),
+            ],
           ),
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              // Category icon
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: cat.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(cat.icon, size: 20, color: cat.color),
-              ),
-              const SizedBox(width: 12),
-              // Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+          clipBehavior: Clip.antiAlias,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Left stripe — category color indicator
+                Container(width: 3.5, color: cat.color),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
                       children: [
+                        // Category icon
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: cat.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(cat.icon, size: 20, color: cat.color),
+                        ),
+                        const SizedBox(width: 12),
+                        // Details
                         Expanded(
-                          child: Text(
-                            expense.note.isNotEmpty
-                                ? expense.note
-                                : cat.label,
-                            style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: isRejected
-                                    ? AppColors.error
-                                    : AppColors.textPrimary),
-                            overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      expense.note.isNotEmpty
+                                          ? expense.note
+                                          : cat.label,
+                                      style: GoogleFonts.dmSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: isRejected
+                                              ? AppColors.error
+                                              : AppColors.textPrimary),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isPending)
+                                    _StatusBadge(
+                                        label: _tr('Pending', 'Inasubiri'),
+                                        color: AppColors.warning),
+                                  if (isRejected)
+                                    _StatusBadge(
+                                        label: _tr('Rejected', 'Imekataliwa'),
+                                        color: AppColors.error),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Text(
+                                    cat.label,
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 11,
+                                        color: AppColors.textMuted),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text('·',
+                                      style: GoogleFonts.dmSans(
+                                          fontSize: 11,
+                                          color: AppColors.textDisabled)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _fmtDate(expense.date),
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 11,
+                                        color: AppColors.textMuted),
+                                  ),
+                                  if (expense.receiptUrl.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.receipt_rounded,
+                                        size: 11,
+                                        color: AppColors.tealAccent),
+                                  ],
+                                  if (expense.isRecurring) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.repeat_rounded,
+                                        size: 11,
+                                        color: AppColors.textMuted),
+                                  ],
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        if (isPending)
-                          _StatusBadge(
-                              label: _tr('Pending', 'Inasubiri'),
-                              color: AppColors.warning),
-                        if (isRejected)
-                          _StatusBadge(
-                              label: _tr('Rejected', 'Imekataliwa'),
-                              color: AppColors.error),
+                        const SizedBox(width: 12),
+                        // Amount
+                        Text(
+                          'TZS ${_fmtNum(amount)}',
+                          style: GoogleFonts.jetBrainsMono(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: isRejected
+                                  ? AppColors.error
+                                  : AppColors.navyPrimary),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Text(
-                          cat.label,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              color: AppColors.textMuted),
-                        ),
-                        const SizedBox(width: 6),
-                        Text('·',
-                            style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                color: AppColors.textDisabled)),
-                        const SizedBox(width: 6),
-                        Text(
-                          _fmtDate(expense.date),
-                          style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              color: AppColors.textMuted),
-                        ),
-                        if (expense.receiptUrl.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.receipt_rounded,
-                              size: 11,
-                              color: AppColors.tealAccent),
-                        ],
-                        if (expense.isRecurring) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.repeat_rounded,
-                              size: 11, color: AppColors.textMuted),
-                        ],
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Amount
-              Text(
-                'TZS ${_fmtNum(amount)}',
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isRejected
-                        ? AppColors.error
-                        : AppColors.textPrimary),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _swipeHint({
-    required IconData icon,
-    required Color color,
-    required Alignment alignment,
-    required EdgeInsets padding,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      alignment: alignment,
-      padding: padding,
-      child: Icon(icon, color: color, size: 22),
-    );
-  }
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -1265,23 +1253,27 @@ class _RecurringTab extends ConsumerWidget {
     final templatesAsync = ref.watch(recurringTemplateListProvider);
 
     return templatesAsync.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(
-              color: AppColors.navyPrimary, strokeWidth: 2)),
-      error: (e, _) => Center(child: Text('$e')),
+      loading: () => const SkeletonList(itemCount: 4),
+      error: (e, _) => EmptyState(
+        icon: Icons.wifi_off_rounded,
+        title: _tr('Could not load recurring expenses', 'Imeshindwa kupakia matumizi ya kujirudia'),
+        subtitle: _tr('Check your connection and try again.', 'Angalia muunganiko wako na ujaribu tena.'),
+        actionLabel: _tr('Try again', 'Jaribu tena'),
+        onAction: () => ref.invalidate(recurringTemplateListProvider),
+      ),
       data: (templates) {
         if (templates.isEmpty) {
-          return _EmptyState(
-            icon: Icons.repeat_rounded,
-            message: _tr(
-                'No recurring expenses yet.\nTap + to set up auto-logged expenses.',
-                'Hakuna matumizi ya kujirudia bado.\nBonyeza + kuweka.'),
+          return const EmptyState(
+            icon: Icons.autorenew_rounded,
+            title: 'No recurring expenses yet',
+            subtitle:
+                'Set up auto-logged expenses for bills that repeat every month.',
           );
         }
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           itemCount: templates.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (ctx, i) => _RecurringCard(
             template: templates[i],
             onDelete: () => _deleteTemplate(ctx, ref, templates[i]),
@@ -1363,23 +1355,9 @@ class _RecurringCard extends StatelessWidget {
     final cat = _CatX.fromKey(template.category);
     final amount = double.tryParse(template.amount) ?? 0;
 
-    return Dismissible(
-      key: ValueKey(template.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        onDelete();
-        return false;
-      },
-      background: Container(
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline_rounded,
-            color: AppColors.error, size: 22),
-      ),
+    return ListSwipeCard(
+      itemKey: ValueKey(template.id),
+      onDelete: onDelete,
       child: Container(
         decoration: BoxDecoration(
           color: template.isActive ? Colors.white : AppColors.surfaceVariant,
@@ -1768,32 +1746,6 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String message;
-
-  const _EmptyState({required this.icon, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: AppColors.textDisabled),
-            const SizedBox(height: 12),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, color: AppColors.textMuted)),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _OutlineField extends StatelessWidget {
   final TextEditingController controller;

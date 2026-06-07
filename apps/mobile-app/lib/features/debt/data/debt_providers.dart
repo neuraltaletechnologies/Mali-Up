@@ -1,7 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../domain/models/debt.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/data/repositories/context_firestore_repository.dart';
 import '../../customer/data/customer_providers.dart';
+import '../domain/models/debt.dart';
 
 // ── All debts stream ──────────────────────────────────────────────────────────
 
@@ -11,9 +13,16 @@ final debtListProvider = StreamProvider<List<Debt>>((ref) async* {
     yield const <Debt>[];
     return;
   }
-  final repository = ref.watch(contextFirestoreRepositoryProvider);
-  final context = await repository.resolveContextForUser(user.uid);
-  yield* repository.watchDebts(uid: user.uid, context: context);
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <Debt>[];
+    return;
+  }
+  final repository = ref.read(contextFirestoreRepositoryProvider);
+  yield* repository.watchDebts(
+    uid: user.uid,
+    context: ResolvedFinanceContext.business(bizId),
+  );
 });
 
 // ── Filtered views ────────────────────────────────────────────────────────────
@@ -128,7 +137,15 @@ final debtPaymentsProvider =
     yield const <DebtPayment>[];
     return;
   }
-  final repo = ref.watch(contextFirestoreRepositoryProvider);
-  final ctx = await repo.resolveContextForUser(user.uid);
-  yield* repo.watchDebtPayments(uid: user.uid, context: ctx, debtId: debtId);
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <DebtPayment>[];
+    return;
+  }
+  final repo = ref.read(contextFirestoreRepositoryProvider);
+  yield* repo.watchDebtPayments(
+    uid: user.uid,
+    context: ResolvedFinanceContext.business(bizId),
+    debtId: debtId,
+  );
 });

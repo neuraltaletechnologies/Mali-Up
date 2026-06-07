@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 Future<bool> showPinSetupSheet(BuildContext context) async {
   final result = await showModalBottomSheet<bool>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => const _PinSetupSheet(),
@@ -271,6 +272,7 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
 Future<bool> showPinChangeSheet(BuildContext context) async {
   final result = await showModalBottomSheet<bool>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => const _PinChangeSheet(),

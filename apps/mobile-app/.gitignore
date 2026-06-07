@@ -52,6 +52,7 @@ android/app/google-services.json
 .env
 .env.local
 .env.*.local
+sentry.local.json
 
 # iOS certificates and provisioning profiles
 ios/Certificates/

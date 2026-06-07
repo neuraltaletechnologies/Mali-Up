@@ -1,6 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/data/repositories/context_firestore_repository.dart';
 import '../../customer/data/customer_providers.dart';
 import '../../sales/data/sales_providers.dart';
 
@@ -10,15 +11,21 @@ final inventoryItemListProvider = StreamProvider<List<Map<String, dynamic>>>((re
     yield const <Map<String, dynamic>>[];
     return;
   }
-
-  final repository = ref.watch(contextFirestoreRepositoryProvider);
-  final context = await repository.resolveContextForUser(user.uid);
+  final businessAsync = ref.watch(currentBusinessIdProvider);
+  if (businessAsync.isLoading) {
+    return;
+  }
+  final bizId = businessAsync.valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const <Map<String, dynamic>>[];
+    return;
+  }
+  final repository = ref.read(contextFirestoreRepositoryProvider);
   final collection = repository.scopeCollection(
     uid: user.uid,
-    context: context,
+    context: ResolvedFinanceContext.business(bizId),
     childCollection: 'inventory_items',
   );
-
   yield* collection
       .orderBy('updatedAt', descending: true)
       .snapshots()

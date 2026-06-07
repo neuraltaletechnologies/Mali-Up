@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,7 +36,7 @@ final onboardingNotifierProvider =
 
 // ─── NOTIFIER ────────────────────────────────────────────────────────────────
 
-/// Manages all state transitions for the 7-screen onboarding flow.
+/// Manages all state transitions for the onboarding flow.
 ///
 /// Rules:
 /// - Never imports Firebase or Firestore directly — all async work goes
@@ -45,12 +46,10 @@ final onboardingNotifierProvider =
 /// - Only one [isLoading = true] is active at a time.
 class OnboardingNotifier extends Notifier<OnboardingState> {
   late final OnboardingService _service;
-  Timer? _cooldownTimer;
 
   @override
   OnboardingState build() {
     _service = ref.read(onboardingServiceProvider);
-    ref.onDispose(() => _cooldownTimer?.cancel());
     // If main.dart seeded the bootstrap provider as true, the user has already
     // completed onboarding — start in a done state so the router redirects
     // immediately to /dashboard without any intermediate flicker.
@@ -58,91 +57,95 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     return OnboardingState(isComplete: alreadyComplete);
   }
 
+  String _accountCreationErrorMessage(Object error) {
+    if (error is SocketException ||
+        (error is FirebaseAuthException &&
+            error.code == 'network-request-failed')) {
+      return _t(
+        en: 'No internet connection. Please connect to the internet to continue and try again.',
+        sw: 'Hakuna muunganisho wa intaneti. Tafadhali unganisha kwenye intaneti ili kuendelea na ujaribu tena.',
+      );
+    }
+
+    if (error is FirebaseException) {
+      if (error.code == 'permission-denied') {
+        return _t(
+          en: 'Your account was created, but the app could not save your profile data. Please try again.',
+          sw: 'Akaunti yako imeundwa, lakini app haikuweza kuhifadhi taarifa zako. Tafadhali jaribu tena.',
+        );
+      }
+
+      if (error.code == 'unavailable' || error.code == 'deadline-exceeded') {
+        return _t(
+          en: 'Firestore is temporarily unavailable. Please try again.',
+          sw: 'Firestore haipatikani kwa sasa. Tafadhali jaribu tena.',
+        );
+      }
+    }
+
+    if (error is FirebaseAuthException && error.code == 'email-already-in-use') {
+      return _t(
+        en: 'This account already exists. Go back and sign in with your PIN.',
+        sw: 'Akaunti hii tayari ipo. Rudi nyuma uingie kwa PIN yako.',
+      );
+    }
+
+    return _t(
+      en: 'Could not create your account. Please try again.',
+      sw: 'Imeshindwa kuunda akaunti yako. Tafadhali jaribu tena.',
+    );
+  }
+
   // ─── SCREEN 1 — WELCOME + LANGUAGE ───────────────────────────────────────
 
   void selectLanguage(AppLanguage language) {
-    // Also propagates to the global LocalizationService so non-Riverpod
-    // widgets (e.g. text field hints) pick up the selection immediately.
     LocalizationService.setLanguage(language);
     state = state.copyWith(language: language, clearError: true);
   }
 
   void advanceFromWelcome() {
     state = state.copyWith(
+      currentStep: OnboardingStep.intro,
+      clearError: true,
+    );
+  }
+
+  // ─── SCREEN 2 — INTRO SLIDES ─────────────────────────────────────────────
+
+  void advanceFromIntro() {
+    state = state.copyWith(
       currentStep: OnboardingStep.phoneEntry,
       clearError: true,
     );
   }
 
-  // ─── SCREEN 2 — PHONE ENTRY ───────────────────────────────────────────────
+  // ─── SCREEN 3 — PHONE ENTRY + LOOKUP ─────────────────────────────────────
 
   void setPhone(String phone) {
     state = state.copyWith(phone: phone, clearError: true);
   }
 
-  /// Normalises the phone number to E.164 and sends the Firebase OTP.
-  /// On success advances to [OnboardingStep.otpVerify] and starts the
-  /// 30-second resend cooldown.
-  Future<void> sendOtp() async {
+  /// Looks up the phone number in Firestore (no OTP).
+  /// On success advances to the appropriate step based on the result:
+  /// - [ReturningUser]     → [OnboardingStep.pinLogin]
+  /// - [TeamMemberPending] → [OnboardingStep.teamMemberSetup]
+  /// - [NewUser]           → [OnboardingStep.newUserInfo]
+  Future<void> lookupPhone() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final result = await _service.sendOtp(phone: state.phone);
-      state = state.copyWith(
-        verificationId: result.verificationId,
-        resendToken: result.resendToken,
-        currentStep: OnboardingStep.otpVerify,
-        otpAttempts: 0,
-        isOtpLocked: false,
-        isLoading: false,
-      );
-      _startResendCooldown();
-    } on FirebaseAuthException catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: _firebaseAuthMessage(e),
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: _t(
-          en: 'Could not send code. Check your connection and try again.',
-          sw: 'Imeshindwa kutuma msimbo. Angalia muunganiko na ujaribu tena.',
-        ),
-      );
-    }
-  }
+      // Explicit internet connection check
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isEmpty || result[0].rawAddress.isEmpty) {
+        throw const SocketException('No internet connection');
+      }
 
-  // ─── SCREEN 3 — OTP VERIFICATION ─────────────────────────────────────────
+      final lookupResult = await _service.lookupPhone(phone: state.phone);
 
-  /// Verifies [code] against Firebase Auth, then calls [OnboardingService]
-  /// to look up the phone number in Firestore.
-  ///
-  /// On success:
-  /// - Returning user → sets state fields from [ReturningUser] and advances
-  ///   to [OnboardingStep.returningUser].
-  /// - New user → advances to [OnboardingStep.newUserInfo].
-  ///
-  /// On failure:
-  /// - Increments [otpAttempts]; locks input at 3 failures.
-  /// - Wrong code and expired code produce distinct error messages.
-  Future<void> verifyOtp(String code) async {
-    if (state.isOtpLocked) return;
-
-    state = state.copyWith(isLoading: true, clearError: true);
-
-    try {
-      final result = await _service.verifyOtp(
-        code: code,
-        verificationId: state.verificationId,
-        phone: state.phone,
-      );
-
-      _cooldownTimer?.cancel(); // OTP accepted — cooldown no longer relevant.
-
-      switch (result.lookupResult) {
+      switch (lookupResult) {
         case final ReturningUser r:
           state = state.copyWith(
             isReturningUser: true,
+            isTeamMember: false,
             existingUserId: r.userId,
             firstName: r.firstName,
             lastName: r.lastName,
@@ -151,99 +154,117 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
             businessName: r.businessName,
             businessType: r.businessType,
             businessId: r.businessId,
-            currentStep: OnboardingStep.returningUser,
+            currentStep: OnboardingStep.pinLogin,
+            isLoading: false,
+          );
+
+        case final TeamMemberPending t:
+          final parts = t.name.trim().split(RegExp(r'\s+'));
+          state = state.copyWith(
+            isReturningUser: false,
+            isTeamMember: true,
+            teamMemberId: t.memberId,
+            teamOwnerUid: t.ownerUid,
+            businessId: t.businessId,
+            businessName: t.businessName,
+            inviteId: t.inviteId,
+            memberEmail: t.email,
+            firstName: parts.isNotEmpty ? parts.first : t.name,
+            lastName: parts.length > 1 ? parts.skip(1).join(' ') : '',
+            role: t.role,
+            currentStep: OnboardingStep.teamMemberSetup,
             isLoading: false,
           );
 
         case NewUser():
           state = state.copyWith(
             isReturningUser: false,
+            isTeamMember: false,
             currentStep: OnboardingStep.newUserInfo,
             isLoading: false,
           );
       }
-    } on FirebaseAuthException catch (e) {
-      _handleOtpFailure(e);
-    } catch (e) {
-      _handleOtpFailure(null);
-    }
-  }
-
-  void _handleOtpFailure(FirebaseAuthException? e) {
-    final attempts = state.otpAttempts + 1;
-    final locked = attempts >= 3;
-    state = state.copyWith(
-      otpAttempts: attempts,
-      isOtpLocked: locked,
-      isLoading: false,
-      errorMessage: locked
-          ? _t(
-              en: 'Too many attempts. Tap "Resend" to get a new code.',
-              sw: 'Majaribio mengi mno. Bonyeza "Tuma Upya" kupata msimbo mpya.',
-            )
-          : _otpErrorMessage(e),
-    );
-  }
-
-  /// Resends the OTP using the stored phone number and resend token.
-  /// Respects the 30-second cooldown — no-op if called too early.
-  Future<void> resendOtp() async {
-    if (state.resendCooldownSeconds > 0) return;
-    state = state.copyWith(
-      otpAttempts: 0,
-      isOtpLocked: false,
-      clearError: true,
-    );
-    await sendOtp();
-  }
-
-  void _startResendCooldown() {
-    _cooldownTimer?.cancel();
-    state = state.copyWith(resendCooldownSeconds: 30);
-    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      final remaining = state.resendCooldownSeconds - 1;
-      if (remaining <= 0) {
-        t.cancel();
-        state = state.copyWith(resendCooldownSeconds: 0);
-      } else {
-        state = state.copyWith(resendCooldownSeconds: remaining);
-      }
-    });
-  }
-
-  // ─── SCREEN 4A — RETURNING USER ──────────────────────────────────────────
-
-  /// The user chose to continue with their existing account.
-  /// Touches lastActiveAt in Firestore and marks onboarding complete.
-  Future<void> continueAsReturningUser() async {
-    state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      await _service.continueAsReturningUser(state.existingUserId);
+    } on TimeoutException {
       state = state.copyWith(
-        currentStep: OnboardingStep.success,
-        isComplete: true,
         isLoading: false,
+        errorMessage: _t(
+          en: 'The server is taking too long. Check your connection and try again.',
+          sw: 'Seva inachukua muda mrefu. Angalia muunganiko wako na ujaribu tena.',
+        ),
+      );
+    } on SocketException {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _t(
+          en: 'Unable to reach the server. Check your network and try again.',
+          sw: 'Imeshindikana kufikia seva . Angalia mtandao wako na ujaribu tena.',
+        ),
       );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: _t(
-          en: 'Something went wrong. Please try again.',
-          sw: 'Hitilafu imetokea. Tafadhali jaribu tena.',
+          en: 'Could not look up your account. Check your connection and try again.',
+          sw: 'Imeshindwa kutafuta akaunti yako. Angalia muunganiko na ujaribu tena.',
         ),
       );
     }
   }
 
-  /// The user confirmed "that's not me" — reset personal + business fields
-  /// and fall through to the new-user registration path.
-  void startOverAsNewUser() {
+  // ─── SCREEN 4A — EXISTING USER PIN LOGIN ─────────────────────────────────
+
+  /// Signs the user in with their PIN, marks onboarding complete.
+  Future<void> loginWithPin(String pin) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _service.loginWithPin(
+        phone: state.phone,
+        pin: pin,
+        userId: state.existingUserId,
+      );
+      state = state.copyWith(
+        pin: pin,
+        currentStep: OnboardingStep.success,
+        isComplete: true,
+        isLoading: false,
+      );
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _pinLoginError(e),
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _t(
+          en: 'Sign in failed. Please try again.',
+          sw: 'Kuingia kumeshindwa. Tafadhali jaribu tena.',
+        ),
+      );
+    }
+  }
+
+  // ─── SCREEN 4B — TEAM MEMBER SETUP ───────────────────────────────────────
+
+  /// Called when a pending team member chooses to continue as themselves.
+  /// Advances to the PIN setup step.
+  void continueAsTeamMember() {
     state = state.copyWith(
-      isReturningUser: false,
-      existingUserId: '',
+      currentStep: OnboardingStep.pinSetup,
+      clearError: true,
+    );
+  }
+
+  /// Team member chose "start fresh" — clear invite state and route to new user.
+  void startOverFromTeamMember() {
+    state = state.copyWith(
+      isTeamMember: false,
+      teamMemberId: '',
+      teamOwnerUid: '',
+      inviteId: '',
+      memberEmail: '',
       firstName: '',
       lastName: '',
-      city: '',
       role: '',
       businessName: '',
       businessType: '',
@@ -253,7 +274,56 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     );
   }
 
-  // ─── SCREEN 4B — NEW USER PERSONAL INFO ──────────────────────────────────
+  // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
+
+  /// Sends PIN recovery instructions. Returns the real email on file (if any).
+  Future<String?> sendPinRecovery() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final email = await _service.sendPinRecovery(phone: state.phone);
+      state = state.copyWith(isLoading: false);
+      return email;
+    } catch (_) {
+      state = state.copyWith(isLoading: false);
+      return null;
+    }
+  }
+
+  /// Saves the team member's first-time PIN, creates their account, and
+  /// marks onboarding complete.
+  Future<void> saveTeamMemberPin(String pin) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _service.setupTeamMemberPin(
+        phone: state.phone,
+        pin: pin,
+        name: state.fullName.isNotEmpty ? state.fullName : state.firstName,
+        role: state.role,
+        ownerUid: state.teamOwnerUid,
+        businessId: state.businessId,
+        memberId: state.teamMemberId,
+        inviteId: state.inviteId,
+      );
+      state = state.copyWith(
+        pin: pin,
+        currentStep: OnboardingStep.success,
+        isComplete: true,
+        isLoading: false,
+      );
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _accountCreationErrorMessage(e),
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _accountCreationErrorMessage(e),
+      );
+    }
+  }
+
+  // ─── SCREEN 4C — NEW USER PERSONAL INFO ──────────────────────────────────
 
   void setFirstName(String v) =>
       state = state.copyWith(firstName: v, clearError: true);
@@ -263,6 +333,8 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       state = state.copyWith(city: v, clearError: true);
   void setRole(String v) =>
       state = state.copyWith(role: v, clearError: true);
+  void setEmail(String v) =>
+      state = state.copyWith(email: v, clearError: true);
 
   void advanceFromPersonalInfo() {
     state = state.copyWith(
@@ -277,46 +349,53 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       state = state.copyWith(businessName: v, clearError: true);
   void setBusinessType(String v) =>
       state = state.copyWith(businessType: v, clearError: true);
+  void setBusinessCountry(String v) =>
+      state = state.copyWith(businessCountry: v, clearError: true);
+  void setBusinessRegion(String v) =>
+      state = state.copyWith(businessRegion: v, clearError: true);
+  void setBusinessDistrict(String v) =>
+      state = state.copyWith(businessDistrict: v, clearError: true);
+  void setWebsiteUrl(String v) =>
+      state = state.copyWith(websiteUrl: v, clearError: true);
+  void setHasWebsite(bool v) =>
+      state = state.copyWith(hasWebsite: v, clearError: true);
+  void setWebsiteInterest(bool v) =>
+      state = state.copyWith(websiteInterest: v, clearError: true);
 
   void advanceFromBusinessDetails() {
     state = state.copyWith(
-      currentStep: OnboardingStep.passwordPin,
+      currentStep: OnboardingStep.pinSetup,
       clearError: true,
     );
   }
 
-  // ─── SCREEN 6 — PASSWORD + PIN ────────────────────────────────────────────
+  // ─── SCREEN 6 — PIN SETUP ────────────────────────────────────────────────
 
-  void setPassword(String v) =>
-      state = state.copyWith(password: v, clearError: true);
   void setPin(String v) =>
       state = state.copyWith(pin: v, clearError: true);
+  void setConfirmPin(String v) =>
+      state = state.copyWith(confirmPin: v, clearError: true);
 
-  /// Saves the user profile and business profile to Firestore, then marks
-  /// onboarding as complete and advances to the success screen.
-  ///
-  /// If either write fails the error is shown inline and the screen does NOT
-  /// advance — the user can retry safely (writes are idempotent via .set()).
+  /// For new owners: creates Firebase Auth account, saves profiles, completes.
   Future<void> saveAndComplete() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await _service.saveNewUser(state);
-      final bizId = await _service.saveBusinessProfile(state);
-      await _service.completeOnboarding();
-
+      final bizId = await _service.saveAndCompleteNewUser(state);
       state = state.copyWith(
         businessId: bizId,
         isLoading: false,
         isComplete: true,
         currentStep: OnboardingStep.success,
       );
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _accountCreationErrorMessage(e),
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: _t(
-          en: 'Could not save your profile. Please try again.',
-          sw: 'Imeshindwa kuhifadhi wasifu wako. Tafadhali jaribu tena.',
-        ),
+        errorMessage: _accountCreationErrorMessage(e),
       );
     }
   }
@@ -325,10 +404,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
 
   void clearError() => state = state.copyWith(clearError: true);
 
-  /// Full reset — used when the user navigates back to the splash or
-  /// when a sign-out event fires mid-flow.
   void reset() {
-    _cooldownTimer?.cancel();
     state = const OnboardingState();
   }
 
@@ -338,47 +414,28 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
 
   String _t({required String en, required String sw}) => _sw ? sw : en;
 
-  String _otpErrorMessage(FirebaseAuthException? e) {
-    final code = e?.code ?? '';
-    if (code == 'invalid-verification-code') {
-      return _t(
-        en: 'Incorrect code. Please check and try again.',
-        sw: 'Msimbo si sahihi. Angalia na ujaribu tena.',
-      );
-    }
-    if (code == 'session-expired' || code == 'code-expired') {
-      return _t(
-        en: 'Code has expired. Tap "Resend" to get a fresh one.',
-        sw: 'Msimbo umeisha muda wake. Bonyeza "Tuma Upya" kupata mpya.',
-      );
-    }
-    return _t(
-      en: 'Verification failed. Please try again.',
-      sw: 'Uhakiki umeshindwa. Tafadhali jaribu tena.',
-    );
-  }
-
-  String _firebaseAuthMessage(FirebaseAuthException e) {
+  String _pinLoginError(FirebaseAuthException e) {
     switch (e.code) {
-      case 'invalid-phone-number':
+      case 'wrong-password':
+      case 'invalid-credential':
         return _t(
-          en: 'Invalid phone number. Please check and try again.',
-          sw: 'Namba ya simu si sahihi. Angalia na ujaribu tena.',
+          en: 'Incorrect PIN. Please try again.',
+          sw: 'PIN si sahihi. Tafadhali jaribu tena.',
+        );
+      case 'user-not-found':
+        return _t(
+          en: 'Account not found. Please register first.',
+          sw: 'Akaunti haikupatikana. Tafadhali jisajili kwanza.',
         );
       case 'too-many-requests':
         return _t(
-          en: 'Too many requests. Please wait a moment and try again.',
-          sw: 'Maombi mengi sana. Subiri kidogo kisha ujaribu tena.',
-        );
-      case 'quota-exceeded':
-        return _t(
-          en: 'SMS quota exceeded. Please try again later.',
-          sw: 'Ukomo wa SMS umefikiwa. Jaribu tena baadaye.',
+          en: 'Too many attempts. Please wait and try again.',
+          sw: 'Majaribio mengi. Subiri kidogo kisha ujaribu tena.',
         );
       default:
         return _t(
-          en: 'Could not send code. Please try again.',
-          sw: 'Imeshindwa kutuma msimbo. Jaribu tena.',
+          en: 'Sign in failed. Please try again.',
+          sw: 'Kuingia kumeshindwa. Jaribu tena.',
         );
     }
   }

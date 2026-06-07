@@ -76,7 +76,7 @@ export const useLanguage = () => {
  *   const formatted = formatCurrency(15000.50);
  *   // Output: "TSh 15,000.50"
  */
-export const formatCurrency = (amount: number, locale?: string): string => {
+export const formatCurrency = (amount: number, _locale?: string): string => {
   const formatter = new Intl.NumberFormat('sw-TZ', {
     style: 'currency',
     currency: 'TZS',
@@ -93,7 +93,7 @@ export const formatCurrency = (amount: number, locale?: string): string => {
  *   const formatted = formatDate(new Date());
  *   // Output: "24/05/2026"
  */
-export const formatDate = (date: Date, locale?: string): string => {
+export const formatDate = (date: Date, _locale?: string): string => {
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();

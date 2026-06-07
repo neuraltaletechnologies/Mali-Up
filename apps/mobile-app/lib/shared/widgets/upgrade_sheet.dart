@@ -14,6 +14,7 @@ Future<PlanTier?> showUpgradeSheet(
 }) {
   return showModalBottomSheet<PlanTier>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     useSafeArea: true,

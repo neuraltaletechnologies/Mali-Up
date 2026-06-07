@@ -56,7 +56,7 @@ Only five core business modules are in scope for Mali Up B v1.0:
 | B2 | Invoicing | Tuma ankara | Build now |
 | B3 | Customers | Wateja wangu | Build now |
 | B4 | Expenses | Gharama zangu | Build now |
-| B5 | Inventory | Hisa zangu | Build now |
+| B5 | Inventory | Bidhaa zangu | Build now |
 
 ### 2.2 Deferred Scope
 
@@ -235,7 +235,7 @@ Every label, button, notification, and empty state should be Swahili-first. Engl
 | Sales / invoicing | Tuma ankara |
 | Customers | Wateja wangu |
 | Expenses | Gharama zangu |
-| Inventory | Hisa zangu |
+| Inventory | Bidhaa zangu |
 
 ### 7.3 Tone of Voice
 
@@ -249,7 +249,7 @@ Examples:
 
 - `Uko tayari kutuma ankara?`
 - `Karibu, leo una salio la mauzo la TZS 240,000.`
-- `Onyo: hisa za bidhaa hii ziko karibu kuisha.`
+- `Onyo: bidhaa za bidhaaa hii ziko karibu kuisha.`
 - `Fuatilia gharama zako haraka kabla mwezi haujaisha.`
 
 ## 8. Monetization

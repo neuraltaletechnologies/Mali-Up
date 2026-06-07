@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 
 /// Consent Screen - PDPA Compliance
@@ -18,138 +19,38 @@ class ConsentScreen extends ConsumerStatefulWidget {
   ConsumerState<ConsentScreen> createState() => _ConsentScreenState();
 }
 
-class _ConsentScreenState extends ConsumerState<ConsentScreen> {
+class _ConsentScreenState extends ConsumerState<ConsentScreen>
+    with SingleTickerProviderStateMixin {
   bool privacyAccepted = false;
   bool analyticsOptIn = true;
   bool notificationsOptIn = true;
 
+  late final AnimationController _animCtrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Privacy & Permissions'),
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Text(
-                'Before We Get Started',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Mali Up respects your privacy. Please review our privacy policy and consent preferences.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 24),
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 480));
+    _fade = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _animCtrl.forward();
+  }
 
-              // Privacy Policy Checkbox (REQUIRED)
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(8),
-                  color: privacyAccepted ? Colors.green[50] : Colors.transparent,
-                ),
-                child: CheckboxListTile(
-                  title: const Text(
-                    'I accept the Privacy Policy',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: GestureDetector(
-                    onTap: () => _showPrivacyPolicy(context),
-                    child: const Text(
-                      'Read full policy',
-                      style: TextStyle(
-                        color: AppColors.navyPrimary,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                  value: privacyAccepted,
-                  onChanged: (val) => setState(() => privacyAccepted = val!),
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-              ),
-              const SizedBox(height: 16),
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
 
-              // Analytics Checkbox (OPTIONAL, default ON)
-              CheckboxListTile(
-                title: const Text('Help improve Mali Up'),
-                subtitle: const Text('Send usage analytics (non-financial)'),
-                value: analyticsOptIn,
-                onChanged: (val) => setState(() => analyticsOptIn = val!),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-              const SizedBox(height: 16),
-
-              // Notifications Checkbox (OPTIONAL, default ON)
-              CheckboxListTile(
-                title: const Text('Enable notifications'),
-                subtitle: const Text(
-                  'Get updates about invoices, expenses, and important events',
-                ),
-                value: notificationsOptIn,
-                onChanged: (val) => setState(() => notificationsOptIn = val!),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-              const SizedBox(height: 32),
-
-              // Continue Button (only if privacy accepted)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: privacyAccepted ? _proceedToSignup : null,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      'Continue to Signup',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Info Box
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Your Data Rights (PDPA)',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '• You own all your business data\n'
-                      '• Download it anytime as JSON/CSV\n'
-                      '• Delete it permanently with one click\n'
-                      '• Your financial data is never sold',
-                      style: TextStyle(height: 1.6),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
+  void _proceedToSignup() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Privacy preferences saved')),
     );
+    widget.onConsentAccepted();
   }
 
   void _showPrivacyPolicy(BuildContext context) {
@@ -173,20 +74,332 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     );
   }
 
-  void _proceedToSignup() {
-    // Save consent state to secure storage
-    // ref.read(consentProvider.notifier).setConsent(
-    //   privacyAccepted: privacyAccepted,
-    //   analyticsOptIn: analyticsOptIn,
-    //   notificationsOptIn: notificationsOptIn,
-    // );
+  @override
+  Widget build(BuildContext context) {
+    final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    // Show success and navigate
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Privacy preferences saved')),
+    final headingStyle = GoogleFonts.poppins(
+      fontSize: 28,
+      color: AppColors.textPrimary,
+      fontWeight: FontWeight.w800,
+      height: 1.15,
+      letterSpacing: -0.5,
+    );
+    final subtitleStyle = GoogleFonts.poppins(
+      color: AppColors.textSecondary,
+      fontSize: 14,
+      height: 1.5,
+      fontWeight: FontWeight.w400,
     );
 
-    widget.onConsentAccepted();
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // Header image
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: topHeight,
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
+
+          // Top navigation bar
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(10),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Main content sheet
+          DraggableScrollableSheet(
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: FadeTransition(
+                    opacity: _fade,
+                    child: SlideTransition(
+                      position: _slide,
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        physics: const ClampingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Handle bar
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(bottom: 20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.border,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+
+                            // Title
+                            Center(
+                              child: Text(
+                                'Your Privacy & Permissions',
+                                textAlign: TextAlign.center,
+                                style: headingStyle,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                'Mali Up respects your privacy. Please review our privacy policy and consent preferences.',
+                                textAlign: TextAlign.center,
+                                style: subtitleStyle,
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+
+                            // Privacy Policy (required)
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: privacyAccepted
+                                      ? AppColors.success.withValues(alpha: 0.4)
+                                      : AppColors.border,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                color: privacyAccepted
+                                    ? AppColors.successBg
+                                    : AppColors.surface,
+                              ),
+                              child: CheckboxListTile(
+                                title: const Text(
+                                  'I accept the Privacy Policy',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.navyPrimary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                subtitle: GestureDetector(
+                                  onTap: () => _showPrivacyPolicy(context),
+                                  child: const Text(
+                                    'Read full policy',
+                                    style: TextStyle(
+                                      color: AppColors.navyPrimary,
+                                      decoration: TextDecoration.underline,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                                value: privacyAccepted,
+                                onChanged: (val) =>
+                                    setState(() => privacyAccepted = val!),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                activeColor: AppColors.navyPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Analytics (optional)
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColors.border),
+                                borderRadius: BorderRadius.circular(14),
+                                color: AppColors.surface,
+                              ),
+                              child: CheckboxListTile(
+                                title: const Text(
+                                  'Help improve Mali Up',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.navyPrimary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                subtitle: const Text(
+                                  'Send usage analytics (non-financial)',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textMuted),
+                                ),
+                                value: analyticsOptIn,
+                                onChanged: (val) =>
+                                    setState(() => analyticsOptIn = val!),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                activeColor: AppColors.navyPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Notifications (optional)
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColors.border),
+                                borderRadius: BorderRadius.circular(14),
+                                color: AppColors.surface,
+                              ),
+                              child: CheckboxListTile(
+                                title: const Text(
+                                  'Enable notifications',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.navyPrimary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                subtitle: const Text(
+                                  'Get updates about invoices, expenses, and important events',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textMuted),
+                                ),
+                                value: notificationsOptIn,
+                                onChanged: (val) =>
+                                    setState(() => notificationsOptIn = val!),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                activeColor: AppColors.navyPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+
+                            // CTA
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.navyPrimary,
+                                  elevation: 4,
+                                  shadowColor:
+                                      AppColors.primary.withValues(alpha: 0.3),
+                                  disabledBackgroundColor:
+                                      AppColors.disabled,
+                                  minimumSize: const Size.fromHeight(52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed:
+                                    privacyAccepted ? _proceedToSignup : null,
+                                child: Text(
+                                  'Continue to Signup',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Data rights info box
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.navyPrimary
+                                    .withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: AppColors.navyPrimary
+                                      .withValues(alpha: 0.12),
+                                ),
+                              ),
+                              child: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.shield_outlined,
+                                          size: 16,
+                                          color: AppColors.navyPrimary),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Your Data Rights (PDPA)',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.navyPrimary,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    '• You own all your business data\n'
+                                    '• Download it anytime as JSON/CSV\n'
+                                    '• Delete it permanently with one click\n'
+                                    '• Your financial data is never sold',
+                                    style: TextStyle(
+                                      height: 1.6,
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   String _getPrivacyPolicyText() {
@@ -232,4 +445,3 @@ Significant policy changes require email notification and 30-day notice.
 For questions: privacy@maliup.co.tz''';
   }
 }
-
