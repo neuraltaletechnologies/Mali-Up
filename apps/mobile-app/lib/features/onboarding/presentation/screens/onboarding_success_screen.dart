@@ -245,38 +245,25 @@ class _OnboardingSuccessScreenState
                             ),
                             const SizedBox(height: 28),
                             Center(
-                              child: Container(
-                                width: 96,
-                                height: 96,
-                                decoration: BoxDecoration(
-                                  color: AppColors.background,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: AppColors.border,
-                                    width: 1.5,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _RoundFeatureCard(
+                                    icon: Icons.point_of_sale_rounded,
+                                    label: sw ? 'Mauzo' : 'Sales',
                                   ),
-                                ),
+                                  const SizedBox(width: 10),
+                                  _RoundFeatureCard(
+                                    icon: Icons.inventory_rounded,
+                                    label: sw ? 'Stoo' : 'Stock',
+                                  ),
+                                  const SizedBox(width: 10),
+                                  _RoundFeatureCard(
+                                    icon: Icons.receipt_long_rounded,
+                                    label: sw ? 'Risiti' : 'Invoices',
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 28),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _FeaturePill(
-                                  icon: Icons.point_of_sale_rounded,
-                                  label: sw ? 'Mauzo' : 'Sales',
-                                ),
-                                const SizedBox(width: 8),
-                                _FeaturePill(
-                                  icon: Icons.inventory_rounded,
-                                  label: sw ? 'Stoo' : 'Stock',
-                                ),
-                                const SizedBox(width: 8),
-                                _FeaturePill(
-                                  icon: Icons.receipt_long_rounded,
-                                  label: sw ? 'Risiti' : 'Invoices',
-                                ),
-                              ],
                             ),
                             if (bizName.isNotEmpty) ...[
                               const SizedBox(height: 24),
@@ -348,36 +335,44 @@ class _OnboardingSuccessScreenState
   }
 }
 
-class _FeaturePill extends StatelessWidget {
-  const _FeaturePill({required this.icon, required this.label});
+class _RoundFeatureCard extends StatelessWidget {
+  const _RoundFeatureCard({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: AppColors.success),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.navyPrimary,
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColors.shadowCard,
+                blurRadius: 10,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
+          child: Icon(icon, size: 24, color: AppColors.success),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.navyPrimary,
+          ),
+        ),
+      ],
     );
   }
 }
