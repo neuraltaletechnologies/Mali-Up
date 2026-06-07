@@ -9,6 +9,22 @@ import '../domain/models/onboarding_state.dart';
 import '../domain/models/user_lookup_result.dart';
 import '../../../core/services/localization_service.dart';
 
+// ─── BOOTSTRAP PROVIDER ──────────────────────────────────────────────────────
+
+/// Seeded by [main.dart] via ProviderScope.overrides before the first frame so
+/// the router knows immediately whether to skip to /dashboard.
+///
+/// Usage in main.dart:
+/// ```dart
+/// ProviderScope(
+///   overrides: [
+///     onboardingBootstrapProvider.overrideWithValue(hasCompletedOnboarding),
+///   ],
+///   child: MaliUpApp(),
+/// )
+/// ```
+final onboardingBootstrapProvider = Provider<bool>((_) => false);
+
 // ─── PROVIDER ────────────────────────────────────────────────────────────────
 
 /// The single source of truth for the onboarding flow.
@@ -34,7 +50,11 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   @override
   OnboardingState build() {
     _service = ref.read(onboardingServiceProvider);
-    return const OnboardingState();
+    // If main.dart seeded the bootstrap provider as true, the user has already
+    // completed onboarding — start in a done state so the router redirects
+    // immediately to /dashboard without any intermediate flicker.
+    final alreadyComplete = ref.read(onboardingBootstrapProvider);
+    return OnboardingState(isComplete: alreadyComplete);
   }
 
   String _accountCreationErrorMessage(Object error) {
