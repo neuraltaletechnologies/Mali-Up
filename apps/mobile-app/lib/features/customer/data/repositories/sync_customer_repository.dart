@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/database/daos/sync_queue_dao.dart';
+import '../../../../core/sync/offline_policy_notifier.dart';
 import '../../../../core/sync/sync_utils.dart';
 import '../../domain/models/customer.dart';
 import 'customer_repository.dart';
@@ -16,15 +17,18 @@ class SyncCustomerRepository implements CustomerRepository {
   final LocalCustomerRepository _local;
   final RemoteCustomerRepository remote;
   final SyncQueueDao _queue;
+  final OfflinePolicyNotifier _policy;
 
   SyncCustomerRepository({
     required AppDatabase db,
     required String uid,
     required String businessId,
+    required OfflinePolicyNotifier policy,
   })  : _db = db,
         _local = LocalCustomerRepository(db, businessId: businessId),
         remote = RemoteCustomerRepository(uid: uid, businessId: businessId),
-        _queue = db.syncQueueDao;
+        _queue = db.syncQueueDao,
+        _policy = policy;
 
   // ─── Reads ─────────────────────────────────────────────────────────────────
 
@@ -45,6 +49,7 @@ class SyncCustomerRepository implements CustomerRepository {
 
   @override
   Future<void> save(Customer customer) async {
+    _policy.assertCanWrite();
     final isNew = customer.id.isEmpty;
     final entityId = isNew ? const Uuid().v4() : customer.id;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -88,6 +93,7 @@ class SyncCustomerRepository implements CustomerRepository {
 
   @override
   Future<void> delete(String id) async {
+    _policy.assertCanWrite();
     final now = DateTime.now().millisecondsSinceEpoch;
     const payload = '{}';
 

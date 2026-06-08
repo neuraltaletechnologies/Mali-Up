@@ -1,36 +1,42 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/data/repositories/context_firestore_repository.dart';
-import '../../customer/data/customer_providers.dart';
-import '../../sales/data/sales_providers.dart';
+import '../../sales/data/sales_providers.dart' show parseNumericAmount;
+import '../domain/models/inventory_item.dart';
+import '../presentation/providers/inventory_providers.dart';
 
-final inventoryItemListProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    yield const <Map<String, dynamic>>[];
-    return;
-  }
-  final businessAsync = ref.watch(currentBusinessIdProvider);
-  if (businessAsync.isLoading) {
-    return;
-  }
-  final bizId = businessAsync.valueOrNull;
-  if (bizId == null || bizId.isEmpty) {
-    yield const <Map<String, dynamic>>[];
-    return;
-  }
-  final repository = ref.read(contextFirestoreRepositoryProvider);
-  final collection = repository.scopeCollection(
-    uid: user.uid,
-    context: ResolvedFinanceContext.business(bizId),
-    childCollection: 'inventory_items',
-  );
-  yield* collection
-      .orderBy('updatedAt', descending: true)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+/// Offline-first inventory stream backed by Drift.
+/// Maps InventoryItem domain objects to the legacy raw-map shape so all
+/// existing consumers (dashboard, reports) require no changes.
+final inventoryItemListProvider =
+    Provider<AsyncValue<List<Map<String, dynamic>>>>((ref) {
+  return ref.watch(inventoryProvider).whenData(
+        (items) => items.map(_itemToMap).toList(),
+      );
 });
+
+Map<String, dynamic> _itemToMap(InventoryItem item) => {
+      'id': item.id,
+      'name': item.name,
+      'description': item.description,
+      'category': item.category,
+      'categoryId': item.categoryId,
+      'categoryName': item.categoryName,
+      'sku': item.sku,
+      'currentStock': item.currentStock,
+      'stock': item.currentStock,
+      'reorderPoint': item.reorderPoint,
+      'unitPrice': item.unitPrice,
+      'unit': item.unit,
+      'supplier': item.supplier,
+      'lastRestocked': item.lastRestocked,
+      'createdAt': item.createdAt,
+      'updatedAt': item.updatedAt,
+      'isActive': item.isActive,
+      'expiryDate': item.expiryDate,
+      'batchNumber': item.batchNumber,
+      'warrantyPeriod': item.warrantyPeriod,
+      'brand': item.brand,
+    };
 
 int parseStock(Object? value) {
   if (value == null) return 0;

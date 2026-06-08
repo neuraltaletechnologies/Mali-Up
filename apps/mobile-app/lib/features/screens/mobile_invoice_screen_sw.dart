@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:riverpod/riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/localization/app_localization.dart' hide localeProvider;
 import '../../core/localization/translation_manager.dart';
 
 class InvoiceScreenSW extends ConsumerWidget {
-  const InvoiceScreenSW({Key? key}) : super(key: key);
+  const InvoiceScreenSW({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

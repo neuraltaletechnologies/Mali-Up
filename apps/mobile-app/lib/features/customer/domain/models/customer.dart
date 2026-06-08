@@ -83,7 +83,8 @@ class Customer {
       'name': name,
       'phone': phone,
       'email': email,
-      'balance': balance,
+      // Store as a number so FieldValue.increment() works when sales are saved.
+      'balance': double.tryParse(balance) ?? 0.0,
       'lastTransactionDate': lastTransactionDate,
       'tags': tags,
       'isOrganisation': isOrganisation,

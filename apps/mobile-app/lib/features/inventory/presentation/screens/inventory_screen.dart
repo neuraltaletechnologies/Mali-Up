@@ -688,7 +688,9 @@ class _ProductRow extends ConsumerWidget {
             ],
           ),
         );
-        if (confirmed == true) await _deleteItem(context, ref);
+        if (confirmed == true && context.mounted) {
+          await _deleteItem(context, ref);
+        }
       },
       child: GestureDetector(
         onTap: () {

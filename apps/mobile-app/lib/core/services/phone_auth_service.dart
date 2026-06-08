@@ -68,7 +68,7 @@ class PhoneAuthService {
     try {
       // Check network connectivity
       final connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.every((r) => r == ConnectivityResult.none)) {
         return AuthResult.networkError;
       }
 
@@ -143,7 +143,7 @@ class PhoneAuthService {
     try {
       // Check network connectivity
       final connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.every((r) => r == ConnectivityResult.none)) {
         return AuthResult.networkError;
       }
 

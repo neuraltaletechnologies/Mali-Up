@@ -4,7 +4,7 @@ import 'user_lookup_result.dart';
 part 'onboarding_state.freezed.dart';
 
 @freezed
-class OnboardingState with _$OnboardingState {
+abstract class OnboardingState with _$OnboardingState {
   const factory OnboardingState({
     /// Language selection: 'en' or 'sw'
     required String language,
@@ -135,7 +135,7 @@ class OnboardingState with _$OnboardingState {
 }
 
 @freezed
-class BusinessInfo with _$BusinessInfo {
+abstract class BusinessInfo with _$BusinessInfo {
   const factory BusinessInfo({
     required String businessId,
     required String businessName,

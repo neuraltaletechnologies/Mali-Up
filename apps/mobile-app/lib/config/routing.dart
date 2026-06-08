@@ -62,6 +62,8 @@ import '../features/reports/presentation/screens/balance_sheet_screen.dart'
     deferred as screen_balance;
 import '../features/reports/presentation/screens/inventory_valuation_screen.dart'
     deferred as screen_inv_val;
+import '../features/settings/presentation/screens/sync_diagnostics_screen.dart'
+    deferred as screen_sync_diagnostics;
 import '../features/rbac/data/rbac_providers.dart';
 import '../features/rbac/presentation/screens/access_denied_screen.dart';
 import '../features/team/domain/models/team_member.dart';
@@ -90,12 +92,13 @@ abstract final class AppRoutes {
   static const expenses     = '/expenses';
   static const cashflow     = '/cashflow';
   static const team         = '/team';
-  static const settings     = '/settings';
-  static const subscription = '/subscription';
-  static const businesses   = '/businesses';
-  static const reports      = '/reports';
-  static const login        = '/login';
-  static const accessDenied = '/access-denied';
+  static const settings         = '/settings';
+  static const subscription     = '/subscription';
+  static const businesses       = '/businesses';
+  static const reports          = '/reports';
+  static const syncDiagnostics  = '/sync-diagnostics';
+  static const login            = '/login';
+  static const accessDenied     = '/access-denied';
 
   static const _onboardingPaths = {
     welcome, intro, phone, pinLogin, teamSetup, newUser, business, security, success,
@@ -125,7 +128,8 @@ abstract final class AppRoutes {
   static bool isOwnerOnly(String path) =>
       path.startsWith(settings) ||
       path.startsWith(subscription) ||
-      path.startsWith(businesses);
+      path.startsWith(businesses) ||
+      path.startsWith(syncDiagnostics);
 }
 
 // ─── ROUTER PROVIDER ─────────────────────────────────────────────────────────
@@ -466,6 +470,13 @@ List<RouteBase> _buildRoutes() {
           builder: (context, state) => const AccessDeniedScreen(),
         ),
         GoRoute(
+          path: AppRoutes.syncDiagnostics,
+          builder: (context, state) => _deferred(
+            load: screen_sync_diagnostics.loadLibrary,
+            build: () => screen_sync_diagnostics.SyncDiagnosticsScreen(),
+          ),
+        ),
+        GoRoute(
           path: AppRoutes.reports,
           builder: (context, state) => _deferred(
             load: screen_reports.loadLibrary,
@@ -612,6 +623,7 @@ class AppRouter {
   static const subscriptionPath      = AppRoutes.subscription;
   static const businessesPath        = AppRoutes.businesses;
   static const reportsPath           = AppRoutes.reports;
+  static const syncDiagnosticsPath   = AppRoutes.syncDiagnostics;
 
   static GoRouter createRouter({
     required bool showLanguageSelection,

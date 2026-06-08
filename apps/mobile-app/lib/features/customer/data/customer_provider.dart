@@ -53,7 +53,7 @@ class CustomerProvider extends ChangeNotifier {
         tags: tags,
       );
 
-      final customerId = await _firestoreService.addCustomer(customer);
+      await _firestoreService.addCustomer(customer);
       
       // Refresh the list
       await fetchCustomers();

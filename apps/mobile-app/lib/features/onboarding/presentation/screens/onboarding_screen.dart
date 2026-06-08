@@ -28,10 +28,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   late VoidCallback _langListener;
   late AppLanguage _language;
-  late final AnimationController _sheetCtrl;
-  late final Animation<double> _sheetFade;
-  late final Animation<Offset> _sheetSlide;
-
   // ── Slide data ──────────────────────────────────────────────────────────────
 
   static const _slides = [

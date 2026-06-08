@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/database/daos/sync_queue_dao.dart';
+import '../../../../core/sync/offline_policy_notifier.dart';
 import '../../../../core/sync/sync_utils.dart';
 import '../../domain/models/invoice.dart';
 import 'invoice_repository.dart';
@@ -22,15 +23,18 @@ class SyncInvoiceRepository implements InvoiceRepository {
   final LocalInvoiceRepository _local;
   final RemoteInvoiceRepository remote; // Phase 3 SyncService accesses this
   final SyncQueueDao _queue;
+  final OfflinePolicyNotifier _policy;
 
   SyncInvoiceRepository({
     required AppDatabase db,
     required String uid,
     required String businessId,
+    required OfflinePolicyNotifier policy,
   })  : _db = db,
         _local = LocalInvoiceRepository(db, businessId: businessId),
         remote = RemoteInvoiceRepository(uid: uid, businessId: businessId),
-        _queue = db.syncQueueDao;
+        _queue = db.syncQueueDao,
+        _policy = policy;
 
   // ─── Reads (always from Drift) ─────────────────────────────────────────────
 
@@ -62,8 +66,7 @@ class SyncInvoiceRepository implements InvoiceRepository {
 
   @override
   Future<void> save(Invoice invoice) async {
-    // Phase 4 will add: offlinePolicyNotifier.assertCanWrite()
-
+    _policy.assertCanWrite();
     final isNew = invoice.id.isEmpty;
     final entityId = isNew ? const Uuid().v4() : invoice.id;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -108,8 +111,7 @@ class SyncInvoiceRepository implements InvoiceRepository {
 
   @override
   Future<void> delete(String id) async {
-    // Phase 4 will add: offlinePolicyNotifier.assertCanWrite()
-
+    _policy.assertCanWrite();
     final now = DateTime.now().millisecondsSinceEpoch;
     const payload = '{}';
 

@@ -1,0 +1,61 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../database/app_database.dart';
+import '../sync/offline_policy_notifier.dart';
+import '../sync/sync_service.dart';
+import 'business_id_provider.dart';
+import 'database_provider.dart';
+
+export 'database_provider.dart' show appDatabaseProvider;
+
+/// Single [SyncService] instance for the active session.
+/// Rebuilt when uid or businessId changes (sign-out / business switch).
+final syncServiceProvider = Provider<SyncService>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+
+  final service = SyncService(db: db, uid: uid, businessId: bizId);
+
+  // Keep alive until the provider is disposed (widget tree torn down or
+  // the uid/bizId invalidates it).
+  ref.onDispose(service.dispose);
+
+  // Start listening for connectivity and run an initial sync cycle.
+  // Runs asynchronously — the UI doesn't wait for it.
+  if (uid.isNotEmpty && bizId.isNotEmpty) {
+    service.start();
+  }
+
+  return service;
+});
+
+/// [OfflinePolicyNotifier] — initialized once per session.
+final offlinePolicyProvider = ChangeNotifierProvider<OfflinePolicyNotifier>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final notifier = OfflinePolicyNotifier(db: db);
+  notifier.initialize();
+  return notifier;
+});
+
+/// Current [SyncState] — rebuilds the UI whenever it changes.
+final syncStateProvider = Provider<SyncState>((ref) {
+  final service = ref.watch(syncServiceProvider);
+  // Re-read when the service notifies (ChangeNotifier → Provider bridge).
+  service.addListener(() => ref.invalidateSelf());
+  return service.state;
+});
+
+/// Live count of pending + processing + conflict queue entries.
+/// Drives the sync badge and the "Waiting to sync" UX copy.
+final pendingSyncCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(syncServiceProvider).pendingCountStream;
+});
+
+/// Convenience: true when there are unsynced local changes.
+final hasPendingSyncProvider = Provider<bool>((ref) {
+  return (ref.watch(pendingSyncCountProvider).valueOrNull ?? 0) > 0;
+});
+
+typedef AppDb = AppDatabase;

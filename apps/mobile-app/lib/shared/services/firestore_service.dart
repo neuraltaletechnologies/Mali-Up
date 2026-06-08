@@ -488,7 +488,6 @@ class InventoryItemModel {
 class FirestoreService {
   final String _uid;
   final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
 
   /// Creates a new FirestoreService instance for a specific user
   /// [uid] - The user ID to scope all queries to
@@ -497,15 +496,10 @@ class FirestoreService {
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
   })  : _uid = uid,
-        _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _firestore = firestore ?? FirebaseFirestore.instance;
 
   /// Gets the business collection path for the current user
   String get businessPath => 'business/$_uid';
-
-  /// Gets a reference to the business collection
-  CollectionReference<Map<String, dynamic>> get _businessCollection =>
-      _firestore.collection(businessPath);
 
   /// Gets a reference to a specific subcollection within the business
   CollectionReference<Map<String, dynamic>> _businessSubCollection(String subCollection) =>

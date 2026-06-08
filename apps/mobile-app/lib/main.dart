@@ -79,7 +79,7 @@ Future<void> main() async {
       (options) {
         options.dsn = _sentryDsn;
         options.tracesSampleRate = 1.0;
-        options.profilesSampleRate = 1.0;
+        options.profilesSampleRate = 1.0; // ignore: experimental_member_use
         options.replay.sessionSampleRate = 1.0;
         options.replay.onErrorSampleRate = 1.0;
         options.privacy.maskAllText = true;
