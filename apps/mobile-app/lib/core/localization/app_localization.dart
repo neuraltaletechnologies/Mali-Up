@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
-import 'package:riverpod/riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Supported locales for Mali Up
 class AppLocales {
@@ -31,7 +31,7 @@ final localeProvider = StateNotifierProvider<LocaleNotifier, Locale>((ref) {
 
 /// Provider for translations
 final translationsProvider = Provider<Map<String, dynamic>>((ref) {
-  final locale = ref.watch(localeProvider);
+  ref.watch(localeProvider);
   // Load translations based on locale
   // This will be populated by the app initialization
   return {};

@@ -385,43 +385,6 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
   }
 }
 
-// ── User avatar ───────────────────────────────────────────────────────────────
-
-class _UserAvatar extends StatelessWidget {
-  const _UserAvatar({required this.name});
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final initials = name.isNotEmpty ? name[0].toUpperCase() : '?';
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        color: AppColors.navyPrimary,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.22),
-            blurRadius: 16,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          initials,
-          style: const TextStyle(
-            color: AppColors.yellowBrand,
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ── Business info card ────────────────────────────────────────────────────────
 
 class _BusinessCard extends StatelessWidget {

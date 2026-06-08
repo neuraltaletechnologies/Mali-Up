@@ -53,19 +53,25 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
               ),
               const SizedBox(height: 12),
 
-              RadioListTile(
-                title: const Text('JSON (Complete backup)'),
-                subtitle: const Text('Full data structure, best for backup'),
-                value: 'json',
-                groupValue: selectedFormat,
-                onChanged: isExporting ? null : (val) => setState(() => selectedFormat = val as String?),
-              ),
-              RadioListTile(
-                title: const Text('CSV (For spreadsheets)'),
-                subtitle: const Text('Comma-separated values, open in Excel'),
-                value: 'csv',
-                groupValue: selectedFormat,
-                onChanged: isExporting ? null : (val) => setState(() => selectedFormat = val as String?),
+              RadioGroup<String>(
+                groupValue: selectedFormat ?? 'json',
+                onChanged: isExporting
+                    ? (_) {}
+                    : (val) => setState(() => selectedFormat = val),
+                child: const Column(
+                  children: [
+                    RadioListTile<String>(
+                      title: Text('JSON (Complete backup)'),
+                      subtitle: Text('Full data structure, best for backup'),
+                      value: 'json',
+                    ),
+                    RadioListTile<String>(
+                      title: Text('CSV (For spreadsheets)'),
+                      subtitle: Text('Comma-separated values, open in Excel'),
+                      value: 'csv',
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 32),
@@ -223,6 +229,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
         exportProgress = null;
       });
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Data exported: $fileName'),
@@ -243,6 +250,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
         exportProgress = null;
       });
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Export failed: $e'),

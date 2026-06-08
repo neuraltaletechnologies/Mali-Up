@@ -8,6 +8,8 @@ import '../domain/models/budget.dart';
 import '../domain/models/cash_account.dart';
 import '../domain/models/expense.dart';
 import '../domain/models/recurring_expense_template.dart';
+import '../../../core/providers/database_provider.dart';
+import 'mappers/expense_mapper.dart';
 
 // ── Selected month for expense screen navigation ──────────────────────────────
 
@@ -24,22 +26,14 @@ final selectedMonthProvider = NotifierProvider<_SelectedMonthNotifier, DateTime>
 
 // ── Expense streams ───────────────────────────────────────────────────────────
 
-final expenseListProvider = StreamProvider<List<Expense>>((ref) async* {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    yield const <Expense>[];
-    return;
-  }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
-  if (bizId == null || bizId.isEmpty) {
-    yield const <Expense>[];
-    return;
-  }
-  final repository = ref.read(contextFirestoreRepositoryProvider);
-  yield* repository.watchExpenses(
-    uid: user.uid,
-    context: ResolvedFinanceContext.business(bizId),
-  );
+/// Offline-first expense stream backed by Drift.
+final expenseListProvider = StreamProvider<List<Expense>>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  if (bizId.isEmpty) return Stream.value(const []);
+  return db.expenseDao
+      .watchAll(bizId)
+      .map((rows) => rows.map(ExpenseMapper.fromRow).toList());
 });
 
 /// Expenses filtered to the currently selected month.

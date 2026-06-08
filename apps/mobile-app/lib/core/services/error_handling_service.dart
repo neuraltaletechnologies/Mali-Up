@@ -93,7 +93,7 @@ class ErrorHandlingService {
   static Future<bool> checkConnectivity() async {
     try {
       final result = await Connectivity().checkConnectivity();
-      return result != ConnectivityResult.none;
+      return result.any((r) => r != ConnectivityResult.none);
     } catch (e) {
       return false;
     }

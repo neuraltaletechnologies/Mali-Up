@@ -9,7 +9,8 @@ import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
-import '../../features/onboarding/providers/onboarding_notifier.dart';
+import '../../core/providers/sync_provider.dart';
+import 'sync_status_banner.dart';
 import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/domain/permission_service.dart';
 import '../../features/team/domain/models/team_member.dart';
@@ -162,16 +163,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     await Future<void>.delayed(const Duration(milliseconds: 150));
     if (!rootContext.mounted) return;
     rootContext.go(route);
-  }
-
-  Future<void> _switchAccountAndSignOut(BuildContext dialogContext) async {
-    Navigator.of(dialogContext).pop();
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-    if (!mounted) return;
-    await FirebaseAuth.instance.signOut();
-    ref.read(onboardingNotifierProvider.notifier).reset();
-    if (!mounted) return;
-    context.go(AppRoutes.phone, extra: {'switchAccount': true});
   }
 
   Future<void> _openNavigationPanel({
@@ -505,6 +496,14 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                 selected: _isSelected(location, AppRouter.settingsPath),
                                 onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
                               ),
+                              _DrawerItemLight(
+                                icon: Icons.sync_problem_rounded,
+                                iconColor: AppColors.secondary,
+                                label: _tr('Sync Diagnostics', 'Uchunguzi wa Sync'),
+                                semanticsLabel: _tr('Sync diagnostics', 'Uchunguzi wa ulandanishaji'),
+                                selected: _isSelected(location, AppRouter.syncDiagnosticsPath),
+                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.syncDiagnosticsPath),
+                              ),
                             ],
                           ],
                         ),
@@ -595,6 +594,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     final currentUser = _currentUser;
+    ref.watch(syncServiceProvider); // starts SyncService (local→Firestore push) when uid + bizId are ready
     final ps = ref.watch(permissionServiceProvider);
     final memberAsync = ref.watch(currentMemberProvider);
     final member = memberAsync.valueOrNull;
@@ -672,7 +672,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
             ),
           ),
           body: widget.child,
-          bottomNavigationBar: SafeArea(
+          bottomNavigationBar: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SyncStatusBanner(),
+              SafeArea(
             bottom: false,
             child: Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).padding.bottom + 20),
@@ -709,6 +713,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                 ),
               ),
             ),
+          ),
+            ],
           ),
         );
       },

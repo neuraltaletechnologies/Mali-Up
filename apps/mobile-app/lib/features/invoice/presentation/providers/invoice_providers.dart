@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/business_id_provider.dart';
-import '../../../../core/providers/database_provider.dart';
+import '../../../../core/providers/sync_provider.dart';
 import '../../data/repositories/sync_invoice_repository.dart';
 import '../../domain/models/invoice.dart';
 
@@ -12,7 +12,8 @@ final invoiceRepositoryProvider = Provider<SyncInvoiceRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
   final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
-  return SyncInvoiceRepository(db: db, uid: uid, businessId: bizId);
+  final policy = ref.watch(offlinePolicyProvider);
+  return SyncInvoiceRepository(db: db, uid: uid, businessId: bizId, policy: policy);
 });
 
 /// Live stream of all non-deleted invoices for the active business.

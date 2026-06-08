@@ -30,7 +30,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
   Future<void> _checkBiometricAvailability() async {
     try {
       final isDeviceSupported = await auth.canCheckBiometrics;
-      final canUseDeviceCredential = await auth.deviceSupportsBiometrics;
+      final canUseDeviceCredential = await auth.isDeviceSupported();
 
       if (isDeviceSupported || canUseDeviceCredential) {
         final biometrics = await auth.getAvailableBiometrics();
@@ -103,7 +103,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
                 ),
                 const SizedBox(height: 16),
                 SwitchListTile(
-                  title: const Text('Enable ${_getBiometricName()} Lock'),
+                  title: Text('Enable ${_getBiometricName()} Lock'),
                   subtitle: const Text('Unlock app with fingerprint or face'),
                   value: biometricEnabled,
                   onChanged: (val) => _setBiometric(val),
@@ -196,6 +196,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
 
         setState(() => biometricEnabled = enabled);
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -208,6 +209,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),

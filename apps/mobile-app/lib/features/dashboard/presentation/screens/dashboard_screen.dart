@@ -70,8 +70,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String _timeBasedGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) return _tr('Good morning', 'Habari za asubuhi');
-    if (hour >= 12 && hour < 17)
+    if (hour >= 12 && hour < 17) {
       return _tr('Good afternoon', 'Habari za mchana');
+    }
     if (hour >= 17 && hour < 21) return _tr('Good evening', 'Habari za jioni');
     if (hour >= 21) return _tr('Good night', 'Usiku mwema');
     return _tr('Good midnight', 'Usiku wa manane mwema');
@@ -220,10 +221,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final s = readInvoiceStatus(inv).toLowerCase();
       return s == 'unpaid' || s == 'partial';
     }).toList();
-    final totalOutstanding = unpaidSales.fold<double>(0, (sum, inv) {
+    final totalOutstanding = unpaidSales.fold<double>(0, (total, inv) {
       final amt = parseNumericAmount(inv['amount']);
       final paid = parseNumericAmount(inv['amountPaid']);
-      return sum + (amt - paid).clamp(0.0, amt);
+      return total + (amt - paid).clamp(0.0, amt);
     });
     double aging30 = 0, aging60 = 0, aging90plus = 0;
     int overdueCount = 0;
@@ -234,13 +235,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final balance =
           parseNumericAmount(inv['amount']) -
           parseNumericAmount(inv['amountPaid']);
-      if (age > 30) overdueCount++;
-      if (age <= 30)
+      if (age > 30) { overdueCount++; }
+      if (age <= 30) {
         aging30 += balance;
-      else if (age <= 60)
+      } else if (age <= 60) {
         aging60 += balance;
-      else
+      } else {
         aging90plus += balance;
+      }
     }
 
     // ── Low stock ────────────────────────────────────────────────────────────
@@ -637,11 +639,11 @@ class _RevenueSnapshotCard extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadowCard,
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -791,11 +793,11 @@ class _OutstandingReceivablesCard extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadowCard,
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -992,11 +994,11 @@ class _CashPositionCard extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadowCard,
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -2569,7 +2571,7 @@ class _RecentTransactionsList extends StatelessWidget {
             alignment: Alignment.center,
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.receipt_long_outlined,
                   size: 36,
                   color: AppColors.textDisabled,
@@ -2893,11 +2895,12 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
             'status': 'pending',
           }, SetOptions(merge: true));
 
-      if (mounted)
+      if (mounted) {
         setState(() {
           _submitting = false;
           _submitted = true;
         });
+      }
 
       final msg = _buildWhatsAppMessage(
         personName: personName.isNotEmpty
@@ -2951,11 +2954,13 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
     );
     b.writeln();
     b.writeln('${_tr("Name", "Jina")}: $personName');
-    if (businessName.isNotEmpty)
+    if (businessName.isNotEmpty) {
       b.writeln('${_tr("Business", "Biashara")}: $businessName');
-    if (businessType.isNotEmpty)
+    }
+    if (businessType.isNotEmpty) {
       b.writeln('${_tr("Business Type", "Aina ya Biashara")}: $businessType');
-    if (phone.isNotEmpty) b.writeln('${_tr("Phone", "Simu")}: $phone');
+    }
+    if (phone.isNotEmpty) { b.writeln('${_tr("Phone", "Simu")}: $phone'); }
     if (notes.isNotEmpty) {
       b.writeln();
       b.writeln('${_tr("Additional Notes", "Maelezo ya Ziada")}:');
@@ -2974,8 +2979,9 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
       'text': message,
     });
     try {
-      if (await launchUrl(primaryUrl, mode: LaunchMode.externalApplication))
+      if (await launchUrl(primaryUrl, mode: LaunchMode.externalApplication)) {
         return true;
+      }
     } catch (_) {}
     try {
       return await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
@@ -3169,12 +3175,13 @@ String _fmtCompactAmount(double amount) {
 String _fmtAmount(double amount) {
   final abs = amount.abs();
   String formatted;
-  if (abs >= 1000000)
+  if (abs >= 1000000) {
     formatted = '${(abs / 1000000).toStringAsFixed(1)}M';
-  else if (abs >= 1000)
+  } else if (abs >= 1000) {
     formatted = '${(abs / 1000).toStringAsFixed(0)}K';
-  else
+  } else {
     formatted = abs.toStringAsFixed(0);
+  }
   return 'TSh $formatted';
 }
 
@@ -3224,7 +3231,7 @@ double _monthRevenue(List<Map<String, dynamic>> invoices) {
 
 double _yearRevenue(List<Map<String, dynamic>> invoices) {
   final now = DateTime.now();
-  final yearStart = DateTime(now.year, 1, 1);
+  final yearStart = DateTime(now.year);
   return invoices.fold<double>(0, (total, inv) {
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
@@ -3254,8 +3261,8 @@ double _revenueForRange(
 
 double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
   final now = DateTime.now();
-  final lastMonthStart = DateTime(now.year, now.month - 1, 1);
-  final lastMonthEnd = DateTime(now.year, now.month, 1);
+  final lastMonthStart = DateTime(now.year, now.month - 1);
+  final lastMonthEnd = DateTime(now.year, now.month);
   return invoices.fold<double>(0, (total, inv) {
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
@@ -3338,8 +3345,9 @@ List<String> _generateInsights({
     final key = (inv['customerName'] ?? '').toString().trim();
     final amt = parseNumericAmount(inv['amount']);
     monthTotal += amt;
-    if (key.isNotEmpty)
+    if (key.isNotEmpty) {
       customerRevenue[key] = (customerRevenue[key] ?? 0) + amt;
+    }
   }
   if (monthTotal > 0 && customerRevenue.length >= 3) {
     final sorted = customerRevenue.values.toList()

@@ -104,7 +104,7 @@ class _Insights {
 
     for (final inv in invoices) {
       final status = (inv['status'] ?? '').toString().toLowerCase();
-      final amount = parseNumericAmount(inv['totalAmount']);
+      final amount = readInvoiceTotal(inv);
       final date = readTimestamp(inv['createdAt'] ?? inv['invoiceDate']);
 
       if (status == 'paid') {
@@ -246,7 +246,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
       for (final inv in overdue.take(5)) {
         final num =
             inv['invoiceNumber']?.toString() ?? inv['id']?.toString() ?? '';
-        final amt = parseNumericAmount(inv['totalAmount']);
+        final amt = readInvoiceTotal(inv);
         buf.writeln('• $num — TZS ${_fmtNum(amt)}');
       }
       buf.writeln();
@@ -1956,7 +1956,7 @@ class _InvoiceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = (invoice['status'] ?? 'pending').toString().toLowerCase();
-    final total = parseNumericAmount(invoice['totalAmount']);
+    final total = readInvoiceTotal(invoice);
     final number = invoice['invoiceNumber']?.toString() ??
         invoice['id']?.toString() ??
         '—';

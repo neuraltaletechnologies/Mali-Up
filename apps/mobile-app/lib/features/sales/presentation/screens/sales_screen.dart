@@ -3328,7 +3328,7 @@ class _QuickAddCustomerSheetState
         'name': name,
         'phone': phone,
         'email': '',
-        'balance': '0',
+        'balance': 0.0,
         'lastTransactionDate': '',
         'tags': const <String>[],
         'isOrganisation': _isOrg,

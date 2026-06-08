@@ -45,7 +45,6 @@ linter:
     # Avoid unnecessary code
     avoid_unnecessary_containers: true
     avoid_redundant_argument_values: true
-    avoid_unnecessary_type_assertions: true
     unnecessary_const: true
     unnecessary_new: true
     unnecessary_string_escapes: true

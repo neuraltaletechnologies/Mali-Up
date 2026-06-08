@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/database/daos/sync_queue_dao.dart';
+import '../../../../core/sync/offline_policy_notifier.dart';
 import '../../../../core/sync/sync_utils.dart';
 import '../../domain/models/expense.dart';
 import 'expense_repository.dart';
@@ -16,15 +17,18 @@ class SyncExpenseRepository implements ExpenseRepository {
   final LocalExpenseRepository _local;
   final RemoteExpenseRepository remote;
   final SyncQueueDao _queue;
+  final OfflinePolicyNotifier _policy;
 
   SyncExpenseRepository({
     required AppDatabase db,
     required String uid,
     required String businessId,
+    required OfflinePolicyNotifier policy,
   })  : _db = db,
         _local = LocalExpenseRepository(db, businessId: businessId),
         remote = RemoteExpenseRepository(uid: uid, businessId: businessId),
-        _queue = db.syncQueueDao;
+        _queue = db.syncQueueDao,
+        _policy = policy;
 
   // ─── Reads ─────────────────────────────────────────────────────────────────
 
@@ -54,6 +58,7 @@ class SyncExpenseRepository implements ExpenseRepository {
 
   @override
   Future<void> save(Expense expense) async {
+    _policy.assertCanWrite();
     final isNew = expense.id.isEmpty;
     final entityId = isNew ? const Uuid().v4() : expense.id;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -114,6 +119,7 @@ class SyncExpenseRepository implements ExpenseRepository {
 
   @override
   Future<void> delete(String id) async {
+    _policy.assertCanWrite();
     final now = DateTime.now().millisecondsSinceEpoch;
     const payload = '{}';
 

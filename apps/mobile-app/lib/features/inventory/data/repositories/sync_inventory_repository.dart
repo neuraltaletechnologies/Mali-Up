@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/database/daos/sync_queue_dao.dart';
+import '../../../../core/sync/offline_policy_notifier.dart';
 import '../../../../core/sync/sync_utils.dart';
 import '../../domain/models/inventory_item.dart';
 import 'inventory_repository.dart';
@@ -16,15 +17,18 @@ class SyncInventoryRepository implements InventoryRepository {
   final LocalInventoryRepository _local;
   final RemoteInventoryRepository remote;
   final SyncQueueDao _queue;
+  final OfflinePolicyNotifier _policy;
 
   SyncInventoryRepository({
     required AppDatabase db,
     required String uid,
     required String businessId,
+    required OfflinePolicyNotifier policy,
   })  : _db = db,
         _local = LocalInventoryRepository(db, businessId: businessId),
         remote = RemoteInventoryRepository(uid: uid, businessId: businessId),
-        _queue = db.syncQueueDao;
+        _queue = db.syncQueueDao,
+        _policy = policy;
 
   // ─── Reads ─────────────────────────────────────────────────────────────────
 
@@ -51,6 +55,7 @@ class SyncInventoryRepository implements InventoryRepository {
 
   @override
   Future<void> save(InventoryItem item) async {
+    _policy.assertCanWrite();
     final isNew = item.id.isEmpty;
     final entityId = isNew ? const Uuid().v4() : item.id;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -95,6 +100,7 @@ class SyncInventoryRepository implements InventoryRepository {
 
   @override
   Future<void> delete(String id) async {
+    _policy.assertCanWrite();
     final now = DateTime.now().millisecondsSinceEpoch;
     const payload = '{}';
 
@@ -120,6 +126,7 @@ class SyncInventoryRepository implements InventoryRepository {
   /// offline POS sales compose correctly on conflict (Phase 3 ConflictResolver).
   @override
   Future<void> adjustQuantity(String id, double delta) async {
+    _policy.assertCanWrite();
     final now = DateTime.now().millisecondsSinceEpoch;
     final payload = jsonEncode({'quantityDelta': delta});
 
