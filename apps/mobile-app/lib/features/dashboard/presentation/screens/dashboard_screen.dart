@@ -61,18 +61,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    _clockTimer?.cancel();
-    super.dispose();
-  }
-
   String _timeBasedGreeting() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) return _tr('Good morning', 'Habari za asubuhi');
-    if (hour >= 12 && hour < 17) {
-      return _tr('Good afternoon', 'Habari za mchana');
-    }
+    if (hour >= 12 && hour < 17) return _tr('Good afternoon', 'Habari za mchana');
     if (hour >= 17 && hour < 21) return _tr('Good evening', 'Habari za jioni');
     if (hour >= 21) return _tr('Good night', 'Usiku mwema');
     return _tr('Good midnight', 'Usiku wa manane mwema');
@@ -2881,27 +2873,6 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
       } catch (_) {}
 
       final notes = _notesCtrl.text.trim();
-      await FirebaseFirestore.instance
-          .collection('websiteRequests')
-          .doc(user.uid)
-          .set({
-            'uid': user.uid,
-            'personName': personName,
-            'businessName': businessName,
-            'businessType': businessType,
-            'phone': phone,
-            'notes': notes,
-            'requestedAt': FieldValue.serverTimestamp(),
-            'status': 'pending',
-          }, SetOptions(merge: true));
-
-      if (mounted) {
-        setState(() {
-          _submitting = false;
-          _submitted = true;
-        });
-      }
-
       final msg = _buildWhatsAppMessage(
         personName: personName.isNotEmpty
             ? personName
@@ -2911,7 +2882,32 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
         phone: phone,
         notes: notes,
       );
-      final opened = await _launchWhatsApp(msg);
+      final whatsappLaunch = _launchWhatsApp(msg);
+
+      try {
+        await FirebaseFirestore.instance
+            .collection('websiteRequests')
+            .doc(user.uid)
+            .set({
+              'uid': user.uid,
+              'personName': personName,
+              'businessName': businessName,
+              'businessType': businessType,
+              'phone': phone,
+              'notes': notes,
+              'requestedAt': FieldValue.serverTimestamp(),
+              'status': 'pending',
+            }, SetOptions(merge: true));
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _submitted = true;
+        });
+      }
+
+      final opened = await whatsappLaunch;
       if (!opened && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2960,10 +2956,12 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
     if (businessType.isNotEmpty) {
       b.writeln('${_tr("Business Type", "Aina ya Biashara")}: $businessType');
     }
-    if (phone.isNotEmpty) { b.writeln('${_tr("Phone", "Simu")}: $phone'); }
+    if (phone.isNotEmpty) {
+      b.writeln('${_tr("Phone", "Simu")}: $phone');
+    }
     if (notes.isNotEmpty) {
       b.writeln();
-      b.writeln('${_tr("Additional Notes", "Maelezo ya Ziada")}:');
+      b.writeln('${_tr("Additional Notes", "Maelezo ya Ziada")}:' );
       b.writeln(notes);
     }
     b.writeln();
