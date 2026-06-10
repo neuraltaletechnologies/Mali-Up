@@ -614,13 +614,14 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                         ),
                                         materialTapTargetSize:
                                             MaterialTapTargetSize.shrinkWrap,
-                                        activeColor: AppColors.navyPrimary,
+                                        activeColor: Colors.white,
+                                        checkColor: AppColors.yellowBrand,
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(4),
                                         ),
                                         side: const BorderSide(
-                                          color: AppColors.border,
+                                          color: AppColors.yellowBrand,
                                           width: 1.5,
                                         ),
                                       ),
@@ -628,7 +629,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                     const SizedBox(width: 8),
                                     Text(
                                       sw
-                                          ? 'Nitengeneze Tovuti Yangu'
+                                          ? 'Nitengeneze tovuti yako'
                                           : 'Build me my website',
                                       style: const TextStyle(
                                         fontSize: 13,
