@@ -5,9 +5,10 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../config/routing.dart';
-import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../rbac/data/audit_log_service.dart';
 import '../../data/customer_providers.dart';
 import '../../domain/models/customer.dart';
 
@@ -654,42 +655,41 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       ));
     }
 
-    final repository = ref.read(contextFirestoreRepositoryProvider);
-    final activeBusinessId = ref.read(currentBusinessIdProvider).valueOrNull?.trim() ?? '';
-    final financeContext = activeBusinessId.isNotEmpty
-      ? ResolvedFinanceContext.business(activeBusinessId)
-      : await repository.resolveContextForUser(user.uid);
+    final bizId =
+        ref.read(currentBusinessIdProvider).valueOrNull?.trim() ?? '';
+    if (bizId.isEmpty) {
+      throw StateError(_tr(
+        'No active business found. Please finish business setup first.',
+        'Hakuna biashara inayotumika. Tafadhali kamilisha usajili wa biashara kwanza.',
+      ));
+    }
+
     final customer = Customer(
       id: '',
       name: name,
       phone: phone,
       email: email,
       balance: balance,
-      lastTransactionDate: _tr('Today', 'Leo'),
+      lastTransactionDate: '',
       tags: tags,
       isOrganisation: isOrganisation,
       tinNumber: tinNumber,
       address: address,
+      createdByUserId: user.uid,
     );
 
-    final docRef = await repository.addCustomer(
-      uid: user.uid,
-      context: financeContext,
-      customer: customer,
-    );
+    // Offline-first: commits to Drift + sync queue in one transaction, so the
+    // customer appears in the list immediately and syncs when connected.
+    final saved = await ref.read(customerRepositoryProvider).save(customer);
 
-    return Customer(
-      id: docRef.id,
-      name: name,
-      phone: phone,
-      email: email,
-      balance: balance,
-      lastTransactionDate: _tr('Today', 'Leo'),
-      tags: tags,
-      isOrganisation: isOrganisation,
-      tinNumber: tinNumber,
-      address: address,
-    );
+    SentryMetricsService.customerAdded(source: 'add_customer_dialog');
+    await ref.read(customerAuditLoggerProvider).log(
+          AuditLogService.customerCreated,
+          customerId: saved.id,
+          customerName: saved.name,
+        );
+
+    return saved;
   }
 
   Future<String> _resolveImportPhone(Contact contact) async {

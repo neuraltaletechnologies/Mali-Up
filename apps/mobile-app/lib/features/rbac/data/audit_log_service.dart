@@ -21,6 +21,15 @@ class AuditLogService {
   static const String roleChanged      = 'role_changed';
   static const String permissionsChanged = 'permissions_changed';
 
+  // Customer-management actions
+  static const String customerCreated     = 'customer_created';
+  static const String customerUpdated     = 'customer_updated';
+  static const String customerDeleted     = 'customer_deleted';
+  static const String creditLimitChanged  = 'credit_limit_changed';
+  static const String tagAdded            = 'tag_added';
+  static const String tagRemoved          = 'tag_removed';
+  static const String reminderSent        = 'reminder_sent';
+
   // ── Write helpers ─────────────────────────────────────────────────────────
 
   /// Logs a team-management action.
@@ -58,6 +67,40 @@ class AuditLogService {
         'performedByName': performedByName,
         'targetMemberId': targetMemberId,
         'targetName': targetName,
+        'previousValue': ?previousValue,
+        'newValue': ?newValue,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Best-effort: do not propagate audit-log failures.
+    }
+  }
+
+  /// Logs a customer-management action (created / updated / credit limit /
+  /// tags / reminders). Same best-effort semantics as [log].
+  Future<void> logCustomerAction({
+    required String ownerUid,
+    required String businessId,
+    required String performedByUid,
+    required String action,
+    required String customerId,
+    required String customerName,
+    Object? previousValue,
+    Object? newValue,
+  }) async {
+    try {
+      await _firestore
+          .collection('tenants')
+          .doc(ownerUid)
+          .collection('businesses')
+          .doc(businessId)
+          .collection('audit_logs')
+          .add({
+        'action': action,
+        'entityType': 'customer',
+        'entityId': customerId,
+        'entityName': customerName,
+        'performedBy': performedByUid,
         'previousValue': ?previousValue,
         'newValue': ?newValue,
         'timestamp': FieldValue.serverTimestamp(),

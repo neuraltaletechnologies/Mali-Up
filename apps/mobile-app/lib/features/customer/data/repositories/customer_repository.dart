@@ -6,7 +6,9 @@ abstract interface class CustomerRepository {
   Future<Customer?> getById(String id);
   Future<List<Customer>> search(String query);
 
-  Future<void> save(Customer customer);
+  /// Persists the customer locally and enqueues the remote sync.
+  /// Returns the saved entity (with a generated id for new customers).
+  Future<Customer> save(Customer customer);
   Future<void> delete(String id);
   Future<void> updateBalance(String id, double balance);
 }

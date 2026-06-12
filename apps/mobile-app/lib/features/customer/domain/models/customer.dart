@@ -51,6 +51,19 @@ class Customer {
   double get availableCredit =>
       creditLimit > 0 ? (creditLimit - balanceAmount).clamp(0.0, creditLimit) : 0.0;
 
+  /// Parsed last-purchase date when [lastTransactionDate] holds an ISO-8601
+  /// string (the canonical format). Legacy free-text values return null.
+  DateTime? get lastPurchaseAt => DateTime.tryParse(lastTransactionDate);
+
+  bool hasTag(String tag) =>
+      tags.any((t) => t.toLowerCase() == tag.toLowerCase());
+
+  /// True when [userId] created or is assigned to this customer.
+  /// Used for role-restricted visibility (e.g. cashiers).
+  bool isVisibleTo(String userId) =>
+      userId.isNotEmpty &&
+      (createdByUserId == userId || assignedToUserId == userId);
+
   // ── Factory / serialization ───────────────────────────────────────────────
 
   factory Customer.fromFirestore(Map<String, dynamic> data, String id) {
@@ -59,13 +72,21 @@ class Customer {
       return null;
     }
 
+    // Sales flows write this field as a server Timestamp while older records
+    // hold free-text strings — normalize to ISO-8601 so it round-trips safely.
+    String readLastTransaction(dynamic v) {
+      if (v is Timestamp) return v.toDate().toIso8601String();
+      if (v is String) return v;
+      return '';
+    }
+
     return Customer(
       id: id,
       name: data['name'] ?? '',
       phone: data['phone'] ?? '',
       email: data['email'] ?? '',
       balance: data['balance']?.toString() ?? '0',
-      lastTransactionDate: data['lastTransactionDate'] ?? '',
+      lastTransactionDate: readLastTransaction(data['lastTransactionDate']),
       tags: List<String>.from(data['tags'] ?? []),
       isOrganisation: data['isOrganisation'] as bool? ?? false,
       tinNumber: data['tinNumber'] ?? '',

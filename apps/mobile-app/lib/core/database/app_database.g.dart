@@ -1660,6 +1660,18 @@ class $CustomersTableTable extends CustomersTable
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _assignedToUserIdMeta = const VerificationMeta(
+    'assignedToUserId',
+  );
+  @override
+  late final GeneratedColumn<String> assignedToUserId = GeneratedColumn<String>(
+    'assigned_to_user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1744,6 +1756,7 @@ class $CustomersTableTable extends CustomersTable
     address,
     creditLimit,
     createdBy,
+    assignedToUserId,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -1855,6 +1868,15 @@ class $CustomersTableTable extends CustomersTable
         createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
       );
     }
+    if (data.containsKey('assigned_to_user_id')) {
+      context.handle(
+        _assignedToUserIdMeta,
+        assignedToUserId.isAcceptableOrUnknown(
+          data['assigned_to_user_id']!,
+          _assignedToUserIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1962,6 +1984,10 @@ class $CustomersTableTable extends CustomersTable
         DriftSqlType.string,
         data['${effectivePrefix}created_by'],
       )!,
+      assignedToUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}assigned_to_user_id'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -2010,6 +2036,7 @@ class CustomersTableData extends DataClass
   final String address;
   final double creditLimit;
   final String createdBy;
+  final String assignedToUserId;
   final int createdAt;
   final int updatedAt;
   final int? serverUpdatedAt;
@@ -2030,6 +2057,7 @@ class CustomersTableData extends DataClass
     required this.address,
     required this.creditLimit,
     required this.createdBy,
+    required this.assignedToUserId,
     required this.createdAt,
     required this.updatedAt,
     this.serverUpdatedAt,
@@ -2053,6 +2081,7 @@ class CustomersTableData extends DataClass
     map['address'] = Variable<String>(address);
     map['credit_limit'] = Variable<double>(creditLimit);
     map['created_by'] = Variable<String>(createdBy);
+    map['assigned_to_user_id'] = Variable<String>(assignedToUserId);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || serverUpdatedAt != null) {
@@ -2079,6 +2108,7 @@ class CustomersTableData extends DataClass
       address: Value(address),
       creditLimit: Value(creditLimit),
       createdBy: Value(createdBy),
+      assignedToUserId: Value(assignedToUserId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
@@ -2111,6 +2141,7 @@ class CustomersTableData extends DataClass
       address: serializer.fromJson<String>(json['address']),
       creditLimit: serializer.fromJson<double>(json['creditLimit']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
+      assignedToUserId: serializer.fromJson<String>(json['assignedToUserId']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
@@ -2136,6 +2167,7 @@ class CustomersTableData extends DataClass
       'address': serializer.toJson<String>(address),
       'creditLimit': serializer.toJson<double>(creditLimit),
       'createdBy': serializer.toJson<String>(createdBy),
+      'assignedToUserId': serializer.toJson<String>(assignedToUserId),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
@@ -2159,6 +2191,7 @@ class CustomersTableData extends DataClass
     String? address,
     double? creditLimit,
     String? createdBy,
+    String? assignedToUserId,
     int? createdAt,
     int? updatedAt,
     Value<int?> serverUpdatedAt = const Value.absent(),
@@ -2179,6 +2212,7 @@ class CustomersTableData extends DataClass
     address: address ?? this.address,
     creditLimit: creditLimit ?? this.creditLimit,
     createdBy: createdBy ?? this.createdBy,
+    assignedToUserId: assignedToUserId ?? this.assignedToUserId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     serverUpdatedAt: serverUpdatedAt.present
@@ -2211,6 +2245,9 @@ class CustomersTableData extends DataClass
           ? data.creditLimit.value
           : this.creditLimit,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      assignedToUserId: data.assignedToUserId.present
+          ? data.assignedToUserId.value
+          : this.assignedToUserId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       serverUpdatedAt: data.serverUpdatedAt.present
@@ -2242,6 +2279,7 @@ class CustomersTableData extends DataClass
           ..write('address: $address, ')
           ..write('creditLimit: $creditLimit, ')
           ..write('createdBy: $createdBy, ')
+          ..write('assignedToUserId: $assignedToUserId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -2267,6 +2305,7 @@ class CustomersTableData extends DataClass
     address,
     creditLimit,
     createdBy,
+    assignedToUserId,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -2291,6 +2330,7 @@ class CustomersTableData extends DataClass
           other.address == this.address &&
           other.creditLimit == this.creditLimit &&
           other.createdBy == this.createdBy &&
+          other.assignedToUserId == this.assignedToUserId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
@@ -2313,6 +2353,7 @@ class CustomersTableCompanion extends UpdateCompanion<CustomersTableData> {
   final Value<String> address;
   final Value<double> creditLimit;
   final Value<String> createdBy;
+  final Value<String> assignedToUserId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> serverUpdatedAt;
@@ -2334,6 +2375,7 @@ class CustomersTableCompanion extends UpdateCompanion<CustomersTableData> {
     this.address = const Value.absent(),
     this.creditLimit = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.assignedToUserId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
@@ -2356,6 +2398,7 @@ class CustomersTableCompanion extends UpdateCompanion<CustomersTableData> {
     this.address = const Value.absent(),
     this.creditLimit = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.assignedToUserId = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.serverUpdatedAt = const Value.absent(),
@@ -2383,6 +2426,7 @@ class CustomersTableCompanion extends UpdateCompanion<CustomersTableData> {
     Expression<String>? address,
     Expression<double>? creditLimit,
     Expression<String>? createdBy,
+    Expression<String>? assignedToUserId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? serverUpdatedAt,
@@ -2406,6 +2450,7 @@ class CustomersTableCompanion extends UpdateCompanion<CustomersTableData> {
       if (address != null) 'address': address,
       if (creditLimit != null) 'credit_limit': creditLimit,
       if (createdBy != null) 'created_by': createdBy,
+      if (assignedToUserId != null) 'assigned_to_user_id': assignedToUserId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
@@ -2430,6 +2475,7 @@ class CustomersTableCompanion extends UpdateCompanion<CustomersTableData> {
     Value<String>? address,
     Value<double>? creditLimit,
     Value<String>? createdBy,
+    Value<String>? assignedToUserId,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? serverUpdatedAt,
@@ -2452,6 +2498,7 @@ class CustomersTableCompanion extends UpdateCompanion<CustomersTableData> {
       address: address ?? this.address,
       creditLimit: creditLimit ?? this.creditLimit,
       createdBy: createdBy ?? this.createdBy,
+      assignedToUserId: assignedToUserId ?? this.assignedToUserId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
@@ -2506,6 +2553,9 @@ class CustomersTableCompanion extends UpdateCompanion<CustomersTableData> {
     if (createdBy.present) {
       map['created_by'] = Variable<String>(createdBy.value);
     }
+    if (assignedToUserId.present) {
+      map['assigned_to_user_id'] = Variable<String>(assignedToUserId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -2546,6 +2596,7 @@ class CustomersTableCompanion extends UpdateCompanion<CustomersTableData> {
           ..write('address: $address, ')
           ..write('creditLimit: $creditLimit, ')
           ..write('createdBy: $createdBy, ')
+          ..write('assignedToUserId: $assignedToUserId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -7459,6 +7510,3033 @@ class BusinessSettingsTableCompanion
   }
 }
 
+class $DebtsTableTable extends DebtsTable
+    with TableInfo<$DebtsTableTable, DebtsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DebtsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _partyNameMeta = const VerificationMeta(
+    'partyName',
+  );
+  @override
+  late final GeneratedColumn<String> partyName = GeneratedColumn<String>(
+    'party_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _partyPhoneMeta = const VerificationMeta(
+    'partyPhone',
+  );
+  @override
+  late final GeneratedColumn<String> partyPhone = GeneratedColumn<String>(
+    'party_phone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _partyIdMeta = const VerificationMeta(
+    'partyId',
+  );
+  @override
+  late final GeneratedColumn<String> partyId = GeneratedColumn<String>(
+    'party_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _originalAmountMeta = const VerificationMeta(
+    'originalAmount',
+  );
+  @override
+  late final GeneratedColumn<double> originalAmount = GeneratedColumn<double>(
+    'original_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _paidAmountMeta = const VerificationMeta(
+    'paidAmount',
+  );
+  @override
+  late final GeneratedColumn<double> paidAmount = GeneratedColumn<double>(
+    'paid_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<String> dueDate = GeneratedColumn<String>(
+    'due_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('current'),
+  );
+  static const VerificationMeta _invoiceRefMeta = const VerificationMeta(
+    'invoiceRef',
+  );
+  @override
+  late final GeneratedColumn<String> invoiceRef = GeneratedColumn<String>(
+    'invoice_ref',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdByMeta = const VerificationMeta(
+    'createdBy',
+  );
+  @override
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+    'created_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _debtCreatedAtMeta = const VerificationMeta(
+    'debtCreatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> debtCreatedAt = GeneratedColumn<String>(
+    'debt_created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _isWrittenOffMeta = const VerificationMeta(
+    'isWrittenOff',
+  );
+  @override
+  late final GeneratedColumn<int> isWrittenOff = GeneratedColumn<int>(
+    'is_written_off',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _writeOffReasonMeta = const VerificationMeta(
+    'writeOffReason',
+  );
+  @override
+  late final GeneratedColumn<String> writeOffReason = GeneratedColumn<String>(
+    'write_off_reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _writtenOffByMeta = const VerificationMeta(
+    'writtenOffBy',
+  );
+  @override
+  late final GeneratedColumn<String> writtenOffBy = GeneratedColumn<String>(
+    'written_off_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _writtenOffAtMeta = const VerificationMeta(
+    'writtenOffAt',
+  );
+  @override
+  late final GeneratedColumn<String> writtenOffAt = GeneratedColumn<String>(
+    'written_off_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverUpdatedAtMeta = const VerificationMeta(
+    'serverUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> serverUpdatedAt = GeneratedColumn<int>(
+    'server_updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending_create'),
+  );
+  static const VerificationMeta _localVersionMeta = const VerificationMeta(
+    'localVersion',
+  );
+  @override
+  late final GeneratedColumn<int> localVersion = GeneratedColumn<int>(
+    'local_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<int> isDeleted = GeneratedColumn<int>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    partyName,
+    partyPhone,
+    partyId,
+    type,
+    originalAmount,
+    paidAmount,
+    dueDate,
+    status,
+    invoiceRef,
+    note,
+    createdBy,
+    debtCreatedAt,
+    isWrittenOff,
+    writeOffReason,
+    writtenOffBy,
+    writtenOffAt,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    localVersion,
+    isDeleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'debts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DebtsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('party_name')) {
+      context.handle(
+        _partyNameMeta,
+        partyName.isAcceptableOrUnknown(data['party_name']!, _partyNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_partyNameMeta);
+    }
+    if (data.containsKey('party_phone')) {
+      context.handle(
+        _partyPhoneMeta,
+        partyPhone.isAcceptableOrUnknown(data['party_phone']!, _partyPhoneMeta),
+      );
+    }
+    if (data.containsKey('party_id')) {
+      context.handle(
+        _partyIdMeta,
+        partyId.isAcceptableOrUnknown(data['party_id']!, _partyIdMeta),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('original_amount')) {
+      context.handle(
+        _originalAmountMeta,
+        originalAmount.isAcceptableOrUnknown(
+          data['original_amount']!,
+          _originalAmountMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_originalAmountMeta);
+    }
+    if (data.containsKey('paid_amount')) {
+      context.handle(
+        _paidAmountMeta,
+        paidAmount.isAcceptableOrUnknown(data['paid_amount']!, _paidAmountMeta),
+      );
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dueDateMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('invoice_ref')) {
+      context.handle(
+        _invoiceRefMeta,
+        invoiceRef.isAcceptableOrUnknown(data['invoice_ref']!, _invoiceRefMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(
+        _createdByMeta,
+        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
+      );
+    }
+    if (data.containsKey('debt_created_at')) {
+      context.handle(
+        _debtCreatedAtMeta,
+        debtCreatedAt.isAcceptableOrUnknown(
+          data['debt_created_at']!,
+          _debtCreatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_written_off')) {
+      context.handle(
+        _isWrittenOffMeta,
+        isWrittenOff.isAcceptableOrUnknown(
+          data['is_written_off']!,
+          _isWrittenOffMeta,
+        ),
+      );
+    }
+    if (data.containsKey('write_off_reason')) {
+      context.handle(
+        _writeOffReasonMeta,
+        writeOffReason.isAcceptableOrUnknown(
+          data['write_off_reason']!,
+          _writeOffReasonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('written_off_by')) {
+      context.handle(
+        _writtenOffByMeta,
+        writtenOffBy.isAcceptableOrUnknown(
+          data['written_off_by']!,
+          _writtenOffByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('written_off_at')) {
+      context.handle(
+        _writtenOffAtMeta,
+        writtenOffAt.isAcceptableOrUnknown(
+          data['written_off_at']!,
+          _writtenOffAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+        _serverUpdatedAtMeta,
+        serverUpdatedAt.isAcceptableOrUnknown(
+          data['server_updated_at']!,
+          _serverUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('local_version')) {
+      context.handle(
+        _localVersionMeta,
+        localVersion.isAcceptableOrUnknown(
+          data['local_version']!,
+          _localVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DebtsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DebtsTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      partyName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}party_name'],
+      )!,
+      partyPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}party_phone'],
+      )!,
+      partyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}party_id'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      originalAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}original_amount'],
+      )!,
+      paidAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}paid_amount'],
+      )!,
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}due_date'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      invoiceRef: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}invoice_ref'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      )!,
+      createdBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_by'],
+      )!,
+      debtCreatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}debt_created_at'],
+      )!,
+      isWrittenOff: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_written_off'],
+      )!,
+      writeOffReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}write_off_reason'],
+      )!,
+      writtenOffBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}written_off_by'],
+      )!,
+      writtenOffAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}written_off_at'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_updated_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      localVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_version'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $DebtsTableTable createAlias(String alias) {
+    return $DebtsTableTable(attachedDatabase, alias);
+  }
+}
+
+class DebtsTableData extends DataClass implements Insertable<DebtsTableData> {
+  final String id;
+  final String businessId;
+  final String partyName;
+  final String partyPhone;
+  final String partyId;
+  final String type;
+  final double originalAmount;
+  final double paidAmount;
+  final String dueDate;
+  final String status;
+  final String invoiceRef;
+  final String note;
+  final String createdBy;
+  final String debtCreatedAt;
+  final int isWrittenOff;
+  final String writeOffReason;
+  final String writtenOffBy;
+  final String writtenOffAt;
+  final int createdAt;
+  final int updatedAt;
+  final int? serverUpdatedAt;
+  final String syncStatus;
+  final int localVersion;
+  final int isDeleted;
+  const DebtsTableData({
+    required this.id,
+    required this.businessId,
+    required this.partyName,
+    required this.partyPhone,
+    required this.partyId,
+    required this.type,
+    required this.originalAmount,
+    required this.paidAmount,
+    required this.dueDate,
+    required this.status,
+    required this.invoiceRef,
+    required this.note,
+    required this.createdBy,
+    required this.debtCreatedAt,
+    required this.isWrittenOff,
+    required this.writeOffReason,
+    required this.writtenOffBy,
+    required this.writtenOffAt,
+    required this.createdAt,
+    required this.updatedAt,
+    this.serverUpdatedAt,
+    required this.syncStatus,
+    required this.localVersion,
+    required this.isDeleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['party_name'] = Variable<String>(partyName);
+    map['party_phone'] = Variable<String>(partyPhone);
+    map['party_id'] = Variable<String>(partyId);
+    map['type'] = Variable<String>(type);
+    map['original_amount'] = Variable<double>(originalAmount);
+    map['paid_amount'] = Variable<double>(paidAmount);
+    map['due_date'] = Variable<String>(dueDate);
+    map['status'] = Variable<String>(status);
+    map['invoice_ref'] = Variable<String>(invoiceRef);
+    map['note'] = Variable<String>(note);
+    map['created_by'] = Variable<String>(createdBy);
+    map['debt_created_at'] = Variable<String>(debtCreatedAt);
+    map['is_written_off'] = Variable<int>(isWrittenOff);
+    map['write_off_reason'] = Variable<String>(writeOffReason);
+    map['written_off_by'] = Variable<String>(writtenOffBy);
+    map['written_off_at'] = Variable<String>(writtenOffAt);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['local_version'] = Variable<int>(localVersion);
+    map['is_deleted'] = Variable<int>(isDeleted);
+    return map;
+  }
+
+  DebtsTableCompanion toCompanion(bool nullToAbsent) {
+    return DebtsTableCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      partyName: Value(partyName),
+      partyPhone: Value(partyPhone),
+      partyId: Value(partyId),
+      type: Value(type),
+      originalAmount: Value(originalAmount),
+      paidAmount: Value(paidAmount),
+      dueDate: Value(dueDate),
+      status: Value(status),
+      invoiceRef: Value(invoiceRef),
+      note: Value(note),
+      createdBy: Value(createdBy),
+      debtCreatedAt: Value(debtCreatedAt),
+      isWrittenOff: Value(isWrittenOff),
+      writeOffReason: Value(writeOffReason),
+      writtenOffBy: Value(writtenOffBy),
+      writtenOffAt: Value(writtenOffAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      syncStatus: Value(syncStatus),
+      localVersion: Value(localVersion),
+      isDeleted: Value(isDeleted),
+    );
+  }
+
+  factory DebtsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DebtsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      partyName: serializer.fromJson<String>(json['partyName']),
+      partyPhone: serializer.fromJson<String>(json['partyPhone']),
+      partyId: serializer.fromJson<String>(json['partyId']),
+      type: serializer.fromJson<String>(json['type']),
+      originalAmount: serializer.fromJson<double>(json['originalAmount']),
+      paidAmount: serializer.fromJson<double>(json['paidAmount']),
+      dueDate: serializer.fromJson<String>(json['dueDate']),
+      status: serializer.fromJson<String>(json['status']),
+      invoiceRef: serializer.fromJson<String>(json['invoiceRef']),
+      note: serializer.fromJson<String>(json['note']),
+      createdBy: serializer.fromJson<String>(json['createdBy']),
+      debtCreatedAt: serializer.fromJson<String>(json['debtCreatedAt']),
+      isWrittenOff: serializer.fromJson<int>(json['isWrittenOff']),
+      writeOffReason: serializer.fromJson<String>(json['writeOffReason']),
+      writtenOffBy: serializer.fromJson<String>(json['writtenOffBy']),
+      writtenOffAt: serializer.fromJson<String>(json['writtenOffAt']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localVersion: serializer.fromJson<int>(json['localVersion']),
+      isDeleted: serializer.fromJson<int>(json['isDeleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'partyName': serializer.toJson<String>(partyName),
+      'partyPhone': serializer.toJson<String>(partyPhone),
+      'partyId': serializer.toJson<String>(partyId),
+      'type': serializer.toJson<String>(type),
+      'originalAmount': serializer.toJson<double>(originalAmount),
+      'paidAmount': serializer.toJson<double>(paidAmount),
+      'dueDate': serializer.toJson<String>(dueDate),
+      'status': serializer.toJson<String>(status),
+      'invoiceRef': serializer.toJson<String>(invoiceRef),
+      'note': serializer.toJson<String>(note),
+      'createdBy': serializer.toJson<String>(createdBy),
+      'debtCreatedAt': serializer.toJson<String>(debtCreatedAt),
+      'isWrittenOff': serializer.toJson<int>(isWrittenOff),
+      'writeOffReason': serializer.toJson<String>(writeOffReason),
+      'writtenOffBy': serializer.toJson<String>(writtenOffBy),
+      'writtenOffAt': serializer.toJson<String>(writtenOffAt),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'localVersion': serializer.toJson<int>(localVersion),
+      'isDeleted': serializer.toJson<int>(isDeleted),
+    };
+  }
+
+  DebtsTableData copyWith({
+    String? id,
+    String? businessId,
+    String? partyName,
+    String? partyPhone,
+    String? partyId,
+    String? type,
+    double? originalAmount,
+    double? paidAmount,
+    String? dueDate,
+    String? status,
+    String? invoiceRef,
+    String? note,
+    String? createdBy,
+    String? debtCreatedAt,
+    int? isWrittenOff,
+    String? writeOffReason,
+    String? writtenOffBy,
+    String? writtenOffAt,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> serverUpdatedAt = const Value.absent(),
+    String? syncStatus,
+    int? localVersion,
+    int? isDeleted,
+  }) => DebtsTableData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    partyName: partyName ?? this.partyName,
+    partyPhone: partyPhone ?? this.partyPhone,
+    partyId: partyId ?? this.partyId,
+    type: type ?? this.type,
+    originalAmount: originalAmount ?? this.originalAmount,
+    paidAmount: paidAmount ?? this.paidAmount,
+    dueDate: dueDate ?? this.dueDate,
+    status: status ?? this.status,
+    invoiceRef: invoiceRef ?? this.invoiceRef,
+    note: note ?? this.note,
+    createdBy: createdBy ?? this.createdBy,
+    debtCreatedAt: debtCreatedAt ?? this.debtCreatedAt,
+    isWrittenOff: isWrittenOff ?? this.isWrittenOff,
+    writeOffReason: writeOffReason ?? this.writeOffReason,
+    writtenOffBy: writtenOffBy ?? this.writtenOffBy,
+    writtenOffAt: writtenOffAt ?? this.writtenOffAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    serverUpdatedAt: serverUpdatedAt.present
+        ? serverUpdatedAt.value
+        : this.serverUpdatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+    localVersion: localVersion ?? this.localVersion,
+    isDeleted: isDeleted ?? this.isDeleted,
+  );
+  DebtsTableData copyWithCompanion(DebtsTableCompanion data) {
+    return DebtsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      partyName: data.partyName.present ? data.partyName.value : this.partyName,
+      partyPhone: data.partyPhone.present
+          ? data.partyPhone.value
+          : this.partyPhone,
+      partyId: data.partyId.present ? data.partyId.value : this.partyId,
+      type: data.type.present ? data.type.value : this.type,
+      originalAmount: data.originalAmount.present
+          ? data.originalAmount.value
+          : this.originalAmount,
+      paidAmount: data.paidAmount.present
+          ? data.paidAmount.value
+          : this.paidAmount,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      status: data.status.present ? data.status.value : this.status,
+      invoiceRef: data.invoiceRef.present
+          ? data.invoiceRef.value
+          : this.invoiceRef,
+      note: data.note.present ? data.note.value : this.note,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      debtCreatedAt: data.debtCreatedAt.present
+          ? data.debtCreatedAt.value
+          : this.debtCreatedAt,
+      isWrittenOff: data.isWrittenOff.present
+          ? data.isWrittenOff.value
+          : this.isWrittenOff,
+      writeOffReason: data.writeOffReason.present
+          ? data.writeOffReason.value
+          : this.writeOffReason,
+      writtenOffBy: data.writtenOffBy.present
+          ? data.writtenOffBy.value
+          : this.writtenOffBy,
+      writtenOffAt: data.writtenOffAt.present
+          ? data.writtenOffAt.value
+          : this.writtenOffAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      localVersion: data.localVersion.present
+          ? data.localVersion.value
+          : this.localVersion,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DebtsTableData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('partyName: $partyName, ')
+          ..write('partyPhone: $partyPhone, ')
+          ..write('partyId: $partyId, ')
+          ..write('type: $type, ')
+          ..write('originalAmount: $originalAmount, ')
+          ..write('paidAmount: $paidAmount, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('status: $status, ')
+          ..write('invoiceRef: $invoiceRef, ')
+          ..write('note: $note, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('debtCreatedAt: $debtCreatedAt, ')
+          ..write('isWrittenOff: $isWrittenOff, ')
+          ..write('writeOffReason: $writeOffReason, ')
+          ..write('writtenOffBy: $writtenOffBy, ')
+          ..write('writtenOffAt: $writtenOffAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localVersion: $localVersion, ')
+          ..write('isDeleted: $isDeleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    id,
+    businessId,
+    partyName,
+    partyPhone,
+    partyId,
+    type,
+    originalAmount,
+    paidAmount,
+    dueDate,
+    status,
+    invoiceRef,
+    note,
+    createdBy,
+    debtCreatedAt,
+    isWrittenOff,
+    writeOffReason,
+    writtenOffBy,
+    writtenOffAt,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    localVersion,
+    isDeleted,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DebtsTableData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.partyName == this.partyName &&
+          other.partyPhone == this.partyPhone &&
+          other.partyId == this.partyId &&
+          other.type == this.type &&
+          other.originalAmount == this.originalAmount &&
+          other.paidAmount == this.paidAmount &&
+          other.dueDate == this.dueDate &&
+          other.status == this.status &&
+          other.invoiceRef == this.invoiceRef &&
+          other.note == this.note &&
+          other.createdBy == this.createdBy &&
+          other.debtCreatedAt == this.debtCreatedAt &&
+          other.isWrittenOff == this.isWrittenOff &&
+          other.writeOffReason == this.writeOffReason &&
+          other.writtenOffBy == this.writtenOffBy &&
+          other.writtenOffAt == this.writtenOffAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.localVersion == this.localVersion &&
+          other.isDeleted == this.isDeleted);
+}
+
+class DebtsTableCompanion extends UpdateCompanion<DebtsTableData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> partyName;
+  final Value<String> partyPhone;
+  final Value<String> partyId;
+  final Value<String> type;
+  final Value<double> originalAmount;
+  final Value<double> paidAmount;
+  final Value<String> dueDate;
+  final Value<String> status;
+  final Value<String> invoiceRef;
+  final Value<String> note;
+  final Value<String> createdBy;
+  final Value<String> debtCreatedAt;
+  final Value<int> isWrittenOff;
+  final Value<String> writeOffReason;
+  final Value<String> writtenOffBy;
+  final Value<String> writtenOffAt;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> serverUpdatedAt;
+  final Value<String> syncStatus;
+  final Value<int> localVersion;
+  final Value<int> isDeleted;
+  final Value<int> rowid;
+  const DebtsTableCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.partyName = const Value.absent(),
+    this.partyPhone = const Value.absent(),
+    this.partyId = const Value.absent(),
+    this.type = const Value.absent(),
+    this.originalAmount = const Value.absent(),
+    this.paidAmount = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.status = const Value.absent(),
+    this.invoiceRef = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.debtCreatedAt = const Value.absent(),
+    this.isWrittenOff = const Value.absent(),
+    this.writeOffReason = const Value.absent(),
+    this.writtenOffBy = const Value.absent(),
+    this.writtenOffAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localVersion = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DebtsTableCompanion.insert({
+    required String id,
+    required String businessId,
+    required String partyName,
+    this.partyPhone = const Value.absent(),
+    this.partyId = const Value.absent(),
+    required String type,
+    required double originalAmount,
+    this.paidAmount = const Value.absent(),
+    required String dueDate,
+    this.status = const Value.absent(),
+    this.invoiceRef = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.debtCreatedAt = const Value.absent(),
+    this.isWrittenOff = const Value.absent(),
+    this.writeOffReason = const Value.absent(),
+    this.writtenOffBy = const Value.absent(),
+    this.writtenOffAt = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localVersion = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       partyName = Value(partyName),
+       type = Value(type),
+       originalAmount = Value(originalAmount),
+       dueDate = Value(dueDate),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DebtsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? partyName,
+    Expression<String>? partyPhone,
+    Expression<String>? partyId,
+    Expression<String>? type,
+    Expression<double>? originalAmount,
+    Expression<double>? paidAmount,
+    Expression<String>? dueDate,
+    Expression<String>? status,
+    Expression<String>? invoiceRef,
+    Expression<String>? note,
+    Expression<String>? createdBy,
+    Expression<String>? debtCreatedAt,
+    Expression<int>? isWrittenOff,
+    Expression<String>? writeOffReason,
+    Expression<String>? writtenOffBy,
+    Expression<String>? writtenOffAt,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? serverUpdatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? localVersion,
+    Expression<int>? isDeleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (partyName != null) 'party_name': partyName,
+      if (partyPhone != null) 'party_phone': partyPhone,
+      if (partyId != null) 'party_id': partyId,
+      if (type != null) 'type': type,
+      if (originalAmount != null) 'original_amount': originalAmount,
+      if (paidAmount != null) 'paid_amount': paidAmount,
+      if (dueDate != null) 'due_date': dueDate,
+      if (status != null) 'status': status,
+      if (invoiceRef != null) 'invoice_ref': invoiceRef,
+      if (note != null) 'note': note,
+      if (createdBy != null) 'created_by': createdBy,
+      if (debtCreatedAt != null) 'debt_created_at': debtCreatedAt,
+      if (isWrittenOff != null) 'is_written_off': isWrittenOff,
+      if (writeOffReason != null) 'write_off_reason': writeOffReason,
+      if (writtenOffBy != null) 'written_off_by': writtenOffBy,
+      if (writtenOffAt != null) 'written_off_at': writtenOffAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (localVersion != null) 'local_version': localVersion,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DebtsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? partyName,
+    Value<String>? partyPhone,
+    Value<String>? partyId,
+    Value<String>? type,
+    Value<double>? originalAmount,
+    Value<double>? paidAmount,
+    Value<String>? dueDate,
+    Value<String>? status,
+    Value<String>? invoiceRef,
+    Value<String>? note,
+    Value<String>? createdBy,
+    Value<String>? debtCreatedAt,
+    Value<int>? isWrittenOff,
+    Value<String>? writeOffReason,
+    Value<String>? writtenOffBy,
+    Value<String>? writtenOffAt,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? serverUpdatedAt,
+    Value<String>? syncStatus,
+    Value<int>? localVersion,
+    Value<int>? isDeleted,
+    Value<int>? rowid,
+  }) {
+    return DebtsTableCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      partyName: partyName ?? this.partyName,
+      partyPhone: partyPhone ?? this.partyPhone,
+      partyId: partyId ?? this.partyId,
+      type: type ?? this.type,
+      originalAmount: originalAmount ?? this.originalAmount,
+      paidAmount: paidAmount ?? this.paidAmount,
+      dueDate: dueDate ?? this.dueDate,
+      status: status ?? this.status,
+      invoiceRef: invoiceRef ?? this.invoiceRef,
+      note: note ?? this.note,
+      createdBy: createdBy ?? this.createdBy,
+      debtCreatedAt: debtCreatedAt ?? this.debtCreatedAt,
+      isWrittenOff: isWrittenOff ?? this.isWrittenOff,
+      writeOffReason: writeOffReason ?? this.writeOffReason,
+      writtenOffBy: writtenOffBy ?? this.writtenOffBy,
+      writtenOffAt: writtenOffAt ?? this.writtenOffAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      localVersion: localVersion ?? this.localVersion,
+      isDeleted: isDeleted ?? this.isDeleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (partyName.present) {
+      map['party_name'] = Variable<String>(partyName.value);
+    }
+    if (partyPhone.present) {
+      map['party_phone'] = Variable<String>(partyPhone.value);
+    }
+    if (partyId.present) {
+      map['party_id'] = Variable<String>(partyId.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (originalAmount.present) {
+      map['original_amount'] = Variable<double>(originalAmount.value);
+    }
+    if (paidAmount.present) {
+      map['paid_amount'] = Variable<double>(paidAmount.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<String>(dueDate.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (invoiceRef.present) {
+      map['invoice_ref'] = Variable<String>(invoiceRef.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
+    }
+    if (debtCreatedAt.present) {
+      map['debt_created_at'] = Variable<String>(debtCreatedAt.value);
+    }
+    if (isWrittenOff.present) {
+      map['is_written_off'] = Variable<int>(isWrittenOff.value);
+    }
+    if (writeOffReason.present) {
+      map['write_off_reason'] = Variable<String>(writeOffReason.value);
+    }
+    if (writtenOffBy.present) {
+      map['written_off_by'] = Variable<String>(writtenOffBy.value);
+    }
+    if (writtenOffAt.present) {
+      map['written_off_at'] = Variable<String>(writtenOffAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (localVersion.present) {
+      map['local_version'] = Variable<int>(localVersion.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<int>(isDeleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DebtsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('partyName: $partyName, ')
+          ..write('partyPhone: $partyPhone, ')
+          ..write('partyId: $partyId, ')
+          ..write('type: $type, ')
+          ..write('originalAmount: $originalAmount, ')
+          ..write('paidAmount: $paidAmount, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('status: $status, ')
+          ..write('invoiceRef: $invoiceRef, ')
+          ..write('note: $note, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('debtCreatedAt: $debtCreatedAt, ')
+          ..write('isWrittenOff: $isWrittenOff, ')
+          ..write('writeOffReason: $writeOffReason, ')
+          ..write('writtenOffBy: $writtenOffBy, ')
+          ..write('writtenOffAt: $writtenOffAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localVersion: $localVersion, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DebtPaymentsTableTable extends DebtPaymentsTable
+    with TableInfo<$DebtPaymentsTableTable, DebtPaymentsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DebtPaymentsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _debtIdMeta = const VerificationMeta('debtId');
+  @override
+  late final GeneratedColumn<String> debtId = GeneratedColumn<String>(
+    'debt_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _methodMeta = const VerificationMeta('method');
+  @override
+  late final GeneratedColumn<String> method = GeneratedColumn<String>(
+    'method',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cash'),
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _recordedByMeta = const VerificationMeta(
+    'recordedBy',
+  );
+  @override
+  late final GeneratedColumn<String> recordedBy = GeneratedColumn<String>(
+    'recorded_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverUpdatedAtMeta = const VerificationMeta(
+    'serverUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> serverUpdatedAt = GeneratedColumn<int>(
+    'server_updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending_create'),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<int> isDeleted = GeneratedColumn<int>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    debtId,
+    businessId,
+    amount,
+    date,
+    method,
+    note,
+    recordedBy,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    isDeleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'debt_payments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DebtPaymentsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('debt_id')) {
+      context.handle(
+        _debtIdMeta,
+        debtId.isAcceptableOrUnknown(data['debt_id']!, _debtIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_debtIdMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('method')) {
+      context.handle(
+        _methodMeta,
+        method.isAcceptableOrUnknown(data['method']!, _methodMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('recorded_by')) {
+      context.handle(
+        _recordedByMeta,
+        recordedBy.isAcceptableOrUnknown(data['recorded_by']!, _recordedByMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+        _serverUpdatedAtMeta,
+        serverUpdatedAt.isAcceptableOrUnknown(
+          data['server_updated_at']!,
+          _serverUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DebtPaymentsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DebtPaymentsTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      debtId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}debt_id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      method: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}method'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      )!,
+      recordedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recorded_by'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_updated_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $DebtPaymentsTableTable createAlias(String alias) {
+    return $DebtPaymentsTableTable(attachedDatabase, alias);
+  }
+}
+
+class DebtPaymentsTableData extends DataClass
+    implements Insertable<DebtPaymentsTableData> {
+  final String id;
+  final String debtId;
+  final String businessId;
+  final double amount;
+  final String date;
+  final String method;
+  final String note;
+  final String recordedBy;
+  final int createdAt;
+  final int updatedAt;
+  final int? serverUpdatedAt;
+  final String syncStatus;
+  final int isDeleted;
+  const DebtPaymentsTableData({
+    required this.id,
+    required this.debtId,
+    required this.businessId,
+    required this.amount,
+    required this.date,
+    required this.method,
+    required this.note,
+    required this.recordedBy,
+    required this.createdAt,
+    required this.updatedAt,
+    this.serverUpdatedAt,
+    required this.syncStatus,
+    required this.isDeleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['debt_id'] = Variable<String>(debtId);
+    map['business_id'] = Variable<String>(businessId);
+    map['amount'] = Variable<double>(amount);
+    map['date'] = Variable<String>(date);
+    map['method'] = Variable<String>(method);
+    map['note'] = Variable<String>(note);
+    map['recorded_by'] = Variable<String>(recordedBy);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['is_deleted'] = Variable<int>(isDeleted);
+    return map;
+  }
+
+  DebtPaymentsTableCompanion toCompanion(bool nullToAbsent) {
+    return DebtPaymentsTableCompanion(
+      id: Value(id),
+      debtId: Value(debtId),
+      businessId: Value(businessId),
+      amount: Value(amount),
+      date: Value(date),
+      method: Value(method),
+      note: Value(note),
+      recordedBy: Value(recordedBy),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      syncStatus: Value(syncStatus),
+      isDeleted: Value(isDeleted),
+    );
+  }
+
+  factory DebtPaymentsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DebtPaymentsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      debtId: serializer.fromJson<String>(json['debtId']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      amount: serializer.fromJson<double>(json['amount']),
+      date: serializer.fromJson<String>(json['date']),
+      method: serializer.fromJson<String>(json['method']),
+      note: serializer.fromJson<String>(json['note']),
+      recordedBy: serializer.fromJson<String>(json['recordedBy']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      isDeleted: serializer.fromJson<int>(json['isDeleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'debtId': serializer.toJson<String>(debtId),
+      'businessId': serializer.toJson<String>(businessId),
+      'amount': serializer.toJson<double>(amount),
+      'date': serializer.toJson<String>(date),
+      'method': serializer.toJson<String>(method),
+      'note': serializer.toJson<String>(note),
+      'recordedBy': serializer.toJson<String>(recordedBy),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'isDeleted': serializer.toJson<int>(isDeleted),
+    };
+  }
+
+  DebtPaymentsTableData copyWith({
+    String? id,
+    String? debtId,
+    String? businessId,
+    double? amount,
+    String? date,
+    String? method,
+    String? note,
+    String? recordedBy,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> serverUpdatedAt = const Value.absent(),
+    String? syncStatus,
+    int? isDeleted,
+  }) => DebtPaymentsTableData(
+    id: id ?? this.id,
+    debtId: debtId ?? this.debtId,
+    businessId: businessId ?? this.businessId,
+    amount: amount ?? this.amount,
+    date: date ?? this.date,
+    method: method ?? this.method,
+    note: note ?? this.note,
+    recordedBy: recordedBy ?? this.recordedBy,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    serverUpdatedAt: serverUpdatedAt.present
+        ? serverUpdatedAt.value
+        : this.serverUpdatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+    isDeleted: isDeleted ?? this.isDeleted,
+  );
+  DebtPaymentsTableData copyWithCompanion(DebtPaymentsTableCompanion data) {
+    return DebtPaymentsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      debtId: data.debtId.present ? data.debtId.value : this.debtId,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      date: data.date.present ? data.date.value : this.date,
+      method: data.method.present ? data.method.value : this.method,
+      note: data.note.present ? data.note.value : this.note,
+      recordedBy: data.recordedBy.present
+          ? data.recordedBy.value
+          : this.recordedBy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DebtPaymentsTableData(')
+          ..write('id: $id, ')
+          ..write('debtId: $debtId, ')
+          ..write('businessId: $businessId, ')
+          ..write('amount: $amount, ')
+          ..write('date: $date, ')
+          ..write('method: $method, ')
+          ..write('note: $note, ')
+          ..write('recordedBy: $recordedBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isDeleted: $isDeleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    debtId,
+    businessId,
+    amount,
+    date,
+    method,
+    note,
+    recordedBy,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    isDeleted,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DebtPaymentsTableData &&
+          other.id == this.id &&
+          other.debtId == this.debtId &&
+          other.businessId == this.businessId &&
+          other.amount == this.amount &&
+          other.date == this.date &&
+          other.method == this.method &&
+          other.note == this.note &&
+          other.recordedBy == this.recordedBy &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.isDeleted == this.isDeleted);
+}
+
+class DebtPaymentsTableCompanion
+    extends UpdateCompanion<DebtPaymentsTableData> {
+  final Value<String> id;
+  final Value<String> debtId;
+  final Value<String> businessId;
+  final Value<double> amount;
+  final Value<String> date;
+  final Value<String> method;
+  final Value<String> note;
+  final Value<String> recordedBy;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> serverUpdatedAt;
+  final Value<String> syncStatus;
+  final Value<int> isDeleted;
+  final Value<int> rowid;
+  const DebtPaymentsTableCompanion({
+    this.id = const Value.absent(),
+    this.debtId = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.date = const Value.absent(),
+    this.method = const Value.absent(),
+    this.note = const Value.absent(),
+    this.recordedBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DebtPaymentsTableCompanion.insert({
+    required String id,
+    required String debtId,
+    required String businessId,
+    required double amount,
+    required String date,
+    this.method = const Value.absent(),
+    this.note = const Value.absent(),
+    this.recordedBy = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       debtId = Value(debtId),
+       businessId = Value(businessId),
+       amount = Value(amount),
+       date = Value(date),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DebtPaymentsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? debtId,
+    Expression<String>? businessId,
+    Expression<double>? amount,
+    Expression<String>? date,
+    Expression<String>? method,
+    Expression<String>? note,
+    Expression<String>? recordedBy,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? serverUpdatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? isDeleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (debtId != null) 'debt_id': debtId,
+      if (businessId != null) 'business_id': businessId,
+      if (amount != null) 'amount': amount,
+      if (date != null) 'date': date,
+      if (method != null) 'method': method,
+      if (note != null) 'note': note,
+      if (recordedBy != null) 'recorded_by': recordedBy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DebtPaymentsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? debtId,
+    Value<String>? businessId,
+    Value<double>? amount,
+    Value<String>? date,
+    Value<String>? method,
+    Value<String>? note,
+    Value<String>? recordedBy,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? serverUpdatedAt,
+    Value<String>? syncStatus,
+    Value<int>? isDeleted,
+    Value<int>? rowid,
+  }) {
+    return DebtPaymentsTableCompanion(
+      id: id ?? this.id,
+      debtId: debtId ?? this.debtId,
+      businessId: businessId ?? this.businessId,
+      amount: amount ?? this.amount,
+      date: date ?? this.date,
+      method: method ?? this.method,
+      note: note ?? this.note,
+      recordedBy: recordedBy ?? this.recordedBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      isDeleted: isDeleted ?? this.isDeleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (debtId.present) {
+      map['debt_id'] = Variable<String>(debtId.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (method.present) {
+      map['method'] = Variable<String>(method.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (recordedBy.present) {
+      map['recorded_by'] = Variable<String>(recordedBy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<int>(isDeleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DebtPaymentsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('debtId: $debtId, ')
+          ..write('businessId: $businessId, ')
+          ..write('amount: $amount, ')
+          ..write('date: $date, ')
+          ..write('method: $method, ')
+          ..write('note: $note, ')
+          ..write('recordedBy: $recordedBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TeamMembersTableTable extends TeamMembersTable
+    with TableInfo<$TeamMembersTableTable, TeamMembersTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TeamMembersTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _emailMeta = const VerificationMeta('email');
+  @override
+  late final GeneratedColumn<String> email = GeneratedColumn<String>(
+    'email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
+  @override
+  late final GeneratedColumn<String> phone = GeneratedColumn<String>(
+    'phone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _customPermissionsMeta = const VerificationMeta(
+    'customPermissions',
+  );
+  @override
+  late final GeneratedColumn<String> customPermissions =
+      GeneratedColumn<String>(
+        'custom_permissions',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _invitedAtMeta = const VerificationMeta(
+    'invitedAt',
+  );
+  @override
+  late final GeneratedColumn<int> invitedAt = GeneratedColumn<int>(
+    'invited_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _acceptedAtMeta = const VerificationMeta(
+    'acceptedAt',
+  );
+  @override
+  late final GeneratedColumn<int> acceptedAt = GeneratedColumn<int>(
+    'accepted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _invitedByMeta = const VerificationMeta(
+    'invitedBy',
+  );
+  @override
+  late final GeneratedColumn<String> invitedBy = GeneratedColumn<String>(
+    'invited_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverUpdatedAtMeta = const VerificationMeta(
+    'serverUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> serverUpdatedAt = GeneratedColumn<int>(
+    'server_updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending_create'),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<int> isDeleted = GeneratedColumn<int>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    name,
+    email,
+    phone,
+    role,
+    customPermissions,
+    status,
+    invitedAt,
+    acceptedAt,
+    invitedBy,
+    notes,
+    userId,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    isDeleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'team_members';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TeamMembersTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('email')) {
+      context.handle(
+        _emailMeta,
+        email.isAcceptableOrUnknown(data['email']!, _emailMeta),
+      );
+    }
+    if (data.containsKey('phone')) {
+      context.handle(
+        _phoneMeta,
+        phone.isAcceptableOrUnknown(data['phone']!, _phoneMeta),
+      );
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('custom_permissions')) {
+      context.handle(
+        _customPermissionsMeta,
+        customPermissions.isAcceptableOrUnknown(
+          data['custom_permissions']!,
+          _customPermissionsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('invited_at')) {
+      context.handle(
+        _invitedAtMeta,
+        invitedAt.isAcceptableOrUnknown(data['invited_at']!, _invitedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_invitedAtMeta);
+    }
+    if (data.containsKey('accepted_at')) {
+      context.handle(
+        _acceptedAtMeta,
+        acceptedAt.isAcceptableOrUnknown(data['accepted_at']!, _acceptedAtMeta),
+      );
+    }
+    if (data.containsKey('invited_by')) {
+      context.handle(
+        _invitedByMeta,
+        invitedBy.isAcceptableOrUnknown(data['invited_by']!, _invitedByMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+        _serverUpdatedAtMeta,
+        serverUpdatedAt.isAcceptableOrUnknown(
+          data['server_updated_at']!,
+          _serverUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TeamMembersTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TeamMembersTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      email: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}email'],
+      )!,
+      phone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      )!,
+      customPermissions: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_permissions'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      invitedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}invited_at'],
+      )!,
+      acceptedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}accepted_at'],
+      ),
+      invitedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}invited_by'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_updated_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $TeamMembersTableTable createAlias(String alias) {
+    return $TeamMembersTableTable(attachedDatabase, alias);
+  }
+}
+
+class TeamMembersTableData extends DataClass
+    implements Insertable<TeamMembersTableData> {
+  final String id;
+  final String businessId;
+  final String name;
+  final String email;
+  final String phone;
+  final String role;
+  final String customPermissions;
+  final String status;
+  final int invitedAt;
+  final int? acceptedAt;
+  final String invitedBy;
+  final String notes;
+  final String userId;
+  final int createdAt;
+  final int updatedAt;
+  final int? serverUpdatedAt;
+  final String syncStatus;
+  final int isDeleted;
+  const TeamMembersTableData({
+    required this.id,
+    required this.businessId,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.role,
+    required this.customPermissions,
+    required this.status,
+    required this.invitedAt,
+    this.acceptedAt,
+    required this.invitedBy,
+    required this.notes,
+    required this.userId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.serverUpdatedAt,
+    required this.syncStatus,
+    required this.isDeleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['name'] = Variable<String>(name);
+    map['email'] = Variable<String>(email);
+    map['phone'] = Variable<String>(phone);
+    map['role'] = Variable<String>(role);
+    map['custom_permissions'] = Variable<String>(customPermissions);
+    map['status'] = Variable<String>(status);
+    map['invited_at'] = Variable<int>(invitedAt);
+    if (!nullToAbsent || acceptedAt != null) {
+      map['accepted_at'] = Variable<int>(acceptedAt);
+    }
+    map['invited_by'] = Variable<String>(invitedBy);
+    map['notes'] = Variable<String>(notes);
+    map['user_id'] = Variable<String>(userId);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['is_deleted'] = Variable<int>(isDeleted);
+    return map;
+  }
+
+  TeamMembersTableCompanion toCompanion(bool nullToAbsent) {
+    return TeamMembersTableCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      name: Value(name),
+      email: Value(email),
+      phone: Value(phone),
+      role: Value(role),
+      customPermissions: Value(customPermissions),
+      status: Value(status),
+      invitedAt: Value(invitedAt),
+      acceptedAt: acceptedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(acceptedAt),
+      invitedBy: Value(invitedBy),
+      notes: Value(notes),
+      userId: Value(userId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      syncStatus: Value(syncStatus),
+      isDeleted: Value(isDeleted),
+    );
+  }
+
+  factory TeamMembersTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TeamMembersTableData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      name: serializer.fromJson<String>(json['name']),
+      email: serializer.fromJson<String>(json['email']),
+      phone: serializer.fromJson<String>(json['phone']),
+      role: serializer.fromJson<String>(json['role']),
+      customPermissions: serializer.fromJson<String>(json['customPermissions']),
+      status: serializer.fromJson<String>(json['status']),
+      invitedAt: serializer.fromJson<int>(json['invitedAt']),
+      acceptedAt: serializer.fromJson<int?>(json['acceptedAt']),
+      invitedBy: serializer.fromJson<String>(json['invitedBy']),
+      notes: serializer.fromJson<String>(json['notes']),
+      userId: serializer.fromJson<String>(json['userId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      isDeleted: serializer.fromJson<int>(json['isDeleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'name': serializer.toJson<String>(name),
+      'email': serializer.toJson<String>(email),
+      'phone': serializer.toJson<String>(phone),
+      'role': serializer.toJson<String>(role),
+      'customPermissions': serializer.toJson<String>(customPermissions),
+      'status': serializer.toJson<String>(status),
+      'invitedAt': serializer.toJson<int>(invitedAt),
+      'acceptedAt': serializer.toJson<int?>(acceptedAt),
+      'invitedBy': serializer.toJson<String>(invitedBy),
+      'notes': serializer.toJson<String>(notes),
+      'userId': serializer.toJson<String>(userId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'isDeleted': serializer.toJson<int>(isDeleted),
+    };
+  }
+
+  TeamMembersTableData copyWith({
+    String? id,
+    String? businessId,
+    String? name,
+    String? email,
+    String? phone,
+    String? role,
+    String? customPermissions,
+    String? status,
+    int? invitedAt,
+    Value<int?> acceptedAt = const Value.absent(),
+    String? invitedBy,
+    String? notes,
+    String? userId,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> serverUpdatedAt = const Value.absent(),
+    String? syncStatus,
+    int? isDeleted,
+  }) => TeamMembersTableData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    name: name ?? this.name,
+    email: email ?? this.email,
+    phone: phone ?? this.phone,
+    role: role ?? this.role,
+    customPermissions: customPermissions ?? this.customPermissions,
+    status: status ?? this.status,
+    invitedAt: invitedAt ?? this.invitedAt,
+    acceptedAt: acceptedAt.present ? acceptedAt.value : this.acceptedAt,
+    invitedBy: invitedBy ?? this.invitedBy,
+    notes: notes ?? this.notes,
+    userId: userId ?? this.userId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    serverUpdatedAt: serverUpdatedAt.present
+        ? serverUpdatedAt.value
+        : this.serverUpdatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+    isDeleted: isDeleted ?? this.isDeleted,
+  );
+  TeamMembersTableData copyWithCompanion(TeamMembersTableCompanion data) {
+    return TeamMembersTableData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      name: data.name.present ? data.name.value : this.name,
+      email: data.email.present ? data.email.value : this.email,
+      phone: data.phone.present ? data.phone.value : this.phone,
+      role: data.role.present ? data.role.value : this.role,
+      customPermissions: data.customPermissions.present
+          ? data.customPermissions.value
+          : this.customPermissions,
+      status: data.status.present ? data.status.value : this.status,
+      invitedAt: data.invitedAt.present ? data.invitedAt.value : this.invitedAt,
+      acceptedAt: data.acceptedAt.present
+          ? data.acceptedAt.value
+          : this.acceptedAt,
+      invitedBy: data.invitedBy.present ? data.invitedBy.value : this.invitedBy,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TeamMembersTableData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('name: $name, ')
+          ..write('email: $email, ')
+          ..write('phone: $phone, ')
+          ..write('role: $role, ')
+          ..write('customPermissions: $customPermissions, ')
+          ..write('status: $status, ')
+          ..write('invitedAt: $invitedAt, ')
+          ..write('acceptedAt: $acceptedAt, ')
+          ..write('invitedBy: $invitedBy, ')
+          ..write('notes: $notes, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isDeleted: $isDeleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    name,
+    email,
+    phone,
+    role,
+    customPermissions,
+    status,
+    invitedAt,
+    acceptedAt,
+    invitedBy,
+    notes,
+    userId,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    isDeleted,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TeamMembersTableData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.name == this.name &&
+          other.email == this.email &&
+          other.phone == this.phone &&
+          other.role == this.role &&
+          other.customPermissions == this.customPermissions &&
+          other.status == this.status &&
+          other.invitedAt == this.invitedAt &&
+          other.acceptedAt == this.acceptedAt &&
+          other.invitedBy == this.invitedBy &&
+          other.notes == this.notes &&
+          other.userId == this.userId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.isDeleted == this.isDeleted);
+}
+
+class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> name;
+  final Value<String> email;
+  final Value<String> phone;
+  final Value<String> role;
+  final Value<String> customPermissions;
+  final Value<String> status;
+  final Value<int> invitedAt;
+  final Value<int?> acceptedAt;
+  final Value<String> invitedBy;
+  final Value<String> notes;
+  final Value<String> userId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> serverUpdatedAt;
+  final Value<String> syncStatus;
+  final Value<int> isDeleted;
+  final Value<int> rowid;
+  const TeamMembersTableCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.email = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.role = const Value.absent(),
+    this.customPermissions = const Value.absent(),
+    this.status = const Value.absent(),
+    this.invitedAt = const Value.absent(),
+    this.acceptedAt = const Value.absent(),
+    this.invitedBy = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TeamMembersTableCompanion.insert({
+    required String id,
+    required String businessId,
+    required String name,
+    this.email = const Value.absent(),
+    this.phone = const Value.absent(),
+    required String role,
+    this.customPermissions = const Value.absent(),
+    this.status = const Value.absent(),
+    required int invitedAt,
+    this.acceptedAt = const Value.absent(),
+    this.invitedBy = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.userId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       name = Value(name),
+       role = Value(role),
+       invitedAt = Value(invitedAt),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<TeamMembersTableData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? name,
+    Expression<String>? email,
+    Expression<String>? phone,
+    Expression<String>? role,
+    Expression<String>? customPermissions,
+    Expression<String>? status,
+    Expression<int>? invitedAt,
+    Expression<int>? acceptedAt,
+    Expression<String>? invitedBy,
+    Expression<String>? notes,
+    Expression<String>? userId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? serverUpdatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? isDeleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (name != null) 'name': name,
+      if (email != null) 'email': email,
+      if (phone != null) 'phone': phone,
+      if (role != null) 'role': role,
+      if (customPermissions != null) 'custom_permissions': customPermissions,
+      if (status != null) 'status': status,
+      if (invitedAt != null) 'invited_at': invitedAt,
+      if (acceptedAt != null) 'accepted_at': acceptedAt,
+      if (invitedBy != null) 'invited_by': invitedBy,
+      if (notes != null) 'notes': notes,
+      if (userId != null) 'user_id': userId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TeamMembersTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? name,
+    Value<String>? email,
+    Value<String>? phone,
+    Value<String>? role,
+    Value<String>? customPermissions,
+    Value<String>? status,
+    Value<int>? invitedAt,
+    Value<int?>? acceptedAt,
+    Value<String>? invitedBy,
+    Value<String>? notes,
+    Value<String>? userId,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? serverUpdatedAt,
+    Value<String>? syncStatus,
+    Value<int>? isDeleted,
+    Value<int>? rowid,
+  }) {
+    return TeamMembersTableCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      role: role ?? this.role,
+      customPermissions: customPermissions ?? this.customPermissions,
+      status: status ?? this.status,
+      invitedAt: invitedAt ?? this.invitedAt,
+      acceptedAt: acceptedAt ?? this.acceptedAt,
+      invitedBy: invitedBy ?? this.invitedBy,
+      notes: notes ?? this.notes,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      isDeleted: isDeleted ?? this.isDeleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (email.present) {
+      map['email'] = Variable<String>(email.value);
+    }
+    if (phone.present) {
+      map['phone'] = Variable<String>(phone.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (customPermissions.present) {
+      map['custom_permissions'] = Variable<String>(customPermissions.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (invitedAt.present) {
+      map['invited_at'] = Variable<int>(invitedAt.value);
+    }
+    if (acceptedAt.present) {
+      map['accepted_at'] = Variable<int>(acceptedAt.value);
+    }
+    if (invitedBy.present) {
+      map['invited_by'] = Variable<String>(invitedBy.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<int>(isDeleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TeamMembersTableCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('name: $name, ')
+          ..write('email: $email, ')
+          ..write('phone: $phone, ')
+          ..write('role: $role, ')
+          ..write('customPermissions: $customPermissions, ')
+          ..write('status: $status, ')
+          ..write('invitedAt: $invitedAt, ')
+          ..write('acceptedAt: $acceptedAt, ')
+          ..write('invitedBy: $invitedBy, ')
+          ..write('notes: $notes, ')
+          ..write('userId: $userId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7473,12 +10551,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $UserSettingsTableTable(this);
   late final $BusinessSettingsTableTable businessSettingsTable =
       $BusinessSettingsTableTable(this);
+  late final $DebtsTableTable debtsTable = $DebtsTableTable(this);
+  late final $DebtPaymentsTableTable debtPaymentsTable =
+      $DebtPaymentsTableTable(this);
+  late final $TeamMembersTableTable teamMembersTable = $TeamMembersTableTable(
+    this,
+  );
   late final InvoiceDao invoiceDao = InvoiceDao(this as AppDatabase);
   late final CustomerDao customerDao = CustomerDao(this as AppDatabase);
   late final ExpenseDao expenseDao = ExpenseDao(this as AppDatabase);
   late final InventoryDao inventoryDao = InventoryDao(this as AppDatabase);
   late final SyncQueueDao syncQueueDao = SyncQueueDao(this as AppDatabase);
   late final SettingsDao settingsDao = SettingsDao(this as AppDatabase);
+  late final DebtDao debtDao = DebtDao(this as AppDatabase);
+  late final TeamDao teamDao = TeamDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7492,6 +10578,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncQueueTable,
     userSettingsTable,
     businessSettingsTable,
+    debtsTable,
+    debtPaymentsTable,
+    teamMembersTable,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -8496,6 +11585,7 @@ typedef $$CustomersTableTableCreateCompanionBuilder =
       Value<String> address,
       Value<double> creditLimit,
       Value<String> createdBy,
+      Value<String> assignedToUserId,
       required int createdAt,
       required int updatedAt,
       Value<int?> serverUpdatedAt,
@@ -8519,6 +11609,7 @@ typedef $$CustomersTableTableUpdateCompanionBuilder =
       Value<String> address,
       Value<double> creditLimit,
       Value<String> createdBy,
+      Value<String> assignedToUserId,
       Value<int> createdAt,
       Value<int> updatedAt,
       Value<int?> serverUpdatedAt,
@@ -8599,6 +11690,11 @@ class $$CustomersTableTableFilterComposer
 
   ColumnFilters<String> get createdBy => $composableBuilder(
     column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assignedToUserId => $composableBuilder(
+    column: $table.assignedToUserId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8707,6 +11803,11 @@ class $$CustomersTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get assignedToUserId => $composableBuilder(
+    column: $table.assignedToUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -8794,6 +11895,11 @@ class $$CustomersTableTableAnnotationComposer
   GeneratedColumn<String> get createdBy =>
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
 
+  GeneratedColumn<String> get assignedToUserId => $composableBuilder(
+    column: $table.assignedToUserId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -8869,6 +11975,7 @@ class $$CustomersTableTableTableManager
                 Value<String> address = const Value.absent(),
                 Value<double> creditLimit = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<String> assignedToUserId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -8890,6 +11997,7 @@ class $$CustomersTableTableTableManager
                 address: address,
                 creditLimit: creditLimit,
                 createdBy: createdBy,
+                assignedToUserId: assignedToUserId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
@@ -8913,6 +12021,7 @@ class $$CustomersTableTableTableManager
                 Value<String> address = const Value.absent(),
                 Value<double> creditLimit = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<String> assignedToUserId = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -8934,6 +12043,7 @@ class $$CustomersTableTableTableManager
                 address: address,
                 creditLimit: creditLimit,
                 createdBy: createdBy,
+                assignedToUserId: assignedToUserId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
@@ -11274,6 +14384,1433 @@ typedef $$BusinessSettingsTableTableProcessedTableManager =
       BusinessSettingsTableData,
       PrefetchHooks Function()
     >;
+typedef $$DebtsTableTableCreateCompanionBuilder =
+    DebtsTableCompanion Function({
+      required String id,
+      required String businessId,
+      required String partyName,
+      Value<String> partyPhone,
+      Value<String> partyId,
+      required String type,
+      required double originalAmount,
+      Value<double> paidAmount,
+      required String dueDate,
+      Value<String> status,
+      Value<String> invoiceRef,
+      Value<String> note,
+      Value<String> createdBy,
+      Value<String> debtCreatedAt,
+      Value<int> isWrittenOff,
+      Value<String> writeOffReason,
+      Value<String> writtenOffBy,
+      Value<String> writtenOffAt,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> localVersion,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+typedef $$DebtsTableTableUpdateCompanionBuilder =
+    DebtsTableCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> partyName,
+      Value<String> partyPhone,
+      Value<String> partyId,
+      Value<String> type,
+      Value<double> originalAmount,
+      Value<double> paidAmount,
+      Value<String> dueDate,
+      Value<String> status,
+      Value<String> invoiceRef,
+      Value<String> note,
+      Value<String> createdBy,
+      Value<String> debtCreatedAt,
+      Value<int> isWrittenOff,
+      Value<String> writeOffReason,
+      Value<String> writtenOffBy,
+      Value<String> writtenOffAt,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> localVersion,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+
+class $$DebtsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $DebtsTableTable> {
+  $$DebtsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partyName => $composableBuilder(
+    column: $table.partyName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partyPhone => $composableBuilder(
+    column: $table.partyPhone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partyId => $composableBuilder(
+    column: $table.partyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get paidAmount => $composableBuilder(
+    column: $table.paidAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get invoiceRef => $composableBuilder(
+    column: $table.invoiceRef,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get debtCreatedAt => $composableBuilder(
+    column: $table.debtCreatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isWrittenOff => $composableBuilder(
+    column: $table.isWrittenOff,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get writeOffReason => $composableBuilder(
+    column: $table.writeOffReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get writtenOffBy => $composableBuilder(
+    column: $table.writtenOffBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get writtenOffAt => $composableBuilder(
+    column: $table.writtenOffAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DebtsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $DebtsTableTable> {
+  $$DebtsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get partyName => $composableBuilder(
+    column: $table.partyName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get partyPhone => $composableBuilder(
+    column: $table.partyPhone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get partyId => $composableBuilder(
+    column: $table.partyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get paidAmount => $composableBuilder(
+    column: $table.paidAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get invoiceRef => $composableBuilder(
+    column: $table.invoiceRef,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get debtCreatedAt => $composableBuilder(
+    column: $table.debtCreatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isWrittenOff => $composableBuilder(
+    column: $table.isWrittenOff,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get writeOffReason => $composableBuilder(
+    column: $table.writeOffReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get writtenOffBy => $composableBuilder(
+    column: $table.writtenOffBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get writtenOffAt => $composableBuilder(
+    column: $table.writtenOffAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DebtsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DebtsTableTable> {
+  $$DebtsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get partyName =>
+      $composableBuilder(column: $table.partyName, builder: (column) => column);
+
+  GeneratedColumn<String> get partyPhone => $composableBuilder(
+    column: $table.partyPhone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get partyId =>
+      $composableBuilder(column: $table.partyId, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get paidAmount => $composableBuilder(
+    column: $table.paidAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get invoiceRef => $composableBuilder(
+    column: $table.invoiceRef,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<String> get debtCreatedAt => $composableBuilder(
+    column: $table.debtCreatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get isWrittenOff => $composableBuilder(
+    column: $table.isWrittenOff,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get writeOffReason => $composableBuilder(
+    column: $table.writeOffReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get writtenOffBy => $composableBuilder(
+    column: $table.writtenOffBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get writtenOffAt => $composableBuilder(
+    column: $table.writtenOffAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+}
+
+class $$DebtsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DebtsTableTable,
+          DebtsTableData,
+          $$DebtsTableTableFilterComposer,
+          $$DebtsTableTableOrderingComposer,
+          $$DebtsTableTableAnnotationComposer,
+          $$DebtsTableTableCreateCompanionBuilder,
+          $$DebtsTableTableUpdateCompanionBuilder,
+          (
+            DebtsTableData,
+            BaseReferences<_$AppDatabase, $DebtsTableTable, DebtsTableData>,
+          ),
+          DebtsTableData,
+          PrefetchHooks Function()
+        > {
+  $$DebtsTableTableTableManager(_$AppDatabase db, $DebtsTableTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DebtsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DebtsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DebtsTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> partyName = const Value.absent(),
+                Value<String> partyPhone = const Value.absent(),
+                Value<String> partyId = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<double> originalAmount = const Value.absent(),
+                Value<double> paidAmount = const Value.absent(),
+                Value<String> dueDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> invoiceRef = const Value.absent(),
+                Value<String> note = const Value.absent(),
+                Value<String> createdBy = const Value.absent(),
+                Value<String> debtCreatedAt = const Value.absent(),
+                Value<int> isWrittenOff = const Value.absent(),
+                Value<String> writeOffReason = const Value.absent(),
+                Value<String> writtenOffBy = const Value.absent(),
+                Value<String> writtenOffAt = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> localVersion = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DebtsTableCompanion(
+                id: id,
+                businessId: businessId,
+                partyName: partyName,
+                partyPhone: partyPhone,
+                partyId: partyId,
+                type: type,
+                originalAmount: originalAmount,
+                paidAmount: paidAmount,
+                dueDate: dueDate,
+                status: status,
+                invoiceRef: invoiceRef,
+                note: note,
+                createdBy: createdBy,
+                debtCreatedAt: debtCreatedAt,
+                isWrittenOff: isWrittenOff,
+                writeOffReason: writeOffReason,
+                writtenOffBy: writtenOffBy,
+                writtenOffAt: writtenOffAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                localVersion: localVersion,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String partyName,
+                Value<String> partyPhone = const Value.absent(),
+                Value<String> partyId = const Value.absent(),
+                required String type,
+                required double originalAmount,
+                Value<double> paidAmount = const Value.absent(),
+                required String dueDate,
+                Value<String> status = const Value.absent(),
+                Value<String> invoiceRef = const Value.absent(),
+                Value<String> note = const Value.absent(),
+                Value<String> createdBy = const Value.absent(),
+                Value<String> debtCreatedAt = const Value.absent(),
+                Value<int> isWrittenOff = const Value.absent(),
+                Value<String> writeOffReason = const Value.absent(),
+                Value<String> writtenOffBy = const Value.absent(),
+                Value<String> writtenOffAt = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> localVersion = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DebtsTableCompanion.insert(
+                id: id,
+                businessId: businessId,
+                partyName: partyName,
+                partyPhone: partyPhone,
+                partyId: partyId,
+                type: type,
+                originalAmount: originalAmount,
+                paidAmount: paidAmount,
+                dueDate: dueDate,
+                status: status,
+                invoiceRef: invoiceRef,
+                note: note,
+                createdBy: createdBy,
+                debtCreatedAt: debtCreatedAt,
+                isWrittenOff: isWrittenOff,
+                writeOffReason: writeOffReason,
+                writtenOffBy: writtenOffBy,
+                writtenOffAt: writtenOffAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                localVersion: localVersion,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DebtsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DebtsTableTable,
+      DebtsTableData,
+      $$DebtsTableTableFilterComposer,
+      $$DebtsTableTableOrderingComposer,
+      $$DebtsTableTableAnnotationComposer,
+      $$DebtsTableTableCreateCompanionBuilder,
+      $$DebtsTableTableUpdateCompanionBuilder,
+      (
+        DebtsTableData,
+        BaseReferences<_$AppDatabase, $DebtsTableTable, DebtsTableData>,
+      ),
+      DebtsTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$DebtPaymentsTableTableCreateCompanionBuilder =
+    DebtPaymentsTableCompanion Function({
+      required String id,
+      required String debtId,
+      required String businessId,
+      required double amount,
+      required String date,
+      Value<String> method,
+      Value<String> note,
+      Value<String> recordedBy,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+typedef $$DebtPaymentsTableTableUpdateCompanionBuilder =
+    DebtPaymentsTableCompanion Function({
+      Value<String> id,
+      Value<String> debtId,
+      Value<String> businessId,
+      Value<double> amount,
+      Value<String> date,
+      Value<String> method,
+      Value<String> note,
+      Value<String> recordedBy,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+
+class $$DebtPaymentsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $DebtPaymentsTableTable> {
+  $$DebtPaymentsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get debtId => $composableBuilder(
+    column: $table.debtId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get method => $composableBuilder(
+    column: $table.method,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recordedBy => $composableBuilder(
+    column: $table.recordedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DebtPaymentsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $DebtPaymentsTableTable> {
+  $$DebtPaymentsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get debtId => $composableBuilder(
+    column: $table.debtId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get method => $composableBuilder(
+    column: $table.method,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recordedBy => $composableBuilder(
+    column: $table.recordedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DebtPaymentsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DebtPaymentsTableTable> {
+  $$DebtPaymentsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get debtId =>
+      $composableBuilder(column: $table.debtId, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get method =>
+      $composableBuilder(column: $table.method, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get recordedBy => $composableBuilder(
+    column: $table.recordedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+}
+
+class $$DebtPaymentsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DebtPaymentsTableTable,
+          DebtPaymentsTableData,
+          $$DebtPaymentsTableTableFilterComposer,
+          $$DebtPaymentsTableTableOrderingComposer,
+          $$DebtPaymentsTableTableAnnotationComposer,
+          $$DebtPaymentsTableTableCreateCompanionBuilder,
+          $$DebtPaymentsTableTableUpdateCompanionBuilder,
+          (
+            DebtPaymentsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $DebtPaymentsTableTable,
+              DebtPaymentsTableData
+            >,
+          ),
+          DebtPaymentsTableData,
+          PrefetchHooks Function()
+        > {
+  $$DebtPaymentsTableTableTableManager(
+    _$AppDatabase db,
+    $DebtPaymentsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DebtPaymentsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DebtPaymentsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DebtPaymentsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> debtId = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<String> method = const Value.absent(),
+                Value<String> note = const Value.absent(),
+                Value<String> recordedBy = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DebtPaymentsTableCompanion(
+                id: id,
+                debtId: debtId,
+                businessId: businessId,
+                amount: amount,
+                date: date,
+                method: method,
+                note: note,
+                recordedBy: recordedBy,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String debtId,
+                required String businessId,
+                required double amount,
+                required String date,
+                Value<String> method = const Value.absent(),
+                Value<String> note = const Value.absent(),
+                Value<String> recordedBy = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DebtPaymentsTableCompanion.insert(
+                id: id,
+                debtId: debtId,
+                businessId: businessId,
+                amount: amount,
+                date: date,
+                method: method,
+                note: note,
+                recordedBy: recordedBy,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DebtPaymentsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DebtPaymentsTableTable,
+      DebtPaymentsTableData,
+      $$DebtPaymentsTableTableFilterComposer,
+      $$DebtPaymentsTableTableOrderingComposer,
+      $$DebtPaymentsTableTableAnnotationComposer,
+      $$DebtPaymentsTableTableCreateCompanionBuilder,
+      $$DebtPaymentsTableTableUpdateCompanionBuilder,
+      (
+        DebtPaymentsTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $DebtPaymentsTableTable,
+          DebtPaymentsTableData
+        >,
+      ),
+      DebtPaymentsTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$TeamMembersTableTableCreateCompanionBuilder =
+    TeamMembersTableCompanion Function({
+      required String id,
+      required String businessId,
+      required String name,
+      Value<String> email,
+      Value<String> phone,
+      required String role,
+      Value<String> customPermissions,
+      Value<String> status,
+      required int invitedAt,
+      Value<int?> acceptedAt,
+      Value<String> invitedBy,
+      Value<String> notes,
+      Value<String> userId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+typedef $$TeamMembersTableTableUpdateCompanionBuilder =
+    TeamMembersTableCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> name,
+      Value<String> email,
+      Value<String> phone,
+      Value<String> role,
+      Value<String> customPermissions,
+      Value<String> status,
+      Value<int> invitedAt,
+      Value<int?> acceptedAt,
+      Value<String> invitedBy,
+      Value<String> notes,
+      Value<String> userId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+
+class $$TeamMembersTableTableFilterComposer
+    extends Composer<_$AppDatabase, $TeamMembersTableTable> {
+  $$TeamMembersTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get email => $composableBuilder(
+    column: $table.email,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customPermissions => $composableBuilder(
+    column: $table.customPermissions,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get invitedAt => $composableBuilder(
+    column: $table.invitedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get acceptedAt => $composableBuilder(
+    column: $table.acceptedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get invitedBy => $composableBuilder(
+    column: $table.invitedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TeamMembersTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $TeamMembersTableTable> {
+  $$TeamMembersTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get email => $composableBuilder(
+    column: $table.email,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customPermissions => $composableBuilder(
+    column: $table.customPermissions,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get invitedAt => $composableBuilder(
+    column: $table.invitedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get acceptedAt => $composableBuilder(
+    column: $table.acceptedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get invitedBy => $composableBuilder(
+    column: $table.invitedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TeamMembersTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TeamMembersTableTable> {
+  $$TeamMembersTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get email =>
+      $composableBuilder(column: $table.email, builder: (column) => column);
+
+  GeneratedColumn<String> get phone =>
+      $composableBuilder(column: $table.phone, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get customPermissions => $composableBuilder(
+    column: $table.customPermissions,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get invitedAt =>
+      $composableBuilder(column: $table.invitedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get acceptedAt => $composableBuilder(
+    column: $table.acceptedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get invitedBy =>
+      $composableBuilder(column: $table.invitedBy, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+}
+
+class $$TeamMembersTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TeamMembersTableTable,
+          TeamMembersTableData,
+          $$TeamMembersTableTableFilterComposer,
+          $$TeamMembersTableTableOrderingComposer,
+          $$TeamMembersTableTableAnnotationComposer,
+          $$TeamMembersTableTableCreateCompanionBuilder,
+          $$TeamMembersTableTableUpdateCompanionBuilder,
+          (
+            TeamMembersTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $TeamMembersTableTable,
+              TeamMembersTableData
+            >,
+          ),
+          TeamMembersTableData,
+          PrefetchHooks Function()
+        > {
+  $$TeamMembersTableTableTableManager(
+    _$AppDatabase db,
+    $TeamMembersTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TeamMembersTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TeamMembersTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TeamMembersTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> email = const Value.absent(),
+                Value<String> phone = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<String> customPermissions = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> invitedAt = const Value.absent(),
+                Value<int?> acceptedAt = const Value.absent(),
+                Value<String> invitedBy = const Value.absent(),
+                Value<String> notes = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TeamMembersTableCompanion(
+                id: id,
+                businessId: businessId,
+                name: name,
+                email: email,
+                phone: phone,
+                role: role,
+                customPermissions: customPermissions,
+                status: status,
+                invitedAt: invitedAt,
+                acceptedAt: acceptedAt,
+                invitedBy: invitedBy,
+                notes: notes,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String name,
+                Value<String> email = const Value.absent(),
+                Value<String> phone = const Value.absent(),
+                required String role,
+                Value<String> customPermissions = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                required int invitedAt,
+                Value<int?> acceptedAt = const Value.absent(),
+                Value<String> invitedBy = const Value.absent(),
+                Value<String> notes = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TeamMembersTableCompanion.insert(
+                id: id,
+                businessId: businessId,
+                name: name,
+                email: email,
+                phone: phone,
+                role: role,
+                customPermissions: customPermissions,
+                status: status,
+                invitedAt: invitedAt,
+                acceptedAt: acceptedAt,
+                invitedBy: invitedBy,
+                notes: notes,
+                userId: userId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TeamMembersTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TeamMembersTableTable,
+      TeamMembersTableData,
+      $$TeamMembersTableTableFilterComposer,
+      $$TeamMembersTableTableOrderingComposer,
+      $$TeamMembersTableTableAnnotationComposer,
+      $$TeamMembersTableTableCreateCompanionBuilder,
+      $$TeamMembersTableTableUpdateCompanionBuilder,
+      (
+        TeamMembersTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $TeamMembersTableTable,
+          TeamMembersTableData
+        >,
+      ),
+      TeamMembersTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -11294,4 +15831,10 @@ class $AppDatabaseManager {
       $$UserSettingsTableTableTableManager(_db, _db.userSettingsTable);
   $$BusinessSettingsTableTableTableManager get businessSettingsTable =>
       $$BusinessSettingsTableTableTableManager(_db, _db.businessSettingsTable);
+  $$DebtsTableTableTableManager get debtsTable =>
+      $$DebtsTableTableTableManager(_db, _db.debtsTable);
+  $$DebtPaymentsTableTableTableManager get debtPaymentsTable =>
+      $$DebtPaymentsTableTableTableManager(_db, _db.debtPaymentsTable);
+  $$TeamMembersTableTableTableManager get teamMembersTable =>
+      $$TeamMembersTableTableTableManager(_db, _db.teamMembersTable);
 }

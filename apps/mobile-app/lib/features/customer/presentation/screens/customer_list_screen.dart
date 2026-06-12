@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +6,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../data/customer_providers.dart';
 import '../../domain/models/customer.dart';
@@ -427,15 +426,14 @@ class _CustomerCard extends ConsumerWidget {
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'customers')
-          .doc(customer.id)
-          .delete();
+      // Offline-first: soft-deletes in Drift (list updates instantly) and
+      // queues the remote delete for the sync engine.
+      await ref.read(customerRepositoryProvider).delete(customer.id);
+      await ref.read(customerAuditLoggerProvider).log(
+            AuditLogService.customerDeleted,
+            customerId: customer.id,
+            customerName: customer.name,
+          );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(_tr('Customer deleted', 'Mteja amefutwa')),
@@ -520,26 +518,28 @@ class _CustomerCard extends ConsumerWidget {
               }
             }
           : null,
-      child: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => CustomerDetailScreen(customer: customer),
-          ));
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-            boxShadow: const [
-              BoxShadow(
-                  color: AppColors.shadowCard,
-                  blurRadius: 8,
-                  offset: Offset(0, 2))
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: IntrinsicHeight(
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: const [
+            BoxShadow(
+                color: AppColors.shadowCard,
+                blurRadius: 8,
+                offset: Offset(0, 2))
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => CustomerDetailScreen(customer: customer),
+              ));
+            },
+            child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -689,6 +689,7 @@ class _CustomerCard extends ConsumerWidget {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         ),
@@ -850,29 +851,24 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
     final msg = ScaffoldMessenger.of(context);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not logged in');
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-
       final limit = double.tryParse(_creditLimitCtrl.text) ?? 0;
-      final updates = <String, dynamic>{
-        'name': _nameCtrl.text.trim(),
-        'phone': _phoneCtrl.text.trim(),
-        'email': _emailCtrl.text.trim(),
-        'isOrganisation': _isOrg,
-        'address': _addressCtrl.text.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (limit > 0) 'creditLimit': limit,
-      };
-      final tin = _tinCtrl.text.trim();
-      if (tin.isNotEmpty) updates['tinNumber'] = tin;
+      final updated = widget.customer.copyWith(
+        name: _nameCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        isOrganisation: _isOrg,
+        address: _addressCtrl.text.trim(),
+        tinNumber: _tinCtrl.text.trim(),
+        creditLimit: limit,
+      );
 
-      await repo
-          .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'customers')
-          .doc(widget.customer.id)
-          .update(updates);
+      // Offline-first: Drift + sync queue in one transaction.
+      await ref.read(customerRepositoryProvider).save(updated);
+      await ref.read(customerAuditLoggerProvider).log(
+            AuditLogService.customerUpdated,
+            customerId: updated.id,
+            customerName: updated.name,
+          );
 
       nav.pop();
       msg.showSnackBar(SnackBar(

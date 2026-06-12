@@ -1,28 +1,39 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/data/repositories/context_firestore_repository.dart';
-import '../../customer/data/customer_providers.dart';
+import '../../../core/providers/business_id_provider.dart';
+import '../../../core/providers/sync_provider.dart';
 import '../domain/models/debt.dart';
+import 'repositories/sync_debt_repository.dart';
+
+export '../../../core/providers/business_id_provider.dart'
+    show currentBusinessIdProvider;
+
+// ── Repository provider ────────────────────────────────────────────────────────
+
+/// Single [SyncDebtRepository] for the session.
+/// Rebuilt when uid or businessId changes.
+final debtRepositoryProvider = Provider<SyncDebtRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  final policy = ref.watch(offlinePolicyProvider);
+  return SyncDebtRepository(
+    db: db,
+    uid: uid,
+    businessId: bizId,
+    policy: policy,
+  );
+});
 
 // ── All debts stream ──────────────────────────────────────────────────────────
 
-final debtListProvider = StreamProvider<List<Debt>>((ref) async* {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    yield const <Debt>[];
-    return;
-  }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
-  if (bizId == null || bizId.isEmpty) {
-    yield const <Debt>[];
-    return;
-  }
-  final repository = ref.read(contextFirestoreRepositoryProvider);
-  yield* repository.watchDebts(
-    uid: user.uid,
-    context: ResolvedFinanceContext.business(bizId),
-  );
+/// Offline-first stream of all debts for the current business.
+/// Backed by Drift — works without internet.
+final debtListProvider = StreamProvider<List<Debt>>((ref) {
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  if (bizId.isEmpty) return Stream.value(const <Debt>[]);
+  return ref.watch(debtRepositoryProvider).watchAll();
 });
 
 // ── Filtered views ────────────────────────────────────────────────────────────
@@ -128,24 +139,11 @@ final receivablesAgingProvider = Provider<AgingBuckets>((ref) {
   );
 });
 
-// ── Partial payments (per debt) ───────────────────────────────────────────────
+// ── Payments (per debt) ───────────────────────────────────────────────────────
 
+/// Offline-first stream of payments for a given debt, backed by Drift.
 final debtPaymentsProvider =
-    StreamProvider.family<List<DebtPayment>, String>((ref, debtId) async* {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    yield const <DebtPayment>[];
-    return;
-  }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
-  if (bizId == null || bizId.isEmpty) {
-    yield const <DebtPayment>[];
-    return;
-  }
-  final repo = ref.read(contextFirestoreRepositoryProvider);
-  yield* repo.watchDebtPayments(
-    uid: user.uid,
-    context: ResolvedFinanceContext.business(bizId),
-    debtId: debtId,
-  );
+    StreamProvider.family<List<DebtPayment>, String>((ref, debtId) {
+  if (debtId.isEmpty) return Stream.value(const <DebtPayment>[]);
+  return ref.watch(debtRepositoryProvider).watchPayments(debtId);
 });

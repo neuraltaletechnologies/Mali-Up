@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +7,6 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
-import '../../../customer/data/customer_providers.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 import 'add_debt_screen.dart';
@@ -1037,14 +1035,7 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
   );
   if (confirmed != true) return;
   try {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final repo = ref.read(contextFirestoreRepositoryProvider);
-    final ctx2 = await repo.resolveContextForUser(user.uid);
-    await repo
-        .scopeCollection(uid: user.uid, context: ctx2, childCollection: 'debts')
-        .doc(debt.id)
-        .delete();
+    await ref.read(debtRepositoryProvider).delete(debt.id);
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

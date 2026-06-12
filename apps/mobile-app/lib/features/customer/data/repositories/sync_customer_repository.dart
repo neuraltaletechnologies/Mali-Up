@@ -48,7 +48,7 @@ class SyncCustomerRepository implements CustomerRepository {
   // ─── Writes ────────────────────────────────────────────────────────────────
 
   @override
-  Future<void> save(Customer customer) async {
+  Future<Customer> save(Customer customer) async {
     _policy.assertCanWrite();
     final isNew = customer.id.isEmpty;
     final entityId = isNew ? const Uuid().v4() : customer.id;
@@ -56,15 +56,28 @@ class SyncCustomerRepository implements CustomerRepository {
 
     int localVersion = 1;
     int createdAtMs = now;
+    String? existingCreatedBy;
+    String? existingAssignedTo;
     if (!isNew) {
       final existing = await _local.getRawById(entityId);
       if (existing != null) {
         localVersion = existing.localVersion + 1;
         createdAtMs = existing.createdAt;
+        if (existing.createdBy.isNotEmpty) {
+          existingCreatedBy = existing.createdBy;
+        }
+        if (existing.assignedToUserId.isNotEmpty) {
+          existingAssignedTo = existing.assignedToUserId;
+        }
       }
     }
 
-    final toSave = customer.copyWith(id: entityId);
+    // Ownership is immutable once set — preserve it across partial updates.
+    final toSave = customer.copyWith(
+      id: entityId,
+      createdByUserId: customer.createdByUserId ?? existingCreatedBy,
+      assignedToUserId: customer.assignedToUserId ?? existingAssignedTo,
+    );
     final payload = jsonEncode(toSave.toFirestore());
     final operationId = const Uuid().v4();
 
@@ -89,6 +102,7 @@ class SyncCustomerRepository implements CustomerRepository {
         ),
       );
     });
+    return toSave;
   }
 
   @override

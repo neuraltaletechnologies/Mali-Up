@@ -40,18 +40,20 @@ class CustomerDao extends DatabaseAccessor<AppDatabase>
   Future<List<CustomersTableData>> search(
     String businessId,
     String query,
-  ) async {
-    final lower = query.toLowerCase();
-    final all = await (select(customersTable)
+  ) {
+    // SQL-side LIKE keeps search fast on large customer books — avoids
+    // materializing every row just to filter in Dart.
+    final pattern = '%${query.toLowerCase()}%';
+    return (select(customersTable)
           ..where((t) =>
-              t.businessId.equals(businessId) & t.isDeleted.equals(0)))
+              t.businessId.equals(businessId) &
+              t.isDeleted.equals(0) &
+              (t.name.lower().like(pattern) |
+                  t.phone.like(pattern) |
+                  t.email.lower().like(pattern) |
+                  t.tags.lower().like(pattern)))
+          ..orderBy([(t) => OrderingTerm.asc(t.name)]))
         .get();
-    return all
-        .where((c) =>
-            c.name.toLowerCase().contains(lower) ||
-            c.phone.contains(lower) ||
-            c.email.toLowerCase().contains(lower))
-        .toList();
   }
 
   // ─── Mutations ─────────────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ class CustomersTable extends Table {
   TextColumn get address => text().withDefault(const Constant(''))();
   RealColumn get creditLimit => real().withDefault(const Constant(0))();
   TextColumn get createdBy => text().withDefault(const Constant(''))();
+  TextColumn get assignedToUserId => text().withDefault(const Constant(''))();
 
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
