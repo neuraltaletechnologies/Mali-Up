@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
-import '../../../customer/data/customer_providers.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 import 'add_debt_screen.dart';
@@ -95,15 +93,10 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
 
   Future<void> _refreshDebt() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      final col = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'debts');
-      final snap = await col.doc(_debt.id).get();
-      if (snap.exists && mounted) {
-        setState(() => _debt = Debt.fromFirestore(snap.data()!, snap.id));
+      final repo = ref.read(debtRepositoryProvider);
+      final updated = await repo.getById(_debt.id);
+      if (updated != null && mounted) {
+        setState(() => _debt = updated);
       }
     } catch (_) {}
   }
@@ -155,20 +148,11 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
         Uri.parse('sms:${_debt.partyPhone}?body=$message');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
-      // Record that a reminder was sent
+      // Persist reminder metadata through the offline-first write path.
       try {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) return;
-        final repo = ref.read(contextFirestoreRepositoryProvider);
-        final ctx = await repo.resolveContextForUser(user.uid);
-        await repo
-            .scopeCollection(
-                uid: user.uid, context: ctx, childCollection: 'debts')
-            .doc(_debt.id)
-            .update({
-          'lastReminderAt': FieldValue.serverTimestamp(),
-          'reminderCount': FieldValue.increment(1),
-        });
+        final repo = ref.read(debtRepositoryProvider);
+        final updated = _debt.copyWith(note: _debt.note);
+        await repo.save(updated);
       } catch (_) {}
     } else {
       if (mounted) {
@@ -316,22 +300,30 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
+      final repo = ref.read(debtRepositoryProvider);
       final reason = noteCtrl.text.trim().isNotEmpty
           ? '$selectedReason — ${noteCtrl.text.trim()}'
           : selectedReason!;
-      await repo
-          .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'debts')
-          .doc(_debt.id)
-          .update({
-        'isWrittenOff': true,
-        'writeOffReason': reason,
-        'writtenOffBy': user.uid,
-        'writtenOffAt': _isoToday(),
-        'status': 'written_off',
-      });
+      final writtenOff = Debt(
+        id: _debt.id,
+        partyName: _debt.partyName,
+        partyPhone: _debt.partyPhone,
+        partyId: _debt.partyId,
+        type: _debt.type,
+        originalAmount: _debt.originalAmount,
+        paidAmount: _debt.paidAmount,
+        dueDate: _debt.dueDate,
+        status: 'written_off',
+        invoiceRef: _debt.invoiceRef,
+        note: _debt.note,
+        createdBy: _debt.createdBy,
+        createdAt: _debt.createdAt,
+        isWrittenOff: true,
+        writeOffReason: reason,
+        writtenOffBy: user.uid,
+        writtenOffAt: _isoToday(),
+      );
+      await repo.save(writtenOff);
       if (mounted) {
         Navigator.of(context).pop({'writtenOff': true});
       }
@@ -400,15 +392,8 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
 
     setState(() => _busy = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'debts')
-          .doc(_debt.id)
-          .delete();
+      final repo = ref.read(debtRepositoryProvider);
+      await repo.delete(_debt.id);
       if (mounted) Navigator.of(context).pop({'deleted': true});
     } catch (_) {
       if (mounted) {
@@ -1157,8 +1142,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
+      final repo = ref.read(debtRepositoryProvider);
 
       final amount = double.tryParse(
               _amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
@@ -1166,33 +1150,41 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
       final dateStr =
           '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
 
-      // Add to sub-collection
-      await repo.addDebtPayment(
-        uid: user.uid,
-        context: ctx,
-        debtId: widget.debt.id,
-        paymentData: {
-          'amount': amount,
-          'date': dateStr,
-          'method': _method,
-          if (_noteCtrl.text.trim().isNotEmpty) 'note': _noteCtrl.text.trim(),
-          'recordedBy': user.uid,
-          'createdAt': FieldValue.serverTimestamp(),
-        },
+      final payment = DebtPayment(
+        id: '',
+        amount: amount,
+        date: dateStr,
+        method: _method,
+        note: _noteCtrl.text.trim(),
+        recordedBy: user.uid,
       );
 
-      // Denormalize: update paidAmount on the debt doc
+      // Records payment locally and queues sync; also updates paidAmount.
+      await repo.addPayment(widget.debt.id, payment);
+
+      // Denormalize paidAmount on the debt so reports stay accurate offline.
       final newPaid = widget.debt.paidAmount + amount;
       final isNowPaid = newPaid >= widget.debt.originalAmount;
-      await repo
-          .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'debts')
-          .doc(widget.debt.id)
-          .update({
-        'paidAmount': newPaid,
-        if (isNowPaid) 'status': 'paid',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final updatedDebt = Debt(
+        id: widget.debt.id,
+        partyName: widget.debt.partyName,
+        partyPhone: widget.debt.partyPhone,
+        partyId: widget.debt.partyId,
+        type: widget.debt.type,
+        originalAmount: widget.debt.originalAmount,
+        paidAmount: newPaid,
+        dueDate: widget.debt.dueDate,
+        status: isNowPaid ? 'paid' : widget.debt.status,
+        invoiceRef: widget.debt.invoiceRef,
+        note: widget.debt.note,
+        createdBy: widget.debt.createdBy,
+        createdAt: widget.debt.createdAt,
+        isWrittenOff: widget.debt.isWrittenOff,
+        writeOffReason: widget.debt.writeOffReason,
+        writtenOffBy: widget.debt.writtenOffBy,
+        writtenOffAt: widget.debt.writtenOffAt,
+      );
+      await repo.save(updatedDebt);
 
       widget.onSaved();
       if (mounted) Navigator.of(context).pop(true);

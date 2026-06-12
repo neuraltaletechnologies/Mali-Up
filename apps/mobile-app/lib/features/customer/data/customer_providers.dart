@@ -3,10 +3,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/repositories/context_firestore_repository.dart';
+import '../../../core/providers/business_id_provider.dart';
 import '../../../core/providers/database_provider.dart';
+import '../../../core/providers/sync_provider.dart';
+import '../../rbac/data/audit_log_service.dart';
 import '../../rbac/data/rbac_providers.dart';
 import 'mappers/customer_mapper.dart';
+import 'repositories/sync_customer_repository.dart';
 import '../domain/models/customer.dart';
+
+export '../../../core/providers/business_id_provider.dart'
+    show currentBusinessIdProvider;
 
 DateTime? _toDateTime(dynamic v) {
   if (v is Timestamp) return v.toDate();
@@ -25,34 +32,96 @@ final contextFirestoreRepositoryProvider = Provider<ContextFirestoreRepository>(
   return ContextFirestoreRepository();
 });
 
-/// Streams the active businessId from the user's Firestore profile.
-/// Re-emits whenever the user switches business or their profile updates,
-/// causing all downstream data providers to restart with the new context.
-final currentBusinessIdProvider = StreamProvider<String>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return Stream.value('');
-  final repo = ref.read(contextFirestoreRepositoryProvider);
-  return FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .snapshots()
-      .map((snap) => repo.resolveContextFromData(snap.data()).businessId ?? '');
+/// Role-based visibility: owners, managers (manageCustomers) and finance
+/// roles (viewDebt — accountants need the full receivables book) see every
+/// customer. Other members (e.g. cashiers with viewCustomers only) are
+/// limited to customers they created or are assigned to.
+final canSeeAllCustomersProvider = Provider<bool>((ref) {
+  final ps = ref.watch(permissionServiceProvider);
+  return ps.isOwner || ps.canManageCustomers || ps.canViewDebt;
 });
 
-/// Offline-first customer stream backed by Drift.
+/// Offline-first customer stream backed by Drift, scoped by role.
 /// Uses the DAO + CustomerMapper directly to avoid circular imports
 /// with the presentation layer.
 final customerListProvider = StreamProvider<List<Customer>>((ref) {
   final db = ref.watch(_customerDatabaseProvider);
   final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
   if (bizId.isEmpty) return Stream.value(const []);
-  return db.customerDao
-      .watchAll(bizId)
-      .map((rows) => rows.map(CustomerMapper.fromRow).toList());
+  final seeAll = ref.watch(canSeeAllCustomersProvider);
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  return db.customerDao.watchAll(bizId).map((rows) {
+    final customers = rows.map(CustomerMapper.fromRow).toList();
+    if (seeAll) return customers;
+    return customers.where((c) => c.isVisibleTo(uid)).toList();
+  });
 });
+
+// ── Audit trail ──────────────────────────────────────────────────────────────
+
+/// Best-effort audit logger pre-bound to the active tenant/business/actor.
+/// All customer mutations (create, update, delete, credit limit, tags,
+/// reminders) should be recorded through this.
+final customerAuditLoggerProvider = Provider<CustomerAuditLogger>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  return CustomerAuditLogger(
+    service: AuditLogService(),
+    ownerUid: ref.watch(tenantOwnerUidProvider) ?? '',
+    businessId: ref.watch(currentBusinessIdProvider).valueOrNull ?? '',
+    actorUid: user?.uid ?? '',
+  );
+});
+
+class CustomerAuditLogger {
+  final AuditLogService service;
+  final String ownerUid;
+  final String businessId;
+  final String actorUid;
+
+  const CustomerAuditLogger({
+    required this.service,
+    required this.ownerUid,
+    required this.businessId,
+    required this.actorUid,
+  });
+
+  Future<void> log(
+    String action, {
+    required String customerId,
+    required String customerName,
+    Object? previousValue,
+    Object? newValue,
+  }) {
+    if (ownerUid.isEmpty || businessId.isEmpty) return Future.value();
+    return service.logCustomerAction(
+      ownerUid: ownerUid,
+      businessId: businessId,
+      performedByUid: actorUid,
+      action: action,
+      customerId: customerId,
+      customerName: customerName,
+      previousValue: previousValue,
+      newValue: newValue,
+    );
+  }
+}
 
 final _customerDatabaseProvider = Provider((ref) =>
     ref.watch(appDatabaseProvider));
+
+/// Offline-first write path for customers: commits to Drift and the sync
+/// queue in one transaction; [SyncService] pushes to Firestore when online.
+/// Scoped to the tenant owner so team members write to the owner's business.
+final customerRepositoryProvider = Provider<SyncCustomerRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final uid = ref.watch(tenantOwnerUidProvider) ??
+      FirebaseAuth.instance.currentUser?.uid ??
+      '';
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  final policy = ref.watch(offlinePolicyProvider);
+  return SyncCustomerRepository(
+      db: db, uid: uid, businessId: bizId, policy: policy);
+});
 
 // Invoices belonging to a specific customer
 final customerInvoicesProvider =

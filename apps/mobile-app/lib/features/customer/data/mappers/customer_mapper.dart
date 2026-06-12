@@ -23,6 +23,11 @@ abstract final class CustomerMapper {
       tinNumber: row.tinNumber,
       address: row.address,
       creditLimit: row.creditLimit,
+      createdByUserId: row.createdBy.isNotEmpty ? row.createdBy : null,
+      assignedToUserId:
+          row.assignedToUserId.isNotEmpty ? row.assignedToUserId : null,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row.updatedAt),
     );
   }
 
@@ -52,6 +57,8 @@ abstract final class CustomerMapper {
       tinNumber: Value(customer.tinNumber),
       address: Value(customer.address),
       creditLimit: Value(customer.creditLimit),
+      createdBy: Value(customer.createdByUserId ?? ''),
+      assignedToUserId: Value(customer.assignedToUserId ?? ''),
       createdAt: Value(createdAtMs),
       updatedAt: Value(now),
       serverUpdatedAt: Value(serverUpdatedAt),

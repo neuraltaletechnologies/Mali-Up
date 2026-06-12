@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,8 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
-import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
+import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -122,39 +121,29 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      final col = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'debts');
-
+      final repo = ref.read(debtRepositoryProvider);
       final amount = double.tryParse(
               _amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
           0;
       final now = DateTime.now().toIso8601String();
 
-      final data = <String, dynamic>{
-        'partyName': _nameCtrl.text.trim(),
-        if (_phoneCtrl.text.trim().isNotEmpty)
-          'partyPhone': _phoneCtrl.text.trim(),
-        if (_linkedCustomer != null) 'customerId': _linkedCustomer!.id,
-        'type': _isReceivable ? 'receivable' : 'payable',
-        'originalAmount': amount,
-        'paidAmount': widget.debtToEdit?.paidAmount ?? 0,
-        'dueDate': _fmtDate(_dueDate),
-        'status': 'current',
-        if (_invoiceCtrl.text.trim().isNotEmpty)
-          'invoiceRef': _invoiceCtrl.text.trim(),
-        if (_noteCtrl.text.trim().isNotEmpty) 'note': _noteCtrl.text.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+      final debt = Debt(
+        id: widget.debtToEdit?.id ?? '',
+        partyName: _nameCtrl.text.trim(),
+        partyPhone: _phoneCtrl.text.trim(),
+        partyId: _linkedCustomer?.id ?? widget.debtToEdit?.partyId ?? '',
+        type: _isReceivable ? 'receivable' : 'payable',
+        originalAmount: amount,
+        paidAmount: widget.debtToEdit?.paidAmount ?? 0,
+        dueDate: _fmtDate(_dueDate),
+        status: widget.debtToEdit?.status ?? 'current',
+        invoiceRef: _invoiceCtrl.text.trim(),
+        note: _noteCtrl.text.trim(),
+        createdBy: widget.debtToEdit?.createdBy ?? user.uid,
+        createdAt: widget.debtToEdit?.createdAt ?? now,
+      );
 
-      if (widget.debtToEdit != null) {
-        await col.doc(widget.debtToEdit!.id).update(data);
-      } else {
-        data['createdBy'] = user.uid;
-        data['createdAt'] = now;
-        await col.add(data);
-      }
+      await repo.save(debt);
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {

@@ -7,6 +7,9 @@ import 'package:flutter/foundation.dart';
 import '../../features/customer/data/repositories/local_customer_repository.dart';
 import '../../features/customer/data/repositories/remote_customer_repository.dart';
 import '../../features/customer/data/mappers/customer_mapper.dart';
+import '../../features/debt/data/mappers/debt_mapper.dart';
+import '../../features/debt/data/repositories/local_debt_repository.dart';
+import '../../features/debt/data/repositories/remote_debt_repository.dart';
 import '../../features/finance/data/repositories/local_expense_repository.dart';
 import '../../features/finance/data/repositories/remote_expense_repository.dart';
 import '../../features/finance/data/mappers/expense_mapper.dart';
@@ -16,6 +19,9 @@ import '../../features/inventory/data/mappers/inventory_mapper.dart';
 import '../../features/invoice/data/repositories/local_invoice_repository.dart';
 import '../../features/invoice/data/repositories/remote_invoice_repository.dart';
 import '../../features/invoice/data/mappers/invoice_mapper.dart';
+import '../../features/team/data/mappers/team_member_mapper.dart';
+import '../../features/team/data/repositories/local_team_repository.dart';
+import '../../features/team/data/repositories/remote_team_repository.dart';
 import '../database/app_database.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/daos/sync_queue_dao.dart';
@@ -49,6 +55,10 @@ class SyncService extends ChangeNotifier {
   late final RemoteExpenseRepository _remoteExpense;
   late final LocalInventoryRepository _localInventory;
   late final RemoteInventoryRepository _remoteInventory;
+  late final LocalDebtRepository _localDebt;
+  late final RemoteDebtRepository _remoteDebt;
+  late final LocalTeamRepository _localTeam;
+  late final RemoteTeamRepository _remoteTeam;
 
   SyncState _state = SyncState.idle;
   String? _lastError;
@@ -80,6 +90,10 @@ class SyncService extends ChangeNotifier {
     _remoteExpense = RemoteExpenseRepository(uid: uid, businessId: businessId);
     _localInventory = LocalInventoryRepository(db, businessId: businessId);
     _remoteInventory = RemoteInventoryRepository(uid: uid, businessId: businessId);
+    _localDebt = LocalDebtRepository(db, businessId: businessId);
+    _remoteDebt = RemoteDebtRepository(uid: uid, businessId: businessId);
+    _localTeam = LocalTeamRepository(db, businessId: businessId);
+    _remoteTeam = RemoteTeamRepository(uid: uid, businessId: businessId);
   }
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
@@ -193,6 +207,12 @@ class SyncService extends ChangeNotifier {
           await _processExpenseEntry(entry);
         case 'inventory_item':
           await _processInventoryEntry(entry);
+        case 'debt':
+          await _processDebtEntry(entry);
+        case 'debt_payment':
+          await _processDebtPaymentEntry(entry);
+        case 'team_member':
+          await _processTeamMemberEntry(entry);
         default:
           await _queue.markFailed(
               entry.id, 'Unknown entityType: ${entry.entityType}');
@@ -326,6 +346,74 @@ class SyncService extends ChangeNotifier {
     await _queue.markCompleted(entry.id);
   }
 
+  Future<void> _processDebtEntry(SyncQueueTableData entry) async {
+    if (entry.operation == 'delete') {
+      await _remoteDebt.delete(entry.entityId);
+      await _queue.markCompleted(entry.id);
+      return;
+    }
+
+    final serverData = await _remoteDebt.fetchRaw(entry.entityId);
+    if (serverData != null) {
+      final serverTs = _extractTimestampMs(serverData['updatedAt']);
+      final localRow = await _localDebt.getRawById(entry.entityId);
+      final serverUpdatedAt = localRow?.serverUpdatedAt ?? 0;
+      if (serverTs > serverUpdatedAt) {
+        // Last-write-wins: local changes take priority for debt records
+        // (financial data must not be silently overwritten)
+        await _localDebt.markConflict(entry.entityId);
+        await _queue.markConflict(entry.id, 'Server version is newer');
+        return;
+      }
+    }
+
+    final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+    final debt = DebtMapper.fromFirestore(payload, entry.entityId);
+    final serverTs = await _remoteDebt.saveAndGetTimestamp(debt);
+    await _localDebt.markSynced(entry.entityId, serverTs);
+    await _queue.markCompleted(entry.id);
+  }
+
+  Future<void> _processDebtPaymentEntry(SyncQueueTableData entry) async {
+    if (entry.operation == 'delete') {
+      final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+      final debtId = payload['debtId'] as String? ?? '';
+      if (debtId.isNotEmpty) {
+        await _remoteDebt.deletePayment(debtId, entry.entityId);
+      }
+      await _queue.markCompleted(entry.id);
+      return;
+    }
+
+    final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+    final debtId = payload['debtId'] as String? ?? '';
+    if (debtId.isEmpty) {
+      await _queue.markFailed(
+          entry.id, 'debt_payment payload missing debtId');
+      return;
+    }
+
+    final payment = DebtPaymentMapper.fromFirestore(payload, entry.entityId);
+    final serverTs =
+        await _remoteDebt.savePaymentAndGetTimestamp(debtId, payment);
+    await _localDebt.markPaymentSynced(entry.entityId, serverTs);
+    await _queue.markCompleted(entry.id);
+  }
+
+  Future<void> _processTeamMemberEntry(SyncQueueTableData entry) async {
+    if (entry.operation == 'delete') {
+      await _remoteTeam.delete(entry.entityId);
+      await _queue.markCompleted(entry.id);
+      return;
+    }
+
+    final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+    final member = TeamMemberMapper.fromFirestore(payload, entry.entityId);
+    final serverTs = await _remoteTeam.saveAndGetTimestamp(member);
+    await _localTeam.markSynced(entry.entityId, serverTs);
+    await _queue.markCompleted(entry.id);
+  }
+
   // ─── Pull (Firestore → local) ──────────────────────────────────────────────
 
   /// Incremental pull — fetches records updated since the last confirmed sync
@@ -340,6 +428,8 @@ class SyncService extends ChangeNotifier {
       _pullCustomers(sinceMs),
       _pullExpenses(sinceMs),
       _pullInventory(sinceMs),
+      _pullDebts(sinceMs),
+      _pullTeamMembers(sinceMs),
     ]);
   }
 
@@ -347,7 +437,6 @@ class SyncService extends ChangeNotifier {
     final updates = await _remoteInvoice.fetchUpdatedSince(sinceMs);
     for (final update in updates) {
       final localRaw = await _localInvoice.getRawById(update.id);
-      // Don't overwrite rows with local pending changes.
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
@@ -420,6 +509,48 @@ class SyncService extends ChangeNotifier {
     }
   }
 
+  Future<void> _pullDebts(int sinceMs) async {
+    final updates = await _remoteDebt.fetchUpdatedSince(sinceMs);
+    for (final update in updates) {
+      final localRaw = await _localDebt.getRawById(update.id);
+      // Skip rows with local pending changes — local wins on the push cycle.
+      if (localRaw != null &&
+          localRaw.syncStatus != 'synced' &&
+          localRaw.syncStatus != 'conflict') { continue; }
+      final debt = DebtMapper.fromFirestore(update.data, update.id);
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      await _localDebt.upsert(
+        debt,
+        syncStatus: 'synced',
+        localVersion: localRaw?.localVersion ?? 1,
+        createdAtMs: localRaw?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+        serverUpdatedAt: serverTs,
+      );
+    }
+  }
+
+  Future<void> _pullTeamMembers(int sinceMs) async {
+    // Team members use a full-fetch if we've never synced; incremental otherwise.
+    final updates = sinceMs == 0
+        ? await _remoteTeam.fetchAll()
+        : await _remoteTeam.fetchUpdatedSince(sinceMs);
+
+    for (final update in updates) {
+      final localRaw = await _localTeam.getRawById(update.id);
+      if (localRaw != null &&
+          localRaw.syncStatus != 'synced' &&
+          localRaw.syncStatus != 'conflict') { continue; }
+      final member = TeamMemberMapper.fromFirestore(update.data, update.id);
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      await _localTeam.upsert(
+        member,
+        syncStatus: 'synced',
+        createdAtMs: localRaw?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+        serverUpdatedAt: serverTs,
+      );
+    }
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
   void _setState(SyncState newState) {
@@ -437,9 +568,7 @@ class SyncService extends ChangeNotifier {
 
   static int _extractTimestampMs(dynamic value) {
     if (value == null) return 0;
-    // Firestore Timestamp
     try {
-      // Cloud Firestore Timestamp has a .millisecondsSinceEpoch getter
       final ts = value as dynamic;
       return (ts.millisecondsSinceEpoch as int?) ?? 0;
     } catch (_) {}

@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/rbac/data/rbac_providers.dart';
 import '../database/app_database.dart';
 import '../sync/offline_policy_notifier.dart';
 import '../sync/sync_service.dart';
@@ -11,9 +12,15 @@ export 'database_provider.dart' show appDatabaseProvider;
 
 /// Single [SyncService] instance for the active session.
 /// Rebuilt when uid or businessId changes (sign-out / business switch).
+///
+/// Scoped to the tenant-owner UID: Firestore data lives under
+/// `tenants/{ownerUid}/…`, so team members must sync against the owner's
+/// tenant rather than their own (empty) one.
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final uid = ref.watch(tenantOwnerUidProvider) ??
+      FirebaseAuth.instance.currentUser?.uid ??
+      '';
   final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
 
   final service = SyncService(db: db, uid: uid, businessId: bizId);

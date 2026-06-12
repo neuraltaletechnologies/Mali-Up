@@ -2,18 +2,23 @@ import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
 import 'daos/customer_dao.dart';
+import 'daos/debt_dao.dart';
 import 'daos/expense_dao.dart';
 import 'daos/inventory_dao.dart';
 import 'daos/invoice_dao.dart';
 import 'daos/settings_dao.dart';
 import 'daos/sync_queue_dao.dart';
+import 'daos/team_dao.dart';
 import 'tables/business_settings_table.dart';
 import 'tables/customers_table.dart';
+import 'tables/debt_payments_table.dart';
+import 'tables/debts_table.dart';
 import 'tables/expenses_table.dart';
 import 'tables/inventory_table.dart';
 import 'tables/invoice_items_table.dart';
 import 'tables/invoices_table.dart';
 import 'tables/sync_queue_table.dart';
+import 'tables/team_members_table.dart';
 import 'tables/user_settings_table.dart';
 
 part 'app_database.g.dart';
@@ -28,6 +33,9 @@ part 'app_database.g.dart';
     SyncQueueTable,
     UserSettingsTable,
     BusinessSettingsTable,
+    DebtsTable,
+    DebtPaymentsTable,
+    TeamMembersTable,
   ],
   daos: [
     InvoiceDao,
@@ -36,6 +44,8 @@ part 'app_database.g.dart';
     InventoryDao,
     SyncQueueDao,
     SettingsDao,
+    DebtDao,
+    TeamDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -43,7 +53,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -53,18 +63,28 @@ class AppDatabase extends _$AppDatabase {
         },
         onUpgrade: (m, from, to) async {
           if (from < 2) {
-            // Add metadata JSON column for extended InventoryItem fields
-            // (categoryId, categoryName, supplier, expiryDate, etc.)
             await customStatement(
               'ALTER TABLE inventory_items '
               "ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'",
             );
           }
+          if (from < 3) {
+            // Add debt, debt_payments, and team_members tables
+            await m.createTable(debtsTable);
+            await m.createTable(debtPaymentsTable);
+            await m.createTable(teamMembersTable);
+            await _createV3Indexes();
+          }
+          if (from < 4) {
+            // Customer ownership: who the record is assigned to (RBAC scoping)
+            await customStatement(
+              'ALTER TABLE customers '
+              "ADD COLUMN assigned_to_user_id TEXT NOT NULL DEFAULT ''",
+            );
+          }
         },
         beforeOpen: (details) async {
-          // Enforce foreign key constraints
           await customStatement('PRAGMA foreign_keys = ON');
-          // WAL mode for concurrent reads alongside sync writes
           await customStatement('PRAGMA journal_mode = WAL');
         },
       );
@@ -101,6 +121,30 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_sync_queue_status_retry '
       'ON sync_queue(status, next_retry_at)',
+    );
+    await _createV3Indexes();
+  }
+
+  Future<void> _createV3Indexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_debts_business '
+      'ON debts(business_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_debts_business_type '
+      'ON debts(business_id, type)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_debts_business_due '
+      'ON debts(business_id, due_date)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_debt_payments_debt '
+      'ON debt_payments(debt_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_team_members_business '
+      'ON team_members(business_id)',
     );
   }
 
