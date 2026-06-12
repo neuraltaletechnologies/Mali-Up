@@ -435,11 +435,17 @@ class _EntityIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, color) = switch (type) {
-      'invoice'        => (Icons.receipt_long_rounded, AppColors.info),
-      'customer'       => (Icons.person_rounded, AppColors.success),
-      'expense'        => (Icons.payments_rounded, AppColors.error),
-      'inventory_item' => (Icons.inventory_2_rounded, AppColors.warning),
-      _                => (Icons.sync_alt_rounded, AppColors.textMuted),
+      'invoice'          => (Icons.receipt_long_rounded, AppColors.info),
+      'customer'         => (Icons.person_rounded, AppColors.success),
+      'expense'          => (Icons.payments_rounded, AppColors.error),
+      'inventory_item'   => (Icons.inventory_2_rounded, AppColors.warning),
+      'debt'             => (Icons.account_balance_wallet_rounded, AppColors.purpleAccent),
+      'debt_payment'     => (Icons.price_check_rounded, AppColors.success),
+      'team_member'      => (Icons.group_rounded, AppColors.info),
+      'cash_account'     => (Icons.account_balance_rounded, AppColors.tealAccent),
+      'cash_transaction' => (Icons.swap_horiz_rounded, AppColors.tealAccent),
+      'reconciliation'   => (Icons.fact_check_rounded, AppColors.success),
+      _                  => (Icons.sync_alt_rounded, AppColors.textMuted),
     };
     return Container(
       padding: const EdgeInsets.all(6),

@@ -3,13 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/repositories/context_firestore_repository.dart';
+import '../../../core/providers/sync_provider.dart';
 import '../../customer/data/customer_providers.dart';
 import '../domain/models/budget.dart';
 import '../domain/models/cash_account.dart';
 import '../domain/models/expense.dart';
 import '../domain/models/recurring_expense_template.dart';
-import '../../../core/providers/database_provider.dart';
 import 'mappers/expense_mapper.dart';
+import 'repositories/sync_cash_repository.dart';
 
 // ── Selected month for expense screen navigation ──────────────────────────────
 
@@ -194,22 +195,26 @@ final recurringTemplateListProvider =
           .toList());
 });
 
-// ── Cash accounts ─────────────────────────────────────────────────────────────
+// ── Cash accounts (offline-first) ─────────────────────────────────────────────
 
-final cashAccountListProvider = StreamProvider<List<CashAccount>>((ref) async* {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    yield const <CashAccount>[];
-    return;
-  }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
-  if (bizId == null || bizId.isEmpty) {
-    yield const <CashAccount>[];
-    return;
-  }
-  final repository = ref.read(contextFirestoreRepositoryProvider);
-  yield* repository.watchCashAccounts(
-    uid: user.uid,
-    context: ResolvedFinanceContext.business(bizId),
+/// Single [SyncCashRepository] for the session — the only write path the UI
+/// should use for cash accounts, transactions, and reconciliations.
+final cashRepositoryProvider = Provider<SyncCashRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  final policy = ref.watch(offlinePolicyProvider);
+  return SyncCashRepository(
+    db: db,
+    uid: uid,
+    businessId: bizId,
+    policy: policy,
   );
+});
+
+/// Offline-first cash account stream backed by Drift.
+final cashAccountListProvider = StreamProvider<List<CashAccount>>((ref) {
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  if (bizId.isEmpty) return Stream.value(const <CashAccount>[]);
+  return ref.watch(cashRepositoryProvider).watchAccounts();
 });

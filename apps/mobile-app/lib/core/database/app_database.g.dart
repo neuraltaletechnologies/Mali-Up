@@ -10537,6 +10537,2657 @@ class TeamMembersTableCompanion extends UpdateCompanion<TeamMembersTableData> {
   }
 }
 
+class $CashAccountsTableTable extends CashAccountsTable
+    with TableInfo<$CashAccountsTableTable, CashAccountsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CashAccountsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _balanceMeta = const VerificationMeta(
+    'balance',
+  );
+  @override
+  late final GeneratedColumn<double> balance = GeneratedColumn<double>(
+    'balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _accountNumberMeta = const VerificationMeta(
+    'accountNumber',
+  );
+  @override
+  late final GeneratedColumn<String> accountNumber = GeneratedColumn<String>(
+    'account_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _currencyMeta = const VerificationMeta(
+    'currency',
+  );
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+    'currency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('TZS'),
+  );
+  static const VerificationMeta _lastReconciledMeta = const VerificationMeta(
+    'lastReconciled',
+  );
+  @override
+  late final GeneratedColumn<String> lastReconciled = GeneratedColumn<String>(
+    'last_reconciled',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverUpdatedAtMeta = const VerificationMeta(
+    'serverUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> serverUpdatedAt = GeneratedColumn<int>(
+    'server_updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending_create'),
+  );
+  static const VerificationMeta _localVersionMeta = const VerificationMeta(
+    'localVersion',
+  );
+  @override
+  late final GeneratedColumn<int> localVersion = GeneratedColumn<int>(
+    'local_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<int> isDeleted = GeneratedColumn<int>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    name,
+    type,
+    balance,
+    accountNumber,
+    currency,
+    lastReconciled,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    localVersion,
+    isDeleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cash_accounts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CashAccountsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('balance')) {
+      context.handle(
+        _balanceMeta,
+        balance.isAcceptableOrUnknown(data['balance']!, _balanceMeta),
+      );
+    }
+    if (data.containsKey('account_number')) {
+      context.handle(
+        _accountNumberMeta,
+        accountNumber.isAcceptableOrUnknown(
+          data['account_number']!,
+          _accountNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('currency')) {
+      context.handle(
+        _currencyMeta,
+        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
+      );
+    }
+    if (data.containsKey('last_reconciled')) {
+      context.handle(
+        _lastReconciledMeta,
+        lastReconciled.isAcceptableOrUnknown(
+          data['last_reconciled']!,
+          _lastReconciledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+        _serverUpdatedAtMeta,
+        serverUpdatedAt.isAcceptableOrUnknown(
+          data['server_updated_at']!,
+          _serverUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('local_version')) {
+      context.handle(
+        _localVersionMeta,
+        localVersion.isAcceptableOrUnknown(
+          data['local_version']!,
+          _localVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CashAccountsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CashAccountsTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      balance: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}balance'],
+      )!,
+      accountNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_number'],
+      )!,
+      currency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency'],
+      )!,
+      lastReconciled: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_reconciled'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_updated_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      localVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_version'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $CashAccountsTableTable createAlias(String alias) {
+    return $CashAccountsTableTable(attachedDatabase, alias);
+  }
+}
+
+class CashAccountsTableData extends DataClass
+    implements Insertable<CashAccountsTableData> {
+  final String id;
+  final String businessId;
+  final String name;
+  final String type;
+  final double balance;
+  final String accountNumber;
+  final String currency;
+  final String lastReconciled;
+  final int createdAt;
+  final int updatedAt;
+  final int? serverUpdatedAt;
+  final String syncStatus;
+  final int localVersion;
+  final int isDeleted;
+  const CashAccountsTableData({
+    required this.id,
+    required this.businessId,
+    required this.name,
+    required this.type,
+    required this.balance,
+    required this.accountNumber,
+    required this.currency,
+    required this.lastReconciled,
+    required this.createdAt,
+    required this.updatedAt,
+    this.serverUpdatedAt,
+    required this.syncStatus,
+    required this.localVersion,
+    required this.isDeleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    map['balance'] = Variable<double>(balance);
+    map['account_number'] = Variable<String>(accountNumber);
+    map['currency'] = Variable<String>(currency);
+    map['last_reconciled'] = Variable<String>(lastReconciled);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['local_version'] = Variable<int>(localVersion);
+    map['is_deleted'] = Variable<int>(isDeleted);
+    return map;
+  }
+
+  CashAccountsTableCompanion toCompanion(bool nullToAbsent) {
+    return CashAccountsTableCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      name: Value(name),
+      type: Value(type),
+      balance: Value(balance),
+      accountNumber: Value(accountNumber),
+      currency: Value(currency),
+      lastReconciled: Value(lastReconciled),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      syncStatus: Value(syncStatus),
+      localVersion: Value(localVersion),
+      isDeleted: Value(isDeleted),
+    );
+  }
+
+  factory CashAccountsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CashAccountsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      balance: serializer.fromJson<double>(json['balance']),
+      accountNumber: serializer.fromJson<String>(json['accountNumber']),
+      currency: serializer.fromJson<String>(json['currency']),
+      lastReconciled: serializer.fromJson<String>(json['lastReconciled']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      localVersion: serializer.fromJson<int>(json['localVersion']),
+      isDeleted: serializer.fromJson<int>(json['isDeleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'balance': serializer.toJson<double>(balance),
+      'accountNumber': serializer.toJson<String>(accountNumber),
+      'currency': serializer.toJson<String>(currency),
+      'lastReconciled': serializer.toJson<String>(lastReconciled),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'localVersion': serializer.toJson<int>(localVersion),
+      'isDeleted': serializer.toJson<int>(isDeleted),
+    };
+  }
+
+  CashAccountsTableData copyWith({
+    String? id,
+    String? businessId,
+    String? name,
+    String? type,
+    double? balance,
+    String? accountNumber,
+    String? currency,
+    String? lastReconciled,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> serverUpdatedAt = const Value.absent(),
+    String? syncStatus,
+    int? localVersion,
+    int? isDeleted,
+  }) => CashAccountsTableData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    name: name ?? this.name,
+    type: type ?? this.type,
+    balance: balance ?? this.balance,
+    accountNumber: accountNumber ?? this.accountNumber,
+    currency: currency ?? this.currency,
+    lastReconciled: lastReconciled ?? this.lastReconciled,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    serverUpdatedAt: serverUpdatedAt.present
+        ? serverUpdatedAt.value
+        : this.serverUpdatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+    localVersion: localVersion ?? this.localVersion,
+    isDeleted: isDeleted ?? this.isDeleted,
+  );
+  CashAccountsTableData copyWithCompanion(CashAccountsTableCompanion data) {
+    return CashAccountsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      balance: data.balance.present ? data.balance.value : this.balance,
+      accountNumber: data.accountNumber.present
+          ? data.accountNumber.value
+          : this.accountNumber,
+      currency: data.currency.present ? data.currency.value : this.currency,
+      lastReconciled: data.lastReconciled.present
+          ? data.lastReconciled.value
+          : this.lastReconciled,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      localVersion: data.localVersion.present
+          ? data.localVersion.value
+          : this.localVersion,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashAccountsTableData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('balance: $balance, ')
+          ..write('accountNumber: $accountNumber, ')
+          ..write('currency: $currency, ')
+          ..write('lastReconciled: $lastReconciled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localVersion: $localVersion, ')
+          ..write('isDeleted: $isDeleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    name,
+    type,
+    balance,
+    accountNumber,
+    currency,
+    lastReconciled,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    localVersion,
+    isDeleted,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CashAccountsTableData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.balance == this.balance &&
+          other.accountNumber == this.accountNumber &&
+          other.currency == this.currency &&
+          other.lastReconciled == this.lastReconciled &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.localVersion == this.localVersion &&
+          other.isDeleted == this.isDeleted);
+}
+
+class CashAccountsTableCompanion
+    extends UpdateCompanion<CashAccountsTableData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<double> balance;
+  final Value<String> accountNumber;
+  final Value<String> currency;
+  final Value<String> lastReconciled;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> serverUpdatedAt;
+  final Value<String> syncStatus;
+  final Value<int> localVersion;
+  final Value<int> isDeleted;
+  final Value<int> rowid;
+  const CashAccountsTableCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.balance = const Value.absent(),
+    this.accountNumber = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.lastReconciled = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localVersion = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CashAccountsTableCompanion.insert({
+    required String id,
+    required String businessId,
+    required String name,
+    required String type,
+    this.balance = const Value.absent(),
+    this.accountNumber = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.lastReconciled = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.localVersion = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       name = Value(name),
+       type = Value(type),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<CashAccountsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<double>? balance,
+    Expression<String>? accountNumber,
+    Expression<String>? currency,
+    Expression<String>? lastReconciled,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? serverUpdatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? localVersion,
+    Expression<int>? isDeleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (balance != null) 'balance': balance,
+      if (accountNumber != null) 'account_number': accountNumber,
+      if (currency != null) 'currency': currency,
+      if (lastReconciled != null) 'last_reconciled': lastReconciled,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (localVersion != null) 'local_version': localVersion,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CashAccountsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? name,
+    Value<String>? type,
+    Value<double>? balance,
+    Value<String>? accountNumber,
+    Value<String>? currency,
+    Value<String>? lastReconciled,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? serverUpdatedAt,
+    Value<String>? syncStatus,
+    Value<int>? localVersion,
+    Value<int>? isDeleted,
+    Value<int>? rowid,
+  }) {
+    return CashAccountsTableCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      balance: balance ?? this.balance,
+      accountNumber: accountNumber ?? this.accountNumber,
+      currency: currency ?? this.currency,
+      lastReconciled: lastReconciled ?? this.lastReconciled,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      localVersion: localVersion ?? this.localVersion,
+      isDeleted: isDeleted ?? this.isDeleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (balance.present) {
+      map['balance'] = Variable<double>(balance.value);
+    }
+    if (accountNumber.present) {
+      map['account_number'] = Variable<String>(accountNumber.value);
+    }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
+    }
+    if (lastReconciled.present) {
+      map['last_reconciled'] = Variable<String>(lastReconciled.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (localVersion.present) {
+      map['local_version'] = Variable<int>(localVersion.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<int>(isDeleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashAccountsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('balance: $balance, ')
+          ..write('accountNumber: $accountNumber, ')
+          ..write('currency: $currency, ')
+          ..write('lastReconciled: $lastReconciled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('localVersion: $localVersion, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CashTransactionsTableTable extends CashTransactionsTable
+    with TableInfo<$CashTransactionsTableTable, CashTransactionsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CashTransactionsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fromAccountIdMeta = const VerificationMeta(
+    'fromAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> fromAccountId = GeneratedColumn<String>(
+    'from_account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _toAccountIdMeta = const VerificationMeta(
+    'toAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> toAccountId = GeneratedColumn<String>(
+    'to_account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _referenceMeta = const VerificationMeta(
+    'reference',
+  );
+  @override
+  late final GeneratedColumn<String> reference = GeneratedColumn<String>(
+    'reference',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _activityCategoryMeta = const VerificationMeta(
+    'activityCategory',
+  );
+  @override
+  late final GeneratedColumn<String> activityCategory = GeneratedColumn<String>(
+    'activity_category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('operating'),
+  );
+  static const VerificationMeta _createdByMeta = const VerificationMeta(
+    'createdBy',
+  );
+  @override
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+    'created_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverUpdatedAtMeta = const VerificationMeta(
+    'serverUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> serverUpdatedAt = GeneratedColumn<int>(
+    'server_updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending_create'),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<int> isDeleted = GeneratedColumn<int>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    type,
+    amount,
+    fromAccountId,
+    toAccountId,
+    description,
+    date,
+    reference,
+    activityCategory,
+    createdBy,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    isDeleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cash_transactions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CashTransactionsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('from_account_id')) {
+      context.handle(
+        _fromAccountIdMeta,
+        fromAccountId.isAcceptableOrUnknown(
+          data['from_account_id']!,
+          _fromAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('to_account_id')) {
+      context.handle(
+        _toAccountIdMeta,
+        toAccountId.isAcceptableOrUnknown(
+          data['to_account_id']!,
+          _toAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('reference')) {
+      context.handle(
+        _referenceMeta,
+        reference.isAcceptableOrUnknown(data['reference']!, _referenceMeta),
+      );
+    }
+    if (data.containsKey('activity_category')) {
+      context.handle(
+        _activityCategoryMeta,
+        activityCategory.isAcceptableOrUnknown(
+          data['activity_category']!,
+          _activityCategoryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(
+        _createdByMeta,
+        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+        _serverUpdatedAtMeta,
+        serverUpdatedAt.isAcceptableOrUnknown(
+          data['server_updated_at']!,
+          _serverUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CashTransactionsTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CashTransactionsTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      fromAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}from_account_id'],
+      )!,
+      toAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}to_account_id'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      reference: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference'],
+      )!,
+      activityCategory: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}activity_category'],
+      )!,
+      createdBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_by'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_updated_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $CashTransactionsTableTable createAlias(String alias) {
+    return $CashTransactionsTableTable(attachedDatabase, alias);
+  }
+}
+
+class CashTransactionsTableData extends DataClass
+    implements Insertable<CashTransactionsTableData> {
+  final String id;
+  final String businessId;
+  final String type;
+  final double amount;
+  final String fromAccountId;
+  final String toAccountId;
+  final String description;
+  final String date;
+  final String reference;
+  final String activityCategory;
+  final String createdBy;
+  final int createdAt;
+  final int updatedAt;
+  final int? serverUpdatedAt;
+  final String syncStatus;
+  final int isDeleted;
+  const CashTransactionsTableData({
+    required this.id,
+    required this.businessId,
+    required this.type,
+    required this.amount,
+    required this.fromAccountId,
+    required this.toAccountId,
+    required this.description,
+    required this.date,
+    required this.reference,
+    required this.activityCategory,
+    required this.createdBy,
+    required this.createdAt,
+    required this.updatedAt,
+    this.serverUpdatedAt,
+    required this.syncStatus,
+    required this.isDeleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['type'] = Variable<String>(type);
+    map['amount'] = Variable<double>(amount);
+    map['from_account_id'] = Variable<String>(fromAccountId);
+    map['to_account_id'] = Variable<String>(toAccountId);
+    map['description'] = Variable<String>(description);
+    map['date'] = Variable<String>(date);
+    map['reference'] = Variable<String>(reference);
+    map['activity_category'] = Variable<String>(activityCategory);
+    map['created_by'] = Variable<String>(createdBy);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['is_deleted'] = Variable<int>(isDeleted);
+    return map;
+  }
+
+  CashTransactionsTableCompanion toCompanion(bool nullToAbsent) {
+    return CashTransactionsTableCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      type: Value(type),
+      amount: Value(amount),
+      fromAccountId: Value(fromAccountId),
+      toAccountId: Value(toAccountId),
+      description: Value(description),
+      date: Value(date),
+      reference: Value(reference),
+      activityCategory: Value(activityCategory),
+      createdBy: Value(createdBy),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      syncStatus: Value(syncStatus),
+      isDeleted: Value(isDeleted),
+    );
+  }
+
+  factory CashTransactionsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CashTransactionsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      type: serializer.fromJson<String>(json['type']),
+      amount: serializer.fromJson<double>(json['amount']),
+      fromAccountId: serializer.fromJson<String>(json['fromAccountId']),
+      toAccountId: serializer.fromJson<String>(json['toAccountId']),
+      description: serializer.fromJson<String>(json['description']),
+      date: serializer.fromJson<String>(json['date']),
+      reference: serializer.fromJson<String>(json['reference']),
+      activityCategory: serializer.fromJson<String>(json['activityCategory']),
+      createdBy: serializer.fromJson<String>(json['createdBy']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      isDeleted: serializer.fromJson<int>(json['isDeleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'type': serializer.toJson<String>(type),
+      'amount': serializer.toJson<double>(amount),
+      'fromAccountId': serializer.toJson<String>(fromAccountId),
+      'toAccountId': serializer.toJson<String>(toAccountId),
+      'description': serializer.toJson<String>(description),
+      'date': serializer.toJson<String>(date),
+      'reference': serializer.toJson<String>(reference),
+      'activityCategory': serializer.toJson<String>(activityCategory),
+      'createdBy': serializer.toJson<String>(createdBy),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'isDeleted': serializer.toJson<int>(isDeleted),
+    };
+  }
+
+  CashTransactionsTableData copyWith({
+    String? id,
+    String? businessId,
+    String? type,
+    double? amount,
+    String? fromAccountId,
+    String? toAccountId,
+    String? description,
+    String? date,
+    String? reference,
+    String? activityCategory,
+    String? createdBy,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> serverUpdatedAt = const Value.absent(),
+    String? syncStatus,
+    int? isDeleted,
+  }) => CashTransactionsTableData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    type: type ?? this.type,
+    amount: amount ?? this.amount,
+    fromAccountId: fromAccountId ?? this.fromAccountId,
+    toAccountId: toAccountId ?? this.toAccountId,
+    description: description ?? this.description,
+    date: date ?? this.date,
+    reference: reference ?? this.reference,
+    activityCategory: activityCategory ?? this.activityCategory,
+    createdBy: createdBy ?? this.createdBy,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    serverUpdatedAt: serverUpdatedAt.present
+        ? serverUpdatedAt.value
+        : this.serverUpdatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+    isDeleted: isDeleted ?? this.isDeleted,
+  );
+  CashTransactionsTableData copyWithCompanion(
+    CashTransactionsTableCompanion data,
+  ) {
+    return CashTransactionsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      type: data.type.present ? data.type.value : this.type,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      fromAccountId: data.fromAccountId.present
+          ? data.fromAccountId.value
+          : this.fromAccountId,
+      toAccountId: data.toAccountId.present
+          ? data.toAccountId.value
+          : this.toAccountId,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      date: data.date.present ? data.date.value : this.date,
+      reference: data.reference.present ? data.reference.value : this.reference,
+      activityCategory: data.activityCategory.present
+          ? data.activityCategory.value
+          : this.activityCategory,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashTransactionsTableData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('fromAccountId: $fromAccountId, ')
+          ..write('toAccountId: $toAccountId, ')
+          ..write('description: $description, ')
+          ..write('date: $date, ')
+          ..write('reference: $reference, ')
+          ..write('activityCategory: $activityCategory, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isDeleted: $isDeleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    type,
+    amount,
+    fromAccountId,
+    toAccountId,
+    description,
+    date,
+    reference,
+    activityCategory,
+    createdBy,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    isDeleted,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CashTransactionsTableData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.type == this.type &&
+          other.amount == this.amount &&
+          other.fromAccountId == this.fromAccountId &&
+          other.toAccountId == this.toAccountId &&
+          other.description == this.description &&
+          other.date == this.date &&
+          other.reference == this.reference &&
+          other.activityCategory == this.activityCategory &&
+          other.createdBy == this.createdBy &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.isDeleted == this.isDeleted);
+}
+
+class CashTransactionsTableCompanion
+    extends UpdateCompanion<CashTransactionsTableData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> type;
+  final Value<double> amount;
+  final Value<String> fromAccountId;
+  final Value<String> toAccountId;
+  final Value<String> description;
+  final Value<String> date;
+  final Value<String> reference;
+  final Value<String> activityCategory;
+  final Value<String> createdBy;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> serverUpdatedAt;
+  final Value<String> syncStatus;
+  final Value<int> isDeleted;
+  final Value<int> rowid;
+  const CashTransactionsTableCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.type = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.fromAccountId = const Value.absent(),
+    this.toAccountId = const Value.absent(),
+    this.description = const Value.absent(),
+    this.date = const Value.absent(),
+    this.reference = const Value.absent(),
+    this.activityCategory = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CashTransactionsTableCompanion.insert({
+    required String id,
+    required String businessId,
+    required String type,
+    required double amount,
+    this.fromAccountId = const Value.absent(),
+    this.toAccountId = const Value.absent(),
+    this.description = const Value.absent(),
+    required String date,
+    this.reference = const Value.absent(),
+    this.activityCategory = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       type = Value(type),
+       amount = Value(amount),
+       date = Value(date),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<CashTransactionsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? type,
+    Expression<double>? amount,
+    Expression<String>? fromAccountId,
+    Expression<String>? toAccountId,
+    Expression<String>? description,
+    Expression<String>? date,
+    Expression<String>? reference,
+    Expression<String>? activityCategory,
+    Expression<String>? createdBy,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? serverUpdatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? isDeleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (type != null) 'type': type,
+      if (amount != null) 'amount': amount,
+      if (fromAccountId != null) 'from_account_id': fromAccountId,
+      if (toAccountId != null) 'to_account_id': toAccountId,
+      if (description != null) 'description': description,
+      if (date != null) 'date': date,
+      if (reference != null) 'reference': reference,
+      if (activityCategory != null) 'activity_category': activityCategory,
+      if (createdBy != null) 'created_by': createdBy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CashTransactionsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? type,
+    Value<double>? amount,
+    Value<String>? fromAccountId,
+    Value<String>? toAccountId,
+    Value<String>? description,
+    Value<String>? date,
+    Value<String>? reference,
+    Value<String>? activityCategory,
+    Value<String>? createdBy,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? serverUpdatedAt,
+    Value<String>? syncStatus,
+    Value<int>? isDeleted,
+    Value<int>? rowid,
+  }) {
+    return CashTransactionsTableCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      type: type ?? this.type,
+      amount: amount ?? this.amount,
+      fromAccountId: fromAccountId ?? this.fromAccountId,
+      toAccountId: toAccountId ?? this.toAccountId,
+      description: description ?? this.description,
+      date: date ?? this.date,
+      reference: reference ?? this.reference,
+      activityCategory: activityCategory ?? this.activityCategory,
+      createdBy: createdBy ?? this.createdBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      isDeleted: isDeleted ?? this.isDeleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (fromAccountId.present) {
+      map['from_account_id'] = Variable<String>(fromAccountId.value);
+    }
+    if (toAccountId.present) {
+      map['to_account_id'] = Variable<String>(toAccountId.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (reference.present) {
+      map['reference'] = Variable<String>(reference.value);
+    }
+    if (activityCategory.present) {
+      map['activity_category'] = Variable<String>(activityCategory.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<int>(isDeleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CashTransactionsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('type: $type, ')
+          ..write('amount: $amount, ')
+          ..write('fromAccountId: $fromAccountId, ')
+          ..write('toAccountId: $toAccountId, ')
+          ..write('description: $description, ')
+          ..write('date: $date, ')
+          ..write('reference: $reference, ')
+          ..write('activityCategory: $activityCategory, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DailyReconciliationsTableTable extends DailyReconciliationsTable
+    with
+        TableInfo<
+          $DailyReconciliationsTableTable,
+          DailyReconciliationsTableData
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyReconciliationsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessIdMeta = const VerificationMeta(
+    'businessId',
+  );
+  @override
+  late final GeneratedColumn<String> businessId = GeneratedColumn<String>(
+    'business_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _openingBalanceMeta = const VerificationMeta(
+    'openingBalance',
+  );
+  @override
+  late final GeneratedColumn<double> openingBalance = GeneratedColumn<double>(
+    'opening_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _closingBalanceMeta = const VerificationMeta(
+    'closingBalance',
+  );
+  @override
+  late final GeneratedColumn<double> closingBalance = GeneratedColumn<double>(
+    'closing_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _totalDepositsMeta = const VerificationMeta(
+    'totalDeposits',
+  );
+  @override
+  late final GeneratedColumn<double> totalDeposits = GeneratedColumn<double>(
+    'total_deposits',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _totalWithdrawalsMeta = const VerificationMeta(
+    'totalWithdrawals',
+  );
+  @override
+  late final GeneratedColumn<double> totalWithdrawals = GeneratedColumn<double>(
+    'total_withdrawals',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _reconciledByMeta = const VerificationMeta(
+    'reconciledBy',
+  );
+  @override
+  late final GeneratedColumn<String> reconciledBy = GeneratedColumn<String>(
+    'reconciled_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _isReconciledMeta = const VerificationMeta(
+    'isReconciled',
+  );
+  @override
+  late final GeneratedColumn<int> isReconciled = GeneratedColumn<int>(
+    'is_reconciled',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverUpdatedAtMeta = const VerificationMeta(
+    'serverUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> serverUpdatedAt = GeneratedColumn<int>(
+    'server_updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending_create'),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<int> isDeleted = GeneratedColumn<int>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessId,
+    accountId,
+    date,
+    openingBalance,
+    closingBalance,
+    totalDeposits,
+    totalWithdrawals,
+    notes,
+    reconciledBy,
+    isReconciled,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    isDeleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_reconciliations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailyReconciliationsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_id')) {
+      context.handle(
+        _businessIdMeta,
+        businessId.isAcceptableOrUnknown(data['business_id']!, _businessIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_businessIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('opening_balance')) {
+      context.handle(
+        _openingBalanceMeta,
+        openingBalance.isAcceptableOrUnknown(
+          data['opening_balance']!,
+          _openingBalanceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('closing_balance')) {
+      context.handle(
+        _closingBalanceMeta,
+        closingBalance.isAcceptableOrUnknown(
+          data['closing_balance']!,
+          _closingBalanceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_deposits')) {
+      context.handle(
+        _totalDepositsMeta,
+        totalDeposits.isAcceptableOrUnknown(
+          data['total_deposits']!,
+          _totalDepositsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_withdrawals')) {
+      context.handle(
+        _totalWithdrawalsMeta,
+        totalWithdrawals.isAcceptableOrUnknown(
+          data['total_withdrawals']!,
+          _totalWithdrawalsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('reconciled_by')) {
+      context.handle(
+        _reconciledByMeta,
+        reconciledBy.isAcceptableOrUnknown(
+          data['reconciled_by']!,
+          _reconciledByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_reconciled')) {
+      context.handle(
+        _isReconciledMeta,
+        isReconciled.isAcceptableOrUnknown(
+          data['is_reconciled']!,
+          _isReconciledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('server_updated_at')) {
+      context.handle(
+        _serverUpdatedAtMeta,
+        serverUpdatedAt.isAcceptableOrUnknown(
+          data['server_updated_at']!,
+          _serverUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DailyReconciliationsTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyReconciliationsTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      )!,
+      openingBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}opening_balance'],
+      )!,
+      closingBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}closing_balance'],
+      )!,
+      totalDeposits: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}total_deposits'],
+      )!,
+      totalWithdrawals: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}total_withdrawals'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      )!,
+      reconciledBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reconciled_by'],
+      )!,
+      isReconciled: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_reconciled'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      serverUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_updated_at'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $DailyReconciliationsTableTable createAlias(String alias) {
+    return $DailyReconciliationsTableTable(attachedDatabase, alias);
+  }
+}
+
+class DailyReconciliationsTableData extends DataClass
+    implements Insertable<DailyReconciliationsTableData> {
+  final String id;
+  final String businessId;
+  final String accountId;
+  final String date;
+  final double openingBalance;
+  final double closingBalance;
+  final double totalDeposits;
+  final double totalWithdrawals;
+  final String notes;
+  final String reconciledBy;
+  final int isReconciled;
+  final int createdAt;
+  final int updatedAt;
+  final int? serverUpdatedAt;
+  final String syncStatus;
+  final int isDeleted;
+  const DailyReconciliationsTableData({
+    required this.id,
+    required this.businessId,
+    required this.accountId,
+    required this.date,
+    required this.openingBalance,
+    required this.closingBalance,
+    required this.totalDeposits,
+    required this.totalWithdrawals,
+    required this.notes,
+    required this.reconciledBy,
+    required this.isReconciled,
+    required this.createdAt,
+    required this.updatedAt,
+    this.serverUpdatedAt,
+    required this.syncStatus,
+    required this.isDeleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_id'] = Variable<String>(businessId);
+    map['account_id'] = Variable<String>(accountId);
+    map['date'] = Variable<String>(date);
+    map['opening_balance'] = Variable<double>(openingBalance);
+    map['closing_balance'] = Variable<double>(closingBalance);
+    map['total_deposits'] = Variable<double>(totalDeposits);
+    map['total_withdrawals'] = Variable<double>(totalWithdrawals);
+    map['notes'] = Variable<String>(notes);
+    map['reconciled_by'] = Variable<String>(reconciledBy);
+    map['is_reconciled'] = Variable<int>(isReconciled);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || serverUpdatedAt != null) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['is_deleted'] = Variable<int>(isDeleted);
+    return map;
+  }
+
+  DailyReconciliationsTableCompanion toCompanion(bool nullToAbsent) {
+    return DailyReconciliationsTableCompanion(
+      id: Value(id),
+      businessId: Value(businessId),
+      accountId: Value(accountId),
+      date: Value(date),
+      openingBalance: Value(openingBalance),
+      closingBalance: Value(closingBalance),
+      totalDeposits: Value(totalDeposits),
+      totalWithdrawals: Value(totalWithdrawals),
+      notes: Value(notes),
+      reconciledBy: Value(reconciledBy),
+      isReconciled: Value(isReconciled),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverUpdatedAt),
+      syncStatus: Value(syncStatus),
+      isDeleted: Value(isDeleted),
+    );
+  }
+
+  factory DailyReconciliationsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyReconciliationsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      businessId: serializer.fromJson<String>(json['businessId']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      date: serializer.fromJson<String>(json['date']),
+      openingBalance: serializer.fromJson<double>(json['openingBalance']),
+      closingBalance: serializer.fromJson<double>(json['closingBalance']),
+      totalDeposits: serializer.fromJson<double>(json['totalDeposits']),
+      totalWithdrawals: serializer.fromJson<double>(json['totalWithdrawals']),
+      notes: serializer.fromJson<String>(json['notes']),
+      reconciledBy: serializer.fromJson<String>(json['reconciledBy']),
+      isReconciled: serializer.fromJson<int>(json['isReconciled']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      isDeleted: serializer.fromJson<int>(json['isDeleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessId': serializer.toJson<String>(businessId),
+      'accountId': serializer.toJson<String>(accountId),
+      'date': serializer.toJson<String>(date),
+      'openingBalance': serializer.toJson<double>(openingBalance),
+      'closingBalance': serializer.toJson<double>(closingBalance),
+      'totalDeposits': serializer.toJson<double>(totalDeposits),
+      'totalWithdrawals': serializer.toJson<double>(totalWithdrawals),
+      'notes': serializer.toJson<String>(notes),
+      'reconciledBy': serializer.toJson<String>(reconciledBy),
+      'isReconciled': serializer.toJson<int>(isReconciled),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'isDeleted': serializer.toJson<int>(isDeleted),
+    };
+  }
+
+  DailyReconciliationsTableData copyWith({
+    String? id,
+    String? businessId,
+    String? accountId,
+    String? date,
+    double? openingBalance,
+    double? closingBalance,
+    double? totalDeposits,
+    double? totalWithdrawals,
+    String? notes,
+    String? reconciledBy,
+    int? isReconciled,
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> serverUpdatedAt = const Value.absent(),
+    String? syncStatus,
+    int? isDeleted,
+  }) => DailyReconciliationsTableData(
+    id: id ?? this.id,
+    businessId: businessId ?? this.businessId,
+    accountId: accountId ?? this.accountId,
+    date: date ?? this.date,
+    openingBalance: openingBalance ?? this.openingBalance,
+    closingBalance: closingBalance ?? this.closingBalance,
+    totalDeposits: totalDeposits ?? this.totalDeposits,
+    totalWithdrawals: totalWithdrawals ?? this.totalWithdrawals,
+    notes: notes ?? this.notes,
+    reconciledBy: reconciledBy ?? this.reconciledBy,
+    isReconciled: isReconciled ?? this.isReconciled,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    serverUpdatedAt: serverUpdatedAt.present
+        ? serverUpdatedAt.value
+        : this.serverUpdatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+    isDeleted: isDeleted ?? this.isDeleted,
+  );
+  DailyReconciliationsTableData copyWithCompanion(
+    DailyReconciliationsTableCompanion data,
+  ) {
+    return DailyReconciliationsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      businessId: data.businessId.present
+          ? data.businessId.value
+          : this.businessId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      date: data.date.present ? data.date.value : this.date,
+      openingBalance: data.openingBalance.present
+          ? data.openingBalance.value
+          : this.openingBalance,
+      closingBalance: data.closingBalance.present
+          ? data.closingBalance.value
+          : this.closingBalance,
+      totalDeposits: data.totalDeposits.present
+          ? data.totalDeposits.value
+          : this.totalDeposits,
+      totalWithdrawals: data.totalWithdrawals.present
+          ? data.totalWithdrawals.value
+          : this.totalWithdrawals,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      reconciledBy: data.reconciledBy.present
+          ? data.reconciledBy.value
+          : this.reconciledBy,
+      isReconciled: data.isReconciled.present
+          ? data.isReconciled.value
+          : this.isReconciled,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverUpdatedAt: data.serverUpdatedAt.present
+          ? data.serverUpdatedAt.value
+          : this.serverUpdatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyReconciliationsTableData(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('accountId: $accountId, ')
+          ..write('date: $date, ')
+          ..write('openingBalance: $openingBalance, ')
+          ..write('closingBalance: $closingBalance, ')
+          ..write('totalDeposits: $totalDeposits, ')
+          ..write('totalWithdrawals: $totalWithdrawals, ')
+          ..write('notes: $notes, ')
+          ..write('reconciledBy: $reconciledBy, ')
+          ..write('isReconciled: $isReconciled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isDeleted: $isDeleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessId,
+    accountId,
+    date,
+    openingBalance,
+    closingBalance,
+    totalDeposits,
+    totalWithdrawals,
+    notes,
+    reconciledBy,
+    isReconciled,
+    createdAt,
+    updatedAt,
+    serverUpdatedAt,
+    syncStatus,
+    isDeleted,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyReconciliationsTableData &&
+          other.id == this.id &&
+          other.businessId == this.businessId &&
+          other.accountId == this.accountId &&
+          other.date == this.date &&
+          other.openingBalance == this.openingBalance &&
+          other.closingBalance == this.closingBalance &&
+          other.totalDeposits == this.totalDeposits &&
+          other.totalWithdrawals == this.totalWithdrawals &&
+          other.notes == this.notes &&
+          other.reconciledBy == this.reconciledBy &&
+          other.isReconciled == this.isReconciled &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.serverUpdatedAt == this.serverUpdatedAt &&
+          other.syncStatus == this.syncStatus &&
+          other.isDeleted == this.isDeleted);
+}
+
+class DailyReconciliationsTableCompanion
+    extends UpdateCompanion<DailyReconciliationsTableData> {
+  final Value<String> id;
+  final Value<String> businessId;
+  final Value<String> accountId;
+  final Value<String> date;
+  final Value<double> openingBalance;
+  final Value<double> closingBalance;
+  final Value<double> totalDeposits;
+  final Value<double> totalWithdrawals;
+  final Value<String> notes;
+  final Value<String> reconciledBy;
+  final Value<int> isReconciled;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> serverUpdatedAt;
+  final Value<String> syncStatus;
+  final Value<int> isDeleted;
+  final Value<int> rowid;
+  const DailyReconciliationsTableCompanion({
+    this.id = const Value.absent(),
+    this.businessId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.date = const Value.absent(),
+    this.openingBalance = const Value.absent(),
+    this.closingBalance = const Value.absent(),
+    this.totalDeposits = const Value.absent(),
+    this.totalWithdrawals = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.reconciledBy = const Value.absent(),
+    this.isReconciled = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DailyReconciliationsTableCompanion.insert({
+    required String id,
+    required String businessId,
+    required String accountId,
+    required String date,
+    this.openingBalance = const Value.absent(),
+    this.closingBalance = const Value.absent(),
+    this.totalDeposits = const Value.absent(),
+    this.totalWithdrawals = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.reconciledBy = const Value.absent(),
+    this.isReconciled = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.serverUpdatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessId = Value(businessId),
+       accountId = Value(accountId),
+       date = Value(date),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DailyReconciliationsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? businessId,
+    Expression<String>? accountId,
+    Expression<String>? date,
+    Expression<double>? openingBalance,
+    Expression<double>? closingBalance,
+    Expression<double>? totalDeposits,
+    Expression<double>? totalWithdrawals,
+    Expression<String>? notes,
+    Expression<String>? reconciledBy,
+    Expression<int>? isReconciled,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? serverUpdatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? isDeleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessId != null) 'business_id': businessId,
+      if (accountId != null) 'account_id': accountId,
+      if (date != null) 'date': date,
+      if (openingBalance != null) 'opening_balance': openingBalance,
+      if (closingBalance != null) 'closing_balance': closingBalance,
+      if (totalDeposits != null) 'total_deposits': totalDeposits,
+      if (totalWithdrawals != null) 'total_withdrawals': totalWithdrawals,
+      if (notes != null) 'notes': notes,
+      if (reconciledBy != null) 'reconciled_by': reconciledBy,
+      if (isReconciled != null) 'is_reconciled': isReconciled,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DailyReconciliationsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessId,
+    Value<String>? accountId,
+    Value<String>? date,
+    Value<double>? openingBalance,
+    Value<double>? closingBalance,
+    Value<double>? totalDeposits,
+    Value<double>? totalWithdrawals,
+    Value<String>? notes,
+    Value<String>? reconciledBy,
+    Value<int>? isReconciled,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? serverUpdatedAt,
+    Value<String>? syncStatus,
+    Value<int>? isDeleted,
+    Value<int>? rowid,
+  }) {
+    return DailyReconciliationsTableCompanion(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      accountId: accountId ?? this.accountId,
+      date: date ?? this.date,
+      openingBalance: openingBalance ?? this.openingBalance,
+      closingBalance: closingBalance ?? this.closingBalance,
+      totalDeposits: totalDeposits ?? this.totalDeposits,
+      totalWithdrawals: totalWithdrawals ?? this.totalWithdrawals,
+      notes: notes ?? this.notes,
+      reconciledBy: reconciledBy ?? this.reconciledBy,
+      isReconciled: isReconciled ?? this.isReconciled,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      isDeleted: isDeleted ?? this.isDeleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessId.present) {
+      map['business_id'] = Variable<String>(businessId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (openingBalance.present) {
+      map['opening_balance'] = Variable<double>(openingBalance.value);
+    }
+    if (closingBalance.present) {
+      map['closing_balance'] = Variable<double>(closingBalance.value);
+    }
+    if (totalDeposits.present) {
+      map['total_deposits'] = Variable<double>(totalDeposits.value);
+    }
+    if (totalWithdrawals.present) {
+      map['total_withdrawals'] = Variable<double>(totalWithdrawals.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (reconciledBy.present) {
+      map['reconciled_by'] = Variable<String>(reconciledBy.value);
+    }
+    if (isReconciled.present) {
+      map['is_reconciled'] = Variable<int>(isReconciled.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (serverUpdatedAt.present) {
+      map['server_updated_at'] = Variable<int>(serverUpdatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<int>(isDeleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyReconciliationsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('businessId: $businessId, ')
+          ..write('accountId: $accountId, ')
+          ..write('date: $date, ')
+          ..write('openingBalance: $openingBalance, ')
+          ..write('closingBalance: $closingBalance, ')
+          ..write('totalDeposits: $totalDeposits, ')
+          ..write('totalWithdrawals: $totalWithdrawals, ')
+          ..write('notes: $notes, ')
+          ..write('reconciledBy: $reconciledBy, ')
+          ..write('isReconciled: $isReconciled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverUpdatedAt: $serverUpdatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -10557,6 +13208,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TeamMembersTableTable teamMembersTable = $TeamMembersTableTable(
     this,
   );
+  late final $CashAccountsTableTable cashAccountsTable =
+      $CashAccountsTableTable(this);
+  late final $CashTransactionsTableTable cashTransactionsTable =
+      $CashTransactionsTableTable(this);
+  late final $DailyReconciliationsTableTable dailyReconciliationsTable =
+      $DailyReconciliationsTableTable(this);
   late final InvoiceDao invoiceDao = InvoiceDao(this as AppDatabase);
   late final CustomerDao customerDao = CustomerDao(this as AppDatabase);
   late final ExpenseDao expenseDao = ExpenseDao(this as AppDatabase);
@@ -10565,6 +13222,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final SettingsDao settingsDao = SettingsDao(this as AppDatabase);
   late final DebtDao debtDao = DebtDao(this as AppDatabase);
   late final TeamDao teamDao = TeamDao(this as AppDatabase);
+  late final CashFlowDao cashFlowDao = CashFlowDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10581,6 +13239,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     debtsTable,
     debtPaymentsTable,
     teamMembersTable,
+    cashAccountsTable,
+    cashTransactionsTable,
+    dailyReconciliationsTable,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -15811,6 +18472,1290 @@ typedef $$TeamMembersTableTableProcessedTableManager =
       TeamMembersTableData,
       PrefetchHooks Function()
     >;
+typedef $$CashAccountsTableTableCreateCompanionBuilder =
+    CashAccountsTableCompanion Function({
+      required String id,
+      required String businessId,
+      required String name,
+      required String type,
+      Value<double> balance,
+      Value<String> accountNumber,
+      Value<String> currency,
+      Value<String> lastReconciled,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> localVersion,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+typedef $$CashAccountsTableTableUpdateCompanionBuilder =
+    CashAccountsTableCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> name,
+      Value<String> type,
+      Value<double> balance,
+      Value<String> accountNumber,
+      Value<String> currency,
+      Value<String> lastReconciled,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> localVersion,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+
+class $$CashAccountsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $CashAccountsTableTable> {
+  $$CashAccountsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get balance => $composableBuilder(
+    column: $table.balance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountNumber => $composableBuilder(
+    column: $table.accountNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastReconciled => $composableBuilder(
+    column: $table.lastReconciled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CashAccountsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $CashAccountsTableTable> {
+  $$CashAccountsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get balance => $composableBuilder(
+    column: $table.balance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountNumber => $composableBuilder(
+    column: $table.accountNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastReconciled => $composableBuilder(
+    column: $table.lastReconciled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CashAccountsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CashAccountsTableTable> {
+  $$CashAccountsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<double> get balance =>
+      $composableBuilder(column: $table.balance, builder: (column) => column);
+
+  GeneratedColumn<String> get accountNumber => $composableBuilder(
+    column: $table.accountNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<String> get lastReconciled => $composableBuilder(
+    column: $table.lastReconciled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+}
+
+class $$CashAccountsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CashAccountsTableTable,
+          CashAccountsTableData,
+          $$CashAccountsTableTableFilterComposer,
+          $$CashAccountsTableTableOrderingComposer,
+          $$CashAccountsTableTableAnnotationComposer,
+          $$CashAccountsTableTableCreateCompanionBuilder,
+          $$CashAccountsTableTableUpdateCompanionBuilder,
+          (
+            CashAccountsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $CashAccountsTableTable,
+              CashAccountsTableData
+            >,
+          ),
+          CashAccountsTableData,
+          PrefetchHooks Function()
+        > {
+  $$CashAccountsTableTableTableManager(
+    _$AppDatabase db,
+    $CashAccountsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CashAccountsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CashAccountsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CashAccountsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<double> balance = const Value.absent(),
+                Value<String> accountNumber = const Value.absent(),
+                Value<String> currency = const Value.absent(),
+                Value<String> lastReconciled = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> localVersion = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashAccountsTableCompanion(
+                id: id,
+                businessId: businessId,
+                name: name,
+                type: type,
+                balance: balance,
+                accountNumber: accountNumber,
+                currency: currency,
+                lastReconciled: lastReconciled,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                localVersion: localVersion,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String name,
+                required String type,
+                Value<double> balance = const Value.absent(),
+                Value<String> accountNumber = const Value.absent(),
+                Value<String> currency = const Value.absent(),
+                Value<String> lastReconciled = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> localVersion = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashAccountsTableCompanion.insert(
+                id: id,
+                businessId: businessId,
+                name: name,
+                type: type,
+                balance: balance,
+                accountNumber: accountNumber,
+                currency: currency,
+                lastReconciled: lastReconciled,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                localVersion: localVersion,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CashAccountsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CashAccountsTableTable,
+      CashAccountsTableData,
+      $$CashAccountsTableTableFilterComposer,
+      $$CashAccountsTableTableOrderingComposer,
+      $$CashAccountsTableTableAnnotationComposer,
+      $$CashAccountsTableTableCreateCompanionBuilder,
+      $$CashAccountsTableTableUpdateCompanionBuilder,
+      (
+        CashAccountsTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $CashAccountsTableTable,
+          CashAccountsTableData
+        >,
+      ),
+      CashAccountsTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$CashTransactionsTableTableCreateCompanionBuilder =
+    CashTransactionsTableCompanion Function({
+      required String id,
+      required String businessId,
+      required String type,
+      required double amount,
+      Value<String> fromAccountId,
+      Value<String> toAccountId,
+      Value<String> description,
+      required String date,
+      Value<String> reference,
+      Value<String> activityCategory,
+      Value<String> createdBy,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+typedef $$CashTransactionsTableTableUpdateCompanionBuilder =
+    CashTransactionsTableCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> type,
+      Value<double> amount,
+      Value<String> fromAccountId,
+      Value<String> toAccountId,
+      Value<String> description,
+      Value<String> date,
+      Value<String> reference,
+      Value<String> activityCategory,
+      Value<String> createdBy,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+
+class $$CashTransactionsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $CashTransactionsTableTable> {
+  $$CashTransactionsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fromAccountId => $composableBuilder(
+    column: $table.fromAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toAccountId => $composableBuilder(
+    column: $table.toAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reference => $composableBuilder(
+    column: $table.reference,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get activityCategory => $composableBuilder(
+    column: $table.activityCategory,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CashTransactionsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $CashTransactionsTableTable> {
+  $$CashTransactionsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fromAccountId => $composableBuilder(
+    column: $table.fromAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toAccountId => $composableBuilder(
+    column: $table.toAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reference => $composableBuilder(
+    column: $table.reference,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get activityCategory => $composableBuilder(
+    column: $table.activityCategory,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CashTransactionsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CashTransactionsTableTable> {
+  $$CashTransactionsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get fromAccountId => $composableBuilder(
+    column: $table.fromAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get toAccountId => $composableBuilder(
+    column: $table.toAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get reference =>
+      $composableBuilder(column: $table.reference, builder: (column) => column);
+
+  GeneratedColumn<String> get activityCategory => $composableBuilder(
+    column: $table.activityCategory,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+}
+
+class $$CashTransactionsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CashTransactionsTableTable,
+          CashTransactionsTableData,
+          $$CashTransactionsTableTableFilterComposer,
+          $$CashTransactionsTableTableOrderingComposer,
+          $$CashTransactionsTableTableAnnotationComposer,
+          $$CashTransactionsTableTableCreateCompanionBuilder,
+          $$CashTransactionsTableTableUpdateCompanionBuilder,
+          (
+            CashTransactionsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $CashTransactionsTableTable,
+              CashTransactionsTableData
+            >,
+          ),
+          CashTransactionsTableData,
+          PrefetchHooks Function()
+        > {
+  $$CashTransactionsTableTableTableManager(
+    _$AppDatabase db,
+    $CashTransactionsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CashTransactionsTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$CashTransactionsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CashTransactionsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> fromAccountId = const Value.absent(),
+                Value<String> toAccountId = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<String> reference = const Value.absent(),
+                Value<String> activityCategory = const Value.absent(),
+                Value<String> createdBy = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashTransactionsTableCompanion(
+                id: id,
+                businessId: businessId,
+                type: type,
+                amount: amount,
+                fromAccountId: fromAccountId,
+                toAccountId: toAccountId,
+                description: description,
+                date: date,
+                reference: reference,
+                activityCategory: activityCategory,
+                createdBy: createdBy,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String type,
+                required double amount,
+                Value<String> fromAccountId = const Value.absent(),
+                Value<String> toAccountId = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                required String date,
+                Value<String> reference = const Value.absent(),
+                Value<String> activityCategory = const Value.absent(),
+                Value<String> createdBy = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CashTransactionsTableCompanion.insert(
+                id: id,
+                businessId: businessId,
+                type: type,
+                amount: amount,
+                fromAccountId: fromAccountId,
+                toAccountId: toAccountId,
+                description: description,
+                date: date,
+                reference: reference,
+                activityCategory: activityCategory,
+                createdBy: createdBy,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CashTransactionsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CashTransactionsTableTable,
+      CashTransactionsTableData,
+      $$CashTransactionsTableTableFilterComposer,
+      $$CashTransactionsTableTableOrderingComposer,
+      $$CashTransactionsTableTableAnnotationComposer,
+      $$CashTransactionsTableTableCreateCompanionBuilder,
+      $$CashTransactionsTableTableUpdateCompanionBuilder,
+      (
+        CashTransactionsTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $CashTransactionsTableTable,
+          CashTransactionsTableData
+        >,
+      ),
+      CashTransactionsTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$DailyReconciliationsTableTableCreateCompanionBuilder =
+    DailyReconciliationsTableCompanion Function({
+      required String id,
+      required String businessId,
+      required String accountId,
+      required String date,
+      Value<double> openingBalance,
+      Value<double> closingBalance,
+      Value<double> totalDeposits,
+      Value<double> totalWithdrawals,
+      Value<String> notes,
+      Value<String> reconciledBy,
+      Value<int> isReconciled,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+typedef $$DailyReconciliationsTableTableUpdateCompanionBuilder =
+    DailyReconciliationsTableCompanion Function({
+      Value<String> id,
+      Value<String> businessId,
+      Value<String> accountId,
+      Value<String> date,
+      Value<double> openingBalance,
+      Value<double> closingBalance,
+      Value<double> totalDeposits,
+      Value<double> totalWithdrawals,
+      Value<String> notes,
+      Value<String> reconciledBy,
+      Value<int> isReconciled,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> serverUpdatedAt,
+      Value<String> syncStatus,
+      Value<int> isDeleted,
+      Value<int> rowid,
+    });
+
+class $$DailyReconciliationsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $DailyReconciliationsTableTable> {
+  $$DailyReconciliationsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get closingBalance => $composableBuilder(
+    column: $table.closingBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get totalDeposits => $composableBuilder(
+    column: $table.totalDeposits,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get totalWithdrawals => $composableBuilder(
+    column: $table.totalWithdrawals,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reconciledBy => $composableBuilder(
+    column: $table.reconciledBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isReconciled => $composableBuilder(
+    column: $table.isReconciled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DailyReconciliationsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $DailyReconciliationsTableTable> {
+  $$DailyReconciliationsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get closingBalance => $composableBuilder(
+    column: $table.closingBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get totalDeposits => $composableBuilder(
+    column: $table.totalDeposits,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get totalWithdrawals => $composableBuilder(
+    column: $table.totalWithdrawals,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reconciledBy => $composableBuilder(
+    column: $table.reconciledBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isReconciled => $composableBuilder(
+    column: $table.isReconciled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DailyReconciliationsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DailyReconciliationsTableTable> {
+  $$DailyReconciliationsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessId => $composableBuilder(
+    column: $table.businessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<double> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get closingBalance => $composableBuilder(
+    column: $table.closingBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get totalDeposits => $composableBuilder(
+    column: $table.totalDeposits,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get totalWithdrawals => $composableBuilder(
+    column: $table.totalWithdrawals,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get reconciledBy => $composableBuilder(
+    column: $table.reconciledBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get isReconciled => $composableBuilder(
+    column: $table.isReconciled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get serverUpdatedAt => $composableBuilder(
+    column: $table.serverUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+}
+
+class $$DailyReconciliationsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DailyReconciliationsTableTable,
+          DailyReconciliationsTableData,
+          $$DailyReconciliationsTableTableFilterComposer,
+          $$DailyReconciliationsTableTableOrderingComposer,
+          $$DailyReconciliationsTableTableAnnotationComposer,
+          $$DailyReconciliationsTableTableCreateCompanionBuilder,
+          $$DailyReconciliationsTableTableUpdateCompanionBuilder,
+          (
+            DailyReconciliationsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $DailyReconciliationsTableTable,
+              DailyReconciliationsTableData
+            >,
+          ),
+          DailyReconciliationsTableData,
+          PrefetchHooks Function()
+        > {
+  $$DailyReconciliationsTableTableTableManager(
+    _$AppDatabase db,
+    $DailyReconciliationsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailyReconciliationsTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$DailyReconciliationsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DailyReconciliationsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessId = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<String> date = const Value.absent(),
+                Value<double> openingBalance = const Value.absent(),
+                Value<double> closingBalance = const Value.absent(),
+                Value<double> totalDeposits = const Value.absent(),
+                Value<double> totalWithdrawals = const Value.absent(),
+                Value<String> notes = const Value.absent(),
+                Value<String> reconciledBy = const Value.absent(),
+                Value<int> isReconciled = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyReconciliationsTableCompanion(
+                id: id,
+                businessId: businessId,
+                accountId: accountId,
+                date: date,
+                openingBalance: openingBalance,
+                closingBalance: closingBalance,
+                totalDeposits: totalDeposits,
+                totalWithdrawals: totalWithdrawals,
+                notes: notes,
+                reconciledBy: reconciledBy,
+                isReconciled: isReconciled,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessId,
+                required String accountId,
+                required String date,
+                Value<double> openingBalance = const Value.absent(),
+                Value<double> closingBalance = const Value.absent(),
+                Value<double> totalDeposits = const Value.absent(),
+                Value<double> totalWithdrawals = const Value.absent(),
+                Value<String> notes = const Value.absent(),
+                Value<String> reconciledBy = const Value.absent(),
+                Value<int> isReconciled = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> serverUpdatedAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<int> isDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyReconciliationsTableCompanion.insert(
+                id: id,
+                businessId: businessId,
+                accountId: accountId,
+                date: date,
+                openingBalance: openingBalance,
+                closingBalance: closingBalance,
+                totalDeposits: totalDeposits,
+                totalWithdrawals: totalWithdrawals,
+                notes: notes,
+                reconciledBy: reconciledBy,
+                isReconciled: isReconciled,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                serverUpdatedAt: serverUpdatedAt,
+                syncStatus: syncStatus,
+                isDeleted: isDeleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DailyReconciliationsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DailyReconciliationsTableTable,
+      DailyReconciliationsTableData,
+      $$DailyReconciliationsTableTableFilterComposer,
+      $$DailyReconciliationsTableTableOrderingComposer,
+      $$DailyReconciliationsTableTableAnnotationComposer,
+      $$DailyReconciliationsTableTableCreateCompanionBuilder,
+      $$DailyReconciliationsTableTableUpdateCompanionBuilder,
+      (
+        DailyReconciliationsTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $DailyReconciliationsTableTable,
+          DailyReconciliationsTableData
+        >,
+      ),
+      DailyReconciliationsTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -15837,4 +19782,13 @@ class $AppDatabaseManager {
       $$DebtPaymentsTableTableTableManager(_db, _db.debtPaymentsTable);
   $$TeamMembersTableTableTableManager get teamMembersTable =>
       $$TeamMembersTableTableTableManager(_db, _db.teamMembersTable);
+  $$CashAccountsTableTableTableManager get cashAccountsTable =>
+      $$CashAccountsTableTableTableManager(_db, _db.cashAccountsTable);
+  $$CashTransactionsTableTableTableManager get cashTransactionsTable =>
+      $$CashTransactionsTableTableTableManager(_db, _db.cashTransactionsTable);
+  $$DailyReconciliationsTableTableTableManager get dailyReconciliationsTable =>
+      $$DailyReconciliationsTableTableTableManager(
+        _db,
+        _db.dailyReconciliationsTable,
+      );
 }

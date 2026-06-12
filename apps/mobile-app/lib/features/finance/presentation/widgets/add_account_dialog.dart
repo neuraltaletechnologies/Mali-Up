@@ -1,11 +1,10 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
-import '../../../customer/data/customer_providers.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -303,24 +302,19 @@ class _AddAccountDialogState extends ConsumerState<AddAccountDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not logged in');
-
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
+      final repo = ref.read(cashRepositoryProvider);
 
       if (_isEditing) {
-        await repo.updateCashAccount(
-          uid: user.uid,
-          context: ctx,
-          accountId: widget.existing!.id,
-          data: {
-            'name': _nameController.text.trim(),
-            'type': _type,
-            if (_accountNumberController.text.trim().isNotEmpty)
-              'accountNumber': _accountNumberController.text.trim(),
-          },
+        // SyncCashRepository preserves the stored balance on edits —
+        // balance only moves through transactions.
+        final updated = widget.existing!.copyWith(
+          name: _nameController.text.trim(),
+          type: _type,
+          accountNumber: _accountNumberController.text.trim().isNotEmpty
+              ? _accountNumberController.text.trim()
+              : null,
         );
+        await repo.saveAccount(updated);
       } else {
         final balance =
             double.tryParse(_initialBalanceController.text.trim()) ?? 0.0;
@@ -333,7 +327,7 @@ class _AddAccountDialogState extends ConsumerState<AddAccountDialog> {
               ? _accountNumberController.text.trim()
               : null,
         );
-        await repo.addCashAccount(uid: user.uid, context: ctx, account: account);
+        await repo.saveAccount(account);
       }
 
       if (mounted) {

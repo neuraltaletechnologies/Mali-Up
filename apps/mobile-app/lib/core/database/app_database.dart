@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import 'daos/cash_flow_dao.dart';
 import 'daos/customer_dao.dart';
 import 'daos/debt_dao.dart';
 import 'daos/expense_dao.dart';
@@ -10,7 +11,10 @@ import 'daos/settings_dao.dart';
 import 'daos/sync_queue_dao.dart';
 import 'daos/team_dao.dart';
 import 'tables/business_settings_table.dart';
+import 'tables/cash_accounts_table.dart';
+import 'tables/cash_transactions_table.dart';
 import 'tables/customers_table.dart';
+import 'tables/daily_reconciliations_table.dart';
 import 'tables/debt_payments_table.dart';
 import 'tables/debts_table.dart';
 import 'tables/expenses_table.dart';
@@ -36,6 +40,9 @@ part 'app_database.g.dart';
     DebtsTable,
     DebtPaymentsTable,
     TeamMembersTable,
+    CashAccountsTable,
+    CashTransactionsTable,
+    DailyReconciliationsTable,
   ],
   daos: [
     InvoiceDao,
@@ -46,6 +53,7 @@ part 'app_database.g.dart';
     SettingsDao,
     DebtDao,
     TeamDao,
+    CashFlowDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -53,7 +61,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -81,6 +89,14 @@ class AppDatabase extends _$AppDatabase {
               'ALTER TABLE customers '
               "ADD COLUMN assigned_to_user_id TEXT NOT NULL DEFAULT ''",
             );
+          }
+          if (from < 5) {
+            // Cash flow goes offline-first: accounts, transactions,
+            // daily reconciliations
+            await m.createTable(cashAccountsTable);
+            await m.createTable(cashTransactionsTable);
+            await m.createTable(dailyReconciliationsTable);
+            await _createV5Indexes();
           }
         },
         beforeOpen: (details) async {
@@ -123,6 +139,7 @@ class AppDatabase extends _$AppDatabase {
       'ON sync_queue(status, next_retry_at)',
     );
     await _createV3Indexes();
+    await _createV5Indexes();
   }
 
   Future<void> _createV3Indexes() async {
@@ -145,6 +162,29 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_team_members_business '
       'ON team_members(business_id)',
+    );
+  }
+
+  Future<void> _createV5Indexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_cash_accounts_business '
+      'ON cash_accounts(business_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_cash_transactions_business_date '
+      'ON cash_transactions(business_id, date)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_cash_transactions_from_account '
+      'ON cash_transactions(business_id, from_account_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_cash_transactions_to_account '
+      'ON cash_transactions(business_id, to_account_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_reconciliations_business_account '
+      'ON daily_reconciliations(business_id, account_id)',
     );
   }
 

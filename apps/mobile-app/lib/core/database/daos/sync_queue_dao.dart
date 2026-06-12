@@ -42,6 +42,19 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  /// True if any entries of [entityType] are still awaiting push. Used by the
+  /// pull cycle to avoid overwriting locally-derived state (e.g. account
+  /// balances) before the deltas that produced it have reached the server.
+  Future<bool> hasPendingForType(String entityType) async {
+    final row = await (select(syncQueueTable)
+          ..where((t) =>
+              t.entityType.equals(entityType) &
+              t.status.isIn(['pending', 'processing']))
+          ..limit(1))
+        .getSingleOrNull();
+    return row != null;
+  }
+
   Future<List<SyncQueueTableData>> getFailedEntries() {
     return (select(syncQueueTable)
           ..where((t) => t.status.equals('failed'))

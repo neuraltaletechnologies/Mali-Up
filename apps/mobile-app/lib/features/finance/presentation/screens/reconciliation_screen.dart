@@ -10,7 +10,7 @@ import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
 import '../../domain/models/daily_reconciliation.dart';
 import '../../data/cash_flow_providers.dart';
-import '../../../customer/data/customer_providers.dart';
+import '../../data/finance_providers.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -385,9 +385,6 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Not logged in');
 
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-
       final reconciliation = DailyReconciliation(
         id: '',
         accountId: widget.account.id,
@@ -401,11 +398,8 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
         isReconciled: true,
       );
 
-      await repo.saveReconciliation(
-        uid: user.uid,
-        context: ctx,
-        reconciliation: reconciliation,
-      );
+      // Saves locally (incl. account lastReconciled) and queues the sync.
+      await ref.read(cashRepositoryProvider).saveReconciliation(reconciliation);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
