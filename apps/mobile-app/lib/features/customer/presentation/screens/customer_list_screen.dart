@@ -459,9 +459,8 @@ class _CustomerCard extends ConsumerWidget {
     final balance = customer.balanceAmount;
     final hasBalance = balance > 0;
     final accent = _accentColor;
-    final lastDate = customer.lastTransactionDate;
-    final hasLastDate =
-        lastDate.isNotEmpty && lastDate != '0' && lastDate != '—';
+    final lastDate = _relativeLastPurchase(customer);
+    final hasLastDate = lastDate.isNotEmpty;
 
     return ListSwipeCard(
       itemKey: ValueKey(customer.id),
@@ -1208,4 +1207,20 @@ String _fmtShort(double v) {
   if (v >= 1_000_000) return '${(v / 1_000_000).toStringAsFixed(1)}M';
   if (v >= 1_000) return '${(v / 1_000).toStringAsFixed(0)}K';
   return v.toStringAsFixed(0);
+}
+
+/// Renders the last purchase as a relative label. ISO dates (written by the
+/// sales flow) become "3 days ago"; legacy free-text values show as-is.
+String _relativeLastPurchase(Customer c) {
+  final raw = c.lastTransactionDate;
+  if (raw.isEmpty || raw == '0' || raw == '—') return '';
+  final d = c.lastPurchaseAt;
+  if (d == null) return raw;
+  final days = DateTime.now().difference(d).inDays;
+  if (days <= 0) return _tr('Today', 'Leo');
+  if (days == 1) return _tr('Yesterday', 'Jana');
+  if (days < 30) return _tr('$days days ago', 'Siku $days zilizopita');
+  final months = days ~/ 30;
+  if (months < 12) return _tr('${months}mo ago', 'Miezi $months iliyopita');
+  return _tr('${months ~/ 12}y ago', 'Zaidi ya mwaka ${months ~/ 12}');
 }

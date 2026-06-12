@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../core/providers/business_id_provider.dart';
-import '../../../core/providers/database_provider.dart';
 import '../../../core/providers/sync_provider.dart';
 import '../../rbac/data/audit_log_service.dart';
 import '../../rbac/data/rbac_providers.dart';

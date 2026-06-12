@@ -1,7 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/data/repositories/context_firestore_repository.dart';
 import '../../customer/data/customer_providers.dart';
 import '../domain/models/cash_account.dart';
 import '../domain/models/cash_transaction.dart';
@@ -24,24 +22,13 @@ class _CfMonthNotifier extends Notifier<DateTime> {
 
 final cfMonthProvider = NotifierProvider<_CfMonthNotifier, DateTime>(_CfMonthNotifier.new);
 
-// ── Cash transactions ─────────────────────────────────────────────────────────
+// ── Cash transactions (offline-first, backed by Drift) ───────────────────────
 
-final cashTransactionListProvider = StreamProvider<List<CashTransaction>>((ref) async* {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    yield const <CashTransaction>[];
-    return;
-  }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
-  if (bizId == null || bizId.isEmpty) {
-    yield const <CashTransaction>[];
-    return;
-  }
-  final repo = ref.read(contextFirestoreRepositoryProvider);
-  yield* repo.watchCashTransactions(
-    uid: user.uid,
-    context: ResolvedFinanceContext.business(bizId),
-  );
+final cashTransactionListProvider =
+    StreamProvider<List<CashTransaction>>((ref) {
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  if (bizId.isEmpty) return Stream.value(const <CashTransaction>[]);
+  return ref.watch(cashRepositoryProvider).watchTransactions();
 });
 
 /// Transactions filtered to the currently selected month.
@@ -117,24 +104,13 @@ final cfByActivityProvider =
   return map;
 });
 
-// ── Daily reconciliations ─────────────────────────────────────────────────────
+// ── Daily reconciliations (offline-first, backed by Drift) ───────────────────
 
-final reconciliationListProvider = StreamProvider<List<DailyReconciliation>>((ref) async* {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    yield const <DailyReconciliation>[];
-    return;
-  }
-  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull;
-  if (bizId == null || bizId.isEmpty) {
-    yield const <DailyReconciliation>[];
-    return;
-  }
-  final repo = ref.read(contextFirestoreRepositoryProvider);
-  yield* repo.watchDailyReconciliations(
-    uid: user.uid,
-    context: ResolvedFinanceContext.business(bizId),
-  );
+final reconciliationListProvider =
+    StreamProvider<List<DailyReconciliation>>((ref) {
+  final bizId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  if (bizId.isEmpty) return Stream.value(const <DailyReconciliation>[]);
+  return ref.watch(cashRepositoryProvider).watchReconciliations();
 });
 
 /// Reconciliations for a specific account.

@@ -7,7 +7,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
 import '../../data/finance_providers.dart';
-import '../../../customer/data/customer_providers.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -390,9 +389,6 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Not logged in');
 
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-
       final txn = CashTransaction(
         id: '',
         type: _type,
@@ -407,7 +403,8 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
         createdBy: user.uid,
       );
 
-      await repo.addCashTransaction(uid: user.uid, context: ctx, txn: txn);
+      // Saves locally (incl. balance adjustments) and queues the sync.
+      await ref.read(cashRepositoryProvider).addTransaction(txn);
 
       if (mounted) {
         Navigator.pop(context, true);

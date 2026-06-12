@@ -1,14 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../../sales/data/sales_providers.dart';
 import '../../data/customer_providers.dart';
@@ -230,6 +233,12 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
       text: _tr('Payment reminder sent via WhatsApp',
           'Kumbusho la malipo kilitumwa kupitia WhatsApp'),
     );
+    await ref.read(customerAuditLoggerProvider).log(
+          AuditLogService.reminderSent,
+          customerId: _customer.id,
+          customerName: _customer.name,
+          newValue: 'whatsapp',
+        );
   }
 
   String _buildReminderText(
@@ -268,10 +277,17 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
+      // Notes live under the tenant owner's business — the same path the
+      // notes stream reads from. Team members must not write to their own
+      // (empty) tenant.
+      final ownerUid = ref.read(tenantOwnerUidProvider) ?? user.uid;
+      final bizId = ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+      if (bizId.isEmpty) return;
       final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
       final customersCol = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'customers');
+          uid: ownerUid,
+          context: ResolvedFinanceContext.business(bizId),
+          childCollection: 'customers');
       await customersCol.doc(_customer.id).collection('notes').add({
         'type': type.name,
         'text': text,
@@ -285,42 +301,50 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
   }
 
   Future<void> _updateTags(List<String> newTags) async {
+    final previous = _customer.tags;
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'customers')
-          .doc(_customer.id)
-          .update({
-        'tags': newTags,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Offline-first: Drift + sync queue in one transaction.
+      await ref
+          .read(customerRepositoryProvider)
+          .save(_customer.copyWith(tags: newTags));
       setState(() => _customer = _customer.copyWith(tags: newTags));
+
+      final logger = ref.read(customerAuditLoggerProvider);
+      for (final tag in newTags.where((t) => !previous.contains(t))) {
+        await logger.log(AuditLogService.tagAdded,
+            customerId: _customer.id,
+            customerName: _customer.name,
+            newValue: tag);
+      }
+      for (final tag in previous.where((t) => !newTags.contains(t))) {
+        await logger.log(AuditLogService.tagRemoved,
+            customerId: _customer.id,
+            customerName: _customer.name,
+            previousValue: tag);
+      }
     } catch (_) {
       _showSnack(_tr('Update failed', 'Imeshindwa kusasisha'));
     }
   }
 
   Future<void> _updateCreditLimit(double limit) async {
+    final previous = _customer.creditLimit;
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'customers')
-          .doc(_customer.id)
-          .update({
-        'creditLimit': limit,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await ref
+          .read(customerRepositoryProvider)
+          .save(_customer.copyWith(creditLimit: limit));
       setState(() => _customer = _customer.copyWith(creditLimit: limit));
+      await ref.read(customerAuditLoggerProvider).log(
+            AuditLogService.creditLimitChanged,
+            customerId: _customer.id,
+            customerName: _customer.name,
+            previousValue: previous,
+            newValue: limit,
+          );
       _showSnack(_tr('Credit limit updated', 'Kikomo cha mkopo kimesasishwa'));
-    } catch (_) {}
+    } catch (_) {
+      _showSnack(_tr('Update failed', 'Imeshindwa kusasisha'));
+    }
   }
 
   void _openEdit() {
@@ -355,6 +379,15 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     final showFinancials = ps.canViewDebt || ps.isOwner;
     final canManage = ps.canManageCustomers || ps.isOwner;
     final canEditCredit = ps.canGrantCredit || ps.isOwner;
+
+    // Live record from Drift — balance changes from sales, sync pulls, and
+    // edits made elsewhere reflect here without re-opening the screen.
+    final live = ref
+        .watch(customerListProvider)
+        .valueOrNull
+        ?.where((c) => c.id == widget.customer.id)
+        .firstOrNull;
+    if (live != null) _customer = live;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -678,6 +711,20 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
     _limitCtrl.text = widget.customer.creditLimit > 0
         ? widget.customer.creditLimit.toStringAsFixed(0)
         : '';
+  }
+
+  @override
+  void didUpdateWidget(covariant _OverviewTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Resync local edit state when the live customer record changes.
+    if (!listEquals(oldWidget.customer.tags, widget.customer.tags)) {
+      _tags = List.from(widget.customer.tags);
+    }
+    if (oldWidget.customer.creditLimit != widget.customer.creditLimit) {
+      _limitCtrl.text = widget.customer.creditLimit > 0
+          ? widget.customer.creditLimit.toStringAsFixed(0)
+          : '';
+    }
   }
 
   @override
@@ -2480,30 +2527,7 @@ class _EditCustomerFullSheetState
     setState(() => _saving = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not authenticated');
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
       final limit = double.tryParse(_limitCtrl.text) ?? 0;
-
-      final data = <String, dynamic>{
-        'name': _nameCtrl.text.trim(),
-        'phone': _phoneCtrl.text.trim(),
-        'email': _emailCtrl.text.trim(),
-        'isOrganisation': _isOrg,
-        'address': _addressCtrl.text.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (limit > 0) 'creditLimit': limit,
-      };
-      final tin = _tinCtrl.text.trim();
-      if (tin.isNotEmpty) data['tinNumber'] = tin;
-
-      await repo
-          .scopeCollection(
-              uid: user.uid, context: ctx, childCollection: 'customers')
-          .doc(widget.customer.id)
-          .update(data);
-
       final updated = widget.customer.copyWith(
         name: _nameCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
@@ -2514,10 +2538,27 @@ class _EditCustomerFullSheetState
         creditLimit: limit,
       );
 
+      // Offline-first: Drift + sync queue in one transaction.
+      await ref.read(customerRepositoryProvider).save(updated);
+      await ref.read(customerAuditLoggerProvider).log(
+            AuditLogService.customerUpdated,
+            customerId: updated.id,
+            customerName: updated.name,
+          );
+
       widget.onSaved(updated);
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
-      if (mounted) setState(() => _saving = false);
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        content: Text(_tr(
+          'Could not save changes. Please try again.',
+          'Imeshindwa kuhifadhi mabadiliko. Jaribu tena.',
+        )),
+      ));
     }
   }
 

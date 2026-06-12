@@ -670,7 +670,6 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       phone: phone,
       email: email,
       balance: balance,
-      lastTransactionDate: '',
       tags: tags,
       isOrganisation: isOrganisation,
       tinNumber: tinNumber,

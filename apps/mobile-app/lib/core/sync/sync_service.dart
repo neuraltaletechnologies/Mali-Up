@@ -10,7 +10,10 @@ import '../../features/customer/data/mappers/customer_mapper.dart';
 import '../../features/debt/data/mappers/debt_mapper.dart';
 import '../../features/debt/data/repositories/local_debt_repository.dart';
 import '../../features/debt/data/repositories/remote_debt_repository.dart';
+import '../../features/finance/data/mappers/cash_flow_mapper.dart';
+import '../../features/finance/data/repositories/local_cash_repository.dart';
 import '../../features/finance/data/repositories/local_expense_repository.dart';
+import '../../features/finance/data/repositories/remote_cash_repository.dart';
 import '../../features/finance/data/repositories/remote_expense_repository.dart';
 import '../../features/finance/data/mappers/expense_mapper.dart';
 import '../../features/inventory/data/repositories/local_inventory_repository.dart';
@@ -59,6 +62,8 @@ class SyncService extends ChangeNotifier {
   late final RemoteDebtRepository _remoteDebt;
   late final LocalTeamRepository _localTeam;
   late final RemoteTeamRepository _remoteTeam;
+  late final LocalCashRepository _localCash;
+  late final RemoteCashRepository _remoteCash;
 
   SyncState _state = SyncState.idle;
   String? _lastError;
@@ -94,6 +99,8 @@ class SyncService extends ChangeNotifier {
     _remoteDebt = RemoteDebtRepository(uid: uid, businessId: businessId);
     _localTeam = LocalTeamRepository(db, businessId: businessId);
     _remoteTeam = RemoteTeamRepository(uid: uid, businessId: businessId);
+    _localCash = LocalCashRepository(db, businessId: businessId);
+    _remoteCash = RemoteCashRepository(uid: uid, businessId: businessId);
   }
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
@@ -213,6 +220,12 @@ class SyncService extends ChangeNotifier {
           await _processDebtPaymentEntry(entry);
         case 'team_member':
           await _processTeamMemberEntry(entry);
+        case 'cash_account':
+          await _processCashAccountEntry(entry);
+        case 'cash_transaction':
+          await _processCashTransactionEntry(entry);
+        case 'reconciliation':
+          await _processReconciliationEntry(entry);
         default:
           await _queue.markFailed(
               entry.id, 'Unknown entityType: ${entry.entityType}');
@@ -414,6 +427,42 @@ class SyncService extends ChangeNotifier {
     await _queue.markCompleted(entry.id);
   }
 
+  Future<void> _processCashAccountEntry(SyncQueueTableData entry) async {
+    if (entry.operation == 'delete') {
+      await _remoteCash.deleteAccount(entry.entityId);
+      await _queue.markCompleted(entry.id);
+      return;
+    }
+
+    final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+    final account = CashAccountMapper.fromFirestore(payload, entry.entityId);
+    // Creates push the full doc (incl. opening balance); updates only push
+    // metadata so server-side FieldValue.increment deltas are never clobbered.
+    final serverTs = entry.operation == 'create'
+        ? await _remoteCash.createAccountAndGetTimestamp(account)
+        : await _remoteCash.updateAccountAndGetTimestamp(account);
+    await _localCash.markAccountSynced(entry.entityId, serverTs);
+    await _queue.markCompleted(entry.id);
+  }
+
+  Future<void> _processCashTransactionEntry(SyncQueueTableData entry) async {
+    final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+    final txn = CashTransactionMapper.fromFirestore(payload, entry.entityId);
+    // Idempotent: the remote repo skips the balance increments when the doc
+    // already exists (a retry), so amounts are never double-applied.
+    final serverTs = await _remoteCash.saveTransactionAndGetTimestamp(txn);
+    await _localCash.markTransactionSynced(entry.entityId, serverTs);
+    await _queue.markCompleted(entry.id);
+  }
+
+  Future<void> _processReconciliationEntry(SyncQueueTableData entry) async {
+    final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+    final rec = ReconciliationMapper.fromFirestore(payload, entry.entityId);
+    final serverTs = await _remoteCash.saveReconciliationAndGetTimestamp(rec);
+    await _localCash.markReconciliationSynced(entry.entityId, serverTs);
+    await _queue.markCompleted(entry.id);
+  }
+
   // ─── Pull (Firestore → local) ──────────────────────────────────────────────
 
   /// Incremental pull — fetches records updated since the last confirmed sync
@@ -430,6 +479,9 @@ class SyncService extends ChangeNotifier {
       _pullInventory(sinceMs),
       _pullDebts(sinceMs),
       _pullTeamMembers(sinceMs),
+      _pullCashAccounts(sinceMs),
+      _pullCashTransactions(sinceMs),
+      _pullReconciliations(sinceMs),
     ]);
   }
 
@@ -544,6 +596,73 @@ class SyncService extends ChangeNotifier {
       final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localTeam.upsert(
         member,
+        syncStatus: 'synced',
+        createdAtMs: localRaw?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+        serverUpdatedAt: serverTs,
+      );
+    }
+  }
+
+  Future<void> _pullCashAccounts(int sinceMs) async {
+    // If transaction deltas are still queued, the server balances don't yet
+    // include them — overwriting the locally-adjusted balance would make cash
+    // totals jump backwards. Skip this cycle; the next one (after the queue
+    // drains) will reconcile.
+    if (await _queue.hasPendingForType('cash_transaction')) return;
+
+    final updates = sinceMs == 0
+        ? await _remoteCash.fetchAllAccounts()
+        : await _remoteCash.fetchAccountsUpdatedSince(sinceMs);
+    for (final update in updates) {
+      final localRaw = await _localCash.getRawAccountById(update.id);
+      if (localRaw != null &&
+          localRaw.syncStatus != 'synced' &&
+          localRaw.syncStatus != 'conflict') { continue; }
+      final account = CashAccountMapper.fromFirestore(update.data, update.id);
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      await _localCash.upsertAccount(
+        account,
+        syncStatus: 'synced',
+        localVersion: localRaw?.localVersion ?? 1,
+        createdAtMs: localRaw?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+        serverUpdatedAt: serverTs,
+      );
+    }
+  }
+
+  Future<void> _pullCashTransactions(int sinceMs) async {
+    final updates = sinceMs == 0
+        ? await _remoteCash.fetchAllTransactions()
+        : await _remoteCash.fetchTransactionsUpdatedSince(sinceMs);
+    for (final update in updates) {
+      final localRaw = await _localCash.getRawTransactionById(update.id);
+      if (localRaw != null &&
+          localRaw.syncStatus != 'synced' &&
+          localRaw.syncStatus != 'conflict') { continue; }
+      final txn = CashTransactionMapper.fromFirestore(update.data, update.id);
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      await _localCash.upsertTransaction(
+        txn,
+        syncStatus: 'synced',
+        createdAtMs: localRaw?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+        serverUpdatedAt: serverTs,
+      );
+    }
+  }
+
+  Future<void> _pullReconciliations(int sinceMs) async {
+    final updates = sinceMs == 0
+        ? await _remoteCash.fetchAllReconciliations()
+        : await _remoteCash.fetchReconciliationsUpdatedSince(sinceMs);
+    for (final update in updates) {
+      final localRaw = await _localCash.getRawReconciliationById(update.id);
+      if (localRaw != null &&
+          localRaw.syncStatus != 'synced' &&
+          localRaw.syncStatus != 'conflict') { continue; }
+      final rec = ReconciliationMapper.fromFirestore(update.data, update.id);
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      await _localCash.upsertReconciliation(
+        rec,
         syncStatus: 'synced',
         createdAtMs: localRaw?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
         serverUpdatedAt: serverTs,

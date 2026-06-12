@@ -419,7 +419,8 @@ service cloud.firestore {
 
         match /customers/{customerId} {
           allow read: if isOwnerOrMemberWithAny(tenantId, ['viewCustomers', 'manageCustomers']);
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers']) &&
+          // createSale lets cashiers register walk-in customers during a sale.
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers', 'createSale']) &&
             isValidCustomer(request.resource.data);
           allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers']);
 
@@ -494,10 +495,11 @@ service cloud.firestore {
           allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
         }
 
-        // Audit logs — owner writes and reads; team member operations are always
-        // performed via the owner session so no member write access needed.
+        // Audit logs — owner reads; owner and customer-managing members may
+        // append entries (customer actions are logged from member sessions).
         match /audit_logs/{logId} {
-          allow read, create: if isSignedIn() && isOwner(tenantId);
+          allow read: if isSignedIn() && isOwner(tenantId);
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers', 'grantCredit', 'createSale']);
         }
 
         // Fallback for any other subcollection (debts, etc.)
