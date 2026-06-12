@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -177,6 +179,7 @@ class _PosScannerScreenState extends State<PosScannerScreen>
   final List<PosCartEntry> _cart = [];
   final Map<String, DateTime> _lastScanTime = {};
   bool _processing = false;
+  Timer? _labelClearTimer;
 
   late final AnimationController _successAnim;
   late final Animation<double> _successScale;
@@ -200,6 +203,7 @@ class _PosScannerScreenState extends State<PosScannerScreen>
 
   @override
   void dispose() {
+    _labelClearTimer?.cancel();
     _ctrl.dispose();
     _successAnim.dispose();
     super.dispose();
@@ -247,8 +251,12 @@ class _PosScannerScreenState extends State<PosScannerScreen>
         SystemSound.play(SystemSoundType.click);
         SentryMetricsService.scannerAttempt(success: true);
         SentryMetricsService.scanToCartTime(scanTimer.elapsed);
-        await Future<void>.delayed(const Duration(milliseconds: 1400));
-        if (mounted) setState(() => _lastScannedName = null);
+        // Clear the "scanned" label after a moment WITHOUT blocking the next
+        // scan — checkout speed is limited only by the per-barcode cooldown.
+        _labelClearTimer?.cancel();
+        _labelClearTimer = Timer(const Duration(milliseconds: 1400), () {
+          if (mounted) setState(() => _lastScannedName = null);
+        });
       } else {
         // Not found — brief error haptic.
         HapticFeedback.heavyImpact();

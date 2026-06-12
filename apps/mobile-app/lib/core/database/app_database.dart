@@ -61,7 +61,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -97,6 +97,25 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(cashTransactionsTable);
             await m.createTable(dailyReconciliationsTable);
             await _createV5Indexes();
+          }
+          if (from < 6) {
+            // Sales refinement: payment + quotation fields so partial
+            // balances, payment methods and doc types survive offline.
+            await customStatement(
+              "ALTER TABLE invoices ADD COLUMN customer_phone TEXT NOT NULL DEFAULT ''",
+            );
+            await customStatement(
+              "ALTER TABLE invoices ADD COLUMN doc_type TEXT NOT NULL DEFAULT 'invoice'",
+            );
+            await customStatement(
+              'ALTER TABLE invoices ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              'ALTER TABLE invoices ADD COLUMN amount_paid REAL NOT NULL DEFAULT 0',
+            );
+            await customStatement(
+              "ALTER TABLE invoices ADD COLUMN payment_method TEXT NOT NULL DEFAULT ''",
+            );
           }
         },
         beforeOpen: (details) async {

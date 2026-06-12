@@ -30,6 +30,15 @@ class AuditLogService {
   static const String tagRemoved          = 'tag_removed';
   static const String reminderSent        = 'reminder_sent';
 
+  // Sales & invoicing actions
+  static const String saleCreated       = 'sale_created';
+  static const String invoiceEdited     = 'invoice_edited';
+  static const String paymentReceived   = 'payment_received';
+  static const String returnProcessed   = 'return_processed';
+  static const String invoiceCancelled  = 'invoice_cancelled';
+  static const String invoiceDeleted    = 'invoice_deleted';
+  static const String quotationConverted = 'quotation_converted';
+
   // ── Write helpers ─────────────────────────────────────────────────────────
 
   /// Logs a team-management action.
@@ -103,6 +112,42 @@ class AuditLogService {
         'performedBy': performedByUid,
         'previousValue': ?previousValue,
         'newValue': ?newValue,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Best-effort: do not propagate audit-log failures.
+    }
+  }
+
+  /// Logs a sales action (sale created / payment / return / cancel / edit).
+  /// Same best-effort semantics as [log].
+  Future<void> logSaleAction({
+    required String ownerUid,
+    required String businessId,
+    required String performedByUid,
+    required String performedByRole,
+    required String action,
+    required String invoiceId,
+    required String invoiceNumber,
+    Object? amount,
+    Object? details,
+  }) async {
+    try {
+      await _firestore
+          .collection('tenants')
+          .doc(ownerUid)
+          .collection('businesses')
+          .doc(businessId)
+          .collection('audit_logs')
+          .add({
+        'action': action,
+        'entityType': 'sale',
+        'entityId': invoiceId,
+        'entityName': invoiceNumber,
+        'performedBy': performedByUid,
+        'performedByRole': performedByRole,
+        'amount': ?amount,
+        'details': ?details,
         'timestamp': FieldValue.serverTimestamp(),
       });
     } catch (_) {

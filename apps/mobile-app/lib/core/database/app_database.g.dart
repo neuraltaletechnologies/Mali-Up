@@ -51,6 +51,18 @@ class $InvoicesTableTable extends InvoicesTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _customerPhoneMeta = const VerificationMeta(
+    'customerPhone',
+  );
+  @override
+  late final GeneratedColumn<String> customerPhone = GeneratedColumn<String>(
+    'customer_phone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _invoiceNumberMeta = const VerificationMeta(
     'invoiceNumber',
   );
@@ -92,6 +104,18 @@ class $InvoicesTableTable extends InvoicesTable
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   );
+  static const VerificationMeta _docTypeMeta = const VerificationMeta(
+    'docType',
+  );
+  @override
+  late final GeneratedColumn<String> docType = GeneratedColumn<String>(
+    'doc_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('invoice'),
+  );
   static const VerificationMeta _subtotalMeta = const VerificationMeta(
     'subtotal',
   );
@@ -102,6 +126,18 @@ class $InvoicesTableTable extends InvoicesTable
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _discountAmountMeta = const VerificationMeta(
+    'discountAmount',
+  );
+  @override
+  late final GeneratedColumn<double> discountAmount = GeneratedColumn<double>(
+    'discount_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _taxMeta = const VerificationMeta('tax');
   @override
@@ -120,6 +156,30 @@ class $InvoicesTableTable extends InvoicesTable
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountPaidMeta = const VerificationMeta(
+    'amountPaid',
+  );
+  @override
+  late final GeneratedColumn<double> amountPaid = GeneratedColumn<double>(
+    'amount_paid',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _paymentMethodMeta = const VerificationMeta(
+    'paymentMethod',
+  );
+  @override
+  late final GeneratedColumn<String> paymentMethod = GeneratedColumn<String>(
+    'payment_method',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
   );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
@@ -218,13 +278,18 @@ class $InvoicesTableTable extends InvoicesTable
     businessId,
     customerId,
     customerName,
+    customerPhone,
     invoiceNumber,
     date,
     dueDate,
     status,
+    docType,
     subtotal,
+    discountAmount,
     tax,
     total,
+    amountPaid,
+    paymentMethod,
     note,
     createdBy,
     createdAt,
@@ -278,6 +343,15 @@ class $InvoicesTableTable extends InvoicesTable
     } else if (isInserting) {
       context.missing(_customerNameMeta);
     }
+    if (data.containsKey('customer_phone')) {
+      context.handle(
+        _customerPhoneMeta,
+        customerPhone.isAcceptableOrUnknown(
+          data['customer_phone']!,
+          _customerPhoneMeta,
+        ),
+      );
+    }
     if (data.containsKey('invoice_number')) {
       context.handle(
         _invoiceNumberMeta,
@@ -311,6 +385,12 @@ class $InvoicesTableTable extends InvoicesTable
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
     }
+    if (data.containsKey('doc_type')) {
+      context.handle(
+        _docTypeMeta,
+        docType.isAcceptableOrUnknown(data['doc_type']!, _docTypeMeta),
+      );
+    }
     if (data.containsKey('subtotal')) {
       context.handle(
         _subtotalMeta,
@@ -318,6 +398,15 @@ class $InvoicesTableTable extends InvoicesTable
       );
     } else if (isInserting) {
       context.missing(_subtotalMeta);
+    }
+    if (data.containsKey('discount_amount')) {
+      context.handle(
+        _discountAmountMeta,
+        discountAmount.isAcceptableOrUnknown(
+          data['discount_amount']!,
+          _discountAmountMeta,
+        ),
+      );
     }
     if (data.containsKey('tax')) {
       context.handle(
@@ -334,6 +423,21 @@ class $InvoicesTableTable extends InvoicesTable
       );
     } else if (isInserting) {
       context.missing(_totalMeta);
+    }
+    if (data.containsKey('amount_paid')) {
+      context.handle(
+        _amountPaidMeta,
+        amountPaid.isAcceptableOrUnknown(data['amount_paid']!, _amountPaidMeta),
+      );
+    }
+    if (data.containsKey('payment_method')) {
+      context.handle(
+        _paymentMethodMeta,
+        paymentMethod.isAcceptableOrUnknown(
+          data['payment_method']!,
+          _paymentMethodMeta,
+        ),
+      );
     }
     if (data.containsKey('note')) {
       context.handle(
@@ -418,6 +522,10 @@ class $InvoicesTableTable extends InvoicesTable
         DriftSqlType.string,
         data['${effectivePrefix}customer_name'],
       )!,
+      customerPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}customer_phone'],
+      )!,
       invoiceNumber: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}invoice_number'],
@@ -434,9 +542,17 @@ class $InvoicesTableTable extends InvoicesTable
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      docType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}doc_type'],
+      )!,
       subtotal: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}subtotal'],
+      )!,
+      discountAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}discount_amount'],
       )!,
       tax: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
@@ -445,6 +561,14 @@ class $InvoicesTableTable extends InvoicesTable
       total: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}total'],
+      )!,
+      amountPaid: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount_paid'],
+      )!,
+      paymentMethod: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_method'],
       )!,
       note: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -493,13 +617,18 @@ class InvoicesTableData extends DataClass
   final String businessId;
   final String customerId;
   final String customerName;
+  final String customerPhone;
   final String invoiceNumber;
   final String date;
   final String dueDate;
   final String status;
+  final String docType;
   final double subtotal;
+  final double discountAmount;
   final double tax;
   final double total;
+  final double amountPaid;
+  final String paymentMethod;
   final String note;
   final String createdBy;
   final int createdAt;
@@ -513,13 +642,18 @@ class InvoicesTableData extends DataClass
     required this.businessId,
     required this.customerId,
     required this.customerName,
+    required this.customerPhone,
     required this.invoiceNumber,
     required this.date,
     required this.dueDate,
     required this.status,
+    required this.docType,
     required this.subtotal,
+    required this.discountAmount,
     required this.tax,
     required this.total,
+    required this.amountPaid,
+    required this.paymentMethod,
     required this.note,
     required this.createdBy,
     required this.createdAt,
@@ -536,13 +670,18 @@ class InvoicesTableData extends DataClass
     map['business_id'] = Variable<String>(businessId);
     map['customer_id'] = Variable<String>(customerId);
     map['customer_name'] = Variable<String>(customerName);
+    map['customer_phone'] = Variable<String>(customerPhone);
     map['invoice_number'] = Variable<String>(invoiceNumber);
     map['date'] = Variable<String>(date);
     map['due_date'] = Variable<String>(dueDate);
     map['status'] = Variable<String>(status);
+    map['doc_type'] = Variable<String>(docType);
     map['subtotal'] = Variable<double>(subtotal);
+    map['discount_amount'] = Variable<double>(discountAmount);
     map['tax'] = Variable<double>(tax);
     map['total'] = Variable<double>(total);
+    map['amount_paid'] = Variable<double>(amountPaid);
+    map['payment_method'] = Variable<String>(paymentMethod);
     map['note'] = Variable<String>(note);
     map['created_by'] = Variable<String>(createdBy);
     map['created_at'] = Variable<int>(createdAt);
@@ -562,13 +701,18 @@ class InvoicesTableData extends DataClass
       businessId: Value(businessId),
       customerId: Value(customerId),
       customerName: Value(customerName),
+      customerPhone: Value(customerPhone),
       invoiceNumber: Value(invoiceNumber),
       date: Value(date),
       dueDate: Value(dueDate),
       status: Value(status),
+      docType: Value(docType),
       subtotal: Value(subtotal),
+      discountAmount: Value(discountAmount),
       tax: Value(tax),
       total: Value(total),
+      amountPaid: Value(amountPaid),
+      paymentMethod: Value(paymentMethod),
       note: Value(note),
       createdBy: Value(createdBy),
       createdAt: Value(createdAt),
@@ -592,13 +736,18 @@ class InvoicesTableData extends DataClass
       businessId: serializer.fromJson<String>(json['businessId']),
       customerId: serializer.fromJson<String>(json['customerId']),
       customerName: serializer.fromJson<String>(json['customerName']),
+      customerPhone: serializer.fromJson<String>(json['customerPhone']),
       invoiceNumber: serializer.fromJson<String>(json['invoiceNumber']),
       date: serializer.fromJson<String>(json['date']),
       dueDate: serializer.fromJson<String>(json['dueDate']),
       status: serializer.fromJson<String>(json['status']),
+      docType: serializer.fromJson<String>(json['docType']),
       subtotal: serializer.fromJson<double>(json['subtotal']),
+      discountAmount: serializer.fromJson<double>(json['discountAmount']),
       tax: serializer.fromJson<double>(json['tax']),
       total: serializer.fromJson<double>(json['total']),
+      amountPaid: serializer.fromJson<double>(json['amountPaid']),
+      paymentMethod: serializer.fromJson<String>(json['paymentMethod']),
       note: serializer.fromJson<String>(json['note']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -617,13 +766,18 @@ class InvoicesTableData extends DataClass
       'businessId': serializer.toJson<String>(businessId),
       'customerId': serializer.toJson<String>(customerId),
       'customerName': serializer.toJson<String>(customerName),
+      'customerPhone': serializer.toJson<String>(customerPhone),
       'invoiceNumber': serializer.toJson<String>(invoiceNumber),
       'date': serializer.toJson<String>(date),
       'dueDate': serializer.toJson<String>(dueDate),
       'status': serializer.toJson<String>(status),
+      'docType': serializer.toJson<String>(docType),
       'subtotal': serializer.toJson<double>(subtotal),
+      'discountAmount': serializer.toJson<double>(discountAmount),
       'tax': serializer.toJson<double>(tax),
       'total': serializer.toJson<double>(total),
+      'amountPaid': serializer.toJson<double>(amountPaid),
+      'paymentMethod': serializer.toJson<String>(paymentMethod),
       'note': serializer.toJson<String>(note),
       'createdBy': serializer.toJson<String>(createdBy),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -640,13 +794,18 @@ class InvoicesTableData extends DataClass
     String? businessId,
     String? customerId,
     String? customerName,
+    String? customerPhone,
     String? invoiceNumber,
     String? date,
     String? dueDate,
     String? status,
+    String? docType,
     double? subtotal,
+    double? discountAmount,
     double? tax,
     double? total,
+    double? amountPaid,
+    String? paymentMethod,
     String? note,
     String? createdBy,
     int? createdAt,
@@ -660,13 +819,18 @@ class InvoicesTableData extends DataClass
     businessId: businessId ?? this.businessId,
     customerId: customerId ?? this.customerId,
     customerName: customerName ?? this.customerName,
+    customerPhone: customerPhone ?? this.customerPhone,
     invoiceNumber: invoiceNumber ?? this.invoiceNumber,
     date: date ?? this.date,
     dueDate: dueDate ?? this.dueDate,
     status: status ?? this.status,
+    docType: docType ?? this.docType,
     subtotal: subtotal ?? this.subtotal,
+    discountAmount: discountAmount ?? this.discountAmount,
     tax: tax ?? this.tax,
     total: total ?? this.total,
+    amountPaid: amountPaid ?? this.amountPaid,
+    paymentMethod: paymentMethod ?? this.paymentMethod,
     note: note ?? this.note,
     createdBy: createdBy ?? this.createdBy,
     createdAt: createdAt ?? this.createdAt,
@@ -690,15 +854,28 @@ class InvoicesTableData extends DataClass
       customerName: data.customerName.present
           ? data.customerName.value
           : this.customerName,
+      customerPhone: data.customerPhone.present
+          ? data.customerPhone.value
+          : this.customerPhone,
       invoiceNumber: data.invoiceNumber.present
           ? data.invoiceNumber.value
           : this.invoiceNumber,
       date: data.date.present ? data.date.value : this.date,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
       status: data.status.present ? data.status.value : this.status,
+      docType: data.docType.present ? data.docType.value : this.docType,
       subtotal: data.subtotal.present ? data.subtotal.value : this.subtotal,
+      discountAmount: data.discountAmount.present
+          ? data.discountAmount.value
+          : this.discountAmount,
       tax: data.tax.present ? data.tax.value : this.tax,
       total: data.total.present ? data.total.value : this.total,
+      amountPaid: data.amountPaid.present
+          ? data.amountPaid.value
+          : this.amountPaid,
+      paymentMethod: data.paymentMethod.present
+          ? data.paymentMethod.value
+          : this.paymentMethod,
       note: data.note.present ? data.note.value : this.note,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -723,13 +900,18 @@ class InvoicesTableData extends DataClass
           ..write('businessId: $businessId, ')
           ..write('customerId: $customerId, ')
           ..write('customerName: $customerName, ')
+          ..write('customerPhone: $customerPhone, ')
           ..write('invoiceNumber: $invoiceNumber, ')
           ..write('date: $date, ')
           ..write('dueDate: $dueDate, ')
           ..write('status: $status, ')
+          ..write('docType: $docType, ')
           ..write('subtotal: $subtotal, ')
+          ..write('discountAmount: $discountAmount, ')
           ..write('tax: $tax, ')
           ..write('total: $total, ')
+          ..write('amountPaid: $amountPaid, ')
+          ..write('paymentMethod: $paymentMethod, ')
           ..write('note: $note, ')
           ..write('createdBy: $createdBy, ')
           ..write('createdAt: $createdAt, ')
@@ -743,18 +925,23 @@ class InvoicesTableData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     businessId,
     customerId,
     customerName,
+    customerPhone,
     invoiceNumber,
     date,
     dueDate,
     status,
+    docType,
     subtotal,
+    discountAmount,
     tax,
     total,
+    amountPaid,
+    paymentMethod,
     note,
     createdBy,
     createdAt,
@@ -763,7 +950,7 @@ class InvoicesTableData extends DataClass
     syncStatus,
     localVersion,
     isDeleted,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -772,13 +959,18 @@ class InvoicesTableData extends DataClass
           other.businessId == this.businessId &&
           other.customerId == this.customerId &&
           other.customerName == this.customerName &&
+          other.customerPhone == this.customerPhone &&
           other.invoiceNumber == this.invoiceNumber &&
           other.date == this.date &&
           other.dueDate == this.dueDate &&
           other.status == this.status &&
+          other.docType == this.docType &&
           other.subtotal == this.subtotal &&
+          other.discountAmount == this.discountAmount &&
           other.tax == this.tax &&
           other.total == this.total &&
+          other.amountPaid == this.amountPaid &&
+          other.paymentMethod == this.paymentMethod &&
           other.note == this.note &&
           other.createdBy == this.createdBy &&
           other.createdAt == this.createdAt &&
@@ -794,13 +986,18 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
   final Value<String> businessId;
   final Value<String> customerId;
   final Value<String> customerName;
+  final Value<String> customerPhone;
   final Value<String> invoiceNumber;
   final Value<String> date;
   final Value<String> dueDate;
   final Value<String> status;
+  final Value<String> docType;
   final Value<double> subtotal;
+  final Value<double> discountAmount;
   final Value<double> tax;
   final Value<double> total;
+  final Value<double> amountPaid;
+  final Value<String> paymentMethod;
   final Value<String> note;
   final Value<String> createdBy;
   final Value<int> createdAt;
@@ -815,13 +1012,18 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     this.businessId = const Value.absent(),
     this.customerId = const Value.absent(),
     this.customerName = const Value.absent(),
+    this.customerPhone = const Value.absent(),
     this.invoiceNumber = const Value.absent(),
     this.date = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.status = const Value.absent(),
+    this.docType = const Value.absent(),
     this.subtotal = const Value.absent(),
+    this.discountAmount = const Value.absent(),
     this.tax = const Value.absent(),
     this.total = const Value.absent(),
+    this.amountPaid = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
     this.note = const Value.absent(),
     this.createdBy = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -837,13 +1039,18 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     required String businessId,
     required String customerId,
     required String customerName,
+    this.customerPhone = const Value.absent(),
     required String invoiceNumber,
     required String date,
     required String dueDate,
     this.status = const Value.absent(),
+    this.docType = const Value.absent(),
     required double subtotal,
+    this.discountAmount = const Value.absent(),
     required double tax,
     required double total,
+    this.amountPaid = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
     this.note = const Value.absent(),
     this.createdBy = const Value.absent(),
     required int createdAt,
@@ -870,13 +1077,18 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     Expression<String>? businessId,
     Expression<String>? customerId,
     Expression<String>? customerName,
+    Expression<String>? customerPhone,
     Expression<String>? invoiceNumber,
     Expression<String>? date,
     Expression<String>? dueDate,
     Expression<String>? status,
+    Expression<String>? docType,
     Expression<double>? subtotal,
+    Expression<double>? discountAmount,
     Expression<double>? tax,
     Expression<double>? total,
+    Expression<double>? amountPaid,
+    Expression<String>? paymentMethod,
     Expression<String>? note,
     Expression<String>? createdBy,
     Expression<int>? createdAt,
@@ -892,13 +1104,18 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
       if (businessId != null) 'business_id': businessId,
       if (customerId != null) 'customer_id': customerId,
       if (customerName != null) 'customer_name': customerName,
+      if (customerPhone != null) 'customer_phone': customerPhone,
       if (invoiceNumber != null) 'invoice_number': invoiceNumber,
       if (date != null) 'date': date,
       if (dueDate != null) 'due_date': dueDate,
       if (status != null) 'status': status,
+      if (docType != null) 'doc_type': docType,
       if (subtotal != null) 'subtotal': subtotal,
+      if (discountAmount != null) 'discount_amount': discountAmount,
       if (tax != null) 'tax': tax,
       if (total != null) 'total': total,
+      if (amountPaid != null) 'amount_paid': amountPaid,
+      if (paymentMethod != null) 'payment_method': paymentMethod,
       if (note != null) 'note': note,
       if (createdBy != null) 'created_by': createdBy,
       if (createdAt != null) 'created_at': createdAt,
@@ -916,13 +1133,18 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     Value<String>? businessId,
     Value<String>? customerId,
     Value<String>? customerName,
+    Value<String>? customerPhone,
     Value<String>? invoiceNumber,
     Value<String>? date,
     Value<String>? dueDate,
     Value<String>? status,
+    Value<String>? docType,
     Value<double>? subtotal,
+    Value<double>? discountAmount,
     Value<double>? tax,
     Value<double>? total,
+    Value<double>? amountPaid,
+    Value<String>? paymentMethod,
     Value<String>? note,
     Value<String>? createdBy,
     Value<int>? createdAt,
@@ -938,13 +1160,18 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
       businessId: businessId ?? this.businessId,
       customerId: customerId ?? this.customerId,
       customerName: customerName ?? this.customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
       date: date ?? this.date,
       dueDate: dueDate ?? this.dueDate,
       status: status ?? this.status,
+      docType: docType ?? this.docType,
       subtotal: subtotal ?? this.subtotal,
+      discountAmount: discountAmount ?? this.discountAmount,
       tax: tax ?? this.tax,
       total: total ?? this.total,
+      amountPaid: amountPaid ?? this.amountPaid,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       note: note ?? this.note,
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
@@ -972,6 +1199,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     if (customerName.present) {
       map['customer_name'] = Variable<String>(customerName.value);
     }
+    if (customerPhone.present) {
+      map['customer_phone'] = Variable<String>(customerPhone.value);
+    }
     if (invoiceNumber.present) {
       map['invoice_number'] = Variable<String>(invoiceNumber.value);
     }
@@ -984,14 +1214,26 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (docType.present) {
+      map['doc_type'] = Variable<String>(docType.value);
+    }
     if (subtotal.present) {
       map['subtotal'] = Variable<double>(subtotal.value);
+    }
+    if (discountAmount.present) {
+      map['discount_amount'] = Variable<double>(discountAmount.value);
     }
     if (tax.present) {
       map['tax'] = Variable<double>(tax.value);
     }
     if (total.present) {
       map['total'] = Variable<double>(total.value);
+    }
+    if (amountPaid.present) {
+      map['amount_paid'] = Variable<double>(amountPaid.value);
+    }
+    if (paymentMethod.present) {
+      map['payment_method'] = Variable<String>(paymentMethod.value);
     }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
@@ -1030,13 +1272,18 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
           ..write('businessId: $businessId, ')
           ..write('customerId: $customerId, ')
           ..write('customerName: $customerName, ')
+          ..write('customerPhone: $customerPhone, ')
           ..write('invoiceNumber: $invoiceNumber, ')
           ..write('date: $date, ')
           ..write('dueDate: $dueDate, ')
           ..write('status: $status, ')
+          ..write('docType: $docType, ')
           ..write('subtotal: $subtotal, ')
+          ..write('discountAmount: $discountAmount, ')
           ..write('tax: $tax, ')
           ..write('total: $total, ')
+          ..write('amountPaid: $amountPaid, ')
+          ..write('paymentMethod: $paymentMethod, ')
           ..write('note: $note, ')
           ..write('createdBy: $createdBy, ')
           ..write('createdAt: $createdAt, ')
@@ -13261,13 +13508,18 @@ typedef $$InvoicesTableTableCreateCompanionBuilder =
       required String businessId,
       required String customerId,
       required String customerName,
+      Value<String> customerPhone,
       required String invoiceNumber,
       required String date,
       required String dueDate,
       Value<String> status,
+      Value<String> docType,
       required double subtotal,
+      Value<double> discountAmount,
       required double tax,
       required double total,
+      Value<double> amountPaid,
+      Value<String> paymentMethod,
       Value<String> note,
       Value<String> createdBy,
       required int createdAt,
@@ -13284,13 +13536,18 @@ typedef $$InvoicesTableTableUpdateCompanionBuilder =
       Value<String> businessId,
       Value<String> customerId,
       Value<String> customerName,
+      Value<String> customerPhone,
       Value<String> invoiceNumber,
       Value<String> date,
       Value<String> dueDate,
       Value<String> status,
+      Value<String> docType,
       Value<double> subtotal,
+      Value<double> discountAmount,
       Value<double> tax,
       Value<double> total,
+      Value<double> amountPaid,
+      Value<String> paymentMethod,
       Value<String> note,
       Value<String> createdBy,
       Value<int> createdAt,
@@ -13368,6 +13625,11 @@ class $$InvoicesTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get customerPhone => $composableBuilder(
+    column: $table.customerPhone,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get invoiceNumber => $composableBuilder(
     column: $table.invoiceNumber,
     builder: (column) => ColumnFilters(column),
@@ -13388,8 +13650,18 @@ class $$InvoicesTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get docType => $composableBuilder(
+    column: $table.docType,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<double> get subtotal => $composableBuilder(
     column: $table.subtotal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get discountAmount => $composableBuilder(
+    column: $table.discountAmount,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13400,6 +13672,16 @@ class $$InvoicesTableTableFilterComposer
 
   ColumnFilters<double> get total => $composableBuilder(
     column: $table.total,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amountPaid => $composableBuilder(
+    column: $table.amountPaid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13498,6 +13780,11 @@ class $$InvoicesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get customerPhone => $composableBuilder(
+    column: $table.customerPhone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get invoiceNumber => $composableBuilder(
     column: $table.invoiceNumber,
     builder: (column) => ColumnOrderings(column),
@@ -13518,8 +13805,18 @@ class $$InvoicesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get docType => $composableBuilder(
+    column: $table.docType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get subtotal => $composableBuilder(
     column: $table.subtotal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get discountAmount => $composableBuilder(
+    column: $table.discountAmount,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -13530,6 +13827,16 @@ class $$InvoicesTableTableOrderingComposer
 
   ColumnOrderings<double> get total => $composableBuilder(
     column: $table.total,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amountPaid => $composableBuilder(
+    column: $table.amountPaid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -13601,6 +13908,11 @@ class $$InvoicesTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get customerPhone => $composableBuilder(
+    column: $table.customerPhone,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get invoiceNumber => $composableBuilder(
     column: $table.invoiceNumber,
     builder: (column) => column,
@@ -13615,14 +13927,32 @@ class $$InvoicesTableTableAnnotationComposer
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
+  GeneratedColumn<String> get docType =>
+      $composableBuilder(column: $table.docType, builder: (column) => column);
+
   GeneratedColumn<double> get subtotal =>
       $composableBuilder(column: $table.subtotal, builder: (column) => column);
+
+  GeneratedColumn<double> get discountAmount => $composableBuilder(
+    column: $table.discountAmount,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get tax =>
       $composableBuilder(column: $table.tax, builder: (column) => column);
 
   GeneratedColumn<double> get total =>
       $composableBuilder(column: $table.total, builder: (column) => column);
+
+  GeneratedColumn<double> get amountPaid => $composableBuilder(
+    column: $table.amountPaid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
@@ -13713,13 +14043,18 @@ class $$InvoicesTableTableTableManager
                 Value<String> businessId = const Value.absent(),
                 Value<String> customerId = const Value.absent(),
                 Value<String> customerName = const Value.absent(),
+                Value<String> customerPhone = const Value.absent(),
                 Value<String> invoiceNumber = const Value.absent(),
                 Value<String> date = const Value.absent(),
                 Value<String> dueDate = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String> docType = const Value.absent(),
                 Value<double> subtotal = const Value.absent(),
+                Value<double> discountAmount = const Value.absent(),
                 Value<double> tax = const Value.absent(),
                 Value<double> total = const Value.absent(),
+                Value<double> amountPaid = const Value.absent(),
+                Value<String> paymentMethod = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -13734,13 +14069,18 @@ class $$InvoicesTableTableTableManager
                 businessId: businessId,
                 customerId: customerId,
                 customerName: customerName,
+                customerPhone: customerPhone,
                 invoiceNumber: invoiceNumber,
                 date: date,
                 dueDate: dueDate,
                 status: status,
+                docType: docType,
                 subtotal: subtotal,
+                discountAmount: discountAmount,
                 tax: tax,
                 total: total,
+                amountPaid: amountPaid,
+                paymentMethod: paymentMethod,
                 note: note,
                 createdBy: createdBy,
                 createdAt: createdAt,
@@ -13757,13 +14097,18 @@ class $$InvoicesTableTableTableManager
                 required String businessId,
                 required String customerId,
                 required String customerName,
+                Value<String> customerPhone = const Value.absent(),
                 required String invoiceNumber,
                 required String date,
                 required String dueDate,
                 Value<String> status = const Value.absent(),
+                Value<String> docType = const Value.absent(),
                 required double subtotal,
+                Value<double> discountAmount = const Value.absent(),
                 required double tax,
                 required double total,
+                Value<double> amountPaid = const Value.absent(),
+                Value<String> paymentMethod = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
                 required int createdAt,
@@ -13778,13 +14123,18 @@ class $$InvoicesTableTableTableManager
                 businessId: businessId,
                 customerId: customerId,
                 customerName: customerName,
+                customerPhone: customerPhone,
                 invoiceNumber: invoiceNumber,
                 date: date,
                 dueDate: dueDate,
                 status: status,
+                docType: docType,
                 subtotal: subtotal,
+                discountAmount: discountAmount,
                 tax: tax,
                 total: total,
+                amountPaid: amountPaid,
+                paymentMethod: paymentMethod,
                 note: note,
                 createdBy: createdBy,
                 createdAt: createdAt,

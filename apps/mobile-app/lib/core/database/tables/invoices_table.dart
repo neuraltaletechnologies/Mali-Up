@@ -8,13 +8,19 @@ class InvoicesTable extends Table {
   TextColumn get businessId => text()();
   TextColumn get customerId => text()();
   TextColumn get customerName => text()();
+  TextColumn get customerPhone => text().withDefault(const Constant(''))();
   TextColumn get invoiceNumber => text()();
   TextColumn get date => text()();
   TextColumn get dueDate => text()();
   TextColumn get status => text().withDefault(const Constant('pending'))();
+  // 'invoice' | 'quotation'
+  TextColumn get docType => text().withDefault(const Constant('invoice'))();
   RealColumn get subtotal => real()();
+  RealColumn get discountAmount => real().withDefault(const Constant(0))();
   RealColumn get tax => real()();
   RealColumn get total => real()();
+  RealColumn get amountPaid => real().withDefault(const Constant(0))();
+  TextColumn get paymentMethod => text().withDefault(const Constant(''))();
   TextColumn get note => text().withDefault(const Constant(''))();
   TextColumn get createdBy => text().withDefault(const Constant(''))();
 

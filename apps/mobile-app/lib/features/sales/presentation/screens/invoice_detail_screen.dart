@@ -1,17 +1,22 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../rbac/data/audit_log_service.dart';
+import '../../../rbac/data/rbac_providers.dart';
 import '../../data/sales_providers.dart';
 import 'create_invoice_screen.dart';
+import 'sales_return_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -75,6 +80,16 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   String get _invoiceNumber =>
       _inv['invoiceNumber']?.toString() ?? _inv['id']?.toString() ?? '—';
 
+  // Role-based action visibility: accountants get read-only sales access.
+  bool get _canEdit => ref.read(permissionServiceProvider).canEditSale;
+  bool get _canTakePayment {
+    final ps = ref.read(permissionServiceProvider);
+    return ps.canCreateSale || ps.canEditSale;
+  }
+
+  bool get _canReturn => ref.read(permissionServiceProvider).canIssueRefund;
+  bool get _canAct => _canEdit || _canTakePayment || _canReturn;
+
   String get _customerName =>
       _inv['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
   String get _customerPhone => _inv['customerPhone']?.toString() ?? '';
@@ -108,19 +123,42 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   Future<void> _updateStatus(String newStatus) async {
     setState(() => _updating = true);
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
       final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
       final col = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'sales_invoices');
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'sales_invoices');
       await col.doc(_inv['id'] as String).update({
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
-        if (newStatus == 'paid') 'paidAt': FieldValue.serverTimestamp(),
+        if (newStatus == 'paid') ...{
+          'paidAt': FieldValue.serverTimestamp(),
+          // Marking paid settles the full balance.
+          'amountPaid': _total,
+        },
       });
+      if (newStatus == 'cancelled') {
+        unawaited(AuditLogService().logSaleAction(
+          ownerUid: scope.ownerUid,
+          businessId: scope.businessId,
+          performedByUid: scope.userUid,
+          performedByRole: ref.read(currentUserRoleProvider),
+          action: AuditLogService.invoiceCancelled,
+          invoiceId: _inv['id'] as String,
+          invoiceNumber: _invoiceNumber,
+          amount: _total,
+        ));
+      }
+      unawaited(ref.read(syncServiceProvider).syncNow());
+      if (!mounted) return;
       setState(() {
-        _inv = {..._inv, 'status': newStatus};
+        _inv = {
+          ..._inv,
+          'status': newStatus,
+          if (newStatus == 'paid') 'amountPaid': _total,
+        };
         _updating = false;
       });
     } catch (e) {
@@ -129,17 +167,68 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     }
   }
 
+  /// One-tap quotation → invoice conversion. Keeps every line item, deducts
+  /// stock for inventory-linked lines (quotations never touched stock) and
+  /// commits everything atomically.
   Future<void> _convertToInvoice() async {
-    await _updateStatus('sent');
-    setState(() => _inv = {..._inv, 'type': 'invoice'});
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final repo = ref.read(contextFirestoreRepositoryProvider);
-    final ctx = await repo.resolveContextForUser(user.uid);
-    final col = repo.scopeCollection(
-        uid: user.uid, context: ctx, childCollection: 'sales_invoices');
-    await col.doc(_inv['id'] as String).update({'type': 'invoice'});
-    _showSnack(_tr('Converted to invoice', 'Imebadilishwa kuwa ankara'));
+    if (!_isQuotation) return;
+    setState(() => _updating = true);
+    try {
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final col = repo.scopeCollection(
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'sales_invoices');
+      final inventoryCol = repo.scopeCollection(
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'inventory_items');
+
+      final batch = FirebaseFirestore.instance.batch();
+      batch.update(col.doc(_inv['id'] as String), {
+        'type': 'invoice',
+        'status': 'sent',
+        'convertedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      for (final item in _lineItems) {
+        final productId =
+            (item['productId'] ?? item['inventoryItemId'] ?? '').toString();
+        if (productId.isEmpty) continue;
+        final qty = parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1);
+        batch.set(
+            inventoryCol.doc(productId),
+            {
+              'currentStock': FieldValue.increment(-qty),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
+      }
+      await batch.commit();
+
+      unawaited(AuditLogService().logSaleAction(
+        ownerUid: scope.ownerUid,
+        businessId: scope.businessId,
+        performedByUid: scope.userUid,
+        performedByRole: ref.read(currentUserRoleProvider),
+        action: AuditLogService.quotationConverted,
+        invoiceId: _inv['id'] as String,
+        invoiceNumber: _invoiceNumber,
+        amount: _total,
+      ));
+      unawaited(ref.read(syncServiceProvider).syncNow());
+      if (!mounted) return;
+      setState(() {
+        _inv = {..._inv, 'type': 'invoice', 'status': 'sent'};
+        _updating = false;
+      });
+      _showSnack(_tr('Converted to invoice', 'Imebadilishwa kuwa ankara'));
+    } catch (e) {
+      _showSnack(_tr('Update failed: $e', 'Imeshindwa kusasisha: $e'));
+      if (mounted) setState(() => _updating = false);
+    }
   }
 
   void _openEdit() {
@@ -152,8 +241,20 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     ));
   }
 
-  void _openReturn() {
-    Navigator.of(context).pushNamed('/sales-return', arguments: _inv);
+  Future<void> _openReturn() async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => SalesReturnScreen(originalInvoice: _inv),
+      ),
+    );
+    if (result?['saved'] == true && mounted) {
+      setState(() => _inv = {
+            ..._inv,
+            'hasReturn': true,
+            if (result?['creditNoteNumber'] != null)
+              'creditNoteNumber': result!['creditNoteNumber'],
+          });
+    }
   }
 
   Future<void> _recordPayment() async {
@@ -164,14 +265,102 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _RecordPaymentSheet(
-        outstanding: _outstanding,
-        invoiceId: _inv['id'] as String,
-      ),
+      builder: (_) => _RecordPaymentSheet(outstanding: _outstanding),
     );
 
-    if (result != null && result['paid'] == true) {
-      await _updateStatus('paid');
+    final amount = parseNumericAmount(result?['amount']);
+    if (result == null || amount <= 0) return;
+
+    setState(() => _updating = true);
+    try {
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+
+      // A payment can never exceed what is still owed.
+      final received = amount > _outstanding ? _outstanding : amount;
+      final newAmountPaid = _amountPaid + received;
+      final fullySettled = newAmountPaid >= _total - 0.005;
+      final newStatus = fullySettled ? 'paid' : 'partial';
+      final method = (result['method'] ?? 'cash').toString();
+      final reference = (result['reference'] ?? '').toString();
+      final customerId = (_inv['customerId'] ?? '').toString();
+
+      // Atomic: payment record + invoice balance + customer balance.
+      final batch = FirebaseFirestore.instance.batch();
+      final paymentsCol = repo.scopeCollection(
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'invoice_payments');
+      batch.set(paymentsCol.doc(), {
+        'invoiceId': _inv['id'],
+        'invoiceNumber': _invoiceNumber,
+        'businessId': scope.businessId,
+        if (customerId.isNotEmpty) 'customerId': customerId,
+        'amount': received,
+        'method': method,
+        if (reference.isNotEmpty) 'reference': reference,
+        'recordedBy': scope.userUid,
+        'recordedAt': FieldValue.serverTimestamp(),
+      });
+
+      final invoicesCol = repo.scopeCollection(
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'sales_invoices');
+      batch.update(invoicesCol.doc(_inv['id'] as String), {
+        'amountPaid': FieldValue.increment(received),
+        'status': newStatus,
+        'paymentMethod': method,
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (fullySettled) 'paidAt': FieldValue.serverTimestamp(),
+      });
+
+      if (customerId.isNotEmpty) {
+        final customersCol = repo.scopeCollection(
+            uid: scope.ownerUid,
+            context: scope.context,
+            childCollection: 'customers');
+        batch.set(
+            customersCol.doc(customerId),
+            {
+              'balance': FieldValue.increment(-received),
+              'lastTransactionDate': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
+      }
+
+      await batch.commit();
+
+      unawaited(AuditLogService().logSaleAction(
+        ownerUid: scope.ownerUid,
+        businessId: scope.businessId,
+        performedByUid: scope.userUid,
+        performedByRole: ref.read(currentUserRoleProvider),
+        action: AuditLogService.paymentReceived,
+        invoiceId: _inv['id'] as String,
+        invoiceNumber: _invoiceNumber,
+        amount: received,
+        details: method,
+      ));
+      unawaited(ref.read(syncServiceProvider).syncNow());
+      if (!mounted) return;
+      setState(() {
+        _inv = {
+          ..._inv,
+          'amountPaid': newAmountPaid,
+          'status': newStatus,
+          'paymentMethod': method,
+        };
+        _updating = false;
+      });
+      _showSnack(fullySettled
+          ? _tr('Invoice fully paid!', 'Ankara imelipwa kamili!')
+          : _tr('Payment recorded — TZS ${_fmtNum(received)} received.',
+              'Malipo yamerekodiwa — TZS ${_fmtNum(received)} imepokelewa.'));
+    } catch (e) {
+      _showSnack(_tr('Payment failed: $e', 'Malipo yameshindikana: $e'));
+      if (mounted) setState(() => _updating = false);
     }
   }
 
@@ -296,19 +485,21 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
               const SizedBox(height: 16),
               _NotesCard(notes: _inv['notes'].toString()),
             ],
-            const SizedBox(height: 16),
-            _ActionsCard(
-              status: _status,
-              isQuotation: _isQuotation,
-              updating: _updating,
-              onMarkPaid: () => _updateStatus('paid'),
-              onMarkSent: () => _updateStatus('sent'),
-              onCancel: () => _confirmCancel(),
-              onConvert: _convertToInvoice,
-              onEdit: _openEdit,
-              onReturn: _openReturn,
-              onRecordPayment: _recordPayment,
-            ),
+            if (_canAct) ...[
+              const SizedBox(height: 16),
+              _ActionsCard(
+                status: _status,
+                isQuotation: _isQuotation,
+                updating: _updating,
+                onMarkPaid: _canTakePayment ? () => _updateStatus('paid') : null,
+                onMarkSent: _canEdit ? () => _updateStatus('sent') : null,
+                onCancel: _canEdit ? () => _confirmCancel() : null,
+                onConvert: _canEdit ? _convertToInvoice : null,
+                onEdit: _canEdit ? _openEdit : null,
+                onReturn: _canReturn ? _openReturn : null,
+                onRecordPayment: _canTakePayment ? _recordPayment : null,
+              ),
+            ],
             const SizedBox(height: 40),
           ],
         ),
@@ -333,11 +524,12 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         onPressed: () => Navigator.of(context).pop(),
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_rounded, size: 20),
-          tooltip: _tr('Edit', 'Hariri'),
-          onPressed: _openEdit,
-        ),
+        if (_canEdit)
+          IconButton(
+            icon: const Icon(Icons.edit_rounded, size: 20),
+            tooltip: _tr('Edit', 'Hariri'),
+            onPressed: _openEdit,
+          ),
       ],
     );
   }
@@ -1037,13 +1229,14 @@ class _ActionsCard extends StatelessWidget {
   final String status;
   final bool isQuotation;
   final bool updating;
-  final VoidCallback onMarkPaid;
-  final VoidCallback onMarkSent;
-  final VoidCallback onCancel;
-  final VoidCallback onConvert;
-  final VoidCallback onEdit;
-  final VoidCallback onReturn;
-  final VoidCallback onRecordPayment;
+  // Null callback = the current role may not perform the action (tile hidden).
+  final VoidCallback? onMarkPaid;
+  final VoidCallback? onMarkSent;
+  final VoidCallback? onCancel;
+  final VoidCallback? onConvert;
+  final VoidCallback? onEdit;
+  final VoidCallback? onReturn;
+  final VoidCallback? onRecordPayment;
 
   const _ActionsCard({
     required this.status,
@@ -1082,7 +1275,7 @@ class _ActionsCard extends StatelessWidget {
                 color: AppColors.textSecondary),
           ),
           const SizedBox(height: 12),
-          if (isQuotation && !isCancelled) ...[
+          if (isQuotation && !isCancelled && onConvert != null) ...[
             _ActionTile(
               icon: Icons.swap_horiz_rounded,
               label: _tr('Convert to Invoice', 'Badilisha kuwa Ankara'),
@@ -1091,7 +1284,8 @@ class _ActionsCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          if (!isPaid && !isCancelled && !isQuotation) ...[
+          if (!isPaid && !isCancelled && !isQuotation &&
+              onRecordPayment != null) ...[
             _ActionTile(
               icon: Icons.check_circle_rounded,
               label: _tr('Mark as Paid', 'Weka kama Imelipwa'),
@@ -1107,7 +1301,7 @@ class _ActionsCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          if (isDraft && !isQuotation) ...[
+          if (isDraft && !isQuotation && onMarkSent != null) ...[
             _ActionTile(
               icon: Icons.send_rounded,
               label: _tr('Mark as Sent', 'Weka kama Imetumwa'),
@@ -1116,7 +1310,7 @@ class _ActionsCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          if (isPaid && !isQuotation) ...[
+          if (isPaid && !isQuotation && onReturn != null) ...[
             _ActionTile(
               icon: Icons.undo_rounded,
               label: _tr('Issue Credit Note / Return',
@@ -1126,7 +1320,7 @@ class _ActionsCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          if (!isCancelled) ...[
+          if (!isCancelled && onEdit != null) ...[
             _ActionTile(
               icon: Icons.edit_rounded,
               label: _tr('Edit Invoice', 'Hariri Ankara'),
@@ -1212,10 +1406,8 @@ class _ActionTile extends StatelessWidget {
 
 class _RecordPaymentSheet extends ConsumerStatefulWidget {
   final double outstanding;
-  final String invoiceId;
 
-  const _RecordPaymentSheet(
-      {required this.outstanding, required this.invoiceId});
+  const _RecordPaymentSheet({required this.outstanding});
 
   @override
   ConsumerState<_RecordPaymentSheet> createState() =>
@@ -1227,7 +1419,7 @@ class _RecordPaymentSheetState
   final _amountCtrl = TextEditingController();
   final _refCtrl = TextEditingController();
   String _method = 'cash';
-  bool _saving = false;
+  final bool _saving = false;
 
   @override
   void initState() {
@@ -1243,33 +1435,23 @@ class _RecordPaymentSheetState
     super.dispose();
   }
 
-  Future<void> _save() async {
-    final amount = double.tryParse(_amountCtrl.text) ?? 0;
-    if (amount <= 0) return;
-    setState(() => _saving = true);
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      final paymentsCol = repo.scopeCollection(
-          uid: user.uid,
-          context: ctx,
-          childCollection: 'invoice_payments');
-
-      await paymentsCol.add({
-        'invoiceId': widget.invoiceId,
-        'amount': amount,
-        'method': _method,
-        if (_refCtrl.text.isNotEmpty) 'reference': _refCtrl.text,
-        'recordedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) Navigator.of(context).pop({'paid': true});
-    } catch (e) {
-      setState(() => _saving = false);
+  // Input-only sheet: the caller commits the payment atomically together
+  // with the invoice balance and customer balance updates.
+  void _save() {
+    final amount = double.tryParse(
+            _amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+        0;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text(_tr('Enter a valid amount', 'Ingiza kiasi sahihi'))));
+      return;
     }
+    Navigator.of(context).pop({
+      'amount': amount,
+      'method': _method,
+      'reference': _refCtrl.text.trim(),
+    });
   }
 
   @override
