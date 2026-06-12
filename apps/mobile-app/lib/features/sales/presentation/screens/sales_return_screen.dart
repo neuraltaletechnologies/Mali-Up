@@ -1,13 +1,16 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../rbac/data/audit_log_service.dart';
 import '../../data/sales_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -44,11 +47,17 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
 
-    final raw = widget.originalInvoice['lineItems'];
+    // Full invoices store 'lineItems'; quick sales (and locally synced rows)
+    // store 'items' — accept either so every sale can be returned.
+    final rawLineItems = widget.originalInvoice['lineItems'];
+    final raw = (rawLineItems is List && rawLineItems.isNotEmpty)
+        ? rawLineItems
+        : widget.originalInvoice['items'];
     if (raw is List) {
       _lines = raw
-          .whereType<Map<String, dynamic>>()
-          .map((item) => _ReturnLine.fromInvoiceItem(item))
+          .whereType<Map>()
+          .map((item) => _ReturnLine.fromInvoiceItem(
+              Map<String, dynamic>.from(item)))
           .toList();
     } else {
       _lines = [];
@@ -82,11 +91,10 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
     setState(() => _saving = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not authenticated');
-
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) throw Exception('Not authenticated');
       final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
+      final role = ref.read(currentUserRoleProvider);
 
       final selectedLines = _lines.where((l) => l.selected && l.returnQty > 0);
 
@@ -108,15 +116,23 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
               })
           .toList();
 
-      // Save credit note
+      final invoiceId = widget.originalInvoice['id'] as String;
+      final invoiceNumber = (widget.originalInvoice['invoiceNumber'] ??
+              widget.originalInvoice['id'])
+          .toString();
+
+      // One atomic batch: credit note + stock reversal + invoice flag.
+      final batch = FirebaseFirestore.instance.batch();
+
       final cnCol = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'credit_notes');
-      await cnCol.add({
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'credit_notes');
+      batch.set(cnCol.doc(), {
         'creditNoteNumber': creditNoteNumber,
-        'originalInvoiceId': widget.originalInvoice['id'],
-        'originalInvoiceNumber':
-            widget.originalInvoice['invoiceNumber'] ??
-                widget.originalInvoice['id'],
+        'originalInvoiceId': invoiceId,
+        'originalInvoiceNumber': invoiceNumber,
+        'businessId': scope.businessId,
         'customerId': widget.originalInvoice['customerId'] ?? '',
         'customerName':
             widget.originalInvoice['customerName'] ?? '',
@@ -125,35 +141,58 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
         'reason': _reason,
         'restockItems': _restockAll,
         'status': 'issued',
+        // Audit: the owner can see who processed the return, when and why.
+        'processedBy': scope.userUid,
+        'processedByRole': role,
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Restock inventory
+      // Stock reversal — the sale deducted 'currentStock', so the return
+      // must credit the same field.
       if (_restockAll) {
         final invCol = repo.scopeCollection(
-            uid: user.uid,
-            context: ctx,
+            uid: scope.ownerUid,
+            context: scope.context,
             childCollection: 'inventory_items');
-        final batch = FirebaseFirestore.instance.batch();
         for (final line in selectedLines) {
           if (line.productId.isNotEmpty) {
-            batch.update(invCol.doc(line.productId), {
-              'stock': FieldValue.increment(line.returnQty),
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
+            batch.set(
+                invCol.doc(line.productId),
+                {
+                  'currentStock': FieldValue.increment(line.returnQty),
+                  'updatedAt': FieldValue.serverTimestamp(),
+                },
+                SetOptions(merge: true));
           }
         }
-        await batch.commit();
       }
 
-      // Update original invoice status to reflect return
+      // Flag the original invoice
       final salesCol = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'sales_invoices');
-      await salesCol.doc(widget.originalInvoice['id'] as String).update({
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'sales_invoices');
+      batch.update(salesCol.doc(invoiceId), {
         'hasReturn': true,
         'creditNoteNumber': creditNoteNumber,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      await batch.commit();
+
+      unawaited(AuditLogService().logSaleAction(
+        ownerUid: scope.ownerUid,
+        businessId: scope.businessId,
+        performedByUid: scope.userUid,
+        performedByRole: role,
+        action: AuditLogService.returnProcessed,
+        invoiceId: invoiceId,
+        invoiceNumber: invoiceNumber,
+        amount: _creditAmount,
+        details: _reason,
+      ));
+      unawaited(ref.read(syncServiceProvider).syncNow());
 
       if (mounted) {
         Navigator.of(context).pop({'saved': true, 'creditNoteNumber': creditNoteNumber});
@@ -279,10 +318,13 @@ class _ReturnLine {
   });
 
   factory _ReturnLine.fromInvoiceItem(Map<String, dynamic> item) {
-    final qty = (item['qty'] is num) ? (item['qty'] as num).toInt() : 1;
+    final rawQty = item['qty'] ?? item['quantity'];
+    final qty = (rawQty is num) ? rawQty.toInt() : 1;
     return _ReturnLine(
-      productId: item['productId']?.toString() ?? '',
-      productName: item['productName']?.toString() ?? '',
+      productId: (item['productId'] ?? item['inventoryItemId'] ?? '')
+          .toString(),
+      productName:
+          (item['productName'] ?? item['name'] ?? '').toString(),
       unitPrice: parseNumericAmount(item['unitPrice']),
       originalQty: qty,
       returnQty: qty,

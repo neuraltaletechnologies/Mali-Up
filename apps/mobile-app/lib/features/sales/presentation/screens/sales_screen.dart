@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -19,6 +22,9 @@ import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../customer/presentation/widgets/add_customer_dialog.dart';
 import '../../../inventory/data/inventory_providers.dart';
+import '../../../invoice/presentation/providers/invoice_providers.dart';
+import '../../../rbac/data/audit_log_service.dart';
+import '../../../rbac/data/rbac_providers.dart';
 import '../../data/sales_providers.dart';
 import 'invoice_detail_screen.dart';
 
@@ -218,14 +224,21 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     );
     if (confirmed != true) return;
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx2 = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(uid: user.uid, context: ctx2, childCollection: 'sales_invoices')
-          .doc(id)
-          .delete();
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
+      // Offline-first: soft-delete locally + queue the remote delete. A direct
+      // Firestore delete would leave a stale row in the local database.
+      await ref.read(invoiceRepositoryProvider).delete(id);
+      unawaited(AuditLogService().logSaleAction(
+        ownerUid: scope.ownerUid,
+        businessId: scope.businessId,
+        performedByUid: scope.userUid,
+        performedByRole: ref.read(currentUserRoleProvider),
+        action: AuditLogService.invoiceDeleted,
+        invoiceId: id,
+        invoiceNumber: saleNo,
+      ));
+      unawaited(ref.read(syncServiceProvider).syncNow());
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -262,24 +275,28 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   @override
   Widget build(BuildContext context) {
     final salesAsync = ref.watch(salesInvoiceListProvider);
+    final ps = ref.watch(permissionServiceProvider);
 
     return Scaffold(
-      floatingActionButton: Builder(
-        builder: (ctx) => FloatingActionButton.extended(
-          onPressed: () => _showNewSaleSheet(ctx),
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.navyPrimary,
-          elevation: 3,
-          icon: const Icon(Icons.add_rounded, size: 22),
-          label: Text(
-            _tr('New Sale', 'Mauzo Mapya'),
-            style: GoogleFonts.dmSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.navyPrimary),
-          ),
-        ),
-      ),
+      // Read-only roles (e.g. accountants) can view sales but not create them.
+      floatingActionButton: !ps.canCreateSale
+          ? null
+          : Builder(
+              builder: (ctx) => FloatingActionButton.extended(
+                onPressed: () => _showNewSaleSheet(ctx),
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.navyPrimary,
+                elevation: 3,
+                icon: const Icon(Icons.add_rounded, size: 22),
+                label: Text(
+                  _tr('New Sale', 'Mauzo Mapya'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navyPrimary),
+                ),
+              ),
+            ),
       body: salesAsync.when(
         loading: () => const SalesPageSkeleton(),
         error: (_, _) => Center(
@@ -415,7 +432,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                 ),
                               ),
                             ),
-                            onDelete: () => _deleteSale(ctx, ref, item),
+                            onDelete: ps.canDeleteSale
+                                ? () => _deleteSale(ctx, ref, item)
+                                : null,
                             child: _InvoiceCard(
                               item: item,
                               onTap: () => Navigator.of(ctx).push(
@@ -446,6 +465,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
   static Future<Map<String, String>> _loadReceiptMeta({
     required String uid,
+    required String ownerUid,
     required String? businessId,
   }) async {
     final fs = FirebaseFirestore.instance;
@@ -473,9 +493,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         businessId != null &&
         businessId.isNotEmpty) {
       try {
+        // Business profile lives under the tenant owner's document — for
+        // team members that is the inviting owner, not their own uid.
         final doc = await fs
             .collection('tenants')
-            .doc(uid)
+            .doc(ownerUid)
             .collection('businesses')
             .doc(businessId)
             .get();
@@ -598,12 +620,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     required Map<String, dynamic> sale,
     required WidgetRef ref,
   }) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final repo = ref.read(contextFirestoreRepositoryProvider);
-    final ctx = await repo.resolveContextForUser(user.uid);
-    final meta =
-        await _loadReceiptMeta(uid: user.uid, businessId: ctx.businessId);
+    final scope = await resolveSalesScope(ref);
+    if (scope == null) return;
+    final meta = await _loadReceiptMeta(
+        uid: scope.userUid,
+        ownerUid: scope.ownerUid,
+        businessId: scope.businessId);
     final receipt = _buildReceiptText(
       sale: sale,
       businessName: meta['businessName'] ?? 'Business',
@@ -1380,9 +1402,15 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   bool _isSaving = false;
 
   double get _subtotal => _items.fold(0.0, (s, e) => s + e.lineTotal);
-  double get _discountAmt =>
-      double.tryParse(_discountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-      0.0;
+  // Discount can never exceed the subtotal — otherwise VAT (computed on the
+  // discounted base) and the grand total would go negative.
+  double get _discountAmt {
+    final raw = double.tryParse(
+            _discountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+        0.0;
+    return raw.clamp(0.0, _subtotal);
+  }
+
   double get _vatAmt => _vatEnabled ? (_subtotal - _discountAmt) * 0.18 : 0.0;
   double get _grandTotal =>
       (_subtotal - _discountAmt + _vatAmt).clamp(0.0, double.infinity);
@@ -1445,18 +1473,55 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       return;
     }
 
-    final matched = inventory
-        .where((i) => (i['name'] ?? '')
-            .toString()
-            .toLowerCase()
-            .contains(query.toLowerCase()))
-        .take(5)
-        .toList();
+    final q = query.toLowerCase();
+    bool fieldMatches(Map<String, dynamic> i, String key) =>
+        (i[key] ?? '').toString().toLowerCase().contains(q);
+
+    // Search across name, SKU, barcode and category — name matches first.
+    final byName = <Map<String, dynamic>>[];
+    final byOther = <Map<String, dynamic>>[];
+    for (final i in inventory) {
+      if (fieldMatches(i, 'name')) {
+        byName.add(i);
+      } else if (fieldMatches(i, 'sku') ||
+          fieldMatches(i, 'barcode') ||
+          fieldMatches(i, 'category')) {
+        byOther.add(i);
+      }
+      if (byName.length >= 5) break;
+    }
+    final matched = [...byName, ...byOther].take(5).toList();
 
     setState(() {
       entry.suggs = matched;
       entry.showSuggs = matched.isNotEmpty;
     });
+  }
+
+  /// Products sold most often in recent sales — shown as quick suggestions
+  /// before the cashier starts typing.
+  List<Map<String, dynamic>> _frequentProducts() {
+    final inventory = ref.read(inventoryItemListProvider).value ?? [];
+    if (inventory.isEmpty) return const [];
+    final sales = ref.read(salesInvoiceListProvider).value ?? [];
+
+    final counts = <String, int>{};
+    for (final sale in sales.take(50)) {
+      final items = (sale['items'] as List?) ?? const [];
+      for (final item in items.whereType<Map>()) {
+        final name = (item['name'] ?? '').toString().toLowerCase();
+        if (name.isEmpty) continue;
+        counts[name] = (counts[name] ?? 0) + 1;
+      }
+    }
+
+    final ranked = [...inventory];
+    ranked.sort((a, b) {
+      final ca = counts[(a['name'] ?? '').toString().toLowerCase()] ?? 0;
+      final cb = counts[(b['name'] ?? '').toString().toLowerCase()] ?? 0;
+      return cb.compareTo(ca);
+    });
+    return ranked.take(4).toList();
   }
 
   void _selectProduct(_ItemEntry entry, Map<String, dynamic> item) {
@@ -1513,6 +1578,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
   /// Opens the continuous POS scanner. Each successful scan auto-adds an
   /// item row (or increments qty if the product is already in the list).
+  /// True when the scanned code matches the product's barcode or SKU.
+  static bool _codeMatches(Map<String, dynamic> item, String code) {
+    final c = code.toLowerCase();
+    return (item['barcode'] ?? '').toString().toLowerCase() == c ||
+        (item['sku'] ?? '').toString().toLowerCase() == c;
+  }
+
   Future<void> _openPosScanner() async {
     final inventory = ref.read(inventoryItemListProvider).value ?? [];
 
@@ -1521,9 +1593,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       title: _tr('Scan Items', 'Skani Bidhaa'),
       onScanned: (barcode) async {
         final matched = inventory.firstWhere(
-          (item) =>
-              (item['sku'] ?? '').toString().toLowerCase() ==
-              barcode.toLowerCase(),
+          (item) => _codeMatches(item, barcode),
           orElse: () => <String, dynamic>{},
         );
         if (matched.isEmpty) return null;
@@ -1545,29 +1615,29 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       _items.remove(e);
     }
 
-    // Merge scanner results into the items list.
+    // Merge scanner results into the items list, never exceeding stock.
     for (final scanned in results) {
       final matchIdx = _items.indexWhere(
         (e) =>
             e.selectedItem != null &&
-            (e.selectedItem!['sku'] ?? '').toString().toLowerCase() ==
-                scanned.barcode.toLowerCase(),
+            _codeMatches(e.selectedItem!, scanned.barcode),
       );
 
       if (matchIdx >= 0) {
-        _items[matchIdx].qty += scanned.qty;
+        final entry = _items[matchIdx];
+        final cap = entry.maxStock > 0 ? entry.maxStock : 1;
+        entry.qty = (entry.qty + scanned.qty).clamp(1, cap);
       } else {
         final inv = inventory.firstWhere(
-          (item) =>
-              (item['sku'] ?? '').toString().toLowerCase() ==
-              scanned.barcode.toLowerCase(),
+          (item) => _codeMatches(item, scanned.barcode),
           orElse: () => <String, dynamic>{},
         );
         if (inv.isNotEmpty) {
           final newEntry = _ItemEntry();
           newEntry.nameCtrl.addListener(() => _onItemNameChanged(newEntry));
           _selectProduct(newEntry, inv);
-          newEntry.qty = scanned.qty;
+          final cap = newEntry.maxStock > 0 ? newEntry.maxStock : 1;
+          newEntry.qty = scanned.qty.clamp(1, cap);
           _items.add(newEntry);
         }
       }
@@ -1591,7 +1661,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   Future<void> _save() async {
     for (var i = 0; i < _items.length; i++) {
       final e = _items[i];
-      if (e.nameCtrl.text.trim().isEmpty) {
+      final name = e.nameCtrl.text.trim();
+      if (name.isEmpty) {
         _snack(_tr(
             'Enter name for item ${i + 1}', 'Ingiza jina la bidhaaa ${i + 1}'));
         return;
@@ -1602,8 +1673,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         return;
       }
       if (e.isOutOfStock) {
-        _snack(_tr('${e.nameCtrl.text.trim()} is out of stock.',
-            '${e.nameCtrl.text.trim()} imekwisha stokuni.'));
+        _snack(_tr('$name is out of stock.', '$name imekwisha stokuni.'));
+        return;
+      }
+      if (e.selectedItem != null && e.qty > e.maxStock) {
+        _snack(_tr('Only ${e.maxStock} of $name in stock.',
+            'Kuna ${e.maxStock} tu za $name stokuni.'));
         return;
       }
     }
@@ -1611,23 +1686,28 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     // Require a customer when payment is not fully settled
     if (_payStatus != _PayStatus.paid && _selectedCustomer == null) {
       _snack(_tr(
-        'Please select a customer before recording a debt.',
-        'Tafadhali chagua mteja kabla ya kurekodi deni.',
+        'Please select a customer before recording a credit sale.',
+        'Tafadhali chagua mteja kabla ya kurekodi mauzo ya mkopo.',
       ));
       return;
     }
 
     double amountPaid;
-    if (_payStatus == _PayStatus.paid) {
+    var payStatus = _payStatus;
+    if (payStatus == _PayStatus.paid) {
       amountPaid = _grandTotal;
-    } else if (_payStatus == _PayStatus.partial) {
+    } else if (payStatus == _PayStatus.partial) {
       final t = _amtPaidCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '');
       amountPaid = double.tryParse(t) ?? 0;
       if (amountPaid <= 0) {
         _snack(_tr('Enter amount paid.', 'Ingiza kiasi kilicholipwa.'));
         return;
       }
-      if (amountPaid >= _grandTotal) amountPaid = _grandTotal;
+      // A "partial" payment covering the full total is simply a paid sale.
+      if (amountPaid >= _grandTotal) {
+        amountPaid = _grandTotal;
+        payStatus = _PayStatus.paid;
+      }
     } else {
       amountPaid = 0;
     }
@@ -1637,20 +1717,22 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     final navigator = Navigator.of(context);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not logged in');
-
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) throw Exception('Not logged in');
       final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
+      final role = ref.read(currentUserRoleProvider);
+
       final invoicesRef = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'sales_invoices');
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'sales_invoices');
 
       final now = DateTime.now();
       final invoiceNumber =
           'INV-${now.year}${now.month.toString().padLeft(2, '0')}-${(now.millisecondsSinceEpoch % 10000).toString().padLeft(4, '0')}';
-      final statusStr = _payStatus == _PayStatus.paid
+      final statusStr = payStatus == _PayStatus.paid
           ? 'paid'
-          : _payStatus == _PayStatus.partial
+          : payStatus == _PayStatus.partial
               ? 'partial'
               : 'unpaid';
 
@@ -1672,10 +1754,16 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           .toList();
 
       final notes = _notesCtrl.text.trim();
-
       final mpesaRef = _mpesaRefCtrl.text.trim();
+      final outstanding = _grandTotal - amountPaid;
 
-      await invoicesRef.add({
+      // One atomic batch: invoice + stock deduction + customer balance +
+      // debt record all commit together, so a crash or permission failure
+      // can never leave half-written financial records.
+      final batch = FirebaseFirestore.instance.batch();
+      final invoiceDoc = invoicesRef.doc();
+
+      batch.set(invoiceDoc, {
         'invoiceNumber': invoiceNumber,
         'type': 'invoice',
         'invoiceStatus': statusStr,
@@ -1696,77 +1784,100 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         'amount': _grandTotal,
         'totalAmount': _grandTotal,
         'amountPaid': amountPaid,
-        if (_payStatus != _PayStatus.unpaid)
+        if (payStatus != _PayStatus.unpaid)
           'paymentMethod': _payMethod.firestoreKey,
-        if (_payStatus != _PayStatus.unpaid &&
+        if (payStatus != _PayStatus.unpaid &&
             _payMethod == _QuickPayMethod.mpesa &&
             mpesaRef.isNotEmpty)
           'mpesaRef': mpesaRef,
         if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
         if (notes.isNotEmpty) 'notes': notes,
+        'createdBy': scope.userUid,
+        'createdByRole': role,
         'createdAt': FieldValue.serverTimestamp(),
+        // updatedAt drives the incremental sync pull — without it the sale
+        // would never reach the local database (and the sales list).
+        'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      final inventoryRef = repo.scopeCollection(
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'inventory_items');
+      for (final e in _items) {
+        if (e.selectedItem == null) continue;
+        final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
+        if (itemId.isEmpty) continue;
+        batch.set(
+            inventoryRef.doc(itemId),
+            {
+              'currentStock': FieldValue.increment(-e.qty),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
+      }
+
+      if (_selectedCustomer != null) {
+        final customersRef = repo.scopeCollection(
+            uid: scope.ownerUid,
+            context: scope.context,
+            childCollection: 'customers');
+        batch.set(
+            customersRef.doc(_selectedCustomer!.id),
+            {
+              'lastTransactionDate': FieldValue.serverTimestamp(),
+              if (outstanding > 0) 'balance': FieldValue.increment(outstanding),
+            },
+            SetOptions(merge: true));
+
+        // Receivable record for any sale that is not fully paid, linked to
+        // the customer, invoice and business.
+        if (outstanding > 0) {
+          final debtsRef = repo.scopeCollection(
+              uid: scope.ownerUid,
+              context: scope.context,
+              childCollection: 'debts');
+          batch.set(debtsRef.doc(), {
+            'customerId': _selectedCustomer!.id,
+            'customerName': _selectedCustomer!.name,
+            'customerPhone': _selectedCustomer!.phone,
+            'invoiceId': invoiceDoc.id,
+            'saleId': invoiceDoc.id,
+            'businessId': scope.businessId,
+            'invoiceNumber': invoiceNumber,
+            'originalAmount': _grandTotal,
+            'amountPaid': amountPaid,
+            'outstandingAmount': outstanding,
+            'status': payStatus == _PayStatus.partial ? 'partial' : 'unpaid',
+            'type': 'sale',
+            if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
+            'createdBy': scope.userUid,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      await batch.commit();
+
       SentryMetricsService.salesCreated(
         amount: _grandTotal,
         status: statusStr,
       );
-
-      for (final e in _items) {
-        if (e.selectedItem != null) {
-          final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
-          if (itemId.isNotEmpty) {
-            try {
-              await repo
-                  .scopeCollection(
-                      uid: user.uid,
-                      context: ctx,
-                      childCollection: 'inventory_items')
-                  .doc(itemId)
-                  .update({
-                'currentStock': FieldValue.increment(-e.qty),
-                'updatedAt': FieldValue.serverTimestamp(),
-              });
-            } catch (_) {}
-          }
-        }
-      }
-
-      if (_selectedCustomer != null) {
-        final outstanding = _grandTotal - amountPaid;
-        try {
-          await repo
-              .scopeCollection(
-                  uid: user.uid, context: ctx, childCollection: 'customers')
-              .doc(_selectedCustomer!.id)
-              .update({
-            'lastTransactionDate': FieldValue.serverTimestamp(),
-            'balance': FieldValue.increment(outstanding),
-          });
-        } catch (_) {}
-
-        // Create a debt record when sale is not fully paid
-        if (outstanding > 0 && _payStatus != _PayStatus.paid) {
-          try {
-            await repo
-                .scopeCollection(
-                    uid: user.uid, context: ctx, childCollection: 'debts')
-                .add({
-              'customerId': _selectedCustomer!.id,
-              'customerName': _selectedCustomer!.name,
-              'customerPhone': _selectedCustomer!.phone,
-              'invoiceNumber': invoiceNumber,
-              'originalAmount': _grandTotal,
-              'amountPaid': amountPaid,
-              'outstandingAmount': outstanding,
-              'status': _payStatus == _PayStatus.partial ? 'partial' : 'unpaid',
-              'type': 'sale',
-              if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
-              'createdAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-          } catch (_) {}
-        }
-      }
+      unawaited(AuditLogService().logSaleAction(
+        ownerUid: scope.ownerUid,
+        businessId: scope.businessId,
+        performedByUid: scope.userUid,
+        performedByRole: role,
+        action: AuditLogService.saleCreated,
+        invoiceId: invoiceDoc.id,
+        invoiceNumber: invoiceNumber,
+        amount: _grandTotal,
+        details: statusStr,
+      ));
+      // Pull the new sale into the local database right away so it appears
+      // in the sales list without waiting for the next connectivity event.
+      unawaited(ref.read(syncServiceProvider).syncNow());
 
       navigator.pop();
       messenger.showSnackBar(SnackBar(
@@ -2201,6 +2312,49 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           ),
           if (entry.showSuggs) _buildProductSuggestions(index),
+          // Quick suggestions: frequently sold products, one tap to add.
+          if (entry.nameCtrl.text.isEmpty && entry.selectedItem == null)
+            Builder(builder: (_) {
+              final frequent = _frequentProducts();
+              if (frequent.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: frequent.map((item) {
+                    final name = (item['name'] ?? '').toString();
+                    return GestureDetector(
+                      onTap: () => _selectProduct(entry, item),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.history_rounded,
+                                size: 12, color: AppColors.textMuted),
+                            const SizedBox(width: 4),
+                            Text(
+                              name,
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              );
+            }),
           if (entry.nameCtrl.text.isNotEmpty &&
               entry.selectedItem == null &&
               !entry.showSuggs)
@@ -3263,311 +3417,4 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       );
-}
-
-// ── Quick Add Customer Sheet ───────────────────────────────────────────────────
-
-class _QuickAddCustomerSheet extends ConsumerStatefulWidget {
-  final String initialName;
-  final void Function(Customer) onAdded;
-
-  const _QuickAddCustomerSheet(
-      {required this.initialName, required this.onAdded});
-
-  @override
-  ConsumerState<_QuickAddCustomerSheet> createState() =>
-      _QuickAddCustomerSheetState();
-}
-
-class _QuickAddCustomerSheetState
-    extends ConsumerState<_QuickAddCustomerSheet> {
-  late final TextEditingController _nameCtrl;
-  final _phoneCtrl = TextEditingController();
-  final _tinCtrl = TextEditingController();
-  bool _isOrg = false;
-  bool _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameCtrl = TextEditingController(text: widget.initialName);
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _phoneCtrl.dispose();
-    _tinCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final name = _nameCtrl.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(_tr('Enter name', 'Ingiza jina'))));
-      return;
-    }
-
-    setState(() => _isSaving = true);
-    final navigator = Navigator.of(context);
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not logged in');
-
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      final customersRef = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'customers');
-
-      final tin = _tinCtrl.text.trim();
-      final phone = _phoneCtrl.text.trim();
-
-      final docRef = await customersRef.add({
-        'name': name,
-        'phone': phone,
-        'email': '',
-        'balance': 0.0,
-        'lastTransactionDate': '',
-        'tags': const <String>[],
-        'isOrganisation': _isOrg,
-        if (tin.isNotEmpty) 'tinNumber': tin,
-      });
-
-      navigator.pop();
-      widget.onAdded(Customer(
-        id: docRef.id,
-        name: name,
-        phone: phone,
-        isOrganisation: _isOrg,
-        tinNumber: tin,
-      ));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr(
-              'Failed to add customer', 'Imeshindikana kuongeza mteja'))));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius:
-          const BorderRadius.vertical(top: Radius.circular(28)),
-      clipBehavior: Clip.antiAlias,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-              24, 0, 24, MediaQuery.of(context).viewInsets.bottom + 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 20),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(99)),
-                ),
-              ),
-              Text(
-                _tr('New Customer', 'Mteja Mpya'),
-                style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.secondary),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  children: [
-                    _TypeBtn(
-                      label: _tr('Individual', 'Binafsi'),
-                      icon: Icons.person_outline_rounded,
-                      active: !_isOrg,
-                      onTap: () => setState(() => _isOrg = false),
-                    ),
-                    const SizedBox(width: 4),
-                    _TypeBtn(
-                      label: _tr('Organisation', 'Shirika'),
-                      icon: Icons.business_outlined,
-                      active: _isOrg,
-                      onTap: () => setState(() => _isOrg = true),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _nameCtrl,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  labelText: _isOrg
-                      ? _tr('Organisation Name *', 'Jina la Shirika *')
-                      : _tr('Customer Name *', 'Jina la Mteja *'),
-                  prefixIcon: Icon(
-                      _isOrg
-                          ? Icons.business_outlined
-                          : Icons.person_outline_rounded,
-                      size: 20),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none),
-                  enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.border)),
-                  focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                          color: AppColors.primary, width: 2)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  labelText: _tr('Phone Number', 'Namba ya Simu'),
-                  prefixIcon:
-                      const Icon(Icons.phone_outlined, size: 20),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none),
-                  enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.border)),
-                  focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                          color: AppColors.primary, width: 2)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                ),
-              ),
-              if (_isOrg) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _tinCtrl,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: InputDecoration(
-                    labelText:
-                        _tr('TIN Number (Optional)', 'Namba ya TIN (Hiari)'),
-                    hintText: 'e.g. 100-123-456',
-                    prefixIcon:
-                        const Icon(Icons.numbers_outlined, size: 20),
-                    filled: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            const BorderSide(color: AppColors.border)),
-                    focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                            color: AppColors.primary, width: 2)),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                        AppColors.secondary.withValues(alpha: 0.5),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2.5, color: Colors.white))
-                      : Text(_tr('Add Customer', 'Ongeza Mteja'),
-                          style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TypeBtn extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _TypeBtn({
-    required this.label,
-    required this.icon,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: active ? AppColors.secondary : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon,
-                  size: 15,
-                  color: active ? Colors.white : AppColors.textMuted),
-              const SizedBox(width: 6),
-              Text(label,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color:
-                          active ? Colors.white : AppColors.textMuted)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

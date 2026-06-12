@@ -49,6 +49,27 @@ service cloud.firestore {
       return isSignedIn() && (isOwner(tenantId) || isMemberWithAnyPermission(tenantId, permissions));
     }
 
+    // True when the caller is an active team member of exactly this business.
+    function isActiveMemberOfBusiness(tenantId, businessId) {
+      let ref = /databases/$(database)/documents/tenants/$(tenantId)/memberAccess/$(request.auth.uid);
+      return isSignedIn() &&
+        exists(ref) &&
+        get(ref).data.status == 'active' &&
+        get(ref).data.businessId == businessId;
+    }
+
+    // Binds an invite-acceptance write to the invited phone number.
+    // Auth emails are derived client-side as '<digits>@mali.up', so only the
+    // account created for the invited number can claim the member record.
+    // Legacy records may store the phone in local format (07...), so the
+    // 255-normalised variant is accepted too.
+    function authEmailMatchesPhone(phone) {
+      let digits = phone.replace('[^0-9]', '');
+      return request.auth.token.email == digits + '@mali.up' ||
+        (digits.matches('0[0-9]+') &&
+          request.auth.token.email == '255' + digits.replace('^0', '') + '@mali.up');
+    }
+
     // ── Validators ────────────────────────────────────────────────────────────
 
     // Customer (individual or organisation)
@@ -396,13 +417,32 @@ service cloud.firestore {
           isValidExpenseTemplate(request.resource.data);
       }
 
-      // memberAccess — flat permissions list written by the owner when a member
-      // accepts their invite. Doc ID equals the member's Firebase Auth UID so
-      // rules can check it via $(request.auth.uid) without an extra lookup.
+      // memberAccess — flat permissions list created when a member accepts
+      // their invite. Doc ID equals the member's Firebase Auth UID so rules
+      // can check it via $(request.auth.uid) without an extra lookup.
       match /memberAccess/{memberUid} {
         allow read, write: if isSignedIn() && isOwner(tenantId);
         // Members can read their own access doc (e.g. to show their permissions).
         allow read: if isSignedIn() && request.auth.uid == memberUid;
+        // A member may create their own access doc while accepting an invite,
+        // but only mirroring a team_members record they have already claimed
+        // (userId stamped to their UID by the claim rule below). Permissions
+        // must be a subset of what the owner granted on that record, so a
+        // member can never self-escalate.
+        allow create: if isSignedIn() && request.auth.uid == memberUid &&
+          request.resource.data.keys().hasAll(
+            ['status', 'businessId', 'memberId', 'role', 'permissions']) &&
+          request.resource.data.status == 'active' &&
+          request.resource.data.businessId is string &&
+          request.resource.data.memberId is string &&
+          request.resource.data.role is string &&
+          request.resource.data.permissions is list &&
+          get(/databases/$(database)/documents/tenants/$(tenantId)/businesses/$(request.resource.data.businessId)/team_members/$(request.resource.data.memberId)).data.userId == request.auth.uid &&
+          get(/databases/$(database)/documents/tenants/$(tenantId)/businesses/$(request.resource.data.businessId)/team_members/$(request.resource.data.memberId)).data.role == request.resource.data.role &&
+          (
+            !('permissions' in get(/databases/$(database)/documents/tenants/$(tenantId)/businesses/$(request.resource.data.businessId)/team_members/$(request.resource.data.memberId)).data) ||
+            get(/databases/$(database)/documents/tenants/$(tenantId)/businesses/$(request.resource.data.businessId)/team_members/$(request.resource.data.memberId)).data.permissions.hasAll(request.resource.data.permissions)
+          );
       }
 
       // Fallback for any other direct subcollection
@@ -423,6 +463,11 @@ service cloud.firestore {
           allow create: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers', 'createSale']) &&
             isValidCustomer(request.resource.data);
           allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers']);
+          // POS flows may only touch the running balance + last-transaction
+          // stamp (credit sale / payment received) — nothing else.
+          allow update: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'editSale']) &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['balance', 'lastTransactionDate', 'updatedAt']);
 
           match /notes/{noteId} {
             allow read, create, update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers']);
@@ -437,11 +482,50 @@ service cloud.firestore {
           allow delete: if isOwnerOrMemberWithAny(tenantId, ['deleteSale']);
         }
 
+        // Payments recorded against an invoice (POS "Record Payment").
+        match /invoice_payments/{paymentId} {
+          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewSales', 'createSale']);
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'editSale']);
+          allow update, delete: if isSignedIn() && isOwner(tenantId);
+        }
+
+        // Credit notes from sales returns.
+        match /credit_notes/{creditNoteId} {
+          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewSales', 'issueRefund']);
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['issueRefund']);
+          allow update, delete: if isSignedIn() && isOwner(tenantId);
+        }
+
+        // Receivables created by on-account (credit) invoices.
+        match /receivables/{receivableId} {
+          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewSales', 'viewDebt']);
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'grantCredit']);
+          allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageDebt']);
+        }
+
+        // Debt records linked to unpaid / partially paid sales.
+        match /debts/{debtId} {
+          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewDebt', 'manageDebt', 'createSale']);
+          allow create: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'manageDebt', 'grantCredit']);
+          allow update: if isOwnerOrMemberWithAny(tenantId, ['manageDebt']);
+          allow delete: if isOwnerOrMemberWithAny(tenantId, ['writeOffDebt', 'manageDebt']);
+
+          match /payments/{paymentId} {
+            allow read, create: if isOwnerOrMemberWithAny(tenantId, ['viewDebt', 'manageDebt']);
+            allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageDebt']);
+          }
+        }
+
         match /inventory_items/{itemId} {
           allow read: if isOwnerOrMemberWithAny(tenantId, ['viewInventory']);
           allow create: if isOwnerOrMemberWithAny(tenantId, ['addStock']) &&
             isValidInventoryItem(request.resource.data);
           allow update: if isOwnerOrMemberWithAny(tenantId, ['editStock', 'adjustStock']);
+          // POS flows may adjust stock levels only (sale deduction / return
+          // restock) without broader inventory-editing rights.
+          allow update: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'issueRefund']) &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['currentStock', 'updatedAt']);
           allow delete: if isOwnerOrMemberWithAny(tenantId, ['deleteStock']);
         }
 
@@ -496,10 +580,12 @@ service cloud.firestore {
         }
 
         // Audit logs — owner reads; owner and customer-managing members may
-        // append entries (customer actions are logged from member sessions).
+        // append entries (customer + sales actions are logged from member
+        // sessions: sale created, payment received, return processed, etc.).
         match /audit_logs/{logId} {
           allow read: if isSignedIn() && isOwner(tenantId);
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers', 'grantCredit', 'createSale']);
+          allow create: if isOwnerOrMemberWithAny(tenantId,
+            ['manageCustomers', 'grantCredit', 'createSale', 'editSale', 'issueRefund']);
         }
 
         // Fallback for any other subcollection (debts, etc.)

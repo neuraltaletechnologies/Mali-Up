@@ -1,16 +1,19 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../inventory/data/inventory_providers.dart';
+import '../../../rbac/data/audit_log_service.dart';
 import '../../data/sales_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -151,22 +154,45 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     _discountCtrl.text =
         _globalDiscount > 0 ? _globalDiscount.toStringAsFixed(0) : '';
 
+    // Restore customer + dates — otherwise saving an edit silently wipes them.
+    final customerId = (data['customerId'] ?? '').toString();
+    final customerName = (data['customerName'] ?? '').toString();
+    if (customerId.isNotEmpty || customerName.isNotEmpty) {
+      _customer = Customer(
+        id: customerId,
+        name: customerName,
+        phone: (data['customerPhone'] ?? '').toString(),
+      );
+    }
+    _invoiceDate =
+        readTimestamp(data['invoiceDate'] ?? data['createdAt'] ?? data['date']) ??
+            _invoiceDate;
+    _dueDate = readTimestamp(data['dueDate']);
+
     final pmRaw = (data['paymentMethod'] ?? '').toString().toLowerCase();
     _payMethod = _PayMethod.values.firstWhere(
       (m) => m.name == pmRaw,
       orElse: () => _PayMethod.cash,
     );
 
-    final lineItems = data['lineItems'];
+    // Quick sales store 'items'; the full editor stores 'lineItems'.
+    final lineItems = (data['lineItems'] is List &&
+            (data['lineItems'] as List).isNotEmpty)
+        ? data['lineItems'] as List
+        : data['items'];
     if (lineItems is List && lineItems.isNotEmpty) {
       _items.clear();
       for (final raw in lineItems) {
         if (raw is Map) {
           _items.add(_LineItem(
-            productId: raw['productId']?.toString() ?? '',
-            productName: raw['productName']?.toString() ?? '',
+            productId: (raw['productId'] ?? raw['inventoryItemId'] ?? '')
+                .toString(),
+            productName:
+                (raw['productName'] ?? raw['name'] ?? '').toString(),
             unitPrice: parseNumericAmount(raw['unitPrice']),
-            qty: (raw['qty'] is num) ? (raw['qty'] as num).toInt() : 1,
+            qty: ((raw['qty'] ?? raw['quantity']) is num)
+                ? ((raw['qty'] ?? raw['quantity']) as num).toInt()
+                : 1,
             discount: parseNumericAmount(raw['lineDiscount']),
             unit: raw['unit']?.toString() ?? '',
           ));
@@ -178,8 +204,12 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
   // ── Computed ────────────────────────────────────────────────────────────────
 
   double get _subtotal => _items.fold(0, (s, i) => s + i.lineTotal);
-  double get _vatAmount => _applyVat ? (_subtotal - _globalDiscount) * 0.18 : 0;
-  double get _grandTotal => _subtotal - _globalDiscount + _vatAmount;
+  // Discount is capped at the subtotal so VAT and totals can't go negative.
+  double get _effectiveDiscount => _globalDiscount.clamp(0.0, _subtotal);
+  double get _vatAmount =>
+      _applyVat ? (_subtotal - _effectiveDiscount) * 0.18 : 0;
+  double get _grandTotal =>
+      (_subtotal - _effectiveDiscount + _vatAmount).clamp(0.0, double.infinity);
 
   String _invoiceNumber() {
     final now = DateTime.now();
@@ -195,23 +225,46 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       _showSnack(_tr('Add at least one item', 'Ongeza bidhaaa angalau moja'));
       return;
     }
+    // Credit (on-account) sales must always be tied to a customer —
+    // otherwise the receivable has no one to collect from.
+    if (!asDraft &&
+        !_isQuotation &&
+        _payMethod == _PayMethod.credit &&
+        (_customer == null || _customer!.id.isEmpty)) {
+      _showSnack(_tr(
+        'Please select a customer before recording a credit sale.',
+        'Tafadhali chagua mteja kabla ya kurekodi mauzo ya mkopo.',
+      ));
+      return;
+    }
     setState(() => _saving = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not authenticated');
-
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) throw Exception('Not authenticated');
       final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
+      final role = ref.read(currentUserRoleProvider);
       final col = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'sales_invoices');
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'sales_invoices');
 
+      final isEdit = widget.invoiceToEdit != null;
       final invNumber = widget.invoiceToEdit?['invoiceNumber'] as String? ??
           _invoiceNumber();
 
       final status = asDraft
           ? 'draft'
           : (_isQuotation ? 'sent' : (_payMethod == _PayMethod.credit ? 'sent' : 'paid'));
+
+      // Stock + receivable side effects must run exactly once — on the first
+      // confirmation. Re-saving an already-confirmed invoice must NOT deduct
+      // stock again or duplicate the receivable.
+      final previousStatus =
+          (widget.invoiceToEdit?['status'] ?? '').toString().toLowerCase();
+      final wasConfirmed = isEdit && previousStatus.isNotEmpty &&
+          previousStatus != 'draft';
+      final confirmingNow = !asDraft && !_isQuotation && !wasConfirmed;
 
       final lineItemsData = _items
           .where((i) => i.productName.trim().isNotEmpty)
@@ -234,13 +287,17 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         'customerName': _customer?.name ?? '',
         'customerPhone': _customer?.phone ?? '',
         'lineItems': lineItemsData,
+        'items': lineItemsData,
         'subtotal': _subtotal,
-        'discountAmount': _globalDiscount,
+        'discountAmount': _effectiveDiscount,
         'vatApplied': _applyVat,
         'vatAmount': _vatAmount,
         'totalAmount': _grandTotal,
         'amount': _grandTotal,
         'paymentMethod': _payMethod.name,
+        // Settled methods are fully paid on confirmation; credit starts at 0.
+        if (confirmingNow)
+          'amountPaid': _payMethod == _PayMethod.credit ? 0 : _grandTotal,
         if (_payMethod == _PayMethod.mpesa && _mpesaRef.isNotEmpty)
           'mpesaReference': _mpesaRef,
         'invoiceDate': Timestamp.fromDate(_invoiceDate),
@@ -249,72 +306,81 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      DocumentReference? docRef;
-      if (widget.invoiceToEdit != null) {
-        final id = widget.invoiceToEdit!['id'] as String;
-        await col.doc(id).update(payload);
-        docRef = col.doc(id);
+      // One atomic batch: invoice + stock deduction + receivable.
+      final batch = FirebaseFirestore.instance.batch();
+      final DocumentReference<Map<String, dynamic>> docRef;
+      if (isEdit) {
+        docRef = col.doc(widget.invoiceToEdit!['id'] as String);
+        batch.update(docRef, payload);
       } else {
-        payload['createdAt'] = FieldValue.serverTimestamp();
-        docRef = await col.add(payload);
+        docRef = col.doc();
+        batch.set(docRef, {
+          ...payload,
+          'createdBy': scope.userUid,
+          'createdByRole': role,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
       }
 
-      // Stock deduction on confirmed (non-draft) sales invoices
-      if (!asDraft && !_isQuotation) {
-        await _deductStock(user.uid, ctx, repo);
+      if (confirmingNow) {
+        final invCol = repo.scopeCollection(
+            uid: scope.ownerUid,
+            context: scope.context,
+            childCollection: 'inventory_items');
+        for (final item in _items.where((i) => i.productId.isNotEmpty)) {
+          batch.set(
+              invCol.doc(item.productId),
+              {
+                'currentStock': FieldValue.increment(-item.qty),
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true));
+        }
+
+        if (_payMethod == _PayMethod.credit && _customer != null) {
+          final recCol = repo.scopeCollection(
+              uid: scope.ownerUid,
+              context: scope.context,
+              childCollection: 'receivables');
+          batch.set(recCol.doc(), {
+            'invoiceId': docRef.id,
+            'saleId': docRef.id,
+            'businessId': scope.businessId,
+            'invoiceNumber': invNumber,
+            'customerId': _customer!.id,
+            'customerName': _customer!.name,
+            'amount': _grandTotal,
+            'outstanding': _grandTotal,
+            'status': 'open',
+            'dueDate': _dueDate != null ? Timestamp.fromDate(_dueDate!) : null,
+            'createdBy': scope.userUid,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
       }
 
-      // Create receivable for credit sales
-      if (!asDraft && _payMethod == _PayMethod.credit && _customer != null) {
-        await _createReceivable(user.uid, ctx, repo, invNumber, docRef.id);
-      }
+      await batch.commit();
+
+      unawaited(AuditLogService().logSaleAction(
+        ownerUid: scope.ownerUid,
+        businessId: scope.businessId,
+        performedByUid: scope.userUid,
+        performedByRole: role,
+        action: isEdit
+            ? AuditLogService.invoiceEdited
+            : AuditLogService.saleCreated,
+        invoiceId: docRef.id,
+        invoiceNumber: invNumber,
+        amount: _grandTotal,
+        details: status,
+      ));
+      unawaited(ref.read(syncServiceProvider).syncNow());
 
       if (mounted) Navigator.of(context).pop({'saved': true, 'id': docRef.id});
     } catch (e) {
       _showSnack(_tr('Save failed: $e', 'Imeshindwa kuhifadhi: $e'));
       setState(() => _saving = false);
     }
-  }
-
-  Future<void> _deductStock(
-    String uid,
-    dynamic ctx,
-    dynamic repo,
-  ) async {
-    final invCol = repo.scopeCollection(
-        uid: uid, context: ctx, childCollection: 'inventory_items');
-    final batch = FirebaseFirestore.instance.batch();
-
-    for (final item in _items.where((i) => i.productId.isNotEmpty)) {
-      final docRef = invCol.doc(item.productId);
-      batch.update(docRef, {
-        'currentStock': FieldValue.increment(-item.qty),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
-  }
-
-  Future<void> _createReceivable(
-    String uid,
-    dynamic ctx,
-    dynamic repo,
-    String invoiceNumber,
-    String invoiceId,
-  ) async {
-    final recCol = repo.scopeCollection(
-        uid: uid, context: ctx, childCollection: 'receivables');
-    await recCol.add({
-      'invoiceId': invoiceId,
-      'invoiceNumber': invoiceNumber,
-      'customerId': _customer!.id,
-      'customerName': _customer!.name,
-      'amount': _grandTotal,
-      'outstanding': _grandTotal,
-      'status': 'open',
-      'dueDate': _dueDate != null ? Timestamp.fromDate(_dueDate!) : null,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
   }
 
   void _showSnack(String msg) {
@@ -395,7 +461,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                   const SizedBox(height: 16),
                   _TotalsCard(
                     subtotal: _subtotal,
-                    discount: _globalDiscount,
+                    discount: _effectiveDiscount,
                     vatAmount: _vatAmount,
                     grandTotal: _grandTotal,
                     applyVat: _applyVat,
