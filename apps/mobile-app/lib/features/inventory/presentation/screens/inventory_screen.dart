@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +14,8 @@ import '../../../product/data/category_providers.dart';
 import '../../../product/domain/models/business_product_config.dart';
 import '../../../product/domain/models/product_category.dart';
 import '../../data/inventory_providers.dart';
+import '../../domain/models/inventory_item.dart';
+import '../providers/inventory_providers.dart';
 import '../widgets/barcode_view_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -98,20 +99,71 @@ int _healthLevel(Map<String, dynamic> item) {
   return 1;
 }
 
-Color _healthColor(int level) {
-  switch (level) {
-    case 3: return AppColors.error;
-    case 2: return const Color(0xFFD97706); // amber — single warning tone
-    default: return AppColors.success;
-  }
-}
-
 String _healthLabel(int level) {
   switch (level) {
     case 0: return _tr('Service', 'Huduma');
-    case 3: return _tr('Out', 'Imeisha');
-    case 2: return _tr('Low', 'Chini');
-    default: return _tr('OK', 'Ipo');
+    case 3: return _tr('Out of Stock', 'Imeisha');
+    case 2: return _tr('Low Stock', 'Inakwisha');
+    default: return _tr('Healthy Stock', 'Stoo Ipo');
+  }
+}
+
+// ── Expiry helpers ────────────────────────────────────────────────────────────
+
+bool _isExpiredItem(Map<String, dynamic> item) {
+  final expiry = (item['expiryDate'] as String?) ?? '';
+  if (expiry.isEmpty) return false;
+  final date = DateTime.tryParse(expiry);
+  return date != null && date.isBefore(DateTime.now());
+}
+
+bool _isExpiringSoonItem(Map<String, dynamic> item) {
+  final expiry = (item['expiryDate'] as String?) ?? '';
+  if (expiry.isEmpty) return false;
+  final date = DateTime.tryParse(expiry);
+  if (date == null) return false;
+  return date.isAfter(DateTime.now()) &&
+      date.isBefore(DateTime.now().add(const Duration(days: 30)));
+}
+
+int _daysUntilExpiry(Map<String, dynamic> item) {
+  final expiry = (item['expiryDate'] as String?) ?? '';
+  if (expiry.isEmpty) return -1;
+  final date = DateTime.tryParse(expiry);
+  if (date == null) return -1;
+  return date.difference(DateTime.now()).inDays;
+}
+
+// Full status: 0=service, 1=healthy, 2=low, 3=out, 4=expiring_soon, 5=expired
+int _fullStatusLevel(Map<String, dynamic> item) {
+  if (_readType(item) == ProductType.service) return 0;
+  if (_isExpiredItem(item)) return 5;
+  if (_isExpiringSoonItem(item)) return 4;
+  final s = _stock(item);
+  if (s == 0) return 3;
+  if (s <= _reorder(item)) return 2;
+  return 1;
+}
+
+Color _fullStatusColor(int level) {
+  switch (level) {
+    case 5: return AppColors.error;
+    case 4: return const Color(0xFFD97706);
+    case 3: return AppColors.error;
+    case 2: return const Color(0xFFD97706);
+    case 1: return AppColors.success;
+    default: return AppColors.textMuted;
+  }
+}
+
+String _fullStatusLabel(int level) {
+  switch (level) {
+    case 5: return _tr('Expired', 'Imeisha Muda');
+    case 4: return _tr('Expiring Soon', 'Karibu Kuisha');
+    case 3: return _tr('Out of Stock', 'Imeisha');
+    case 2: return _tr('Low Stock', 'Inakwisha');
+    case 1: return _tr('Healthy Stock', 'Stoo Ipo');
+    default: return _tr('Service', 'Huduma');
   }
 }
 
@@ -122,6 +174,7 @@ List<Map<String, dynamic>> _applyFiltersAndSort(
   String query,
   Set<ProductType> typeFilter,
   int healthFilter,  // 0=all, 1=ok, 2=low, 3=out
+  int expiryFilter,  // 0=none, 1=expiring_soon, 2=expired
   SortOption sort,
 ) {
   final list = src.where((item) {
@@ -134,6 +187,8 @@ List<Map<String, dynamic>> _applyFiltersAndSort(
     }
     if (typeFilter.isNotEmpty && !typeFilter.contains(_readType(item))) return false;
     if (healthFilter > 0 && _healthLevel(item) != healthFilter) return false;
+    if (expiryFilter == 1 && !_isExpiringSoonItem(item)) return false;
+    if (expiryFilter == 2 && !_isExpiredItem(item)) return false;
     return true;
   }).toList();
 
@@ -172,9 +227,11 @@ class InventoryScreen extends ConsumerStatefulWidget {
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchCtrl = TextEditingController();
   String _query = '';
+  bool _searchExpanded = false;
   SortOption _sort = SortOption.nameAz;
   Set<ProductType> _typeFilter = {};
   int _healthFilter = 0;
+  int _expiryFilter = 0; // 0=none, 1=expiring_soon, 2=expired
 
   @override
   void dispose() {
@@ -206,10 +263,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         currentSort: _sort,
         typeFilter: _typeFilter,
         healthFilter: _healthFilter,
-        onApply: (sort, types, health) => setState(() {
+        expiryFilter: _expiryFilter,
+        onApply: (sort, types, health, expiry) => setState(() {
           _sort = sort;
           _typeFilter = types;
           _healthFilter = health;
+          _expiryFilter = expiry;
         }),
       ),
     );
@@ -218,19 +277,25 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final inventoryAsync = ref.watch(inventoryItemListProvider);
-    final activeFilters =
-        _typeFilter.length + (_healthFilter > 0 ? 1 : 0) + (_sort != SortOption.nameAz ? 1 : 0);
+    final activeFilters = _typeFilter.length +
+        (_healthFilter > 0 ? 1 : 0) +
+        (_expiryFilter > 0 ? 1 : 0) +
+        (_sort != SortOption.nameAz ? 1 : 0);
 
     return Scaffold(
-      floatingActionButton: Builder(
-        builder: (ctx) => FloatingActionButton(
-          onPressed: () => _openAdd(ctx),
-          backgroundColor: AppColors.navyPrimary,
-          foregroundColor: Colors.white,
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom + 64,
+        ),
+        child: FloatingActionButton(
+          onPressed: () => _openAdd(context),
+          backgroundColor: AppColors.yellowBrand,
+          foregroundColor: AppColors.navyPrimary,
           elevation: 3,
           child: const Icon(Icons.add_rounded, size: 26),
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Column(
         children: [
           Expanded(
@@ -245,45 +310,38 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ),
               data: (items) {
                 final filtered = _applyFiltersAndSort(
-                  items, _query, _typeFilter, _healthFilter, _sort,
+                  items, _query, _typeFilter, _healthFilter, _expiryFilter, _sort,
                 );
                 return Column(
                   children: [
-                    SizedBox(height: MediaQuery.of(context).padding.top + 50),
-                    // ── Stats strip ──────────────────────────────────────
-                    _StatsStrip(items: items),
-
-                    // ── Search + Filter bar ──────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _SearchBar(
-                              ctrl: _searchCtrl,
-                              onChanged: (v) => setState(() => _query = v),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Builder(
-                            builder: (ctx) => _FilterButton(
-                              activeCount: activeFilters,
-                              onTap: () => _openFilterSort(ctx, items),
-                            ),
-                          ),
-                        ],
-                      ),
+                    // ── Dark header: title + icons + pill straddling edge ─
+                    _InventoryDarkHeader(
+                      items: items,
+                      searchCtrl: _searchCtrl,
+                      query: _query,
+                      searchExpanded: _searchExpanded,
+                      onToggleSearch: () => setState(() {
+                        _searchExpanded = !_searchExpanded;
+                        if (!_searchExpanded) {
+                          _searchCtrl.clear();
+                          _query = '';
+                        }
+                      }),
+                      onSearchChanged: (v) => setState(() => _query = v),
+                      activeFilters: activeFilters,
+                      onFilterTap: () => _openFilterSort(context, items),
                     ),
+                    // Space for the pill's lower half that overflows the header
+                    const SizedBox(height: _InventoryDarkHeader._pillHalf + 8),
 
-                    // ── Active filter chips ──────────────────────────────
-                    if (_typeFilter.isNotEmpty || _healthFilter > 0)
+                    // ── Active type filter chips ─────────────────────────
+                    if (_typeFilter.isNotEmpty)
                       _ActiveFilterRow(
                         typeFilter: _typeFilter,
-                        healthFilter: _healthFilter,
+                        healthFilter: 0,
                         onClearType: (t) =>
                             setState(() => _typeFilter = {..._typeFilter}..remove(t)),
-                        onClearHealth: () =>
-                            setState(() => _healthFilter = 0),
+                        onClearHealth: () => setState(() => _healthFilter = 0),
                       ),
 
                     // ── List ─────────────────────────────────────────────
@@ -291,7 +349,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       child: filtered.isEmpty
                           ? _EmptyPlaceholder(hasQuery: _query.isNotEmpty || activeFilters > 0)
                           : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+                              padding: const EdgeInsets.only(bottom: 120),
                               itemCount: filtered.length,
                               itemBuilder: (ctx, i) => _ProductRow(
                                 item: filtered[i],
@@ -310,110 +368,33 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 }
 
-// ── Search Bar ────────────────────────────────────────────────────────────────
 
-class _SearchBar extends StatelessWidget {
-  final TextEditingController ctrl;
-  final ValueChanged<String> onChanged;
-  const _SearchBar({required this.ctrl, required this.onChanged});
+// ── Inventory Dark Header (title + search icon) ───────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: TextField(
-        controller: ctrl,
-        onChanged: onChanged,
-        style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
-        decoration: InputDecoration(
-          hintText: _tr('Search products…', 'Tafuta bidhaaa…'),
-          hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textMuted),
-          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
-          suffixIcon: ctrl.text.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
-                    ctrl.clear();
-                    onChanged('');
-                  },
-                  child: const Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted),
-                )
-              : null,
-          filled: true,
-          fillColor: AppColors.surface,
-          contentPadding: EdgeInsets.zero,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterButton extends StatelessWidget {
-  final int activeCount;
-  final VoidCallback onTap;
-  const _FilterButton({required this.activeCount, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 44,
-        width: 44,
-        decoration: BoxDecoration(
-          color: activeCount > 0 ? AppColors.navyPrimary : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: activeCount > 0 ? AppColors.navyPrimary : AppColors.border,
-          ),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(
-              Icons.tune_rounded,
-              size: 20,
-              color: activeCount > 0 ? Colors.white : AppColors.textMuted,
-            ),
-            if (activeCount > 0)
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.tealAccent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Stats Strip ───────────────────────────────────────────────────────────────
-
-class _StatsStrip extends StatelessWidget {
+class _InventoryDarkHeader extends StatelessWidget {
+  final TextEditingController searchCtrl;
+  final String query;
+  final bool searchExpanded;
+  final VoidCallback onToggleSearch;
+  final ValueChanged<String> onSearchChanged;
+  final int activeFilters;
+  final VoidCallback onFilterTap;
   final List<Map<String, dynamic>> items;
-  const _StatsStrip({required this.items});
 
-  @override
-  Widget build(BuildContext context) {
+  const _InventoryDarkHeader({
+    required this.searchCtrl,
+    required this.query,
+    required this.searchExpanded,
+    required this.onToggleSearch,
+    required this.onSearchChanged,
+    required this.activeFilters,
+    required this.onFilterTap,
+    required this.items,
+  });
+
+  static const double _pillHalf = 22.0;
+
+  Widget _buildPill() {
     double stockVal = 0, revenue = 0;
     int low = 0, out = 0;
     for (final item in items) {
@@ -421,83 +402,248 @@ class _StatsStrip extends StatelessWidget {
       final s = _stock(item);
       stockVal += _readBuyingPrice(item) * s;
       revenue  += _readSellingPrice(item) * s;
-      if (s == 0) {
-        out++;
-      } else if (s <= _reorder(item)) {
-        low++;
-      }
+      if (s == 0) { out++; } else if (s <= _reorder(item)) { low++; }
     }
     final profit = revenue - stockVal;
+    final alertCount = low + out;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
       decoration: BoxDecoration(
-        color: AppColors.navyPrimary,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _Strip(label: _tr('Products', 'Bidhaaa'), value: '${items.length}'),
-          _StripDiv(),
-          _Strip(label: _tr('Stock Value', 'Thamani'), value: 'TSh ${_fmtShort(stockVal)}'),
-          _StripDiv(),
-          _Strip(
-            label: _tr('Est. Profit', 'Faida'),
-            value: 'TSh ${_fmtShort(profit)}',
-            valueColor: profit >= 0 ? AppColors.success : AppColors.error,
-          ),
-          _StripDiv(),
-          _Strip(
-            label: _tr('Alerts', 'Tahadhari'),
-            value: '${low + out}',
-            valueColor: low + out > 0 ? const Color(0xFFD97706) : AppColors.success,
-          ),
+          _PillStat(label: _tr('Bidhaa', 'Bidhaa'), value: '${items.length}', color: AppColors.tealAccent),
+          const _PillDivider(),
+          _PillStat(label: _tr('Thamani', 'Thamani'), value: 'TSh ${_fmtShort(stockVal)}', color: AppColors.navyPrimary),
+          const _PillDivider(),
+          _PillStat(label: _tr('Faida', 'Faida'), value: 'TSh ${_fmtShort(profit)}', color: profit >= 0 ? AppColors.success : AppColors.error),
+          const _PillDivider(),
+          _PillStat(label: _tr('Tahadhari', 'Tahadhari'), value: '$alertCount', color: alertCount > 0 ? AppColors.warning : AppColors.success),
         ],
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+    final hasAlerts = items.any((i) => _fullStatusLevel(i) >= 2);
+    final showDot = hasAlerts || activeFilters > 0;
+    final dotColor = hasAlerts ? AppColors.error : AppColors.yellowBrand;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Dark rounded card
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          padding: EdgeInsets.fromLTRB(20, top + 16, 20, 20 + _pillHalf),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _tr('Inventory', 'Bidhaa'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  // Filter button
+                  GestureDetector(
+                    onTap: onFilterTap,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: activeFilters > 0
+                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                            : Colors.white12,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: activeFilters > 0 ? AppColors.yellowBrand : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            Icons.tune_rounded,
+                            color: activeFilters > 0 ? AppColors.yellowBrand : Colors.white,
+                            size: 20,
+                          ),
+                          if (showDot)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: dotColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Search button
+                  GestureDetector(
+                    onTap: onToggleSearch,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: searchExpanded
+                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                            : Colors.white12,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: searchExpanded ? AppColors.yellowBrand : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        searchExpanded ? Icons.close_rounded : Icons.search_rounded,
+                        color: searchExpanded ? AppColors.yellowBrand : Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: searchExpanded
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: SizedBox(
+                          height: 44,
+                          child: TextField(
+                            controller: searchCtrl,
+                            autofocus: true,
+                            onChanged: onSearchChanged,
+                            style: GoogleFonts.dmSans(fontSize: 14, color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: _tr('Search products…', 'Tafuta bidhaa…'),
+                              hintStyle: GoogleFonts.dmSans(fontSize: 14, color: Colors.white38),
+                              prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Colors.white54),
+                              suffixIcon: query.isNotEmpty
+                                  ? GestureDetector(
+                                      onTap: () {
+                                        searchCtrl.clear();
+                                        onSearchChanged('');
+                                      },
+                                      child: const Icon(Icons.close_rounded, size: 16, color: Colors.white54),
+                                    )
+                                  : null,
+                              filled: true,
+                              fillColor: Colors.white12,
+                              contentPadding: EdgeInsets.zero,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: Colors.white24),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppColors.yellowBrand, width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+        // Pill straddling the rounded bottom edge
+        Positioned(
+          bottom: -_pillHalf,
+          left: 0,
+          right: 0,
+          child: Center(child: _buildPill()),
+        ),
+      ],
+    );
+  }
 }
 
-class _Strip extends StatelessWidget {
+
+class _PillStat extends StatelessWidget {
   final String label;
   final String value;
-  final Color? valueColor;
-  const _Strip({required this.label, required this.value, this.valueColor});
+  final Color color;
+  const _PillStat({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: GoogleFonts.dmSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: valueColor ?? Colors.white,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.dmSans(
-              fontSize: 10,
-              color: Colors.white54,
-            ),
-          ),
-        ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w800, color: color),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+class _PillDivider extends StatelessWidget {
+  const _PillDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Container(
+        width: 1,
+        height: 28,
+        color: AppColors.border,
       ),
     );
   }
 }
 
-class _StripDiv extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, height: 28, color: Colors.white12);
-  }
-}
 
 // ── Active Filter Row ─────────────────────────────────────────────────────────
 
@@ -551,7 +697,7 @@ class _FilterChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
         color: AppColors.navyPrimary,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -608,17 +754,10 @@ class _ProductRow extends ConsumerWidget {
     final id = (item['id'] as String?) ?? '';
     if (id.isEmpty) return;
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      await repo
-          .scopeCollection(uid: user.uid, context: ctx, childCollection: 'inventory_items')
-          .doc(id)
-          .delete();
+      await ref.read(inventoryRepositoryProvider).delete(id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr('Product deleted', 'Bidhaaa imefutwa')),
+          content: Text(_tr('Product deleted', 'Bidhaa imefutwa')),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ));
@@ -634,16 +773,25 @@ class _ProductRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final type    = _readType(item);
-    final buy     = _readBuyingPrice(item);
-    final sell    = _readSellingPrice(item);
-    final qty     = _stock(item);
-    final name    = (item['name'] ?? item['productName'] ?? '—').toString();
-    final cat     = (item['category'] ?? '').toString();
-    final unit    = (item['unit'] ?? 'pcs').toString();
-    final marginV = _margin(buy, sell);
-    final health  = _healthLevel(item);
-    final hColor  = _healthColor(health);
+    final type       = _readType(item);
+    final sell       = _readSellingPrice(item);
+    final qty        = _stock(item);
+    final name       = (item['name'] ?? item['productName'] ?? '—').toString();
+    final cat        = (item['category'] ?? '').toString();
+    final unit       = (item['unit'] ?? 'pcs').toString();
+    final sku        = (item['sku'] ?? '').toString();
+    final fullStatus = _fullStatusLevel(item);
+    final fColor     = _fullStatusColor(fullStatus);
+
+    String expiryLabel = '';
+    if (fullStatus == 4) {
+      final days = _daysUntilExpiry(item);
+      expiryLabel = days >= 0
+          ? _tr('Exp. in $days days', 'Inaisha siku $days')
+          : _tr('Expires soon', 'Karibu kuisha');
+    } else if (fullStatus == 5) {
+      expiryLabel = _tr('Expired', 'Imeisha muda');
+    }
 
     return ListSwipeCard(
       itemKey: ValueKey(item['id'] ?? name),
@@ -706,123 +854,116 @@ class _ProductRow extends ConsumerWidget {
           );
         },
         child: Container(
-        margin: const EdgeInsets.only(bottom: 1),
-        decoration: BoxDecoration(
           color: Colors.white,
-          border: Border(
-            bottom: BorderSide(
-              color: isLast ? Colors.transparent : AppColors.border,
-            ),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 13),
-          child: Row(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Column(
             children: [
-              // ── Left: type dot + name ────────────────────────────────
-              Container(
-                width: 6,
-                height: 6,
-                margin: const EdgeInsets.only(right: 12, top: 1),
-                decoration: BoxDecoration(
-                  color: hColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.navyPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Text(
-                          _typeName(type),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        if (cat.isNotEmpty) ...[
-                          Text(
-                            ' · $cat',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // ── Right: price + stock + margin ────────────────────────
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Row(
                 children: [
-                  Text(
-                    _fmtAmount(sell),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navyPrimary,
+                  // ── Circular avatar ────────────────────────────────
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: fColor.withValues(alpha: 0.10),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : '?',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: fColor,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Row(
+                  const SizedBox(width: 14),
+
+                  // ── Name + subtitle ────────────────────────────────
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          [
+                            if (cat.isNotEmpty) cat,
+                            if (sku.isNotEmpty) sku,
+                          ].join(' · '),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (expiryLabel.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              expiryLabel,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: fColor,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // ── Price + stock ──────────────────────────────────
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      if (type != ProductType.service) ...[
+                      Text(
+                        _fmtAmount(sell),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      if (type != ProductType.service)
                         Text(
                           '$qty $unit',
                           style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            color: hColor,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
+                            color: fColor,
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      if (buy > 0 && sell > 0)
-                        Text(
-                          '${marginV.toStringAsFixed(0)}%',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            color: marginV >= 20
-                                ? AppColors.success
-                                : AppColors.textMuted,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        )
+                      else
+                        _StatusPill(level: fullStatus),
                     ],
                   ),
                 ],
               ),
-
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: AppColors.border,
-              ),
+              if (!isLast)
+                const Padding(
+                  padding: EdgeInsets.only(top: 13, left: 60),
+                  child: Divider(height: 1, color: AppColors.border, thickness: 0.8),
+                ),
             ],
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
 
@@ -832,12 +973,14 @@ class _FilterSortSheet extends StatefulWidget {
   final SortOption currentSort;
   final Set<ProductType> typeFilter;
   final int healthFilter;
-  final void Function(SortOption, Set<ProductType>, int) onApply;
+  final int expiryFilter;
+  final void Function(SortOption, Set<ProductType>, int, int) onApply;
 
   const _FilterSortSheet({
     required this.currentSort,
     required this.typeFilter,
     required this.healthFilter,
+    required this.expiryFilter,
     required this.onApply,
   });
 
@@ -849,6 +992,7 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
   late SortOption _sort;
   late Set<ProductType> _types;
   late int _health;
+  late int _expiry;
 
   @override
   void initState() {
@@ -856,10 +1000,11 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
     _sort   = widget.currentSort;
     _types  = {...widget.typeFilter};
     _health = widget.healthFilter;
+    _expiry = widget.expiryFilter;
   }
 
   void _apply() {
-    widget.onApply(_sort, _types, _health);
+    widget.onApply(_sort, _types, _health, _expiry);
     Navigator.of(context).pop();
   }
 
@@ -868,6 +1013,7 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
       _sort   = SortOption.nameAz;
       _types  = {};
       _health = 0;
+      _expiry = 0;
     });
   }
 
@@ -1001,6 +1147,7 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: [
                   _SortChip(
                     label: _tr('All', 'Zote'),
@@ -1008,7 +1155,7 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
                     onTap: () => setState(() => _health = 0),
                   ),
                   _SortChip(
-                    label: _tr('In Stock', 'Ipo'),
+                    label: _tr('Healthy Stock', 'Stoo Ipo'),
                     selected: _health == 1,
                     onTap: () => setState(() => _health = 1),
                   ),
@@ -1021,6 +1168,33 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
                     label: _tr('Out of Stock', 'Imeisha'),
                     selected: _health == 3,
                     onTap: () => setState(() => _health = 3),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // ── Expiry filter ─────────────────────────────────────────
+              _SheetSectionLabel(_tr('Expiry status', 'Hali ya tarehe')),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _SortChip(
+                    label: _tr('Any', 'Yote'),
+                    selected: _expiry == 0,
+                    onTap: () => setState(() => _expiry = 0),
+                  ),
+                  _SortChip(
+                    label: _tr('Expiring Soon', 'Karibu Kuisha'),
+                    selected: _expiry == 1,
+                    onTap: () => setState(() => _expiry = 1),
+                  ),
+                  _SortChip(
+                    label: _tr('Expired', 'Imeisha Muda'),
+                    selected: _expiry == 2,
+                    onTap: () => setState(() => _expiry = 2),
                   ),
                 ],
               ),
@@ -1107,6 +1281,48 @@ class _SortChip extends StatelessWidget {
   }
 }
 
+// ── Status Pill ───────────────────────────────────────────────────────────────
+
+class _StatusPill extends StatelessWidget {
+  final int level; // 0=service, 1=healthy, 2=low, 3=out, 4=expiring, 5=expired
+  const _StatusPill({required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _fullStatusColor(level);
+    final label = _fullStatusLabel(level);
+    if (level == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5, height: 5,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.dmSans(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
 // ── Product Detail Sheet ──────────────────────────────────────────────────────
 
 class _ProductDetailSheet extends ConsumerStatefulWidget {
@@ -1143,19 +1359,23 @@ class _DetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type    = _readType(item);
-    final buy     = _readBuyingPrice(item);
-    final sell    = _readSellingPrice(item);
-    final qty     = _stock(item);
-    final reord   = _reorder(item);
-    final name    = (item['name'] ?? item['productName'] ?? '—').toString();
-    final cat     = (item['category'] ?? '').toString();
-    final unit    = (item['unit'] ?? 'pcs').toString();
-    final sku     = (item['sku'] ?? '').toString();
-    final profitV = _profit(buy, sell);
-    final marginV = _margin(buy, sell);
-    final health  = _healthLevel(item);
-    final hColor  = _healthColor(health);
+    final type       = _readType(item);
+    final buy        = _readBuyingPrice(item);
+    final sell       = _readSellingPrice(item);
+    final qty        = _stock(item);
+    final reord      = _reorder(item);
+    final name       = (item['name'] ?? item['productName'] ?? '—').toString();
+    final cat        = (item['category'] ?? '').toString();
+    final unit       = (item['unit'] ?? 'pcs').toString();
+    final sku        = (item['sku'] ?? '').toString();
+    final batch      = (item['batchNumber'] ?? '').toString();
+    final supplier   = (item['supplier'] ?? '').toString();
+    final expiryDate = (item['expiryDate'] ?? '').toString();
+    final profitV    = _profit(buy, sell);
+    final marginV    = _margin(buy, sell);
+    final fullStatus = _fullStatusLevel(item);
+    final hColor     = _fullStatusColor(fullStatus);
+    final daysLeft   = _daysUntilExpiry(item);
 
     final stockFraction = type != ProductType.service
         ? (qty / (reord * 4).clamp(qty + 1, 9999)).clamp(0.0, 1.0)
@@ -1259,35 +1479,28 @@ class _DetailView extends StatelessWidget {
                     ],
                   ),
 
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
 
-                  // Status pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: hColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6, height: 6,
-                          decoration: BoxDecoration(
-                            color: hColor, shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
+                  // Status pill + expiry note
+                  Row(
+                    children: [
+                      _StatusPill(level: fullStatus),
+                      if (expiryDate.isNotEmpty && daysLeft >= 0) ...[
+                        const SizedBox(width: 8),
                         Text(
-                          _healthLabel(health),
+                          daysLeft == 0
+                              ? _tr('Expires today!', 'Inaisha leo!')
+                              : daysLeft < 0
+                                  ? _tr('Expired', 'Imeisha muda')
+                                  : _tr('$daysLeft days left', 'Siku $daysLeft zimebaki'),
                           style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                             color: hColor,
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
 
                   const SizedBox(height: 28),
@@ -1374,35 +1587,56 @@ class _DetailView extends StatelessWidget {
                     ),
                   ],
 
-                  // ── Metadata ─────────────────────────────────────────
-                  if (sku.isNotEmpty) ...[
+                  // ── Details (SKU, batch, supplier, expiry) ───────────
+                  if (sku.isNotEmpty || batch.isNotEmpty || supplier.isNotEmpty || expiryDate.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     _Divider(),
                     const SizedBox(height: 20),
                     _DetailSectionLabel(_tr('Details', 'Maelezo')),
                     const SizedBox(height: 14),
-                    _KeyValue(k: 'SKU', v: sku),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => BarcodeViewSheet.show(
-                          context,
-                          productName: name,
-                          sku: sku,
-                          price: sell,
-                        ),
-                        icon: const Icon(Icons.qr_code_rounded, size: 16),
-                        label: Text(_tr('View / Print Barcode', 'Ona / Chapa Nambari')),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.tealAccent,
-                          side: const BorderSide(color: AppColors.tealAccent),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    if (sku.isNotEmpty) ...[
+                      _KeyValue(k: 'SKU', v: sku),
+                      const SizedBox(height: 10),
+                    ],
+                    if (batch.isNotEmpty) ...[
+                      _KeyValue(k: _tr('Batch', 'Kundi'), v: batch),
+                      const SizedBox(height: 10),
+                    ],
+                    if (supplier.isNotEmpty) ...[
+                      _KeyValue(k: _tr('Supplier', 'Msambazaji'), v: supplier),
+                      const SizedBox(height: 10),
+                    ],
+                    if (expiryDate.isNotEmpty) ...[
+                      _KeyValue(
+                        k: _tr('Expiry', 'Mwisho'),
+                        v: expiryDate,
+                        valueColor: hColor,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    if (sku.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => BarcodeViewSheet.show(
+                            context,
+                            productName: name,
+                            sku: sku,
+                            price: sell,
+                          ),
+                          icon: const Icon(Icons.qr_code_rounded, size: 16),
+                          label: Text(_tr('View / Print Barcode', 'Ona / Chapa Nambari')),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.tealAccent,
+                            side: const BorderSide(color: AppColors.tealAccent),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
 
                   const SizedBox(height: 28),
@@ -1498,23 +1732,28 @@ class _DetailStat extends StatelessWidget {
 class _KeyValue extends StatelessWidget {
   final String k;
   final String v;
-  const _KeyValue({required this.k, required this.v});
+  final Color? valueColor;
+  const _KeyValue({required this.k, required this.v, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          k,
-          style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
+        SizedBox(
+          width: 88,
+          child: Text(
+            k,
+            style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
+          ),
         ),
-        const SizedBox(width: 12),
-        Text(
-          v,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.navyPrimary,
+        Expanded(
+          child: Text(
+            v,
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: valueColor ?? AppColors.navyPrimary,
+            ),
           ),
         ),
       ],
@@ -1715,7 +1954,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       return;
     }
 
-    // Enforce expiry date when required by business type
     final bizType = ref.read(currentBusinessTypeProvider).valueOrNull ?? '';
     final config  = BusinessProductConfig.forBusinessType(bizType);
     if (config.isExpiryRequired && _expiryDate == null) {
@@ -1728,68 +1966,64 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final msg = ScaffoldMessenger.of(context);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not authenticated');
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx  = await repo.resolveContextForUser(user.uid);
-      final col  = repo.scopeCollection(
-        uid: user.uid, context: ctx, childCollection: 'inventory_items',
-      );
-
       final resolvedCatName = _selectedCategoryName.isNotEmpty
           ? _selectedCategoryName
           : _tr('General', 'Jumla');
 
-      final data = <String, dynamic>{
-        'name':         name,
-        'productType':  _type.name,
-        'category':     resolvedCatName,
-        'categoryId':   _selectedCategoryId,
-        'categoryName': resolvedCatName,
-        'unit':         _unit,
-        'sellingPrice': _sellVal,
-        'unitPrice':    _sellVal,
-        if (_buyVal > 0) 'buyingPrice': _buyVal,
-        if (_type != ProductType.service) ...{
-          'currentStock': int.tryParse(_stockCtrl.text) ?? 1,
-          'stock':        int.tryParse(_stockCtrl.text) ?? 1,
-          'reorderPoint': int.tryParse(_reorderCtrl.text) ?? 5,
-        },
-        if (_skuCtrl.text.trim().isNotEmpty) 'sku': _skuCtrl.text.trim(),
-        'expiryDate':     _expiryDate != null
-            ? '${_expiryDate!.year}-${_expiryDate!.month.toString().padLeft(2, '0')}-${_expiryDate!.day.toString().padLeft(2, '0')}'
-            : '',
-        'batchNumber':    _batchCtrl.text.trim(),
-        'brand':          _brandCtrl.text.trim(),
-        'warrantyPeriod': _warrantyCtrl.text.trim(),
-        'isActive':  true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+      final now = DateTime.now().toIso8601String();
+      final existing = widget.existingItem;
+      final expiryStr = _expiryDate != null
+          ? '${_expiryDate!.year}-'
+              '${_expiryDate!.month.toString().padLeft(2, '0')}-'
+              '${_expiryDate!.day.toString().padLeft(2, '0')}'
+          : '';
 
-      if (_isEdit && widget.existingId != null) {
-        await col.doc(widget.existingId).update(data);
-        msg.showSnackBar(SnackBar(
-          content: Text(_tr('Updated', 'Imesasishwa')),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ));
-        widget.onDone != null ? widget.onDone!() : nav.pop();
-      } else {
-        data['createdAt'] = FieldValue.serverTimestamp();
-        await col.add(data);
-        msg.showSnackBar(SnackBar(
-          content: Text(_tr('Product added', 'Bidhaa imeongezwa')),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ));
-        nav.pop();
-      }
+      final item = InventoryItem(
+        id: widget.existingId ?? '',
+        name: name,
+        productType: _type.name,
+        category: resolvedCatName,
+        categoryId: _selectedCategoryId,
+        categoryName: resolvedCatName,
+        sku: _skuCtrl.text.trim(),
+        currentStock: _type != ProductType.service
+            ? (double.tryParse(_stockCtrl.text) ?? 0)
+            : 0,
+        reorderPoint: _type != ProductType.service
+            ? (double.tryParse(_reorderCtrl.text) ?? 5)
+            : 0,
+        unitPrice: _sellVal,
+        costPrice: _buyVal,
+        unit: _unit,
+        expiryDate: expiryStr,
+        batchNumber: _batchCtrl.text.trim(),
+        brand: _brandCtrl.text.trim(),
+        warrantyPeriod: _warrantyCtrl.text.trim(),
+        supplier: (existing?['supplier'] as String?) ?? '',
+        lastRestocked: (existing?['lastRestocked'] as String?) ?? '',
+        createdAt: (existing?['createdAt'] as String?) ?? now,
+        updatedAt: now,
+      );
+
+      await ref.read(inventoryRepositoryProvider).save(item);
+
+      if (!mounted) return;
+      msg.showSnackBar(SnackBar(
+        content: Text(_isEdit
+            ? _tr('Product updated', 'Bidhaa imesasishwa')
+            : _tr('Product added', 'Bidhaa imeongezwa')),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+      ));
+      widget.onDone != null ? widget.onDone!() : nav.pop();
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
       msg.showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
-        content: Text(_tr('Could not save product. Please try again.', 'Imeshindikana kuhifadhi bidhaa. Jaribu tena.')),
+        content: Text(_tr(
+            'Could not save product. Please try again.',
+            'Imeshindikana kuhifadhi bidhaa. Jaribu tena.')),
       ));
     }
   }

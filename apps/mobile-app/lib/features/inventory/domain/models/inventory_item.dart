@@ -8,7 +8,9 @@ class InventoryItem {
   final String sku;
   final double currentStock;
   final double reorderPoint;
-  final double unitPrice;
+  final double unitPrice;     // Selling price
+  final double costPrice;     // Buying / cost price
+  final String productType;   // 'stock' | 'perishable' | 'service'
   final String unit; // 'pcs', 'kg', 'liters', etc.
   final String supplier;
   final String lastRestocked;
@@ -34,6 +36,8 @@ class InventoryItem {
     required this.currentStock,
     required this.reorderPoint,
     required this.unitPrice,
+    this.costPrice = 0,
+    this.productType = 'stock',
     required this.unit,
     this.supplier = '',
     this.lastRestocked = '',
@@ -65,6 +69,10 @@ class InventoryItem {
       unitPrice: (data['unitPrice'] as num?)?.toDouble() ??
           (data['sellingPrice'] as num?)?.toDouble() ??
           0.0,
+      costPrice: (data['costPrice'] as num?)?.toDouble() ??
+          (data['buyingPrice'] as num?)?.toDouble() ??
+          0.0,
+      productType: data['productType'] as String? ?? 'stock',
       unit: data['unit'] ?? 'pcs',
       supplier: data['supplier'] ?? '',
       lastRestocked: data['lastRestocked'] ?? '',
@@ -91,6 +99,9 @@ class InventoryItem {
       'reorderPoint': reorderPoint,
       'unitPrice': unitPrice,
       'sellingPrice': unitPrice,
+      'costPrice': costPrice,
+      'buyingPrice': costPrice,
+      'productType': productType,
       'unit': unit,
       'supplier': supplier,
       'lastRestocked': lastRestocked,
@@ -115,6 +126,8 @@ class InventoryItem {
     double? currentStock,
     double? reorderPoint,
     double? unitPrice,
+    double? costPrice,
+    String? productType,
     String? unit,
     String? supplier,
     String? lastRestocked,
@@ -137,6 +150,8 @@ class InventoryItem {
       currentStock: currentStock ?? this.currentStock,
       reorderPoint: reorderPoint ?? this.reorderPoint,
       unitPrice: unitPrice ?? this.unitPrice,
+      costPrice: costPrice ?? this.costPrice,
+      productType: productType ?? this.productType,
       unit: unit ?? this.unit,
       supplier: supplier ?? this.supplier,
       lastRestocked: lastRestocked ?? this.lastRestocked,
@@ -150,10 +165,20 @@ class InventoryItem {
     );
   }
 
-  bool get isLowStock => currentStock <= reorderPoint;
+  // ── Stock computed properties ────────────────────────────────────────────────
+
+  bool get isLowStock => currentStock > 0 && currentStock <= reorderPoint;
   bool get isOutOfStock => currentStock <= 0;
-  double get stockValue => currentStock * unitPrice;
-  double get reorderValue => reorderPoint * unitPrice;
+  bool get isService => productType == 'service';
+
+  double get stockValue    => currentStock * unitPrice;
+  double get costValue     => currentStock * costPrice;
+  double get reorderValue  => reorderPoint * unitPrice;
+  double get profitPerUnit => unitPrice > 0 ? unitPrice - costPrice : 0;
+  double get marginPercent =>
+      unitPrice > 0 ? ((unitPrice - costPrice) / unitPrice) * 100 : 0;
+
+  // ── Expiry computed properties ───────────────────────────────────────────────
 
   bool get isExpired {
     if (expiryDate.isEmpty) return false;
@@ -168,6 +193,15 @@ class InventoryItem {
     if (date == null) return false;
     return !isExpired && date.isBefore(DateTime.now().add(const Duration(days: 30)));
   }
+
+  int get daysUntilExpiry {
+    if (expiryDate.isEmpty) return -1;
+    final date = DateTime.tryParse(expiryDate);
+    if (date == null) return -1;
+    return date.difference(DateTime.now()).inDays;
+  }
+
+  // ── Legacy string helpers (kept for backward compat) ────────────────────────
 
   String get stockStatus {
     if (isOutOfStock) return 'Out of Stock';

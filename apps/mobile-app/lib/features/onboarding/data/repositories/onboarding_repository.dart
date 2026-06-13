@@ -170,9 +170,14 @@ class OnboardingRepository {
 
   // ─── AUTH — TEAM MEMBER FIRST-TIME SETUP ─────────────────────────────────
 
-  /// Creates a Firebase Auth account for a team member, writes their user
-  /// document to `users/{uid}`, marks the `team_members` record as active,
-  /// and marks the `pendingInvites` record as accepted (if [inviteId] given).
+  /// Creates a Firebase Auth account for a team member, then writes their user
+  /// document, activates the `team_members` record, creates the `memberAccess`
+  /// doc, and marks the `pendingInvites` record as accepted — all in a single
+  /// atomic Firestore batch so no partial state is possible.
+  ///
+  /// Idempotent: if the Firebase Auth account already exists (retry after a
+  /// previous network failure), we sign in and let the batch self-heal any
+  /// missing Firestore documents.
   Future<void> createTeamMemberAccount({
     required String phone,
     required String pin,
@@ -186,19 +191,32 @@ class OnboardingRepository {
     final email = _emailFromPhone(phone);
     final password = buildAuthPasswordFromPin(pin);
 
-    final cred = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    UserCredential cred;
+    try {
+      cred = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'email-already-in-use') rethrow;
+      // Account was created in a prior attempt but Firestore writes may have
+      // been partial.  Sign in and let the batch below self-heal the docs.
+      cred = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    }
     final uid = cred.user!.uid;
 
     final parts = name.trim().split(RegExp(r'\s+'));
     final firstName = parts.isNotEmpty ? parts.first : '';
     final lastName = parts.length > 1 ? parts.skip(1).join(' ') : '';
 
-    // Write user document — include memberId so currentMemberProvider can
-    // find the team_member doc without a collection-group query.
-    await _db.collection('users').doc(uid).set({
+    final batch = _db.batch();
+
+    // 1. User profile — memberId lets currentMemberProvider locate the
+    //    team_member doc directly without a collection-group query.
+    batch.set(_db.collection('users').doc(uid), {
       'phone': phone,
       'name': name,
       'firstName': firstName,
@@ -212,62 +230,55 @@ class OnboardingRepository {
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
 
-    // Mark team_member record as active and stamp userId (Firebase Auth UID).
     if (ownerUid.isNotEmpty && businessId.isNotEmpty && memberId.isNotEmpty) {
-      try {
-        await _db
+      // 2. Activate the team_member record and stamp userId.
+      batch.update(
+        _db
             .collection('tenants')
             .doc(ownerUid)
             .collection('businesses')
             .doc(businessId)
             .collection('team_members')
-            .doc(memberId)
-            .update({
+            .doc(memberId),
+        {
           'status': 'active',
           'acceptedAt': FieldValue.serverTimestamp(),
-          'userId': uid, // used by Firestore rules and currentMemberProvider
-        });
-      } catch (e) {
-        if (kDebugMode) debugPrint('[createTeamMemberAccount] activate: $e');
-      }
+          'updatedAt': FieldValue.serverTimestamp(),
+          'userId': uid,
+        },
+      );
 
-      // Write memberAccess/{uid} so Firestore security rules can check
-      // permissions server-side without trusting the client.
-      try {
-        final teamRole = TeamRole.fromString(role);
-        final permissions = defaultPermissionsFor(teamRole)
-            .map((p) => p.name)
-            .toList();
-        await _db
+      // 3. memberAccess doc for server-side Firestore rule checks.
+      final teamRole = TeamRole.fromString(role);
+      final permissions =
+          defaultPermissionsFor(teamRole).map((p) => p.name).toList();
+      batch.set(
+        _db
             .collection('tenants')
             .doc(ownerUid)
             .collection('memberAccess')
-            .doc(uid)
-            .set({
+            .doc(uid),
+        {
           'status': 'active',
           'businessId': businessId,
           'memberId': memberId,
           'role': role,
           'permissions': permissions,
-        });
-      } catch (e) {
-        if (kDebugMode) debugPrint('[createTeamMemberAccount] memberAccess: $e');
-      }
+        },
+      );
     }
 
-    // Mark pendingInvite as accepted
+    // 4. Mark pendingInvite as accepted.
     if (inviteId.isNotEmpty) {
-      try {
-        await _db.collection('pendingInvites').doc(inviteId).update({
-          'status': 'accepted',
-          'pinCreated': true,
-          'acceptedAt': FieldValue.serverTimestamp(),
-          'uid': uid,
-        });
-      } catch (e) {
-        if (kDebugMode) debugPrint('[createTeamMemberAccount] invite: $e');
-      }
+      batch.update(_db.collection('pendingInvites').doc(inviteId), {
+        'status': 'accepted',
+        'pinCreated': true,
+        'acceptedAt': FieldValue.serverTimestamp(),
+        'uid': uid,
+      });
     }
+
+    await batch.commit();
   }
 
   // ─── PIN RECOVERY ─────────────────────────────────────────────────────────

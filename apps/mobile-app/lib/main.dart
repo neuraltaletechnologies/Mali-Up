@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,10 +12,12 @@ import 'package:mali_up/core/services/localization_service.dart';
 import 'package:mali_up/core/services/motion_service.dart';
 import 'package:mali_up/core/services/sentry_metrics_service.dart';
 import 'package:mali_up/core/services/security_service.dart';
+import 'package:mali_up/features/onboarding/providers/onboarding_notifier.dart';
 import 'package:mali_up/features/security/presentation/screens/pin_lock_screen.dart';
 import 'firebase_options.dart';
 
-const String _onboardingCompletedKey = 'onboarding_completed';
+// Must match OnboardingService._completedKey so the bootstrap read is consistent.
+const String _onboardingCompletedKey = 'mali_onboarding_complete';
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 const String _sentryEnvironment = String.fromEnvironment(
   'SENTRY_ENVIRONMENT',
@@ -60,6 +61,11 @@ Future<void> _startApp() async {
 
   runApp(
     ProviderScope(
+      overrides: [
+        // Tell the router immediately whether to skip onboarding.
+        // This prevents a one-frame flicker to /welcome for returning users.
+        onboardingBootstrapProvider.overrideWithValue(hasCompletedOnboarding),
+      ],
       child: MaliUpApp(
         hasCompletedOnboarding: hasCompletedOnboarding,
         hasSelectedLanguage: hasSelectedLanguage,
@@ -107,7 +113,7 @@ Future<void> main() async {
   }
 }
 
-class MaliUpApp extends StatefulWidget {
+class MaliUpApp extends ConsumerStatefulWidget {
   final bool hasCompletedOnboarding;
   final bool hasSelectedLanguage;
 
@@ -118,12 +124,11 @@ class MaliUpApp extends StatefulWidget {
   });
 
   @override
-  State<MaliUpApp> createState() => _MaliUpAppState();
+  ConsumerState<MaliUpApp> createState() => _MaliUpAppState();
 }
 
-class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
-  late final GoRouter _router;
-
+class _MaliUpAppState extends ConsumerState<MaliUpApp>
+    with WidgetsBindingObserver {
   // True when the app was launched with the lock screen active (PIN lock set).
   late final bool _startedLocked;
   // Flipped to true after the first post-unlock navigation so subsequent
@@ -135,11 +140,6 @@ class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startedLocked = SecurityService.isLockedNotifier.value;
-    _router = AppRouter.createRouter(
-      showLanguageSelection: !widget.hasSelectedLanguage,
-      showOnboarding:
-          !widget.hasCompletedOnboarding && widget.hasSelectedLanguage,
-    );
     SecurityService.isLockedNotifier.addListener(_onLockStateChanged);
   }
 
@@ -147,7 +147,6 @@ class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
   void dispose() {
     SecurityService.isLockedNotifier.removeListener(_onLockStateChanged);
     WidgetsBinding.instance.removeObserver(this);
-    _router.dispose();
     super.dispose();
   }
 
@@ -160,7 +159,7 @@ class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
       _navigatedAfterFirstUnlock = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && FirebaseAuth.instance.currentUser != null) {
-          _router.go(AppRoutes.dashboard);
+          ref.read(goRouterProvider).go(AppRoutes.dashboard);
         }
       });
     }
@@ -177,6 +176,11 @@ class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // goRouterProvider is Riverpod-aware: its refreshListenable fires whenever
+    // onboardingNotifierProvider or permissionServiceProvider change, causing
+    // the router to re-evaluate redirects without a full app rebuild.
+    final router = ref.watch(goRouterProvider);
+
     return ValueListenableBuilder<bool>(
       valueListenable: SecurityService.isLockedNotifier,
       builder: (context, isLocked, _) {
@@ -211,7 +215,7 @@ class _MaliUpAppState extends State<MaliUpApp> with WidgetsBindingObserver {
                       GlobalWidgetsLocalizations.delegate,
                       GlobalCupertinoLocalizations.delegate,
                     ],
-                    routerConfig: _router,
+                    routerConfig: router,
                   ),
                 );
               },

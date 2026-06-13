@@ -133,13 +133,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   Future<void> lookupPhone() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      // Explicit internet connection check
-      final result = await InternetAddress.lookup('google.com');
-      if (result.isEmpty || result[0].rawAddress.isEmpty) {
-        throw const SocketException('No internet connection');
-      }
-
-      final lookupResult = await _service.lookupPhone(phone: state.phone);
+      // 15-second guard: Firestore will throw SocketException on its own if
+      // there is no network, so we don't need an InternetAddress.lookup check
+      // (which is unreliable on emulators and restricted networks).
+      final lookupResult = await _service
+          .lookupPhone(phone: state.phone)
+          .timeout(const Duration(seconds: 15));
 
       switch (lookupResult) {
         case final ReturningUser r:

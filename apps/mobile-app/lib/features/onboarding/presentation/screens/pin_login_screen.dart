@@ -71,7 +71,9 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     if (!mounted) return;
     final s = ref.read(onboardingNotifierProvider);
     if (s.errorMessage != null) setState(() => _hasError = true);
-    if (s.isComplete) context.go(AppRoutes.success);
+    // Returning users skip the success screen — they've already been onboarded.
+    // Navigate straight to dashboard; the router's redirect handles RBAC checks.
+    if (s.isComplete) context.go(AppRoutes.dashboard);
   }
 
   Future<void> _openWhatsAppHelp(bool sw) async {
@@ -350,6 +352,21 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                               ),
                             ),
                             const SizedBox(height: 16),
+
+                            // Loading status label
+                            if (state.isLoading)
+                              Center(
+                                child: Text(
+                                  sw
+                                      ? 'Inakuingia, subiri kidogo…'
+                                      : 'Signing you in, please wait…',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
 
                             // Forgot PIN
                             Center(

@@ -64,7 +64,13 @@ import '../features/reports/presentation/screens/inventory_valuation_screen.dart
     deferred as screen_inv_val;
 import '../features/settings/presentation/screens/sync_diagnostics_screen.dart'
     deferred as screen_sync_diagnostics;
-import '../features/rbac/data/rbac_providers.dart';
+import '../features/rbac/data/rbac_providers.dart'
+    show
+        authStateProvider,
+        permissionServiceProvider,
+        permissionsLoadedProvider,
+        SessionState,
+        sessionStateProvider;
 import '../features/rbac/presentation/screens/access_denied_screen.dart';
 import '../features/team/domain/models/team_member.dart';
 
@@ -150,10 +156,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
     _ref.listen(onboardingNotifierProvider, (prev, next) => notifyListeners());
+    // Re-evaluate on Firebase Auth sign-in / sign-out so first-login
+    // correctly picks up the newly authenticated user.
+    _ref.listen(authStateProvider, (prev, next) => notifyListeners());
     // Re-evaluate routes whenever the user's permissions change
     // (e.g. profile loads, role changes, member is suspended).
     _ref.listen(permissionServiceProvider, (prev, next) => notifyListeners());
     _ref.listen(permissionsLoadedProvider, (prev, next) => notifyListeners());
+    // Re-evaluate when session bootstrap state changes so we can detect
+    // memberNotFound and redirect to the recovery screen.
+    _ref.listen(sessionStateProvider, (prev, next) => notifyListeners());
   }
 
   final Ref _ref;
@@ -174,6 +186,14 @@ class _RouterNotifier extends ChangeNotifier {
     if (ob.isComplete) {
       if (path == AppRoutes.success) return null;
       if (AppRoutes.isOnboardingPath(path)) return AppRoutes.dashboard;
+
+      // ── Session bootstrap guard ───────────────────────────────────────
+      // If the user's member record can't be found after the profile loaded,
+      // redirect to the recovery screen instead of showing a blank dashboard.
+      final session = _ref.read(sessionStateProvider);
+      if (session == SessionState.memberNotFound) {
+        return AppRoutes.accessDenied;
+      }
 
       // ── Permission guards ─────────────────────────────────────────────
       // Skip checks while permissions are still loading to avoid a flash.
