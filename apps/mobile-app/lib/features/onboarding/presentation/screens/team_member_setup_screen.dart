@@ -326,6 +326,8 @@ class _TeamMemberSetupScreenState
                                       key: const ValueKey('invite'),
                                       sw: sw,
                                       name: name,
+                                      phone: state.phone,
+                                      email: state.memberEmail,
                                       role: state.role,
                                       businessName: state.businessName,
                                       isLoading: state.isLoading,
@@ -356,6 +358,8 @@ class _InvitationBody extends StatelessWidget {
     super.key,
     required this.sw,
     required this.name,
+    required this.phone,
+    required this.email,
     required this.role,
     required this.businessName,
     required this.isLoading,
@@ -366,6 +370,8 @@ class _InvitationBody extends StatelessWidget {
 
   final bool sw;
   final String name;
+  final String phone;
+  final String email;
   final String role;
   final String businessName;
   final bool isLoading;
@@ -518,6 +524,59 @@ class _InvitationBody extends StatelessWidget {
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (phone.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.12)),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.phone_outlined,
+                        size: 16, color: Colors.white54),
+                    const SizedBox(width: 8),
+                    Text(
+                      sw ? 'Simu: ' : 'Phone: ',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.60),
+                      ),
+                    ),
+                    Text(
+                      phone,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (email.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.12)),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.email_outlined,
+                        size: 16, color: Colors.white54),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        email,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -785,7 +844,7 @@ class _PinSetupBody extends StatelessWidget {
 
 // ── "Start fresh" security warning sheet ──────────────────────────────────────
 
-class _StartFreshWarningSheet extends StatelessWidget {
+class _StartFreshWarningSheet extends StatefulWidget {
   const _StartFreshWarningSheet({
     required this.sw,
     required this.businessName,
@@ -795,7 +854,18 @@ class _StartFreshWarningSheet extends StatelessWidget {
   final String businessName;
 
   @override
+  State<_StartFreshWarningSheet> createState() =>
+      _StartFreshWarningSheetState();
+}
+
+class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
+  bool _understood = false;
+
+  @override
   Widget build(BuildContext context) {
+    final sw = widget.sw;
+    final businessName = widget.businessName;
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.background,
@@ -867,17 +937,57 @@ class _StartFreshWarningSheet extends StatelessWidget {
               height: 1.55,
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
 
-          // Confirm
+          // Explicit acknowledgement checkbox — prevents accidental taps.
+          GestureDetector(
+            onTap: () => setState(() => _understood = !_understood),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  value: _understood,
+                  onChanged: (v) =>
+                      setState(() => _understood = v ?? false),
+                  activeColor: AppColors.navyPrimary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4)),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      sw
+                          ? 'Naelewa kwamba ninaunda wasifu mpya na kuacha mwaliko huu.'
+                          : 'I understand I am creating a separate profile and leaving this invitation behind.',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Confirm — only enabled once the checkbox is checked.
           SizedBox(
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed:
+                  _understood ? () => Navigator.of(context).pop(true) : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.navyPrimary,
                 foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    AppColors.navyPrimary.withValues(alpha: 0.35),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
                 elevation: 0,

@@ -612,31 +612,25 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
 
         return Scaffold(
           extendBodyBehindAppBar: true,
+          extendBody: true,
           drawerScrimColor: Colors.transparent,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(kToolbarHeight),
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                    child: Container(
+                child: Container(
                       height: 46,
                       padding: const EdgeInsets.symmetric(horizontal: 4.0),
                       decoration: BoxDecoration(
-                        color: AppColors.background.withValues(alpha: 0.72),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.12),
-                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
+                            color: Colors.black.withValues(alpha: 0.06),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
-                          )
+                          ),
                         ],
                       ),
                       child: Row(
@@ -666,8 +660,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                         ],
                       ),
                     ),
-                  ),
-                ),
               ),
             ),
           ),
@@ -676,44 +668,34 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
             mainAxisSize: MainAxisSize.min,
             children: [
               const SyncStatusBanner(),
-              SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).padding.bottom + 20),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        width: 1.5,
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  24, 0, 24,
+                  MediaQuery.of(context).padding.bottom + 16,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.navyPrimary,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.28),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: List.generate(destinations.length, (index) {
-                        final destination = destinations[index];
-                        final isSelected = index == currentIndex;
-                        return _buildBottomNavItem(context, destination, isSelected, index);
-                      }),
-                    ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: List.generate(destinations.length, (index) {
+                      final destination = destinations[index];
+                      final isSelected = index == currentIndex;
+                      return _buildBottomNavItem(context, destination, isSelected, index);
+                    }),
                   ),
                 ),
               ),
-            ),
-          ),
             ],
           ),
         );
@@ -723,49 +705,29 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
 
   Widget _buildBottomNavItem(BuildContext context, _NavDestination destination, bool isSelected, int index) {
     return GestureDetector(
-      onTap: () {
-        context.go(destination.route);
-      },
+      onTap: () => context.go(destination.route),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 18 : 12,
-          vertical: 10,
-        ),
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
+          color: isSelected ? AppColors.yellowBrand : Colors.transparent,
+          shape: BoxShape.circle,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              transitionBuilder: (child, animation) {
-                return ScaleTransition(scale: animation, child: child);
-              },
-              child: Icon(
-                isSelected ? destination.activeIcon : destination.icon,
-                key: ValueKey<bool>(isSelected),
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                size: 24,
-              ),
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (child, animation) =>
+                ScaleTransition(scale: animation, child: child),
+            child: Icon(
+              isSelected ? destination.activeIcon : destination.icon,
+              key: ValueKey<bool>(isSelected),
+              color: isSelected ? AppColors.navyPrimary : Colors.white54,
+              size: 22,
             ),
-            if (isSelected) ...[
-              const SizedBox(width: 8),
-              Text(
-                destination.label,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,6 +12,7 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../onboarding/domain/validators/onboarding_validator.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../data/team_providers.dart';
@@ -233,6 +235,38 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx2 = await repo.resolveContextForUser(user.uid);
       await repo.deleteTeamMember(uid: user.uid, context: ctx2, memberId: member.id);
+
+      // Clean up memberAccess doc if the member had already signed in.
+      final memberUid = member.userId;
+      if (memberUid != null && memberUid.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('tenants')
+              .doc(user.uid)
+              .collection('memberAccess')
+              .doc(memberUid)
+              .delete();
+        } catch (e) {
+          if (kDebugMode) debugPrint('[removeMember] memberAccess cleanup: $e');
+        }
+      }
+
+      // Mark the pending invite as cancelled so the phone lookup no longer
+      // returns this person as a team member.
+      try {
+        final inviteSnap = await FirebaseFirestore.instance
+            .collection('pendingInvites')
+            .where('memberId', isEqualTo: member.id)
+            .where('ownerUid', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+        for (final doc in inviteSnap.docs) {
+          unawaited(doc.reference.update({'status': 'cancelled'}));
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[removeMember] pendingInvite cleanup: $e');
+      }
+
       unawaited(AuditLogService().log(
         ownerUid: user.uid,
         businessId: ctx2.businessId ?? '',
@@ -736,8 +770,16 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
     }
 
     final rawPhone = _phoneCtrl.text.trim();
+    if (rawPhone.isNotEmpty) {
+      final phoneError = OnboardingValidator.validatePhone(rawPhone);
+      if (phoneError != null) {
+        _snack(phoneError);
+        return;
+      }
+    }
+
     final normalizedPhone =
-        rawPhone.isNotEmpty ? _normalizePhone(rawPhone) : '';
+        rawPhone.isNotEmpty ? OnboardingValidator.normalisePhone(rawPhone) : '';
 
     setState(() => _isSaving = true);
     final navigator = Navigator.of(context);
@@ -813,18 +855,6 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
             'Could not add team member. Please try again.',
             'Imeshindikana kuongeza mwanachama. Jaribu tena.'))));
     }
-  }
-
-  /// Normalises any phone input to E.164 (defaults to Tanzania +255).
-  static String _normalizePhone(String raw) {
-    final phone = raw.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    if (phone.isEmpty) return phone;
-    if (phone.startsWith('+')) return phone;
-    if (phone.startsWith('255') && phone.length >= 12) return '+$phone';
-    if (phone.startsWith('0') && phone.length >= 9) {
-      return '+255${phone.substring(1)}';
-    }
-    return '+255$phone';
   }
 
   void _snack(String msg) => ScaffoldMessenger.of(context)
@@ -1016,6 +1046,49 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
           context: ctx,
           memberId: _member.id,
           data: data);
+
+      // Sync memberAccess so Firestore security rules reflect the new
+      // role/permissions/status immediately — the rules check this doc.
+      final memberUid = _member.userId;
+      if (memberUid != null && memberUid.isNotEmpty) {
+        final accessUpdate = <String, dynamic>{};
+        if (data.containsKey('role') || data.containsKey('customPermissions')) {
+          final newRole = data.containsKey('role')
+              ? TeamRole.fromString(data['role'] as String)
+              : _member.role;
+          final newCustom = data.containsKey('customPermissions')
+              ? Set<AppPermission>.of(
+                  (data['customPermissions'] as List)
+                      .whereType<String>()
+                      .map(AppPermissionX.fromString)
+                      .whereType<AppPermission>())
+              : _member.customPermissions;
+          final effective = newRole == TeamRole.custom
+              ? newCustom
+              : defaultPermissionsFor(newRole);
+          accessUpdate['role'] = newRole.name;
+          accessUpdate['permissions'] = effective.map((p) => p.name).toList();
+        }
+        if (data.containsKey('status')) {
+          accessUpdate['status'] = data['status'];
+        }
+        if (accessUpdate.isNotEmpty) {
+          accessUpdate['updatedAt'] = FieldValue.serverTimestamp();
+          try {
+            await FirebaseFirestore.instance
+                .collection('tenants')
+                .doc(user.uid)
+                .collection('memberAccess')
+                .doc(memberUid)
+                .update(accessUpdate);
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint('[TeamScreen] memberAccess sync failed: $e');
+            }
+          }
+        }
+      }
+
       // Audit log — best-effort, do not await
       final bizId = ctx.businessId ?? '';
       if (data.containsKey('role')) {

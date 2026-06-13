@@ -109,10 +109,12 @@ service cloud.firestore {
         (!data.keys().hasAny(['city'])         || data.city is string) &&
         (!data.keys().hasAny(['role'])         || data.role is string) &&
         (!data.keys().hasAny(['language'])     || data.language in ['en', 'sw']) &&
-        // Team member link fields
+        // Team member link fields (all required together for team members)
         (!data.keys().hasAny(['isTeamMember']) || data.isTeamMember is bool) &&
         (!data.keys().hasAny(['ownerUid'])     || data.ownerUid is string) &&
         (!data.keys().hasAny(['businessId'])   || data.businessId is string) &&
+        // memberId links back to tenants/{ownerUid}/…/team_members/{memberId}
+        (!data.keys().hasAny(['memberId'])     || data.memberId is string) &&
         // Legacy account preference fields
         (!data.keys().hasAny(['defaultAccountType']) ||
           data.defaultAccountType in ['business']) &&
@@ -577,6 +579,18 @@ service cloud.firestore {
           allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
           // Members can read their own record (role, status, permissions).
           allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+          // Invite acceptance: the invited member claims this record on first
+          // login — stamping their UID and activating it. Only the activation
+          // fields may change, the record must be unclaimed (or already theirs,
+          // for retries after a partial failure), and the caller's derived auth
+          // email must match the invited phone number.
+          allow update: if isSignedIn() &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'acceptedAt', 'userId', 'updatedAt']) &&
+            request.resource.data.userId == request.auth.uid &&
+            request.resource.data.status == 'active' &&
+            (!('userId' in resource.data) || resource.data.userId == request.auth.uid) &&
+            authEmailMatchesPhone(resource.data.phone);
         }
 
         // Audit logs — owner reads; owner and customer-managing members may
@@ -626,12 +640,18 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
         isValidPendingInviteCreate(request.resource.data);
 
-      // Owner can manage invite lifecycle, and accepted team member can mark
-      // their own invite as accepted by attaching their UID.
-      allow update: if isSignedIn() && (
-        resource.data.ownerUid == request.auth.uid ||
-        request.resource.data.uid == request.auth.uid
-      );
+      // Owner can manage full invite lifecycle (cancel, expire, re-invite).
+      allow update: if isSignedIn() &&
+        resource.data.ownerUid == request.auth.uid;
+
+      // Invited member can only mark their own invite accepted: they attach
+      // their UID and flip status/pinCreated — nothing else may change.
+      allow update: if isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'pinCreated', 'acceptedAt', 'uid']) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.status == 'accepted' &&
+        authEmailMatchesPhone(resource.data.phoneNumber);
 
       allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
     }

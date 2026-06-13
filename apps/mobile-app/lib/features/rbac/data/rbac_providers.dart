@@ -1,17 +1,108 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../team/domain/models/team_member.dart';
 import '../domain/permission_service.dart';
 
+// ── Auth state ────────────────────────────────────────────────────────────────
+//
+// Reactive wrapper around FirebaseAuth.authStateChanges().
+// All RBAC providers that need the current user MUST derive from this so that
+// sign-in / sign-out events rebuild the whole provider chain automatically.
+// Reading FirebaseAuth.instance.currentUser directly is NOT reactive — it
+// captures the value at build time and never updates.
+
+final authStateProvider = StreamProvider<User?>((ref) {
+  return FirebaseAuth.instance.authStateChanges();
+});
+
+// ── Session state ─────────────────────────────────────────────────────────────
+//
+// Tracks how far the RBAC bootstrap has progressed.
+// Route guards and loading overlays use this to prevent blank screens.
+
+enum SessionState {
+  /// Profile or member record hasn't arrived yet — hold navigation.
+  loading,
+
+  /// Authenticated owner — full access, no member record needed.
+  ownerReady,
+
+  /// Authenticated team member — member record loaded, permissions ready.
+  memberReady,
+
+  /// Team member profile loaded, but the member record is missing or the
+  /// profile link fields (ownerUid / businessId / memberId) are empty.
+  /// Show the recovery flow so the user isn't stranded.
+  memberNotFound,
+}
+
+/// The single summary of bootstrap progress that all routing and UI reads.
+/// Settles immediately for owners; may take a round-trip for team members.
+final sessionStateProvider = Provider<SessionState>((ref) {
+  final profileAsync = ref.watch(userProfileStreamProvider);
+  if (profileAsync.isLoading) return SessionState.loading;
+
+  final profile = profileAsync.valueOrNull;
+  if (profile == null) return SessionState.loading;
+
+  final isTeamMember = profile['isTeamMember'] == true;
+  if (!isTeamMember) {
+    if (kDebugMode) debugPrint('[RBAC] session → ownerReady');
+    return SessionState.ownerReady;
+  }
+
+  final ownerUid   = profile['ownerUid']   as String?;
+  final businessId = profile['businessId'] as String?;
+  final memberId   = profile['memberId']   as String?;
+
+  final fieldsOk = ownerUid   != null && ownerUid.isNotEmpty &&
+                   businessId != null && businessId.isNotEmpty &&
+                   memberId   != null && memberId.isNotEmpty;
+
+  if (!fieldsOk) {
+    if (kDebugMode) {
+      debugPrint(
+        '[RBAC] session → memberNotFound '
+        '(ownerUid=$ownerUid bizId=$businessId memberId=$memberId)',
+      );
+    }
+    return SessionState.memberNotFound;
+  }
+
+  final memberAsync = ref.watch(currentMemberProvider);
+  if (memberAsync.isLoading) return SessionState.loading;
+
+  if (memberAsync.valueOrNull == null) {
+    if (kDebugMode) {
+      debugPrint(
+        '[RBAC] session → memberNotFound '
+        '(Firestore doc missing for memberId=$memberId)',
+      );
+    }
+    return SessionState.memberNotFound;
+  }
+
+  if (kDebugMode) debugPrint('[RBAC] session → memberReady');
+  return SessionState.memberReady;
+});
+
 // ── User profile stream ───────────────────────────────────────────────────────
 //
 // Single Firestore stream for the authenticated user's profile document.
+// Watches authStateProvider so it rebuilds whenever auth changes (sign-in
+// during registration, sign-out from the recovery screen, etc.).
 // All RBAC providers derive from this to avoid redundant reads.
 
 final userProfileStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
+  // React to auth changes — this is what fixes the first-login race condition
+  // where the provider is built before the registration Firebase Auth call
+  // completes, capturing a null user and never updating.
+  final authAsync = ref.watch(authStateProvider);
+  if (authAsync.isLoading) return Stream.value(null);
+  final user = authAsync.valueOrNull;
   if (user == null) return Stream.value(null);
   return FirebaseFirestore.instance
       .collection('users')
@@ -62,27 +153,49 @@ final currentMemberProvider = StreamProvider<TeamMember?>((ref) async* {
   }
 
   final profileAsync = ref.watch(userProfileStreamProvider);
-  if (profileAsync.isLoading) return; // Wait for profile before emitting.
+  // Yield null immediately so downstream providers (permissionsLoadedProvider)
+  // settle to a non-loading state.  The provider rebuilds automatically when
+  // profileAsync transitions from loading → data because ref.watch tracks it.
+  if (profileAsync.isLoading) {
+    if (kDebugMode) debugPrint('[RBAC] currentMember: profile loading');
+    yield null;
+    return;
+  }
 
   final profile = profileAsync.valueOrNull;
   if (profile == null) {
+    if (kDebugMode) debugPrint('[RBAC] currentMember: no profile doc');
     yield null;
     return;
   }
 
   final isTeamMember = profile['isTeamMember'] == true;
   if (!isTeamMember) {
+    if (kDebugMode) debugPrint('[RBAC] currentMember: owner — skipping member stream');
     yield null; // Owner — no member record.
     return;
   }
 
-  final ownerUid  = profile['ownerUid']   as String?;
+  final ownerUid   = profile['ownerUid']   as String?;
   final businessId = profile['businessId'] as String?;
   final memberId   = profile['memberId']   as String?;
 
-  if (ownerUid == null || businessId == null || memberId == null) {
+  if (ownerUid == null || ownerUid.isEmpty ||
+      businessId == null || businessId.isEmpty ||
+      memberId == null || memberId.isEmpty) {
+    if (kDebugMode) {
+      debugPrint(
+        '[RBAC] currentMember: profile incomplete '
+        '(ownerUid=$ownerUid bizId=$businessId memberId=$memberId)',
+      );
+    }
     yield null;
     return;
+  }
+
+  if (kDebugMode) {
+    debugPrint('[RBAC] currentMember: streaming '
+        'tenants/$ownerUid/businesses/$businessId/team_members/$memberId');
   }
 
   yield* FirebaseFirestore.instance
@@ -93,14 +206,23 @@ final currentMemberProvider = StreamProvider<TeamMember?>((ref) async* {
       .collection('team_members')
       .doc(memberId)
       .snapshots()
-      .map((snap) =>
-          snap.exists ? TeamMember.fromFirestore(snap.data()!, snap.id) : null);
+      .map((snap) {
+    if (kDebugMode) {
+      debugPrint('[RBAC] currentMember: snap exists=${snap.exists} '
+          'status=${snap.data()?['status']} role=${snap.data()?['role']}');
+    }
+    return snap.exists ? TeamMember.fromFirestore(snap.data()!, snap.id) : null;
+  });
 });
 
 // ── Permissions loaded flag ───────────────────────────────────────────────────
 //
 // True once we have enough data to make authoritative permission decisions.
 // Route guards should skip redirecting until this is true.
+//
+// Note: returns true even when the member record is missing (memberNotFound
+// state) so the router can redirect to the recovery screen rather than
+// hanging on a blank loading state.
 
 final permissionsLoadedProvider = Provider<bool>((ref) {
   final profileAsync = ref.watch(userProfileStreamProvider);
@@ -113,7 +235,15 @@ final permissionsLoadedProvider = Provider<bool>((ref) {
   if (!isTeamMember) return true; // Owner is always ready.
 
   // For team members, wait for the member record too.
-  return !ref.watch(currentMemberProvider).isLoading;
+  final memberAsync = ref.watch(currentMemberProvider);
+  if (memberAsync.isLoading) return false;
+
+  // Member record settled (either has data or is null/missing).
+  if (kDebugMode) {
+    debugPrint('[RBAC] permissionsLoaded: true '
+        '(member=${memberAsync.valueOrNull?.role.name ?? 'null'})');
+  }
+  return true;
 });
 
 // ── Permission service ────────────────────────────────────────────────────────
@@ -132,7 +262,10 @@ final permissionServiceProvider = Provider<PermissionService>((ref) {
   if (profile == null) return PermissionService.denied();
 
   final isTeamMember = profile['isTeamMember'] == true;
-  if (!isTeamMember) return PermissionService.owner();
+  if (!isTeamMember) {
+    if (kDebugMode) debugPrint('[RBAC] permissionService → owner');
+    return PermissionService.owner();
+  }
 
   final memberAsync = ref.watch(currentMemberProvider);
   if (memberAsync.isLoading) return PermissionService.denied();
@@ -141,7 +274,15 @@ final permissionServiceProvider = Provider<PermissionService>((ref) {
   if (member == null) return PermissionService.denied();
 
   // Suspended members lose all permissions immediately.
-  if (member.status == 'suspended') return PermissionService.denied();
+  if (member.status == 'suspended') {
+    if (kDebugMode) debugPrint('[RBAC] permissionService → denied (suspended)');
+    return PermissionService.denied();
+  }
 
+  if (kDebugMode) {
+    debugPrint('[RBAC] permissionService → member '
+        'role=${member.role.name} '
+        'perms=${member.effectivePermissions.length}');
+  }
   return PermissionService.forMember(member.effectivePermissions);
 });
