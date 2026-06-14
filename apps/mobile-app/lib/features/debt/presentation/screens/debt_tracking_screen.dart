@@ -137,19 +137,21 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
       ),
       floatingActionButton: _tabCtrl.index == 2
           ? null
-          : FloatingActionButton.extended(
-              onPressed: () =>
-                  _openAdd(isReceivable: _tabCtrl.index == 0),
-              backgroundColor: _tabCtrl.index == 0
-                  ? AppColors.navyPrimary
-                  : AppColors.error,
-              icon: const Icon(Icons.add_rounded, color: Colors.white),
-              label: Text(
-                _tabCtrl.index == 0
-                    ? _tr('Add Receivable', 'Ongeza Dai')
-                    : _tr('Add Payable', 'Ongeza Deni'),
-                style: GoogleFonts.dmSans(
-                    color: Colors.white, fontWeight: FontWeight.w700),
+          : Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).padding.bottom + 64),
+              child: FloatingActionButton.extended(
+                onPressed: () =>
+                    _openAdd(isReceivable: _tabCtrl.index == 0),
+                backgroundColor: AppColors.yellowBrand,
+                foregroundColor: AppColors.navyPrimary,
+                icon: const Icon(Icons.add_rounded),
+                label: Text(
+                  _tabCtrl.index == 0
+                      ? _tr('Add Receivable', 'Ongeza Dai')
+                      : _tr('Add Payable', 'Ongeza Deni'),
+                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
     );
@@ -174,13 +176,13 @@ class _HeroHeader extends StatelessWidget {
     final net = totalReceivables - totalPayables;
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.navyPrimary, Color(0xFF003153)],
+        color: AppColors.navyPrimary,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 56, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 56, 20, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -193,52 +195,64 @@ class _HeroHeader extends StatelessWidget {
               letterSpacing: 0.6,
             ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _HeroStat(
-                  label: _tr('Owed to You', 'Unachodai'),
-                  value: isLoading ? '—' : _fmtAmt(totalReceivables),
-                  color: AppColors.success,
-                  icon: Icons.arrow_downward_rounded,
-                ),
-              ),
-              Container(
-                  width: 1,
-                  height: 48,
-                  color: Colors.white.withValues(alpha: 0.15)),
-              Expanded(
-                child: _HeroStat(
-                  label: _tr('You Owe', 'Unadaiwa'),
-                  value: isLoading ? '—' : _fmtAmt(totalPayables),
-                  color: AppColors.error,
-                  icon: Icons.arrow_upward_rounded,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(
-                net >= 0
-                    ? Icons.trending_up_rounded
-                    : Icons.trending_down_rounded,
-                color: net >= 0 ? AppColors.success : AppColors.error,
-                size: 14,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${_tr('Net', 'Net')}: ${isLoading ? '—' : _fmtAmt(net.abs())} '
-                '${net >= 0 ? _tr('in your favour', 'unafaidi') : _tr('against you', 'dhidi yako')}',
-                style: GoogleFonts.dmSans(
-                  color: Colors.white60,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _HeroStat(
+                        label: _tr('Owed to You', 'Unachodai'),
+                        value: isLoading ? '—' : _fmtAmt(totalReceivables),
+                        color: AppColors.success,
+                        icon: Icons.arrow_downward_rounded,
+                      ),
+                    ),
+                    Container(
+                        width: 1,
+                        height: 40,
+                        color: Colors.white.withValues(alpha: 0.15)),
+                    Expanded(
+                      child: _HeroStat(
+                        label: _tr('You Owe', 'Unadaiwa'),
+                        value: isLoading ? '—' : _fmtAmt(totalPayables),
+                        color: AppColors.error,
+                        icon: Icons.arrow_upward_rounded,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      net >= 0
+                          ? Icons.trending_up_rounded
+                          : Icons.trending_down_rounded,
+                      color: net >= 0 ? AppColors.success : AppColors.error,
+                      size: 13,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${_tr('Net', 'Net')}: ${isLoading ? '—' : _fmtAmt(net.abs())} '
+                      '${net >= 0 ? _tr('in your favour', 'unafaidi') : _tr('against you', 'dhidi yako')}',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white60,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -337,26 +351,22 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
                 'Hakuna kiasi kinachokudaiwa kwa sasa.'),
           ))
         else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (ctx, i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: ListSwipeCard(
-                    itemKey: ValueKey(filtered[i].id),
-                    onEdit: () => widget.onTap(filtered[i]),
-                    onDelete: () => _deleteDebt(ctx, ref, filtered[i]),
-                    child: _DebtCard(
-                      debt: filtered[i],
-                      onTap: () => widget.onTap(filtered[i]),
-                    ),
-                  ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (ctx, i) => ListSwipeCard(
+                itemKey: ValueKey(filtered[i].id),
+                onEdit: () => widget.onTap(filtered[i]),
+                onDelete: () => _deleteDebt(ctx, ref, filtered[i]),
+                child: _DebtCard(
+                  debt: filtered[i],
+                  isLast: i == filtered.length - 1,
+                  onTap: () => widget.onTap(filtered[i]),
                 ),
-                childCount: filtered.length,
               ),
+              childCount: filtered.length,
             ),
           ),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
       ],
     );
   }
@@ -405,66 +415,79 @@ class _PayablesTab extends ConsumerWidget {
         ),
       );
     } else {
+      final lastDebt = upcoming.isNotEmpty
+          ? upcoming.last
+          : dueSoon.isNotEmpty
+              ? dueSoon.last
+              : overdue.isNotEmpty
+                  ? overdue.last
+                  : null;
+      final lastDebtId = lastDebt?.id;
+
       body = KeyedSubtree(
         key: const ValueKey('content'),
         child: CustomScrollView(
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              if (overdue.isNotEmpty) ...[
-                _SectionHeader(
-                  label: _tr('Overdue', 'Zimechelewa'),
-                  color: AppColors.error,
-                  count: overdue.length,
-                ),
-                ...overdue.map((d) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: ListSwipeCard(
-                        itemKey: ValueKey(d.id),
-                        onEdit: () => onTap(d),
-                        onDelete: () => _deleteDebt(context, ref, d),
-                        child: _DebtCard(debt: d, onTap: () => onTap(d)),
-                      ),
-                    )),
-              ],
-              if (dueSoon.isNotEmpty) ...[
-                _SectionHeader(
-                  label: _tr('Due This Week', 'Inakaribia'),
-                  color: AppColors.warning,
-                  count: dueSoon.length,
-                ),
-                ...dueSoon.map((d) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: ListSwipeCard(
-                        itemKey: ValueKey(d.id),
-                        onEdit: () => onTap(d),
-                        onDelete: () => _deleteDebt(context, ref, d),
-                        child: _DebtCard(debt: d, onTap: () => onTap(d)),
-                      ),
-                    )),
-              ],
-              if (upcoming.isNotEmpty) ...[
-                _SectionHeader(
-                  label: _tr('Upcoming', 'Zijazo'),
-                  color: AppColors.textMuted,
-                  count: upcoming.length,
-                ),
-                ...upcoming.map((d) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: ListSwipeCard(
-                        itemKey: ValueKey(d.id),
-                        onEdit: () => onTap(d),
-                        onDelete: () => _deleteDebt(context, ref, d),
-                        child: _DebtCard(debt: d, onTap: () => onTap(d)),
-                      ),
-                    )),
-              ],
-            ]),
-          ),
-        ),
-      ],
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.only(top: 14),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  if (overdue.isNotEmpty) ...[
+                    _SectionHeader(
+                      label: _tr('Overdue', 'Zimechelewa'),
+                      color: AppColors.error,
+                      count: overdue.length,
+                    ),
+                    ...overdue.map((d) => ListSwipeCard(
+                          itemKey: ValueKey(d.id),
+                          onEdit: () => onTap(d),
+                          onDelete: () => _deleteDebt(context, ref, d),
+                          child: _DebtCard(
+                            debt: d,
+                            isLast: d.id == lastDebtId,
+                            onTap: () => onTap(d),
+                          ),
+                        )),
+                  ],
+                  if (dueSoon.isNotEmpty) ...[
+                    _SectionHeader(
+                      label: _tr('Due This Week', 'Inakaribia'),
+                      color: AppColors.warning,
+                      count: dueSoon.length,
+                    ),
+                    ...dueSoon.map((d) => ListSwipeCard(
+                          itemKey: ValueKey(d.id),
+                          onEdit: () => onTap(d),
+                          onDelete: () => _deleteDebt(context, ref, d),
+                          child: _DebtCard(
+                            debt: d,
+                            isLast: d.id == lastDebtId,
+                            onTap: () => onTap(d),
+                          ),
+                        )),
+                  ],
+                  if (upcoming.isNotEmpty) ...[
+                    _SectionHeader(
+                      label: _tr('Upcoming', 'Zijazo'),
+                      color: AppColors.textMuted,
+                      count: upcoming.length,
+                    ),
+                    ...upcoming.map((d) => ListSwipeCard(
+                          itemKey: ValueKey(d.id),
+                          onEdit: () => onTap(d),
+                          onDelete: () => _deleteDebt(context, ref, d),
+                          child: _DebtCard(
+                            debt: d,
+                            isLast: d.id == lastDebtId,
+                            onTap: () => onTap(d),
+                          ),
+                        )),
+                  ],
+                ]),
+              ),
+            ),
+            const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+          ],
         ),
       );
     }
@@ -1055,9 +1078,14 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
 
 class _DebtCard extends StatelessWidget {
   final Debt debt;
+  final bool isLast;
   final VoidCallback onTap;
 
-  const _DebtCard({required this.debt, required this.onTap});
+  const _DebtCard({
+    required this.debt,
+    required this.isLast,
+    required this.onTap,
+  });
 
   Color get _ageColor {
     return switch (debt.agingBucket) {
@@ -1075,162 +1103,141 @@ class _DebtCard extends StatelessWidget {
     final isReceivable = debt.type == 'receivable';
     final daysOver = debt.daysOverdue;
 
-    return Ink(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-              color: AppColors.shadowCard, blurRadius: 6, offset: Offset(0, 1))
-        ],
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        splashColor: AppColors.navyPrimary.withValues(alpha: 0.06),
-        highlightColor: AppColors.navyPrimary.withValues(alpha: 0.04),
-        child: IntrinsicHeight(
-          child: Row(
-            children: [
-              // Colored left stripe — age indicator
-              Container(width: 4, color: _ageColor),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: isReceivable
+                        ? AppColors.success.withValues(alpha: 0.12)
+                        : AppColors.error.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    debt.partyName.isNotEmpty
+                        ? debt.partyName[0].toUpperCase()
+                        : '?',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isReceivable
+                          ? AppColors.success
+                          : AppColors.error,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          // Party initial avatar
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: isReceivable
-                                  ? AppColors.success.withValues(alpha: 0.12)
-                                  : AppColors.error.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              debt.partyName.isNotEmpty
-                                  ? debt.partyName[0].toUpperCase()
-                                  : '?',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: isReceivable
-                                    ? AppColors.success
-                                    : AppColors.error,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  debt.partyName,
-                                  style: GoogleFonts.dmSans(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (debt.partyPhone.isNotEmpty)
-                                  Text(
-                                    debt.partyPhone,
-                                    style: GoogleFonts.dmSans(
-                                        fontSize: 11,
-                                        color: AppColors.textMuted),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          // Amount remaining
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                _fmtAmt(debt.remainingAmount),
-                                style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary),
-                              ),
-                              // Age badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: _ageColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  daysOver <= 0
-                                      ? 'Due ${_fmtDate(debt.dueDate)}'
-                                      : '$daysOver ${_tr('days overdue', 'siku zimechelewa')}',
-                                  style: GoogleFonts.dmSans(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: _ageColor),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      Text(
+                        debt.partyName,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 10),
-                      // Payment progress
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(3),
-                        child: LinearProgressIndicator(
-                          value: debt.paidPercent,
-                          backgroundColor:
-                              AppColors.border,
-                          color: isReceivable
-                              ? AppColors.success
-                              : AppColors.error,
-                          minHeight: 4,
+                      if (debt.partyPhone.isNotEmpty)
+                        Text(
+                          debt.partyPhone,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              color: AppColors.textMuted),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Text(
-                            '${_tr('Paid', 'Kilicholipwa')}: ${_fmtAmt(debt.paidAmount)}',
-                            style: GoogleFonts.dmSans(
-                                fontSize: 11, color: AppColors.textMuted),
-                          ),
-                          const Spacer(),
-                          if (debt.invoiceRef.isNotEmpty)
-                            Row(
-                              children: [
-                                const Icon(Icons.receipt_long_outlined,
-                                    size: 11, color: AppColors.textDisabled),
-                                const SizedBox(width: 3),
-                                Text(
-                                  debt.invoiceRef,
-                                  style: GoogleFonts.dmSans(
-                                      fontSize: 10,
-                                      color: AppColors.textDisabled),
-                                ),
-                              ],
-                            ),
-                          const Icon(Icons.chevron_right_rounded,
-                              size: 16, color: AppColors.textDisabled),
-                        ],
-                      ),
                     ],
                   ),
                 ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _fmtAmt(debt.remainingAmount),
+                      style: GoogleFonts.jetBrainsMono(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _ageColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        daysOver <= 0
+                            ? 'Due ${_fmtDate(debt.dueDate)}'
+                            : '$daysOver ${_tr('days overdue', 'siku zimechelewa')}',
+                        style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: _ageColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: debt.paidPercent,
+                backgroundColor: AppColors.border,
+                color: isReceivable ? AppColors.success : AppColors.error,
+                minHeight: 4,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text(
+                  '${_tr('Paid', 'Kilicholipwa')}: ${_fmtAmt(debt.paidAmount)}',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 11, color: AppColors.textMuted),
+                ),
+                const Spacer(),
+                if (debt.invoiceRef.isNotEmpty)
+                  Row(
+                    children: [
+                      const Icon(Icons.receipt_long_outlined,
+                          size: 11, color: AppColors.textDisabled),
+                      const SizedBox(width: 3),
+                      Text(
+                        debt.invoiceRef,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            color: AppColors.textDisabled),
+                      ),
+                    ],
+                  ),
+                const Icon(Icons.chevron_right_rounded,
+                    size: 16, color: AppColors.textDisabled),
+              ],
+            ),
+            if (!isLast)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.border,
+                ),
+              ),
+          ],
         ),
       ),
     );
