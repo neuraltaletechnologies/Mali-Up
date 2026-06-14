@@ -629,7 +629,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                     const SizedBox(width: 8),
                                     Text(
                                       sw
-                                          ? 'Nitengeneze tovuti yako'
+                                          ? 'Nitengeneze tovuti yangu'
                                           : 'Build me my website',
                                       style: const TextStyle(
                                         fontSize: 13,
