@@ -6,6 +6,11 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/database/app_database.dart';
 import '../../domain/models/inventory_item.dart';
 
+List<SellingUnit> _decodeSellingUnits(dynamic raw) {
+  if (raw is! List) return const [];
+  return raw.whereType<Map<String, dynamic>>().map(SellingUnit.fromJson).toList();
+}
+
 abstract final class InventoryMapper {
   // ─── Drift row → domain ────────────────────────────────────────────────────
 
@@ -36,6 +41,8 @@ abstract final class InventoryMapper {
       batchNumber: meta['batchNumber'] as String? ?? '',
       warrantyPeriod: meta['warrantyPeriod'] as String? ?? '',
       brand: meta['brand'] as String? ?? '',
+      sellingUnits: _decodeSellingUnits(meta['sellingUnits']),
+      returnReason: meta['returnReason'] as String? ?? '',
     );
   }
 
@@ -62,6 +69,8 @@ abstract final class InventoryMapper {
       'batchNumber': item.batchNumber,
       'warrantyPeriod': item.warrantyPeriod,
       'brand': item.brand,
+      'sellingUnits': item.sellingUnits.map((u) => u.toJson()).toList(),
+      'returnReason': item.returnReason,
     });
     return InventoryTableCompanion(
       id: Value(id),

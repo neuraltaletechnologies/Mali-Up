@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -925,9 +927,18 @@ class _CustomerCard extends ConsumerWidget {
           : null,
       child: GestureDetector(
         onTap: () {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => CustomerDetailScreen(customer: customer),
-          ));
+          showModalBottomSheet<void>(
+            context: context,
+            useRootNavigator: true,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            useSafeArea: true,
+            builder: (_) => _CustomerInfoSheet(
+              customer: customer,
+              showFinancials: showFinancials,
+              canManage: canManage,
+            ),
+          );
         },
         child: Container(
           color: Colors.white,
@@ -975,8 +986,13 @@ class _CustomerCard extends ConsumerWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (customer.isOrganisation) _OrgBadge(),
                           ],
+                        ),
+                        const SizedBox(height: 2),
+                        Wrap(
+                          spacing: 5,
+                          runSpacing: 4,
+                          children: _statusChips(),
                         ),
                         if (customer.displaySubtitle.isNotEmpty) ...[
                           const SizedBox(height: 2),
@@ -993,7 +1009,10 @@ class _CustomerCard extends ConsumerWidget {
                           Wrap(
                             spacing: 5,
                             runSpacing: 4,
-                            children: customer.tags.take(3).map((t) {
+                            children: customer.tags
+                                .where((t) => t.toLowerCase() != 'contact')
+                                .take(3)
+                                .map((t) {
                               final tagColor = _tagColor(t);
                               return _TagChip(tag: t, color: tagColor);
                             }).toList(),
@@ -1062,9 +1081,6 @@ class _CustomerCard extends ConsumerWidget {
                           ],
                         ),
                       ],
-                      const SizedBox(height: 4),
-                      const Icon(Icons.chevron_right_rounded,
-                          size: 16, color: AppColors.textDisabled),
                     ],
                   ),
                 ],
@@ -1091,32 +1107,38 @@ class _CustomerCard extends ConsumerWidget {
     }
     return AppColors.navySecondary;
   }
+
+  List<Widget> _statusChips() {
+    final chips = <Widget>[];
+    final importedFromContacts =
+        customer.tags.any((t) => t.toLowerCase() == 'contact');
+
+    chips.add(
+      _TagChip(
+        tag: importedFromContacts
+            ? _tr('FROM CONTACTS', 'KUTOKA MAWASILIANO')
+            : _tr('MANUAL', 'KWA MKONO'),
+        color:
+            importedFromContacts ? AppColors.tealAccent : AppColors.textMuted,
+      ),
+    );
+
+    if (customer.isOrganisation) {
+      chips.add(
+        _TagChip(
+          tag: _tr('ORG', 'SHIRIKA'),
+          color: AppColors.navySecondary,
+        ),
+      );
+    }
+
+    return chips;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared small card sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _OrgBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(left: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(
-        color: AppColors.tealAccent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        _tr('ORG', 'SHIRIKA'),
-        style: GoogleFonts.dmSans(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            color: AppColors.tealAccent),
-      ),
-    );
-  }
-}
 
 class _TagChip extends StatelessWidget {
   final String tag;
@@ -1545,6 +1567,14 @@ String _fmtShort(double v) {
   return v.toStringAsFixed(0);
 }
 
+String _e164(String phone) {
+  var clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+  if (!clean.startsWith('+') && clean.startsWith('0')) {
+    clean = '+255${clean.substring(1)}';
+  }
+  return clean;
+}
+
 /// Renders the last purchase as a relative label. ISO dates (written by the
 /// sales flow) become "3 days ago"; legacy free-text values show as-is.
 String _relativeLastPurchase(Customer c) {
@@ -1559,4 +1589,601 @@ String _relativeLastPurchase(Customer c) {
   final months = days ~/ 30;
   if (months < 12) return _tr('${months}mo ago', 'Miezi $months iliyopita');
   return _tr('${months ~/ 12}y ago', 'Zaidi ya mwaka ${months ~/ 12}');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Customer info slide-up sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CustomerInfoSheet extends ConsumerWidget {
+  final Customer customer;
+  final bool showFinancials;
+  final bool canManage;
+
+  const _CustomerInfoSheet({
+    required this.customer,
+    required this.showFinancials,
+    required this.canManage,
+  });
+
+  Color _accent(Customer c) {
+    if (c.tags.any((t) =>
+        t.toLowerCase().contains('black') ||
+        t.toLowerCase().contains('nyeusi'))) {
+      return AppColors.error;
+    }
+    if (c.tags.any((t) => t.toLowerCase() == 'vip')) {
+      return const Color(0xFFB45309);
+    }
+    if (c.tags.any((t) =>
+        t.toLowerCase().contains('jumla') ||
+        t.toLowerCase().contains('wholesale'))) {
+      return AppColors.tealAccent;
+    }
+    return AppColors.navyPrimary;
+  }
+
+  String _initials(String name) {
+    final words = name.trim().split(RegExp(r'\s+'));
+    if (words.isEmpty || words.first.isEmpty) return '?';
+    if (words.length == 1) return words[0][0].toUpperCase();
+    return '${words[0][0]}${words[1][0]}'.toUpperCase();
+  }
+
+  Future<void> _call(String phone) async {
+    await launchUrl(Uri(scheme: 'tel', path: phone));
+  }
+
+  Future<void> _whatsapp(String phone) async {
+    final e164 = _e164(phone);
+    await launchUrl(
+      Uri.parse('https://wa.me/$e164'),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  Future<void> _remind(Customer c) async {
+    final e164 = _e164(c.phone);
+    final balance = _fmtShort(c.balanceAmount);
+    final msg = '${_tr('Dear', 'Ndugu')} ${c.name},\n\n'
+        '${_tr('You have an outstanding balance of TZS $balance.', 'Una deni la TZS $balance kwetu.')}\n\n'
+        '${_tr('Please arrange payment at your earliest convenience. Thank you!', 'Tafadhali panga malipo haraka iwezekanavyo. Asante!')}';
+    await launchUrl(
+      Uri.parse('https://wa.me/$e164?text=${Uri.encodeComponent(msg)}'),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final live = ref.watch(customerListProvider).valueOrNull
+            ?.firstWhere((c) => c.id == customer.id, orElse: () => customer) ??
+        customer;
+
+    final balance = live.balanceAmount;
+    final hasBalance = balance > 0;
+    final accent = _accent(live);
+    final initials = _initials(live.name);
+    final displayTags =
+        live.tags.where((t) => t.toLowerCase() != 'contact').toList();
+    final hasPhone = live.phone.isNotEmpty;
+    final hasEmail = live.email.isNotEmpty;
+    final hasAddress = live.address.isNotEmpty;
+    final hasTin = live.tinNumber.isNotEmpty;
+    final hasContact = hasPhone || hasEmail || hasAddress || hasTin;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                4,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 28,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Header ───────────────────────────────────────────────
+                  Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: accent.withValues(alpha: 0.2)),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          initials,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: accent,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    live.name,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.navyPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                if (live.isOrganisation) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.navyPrimary
+                                          .withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Text(
+                                      _tr('ORG', 'SHIRIKA'),
+                                      style: GoogleFonts.dmSans(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.navyPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            if (hasPhone) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                live.phone,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      if (canManage)
+                        GestureDetector(
+                          onTap: () async {
+                            await showModalBottomSheet<void>(
+                              context: context,
+                              useRootNavigator: true,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              useSafeArea: true,
+                              builder: (_) =>
+                                  _EditCustomerSheet(customer: live),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: const Icon(
+                              Icons.edit_rounded,
+                              size: 16,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  // ── Tags ─────────────────────────────────────────────────
+                  if (displayTags.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: displayTags
+                          .map((t) => _SheetTagChip(tag: t))
+                          .toList(),
+                    ),
+                  ],
+
+                  // ── Balance banner ────────────────────────────────────────
+                  if (showFinancials) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: hasBalance
+                            ? AppColors.error.withValues(alpha: 0.06)
+                            : AppColors.success.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: hasBalance
+                              ? AppColors.error.withValues(alpha: 0.2)
+                              : AppColors.success.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            hasBalance
+                                ? Icons.account_balance_wallet_rounded
+                                : Icons.check_circle_rounded,
+                            size: 16,
+                            color: hasBalance
+                                ? AppColors.error
+                                : AppColors.success,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              hasBalance
+                                  ? _tr(
+                                      'Outstanding: TZS ${_fmtShort(balance)}',
+                                      'Deni: TZS ${_fmtShort(balance)}',
+                                    )
+                                  : _tr(
+                                      'No outstanding balance',
+                                      'Hakuna deni',
+                                    ),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: hasBalance
+                                    ? AppColors.error
+                                    : AppColors.success,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 18),
+                  Container(height: 1, color: AppColors.border),
+                  const SizedBox(height: 16),
+
+                  // ── Quick actions ─────────────────────────────────────────
+                  if (hasPhone) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SheetActionBtn(
+                            icon: Icons.phone_rounded,
+                            label: _tr('Call', 'Simu'),
+                            color: AppColors.success,
+                            onTap: () => _call(live.phone),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _SheetActionBtn(
+                            icon: Icons.chat_rounded,
+                            label: 'WhatsApp',
+                            color: const Color(0xFF25D366),
+                            onTap: () => _whatsapp(live.phone),
+                          ),
+                        ),
+                        if (showFinancials && hasBalance) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _SheetActionBtn(
+                              icon: Icons.alarm_rounded,
+                              label: _tr('Remind', 'Kumbushia'),
+                              color: AppColors.warning,
+                              onTap: () => _remind(live),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Container(height: 1, color: AppColors.border),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // ── Contact info ──────────────────────────────────────────
+                  if (hasContact) ...[
+                    Text(
+                      _tr('CONTACT INFO', 'MAWASILIANO').toUpperCase(),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMuted,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        children: [
+                          if (hasPhone)
+                            _SheetInfoRow(
+                              icon: Icons.phone_rounded,
+                              label: _tr('Phone', 'Simu'),
+                              value: live.phone,
+                              isFirst: true,
+                              isLast: !hasEmail && !hasAddress && !hasTin,
+                            ),
+                          if (hasEmail)
+                            _SheetInfoRow(
+                              icon: Icons.email_rounded,
+                              label: _tr('Email', 'Barua pepe'),
+                              value: live.email,
+                              isFirst: !hasPhone,
+                              isLast: !hasAddress && !hasTin,
+                            ),
+                          if (hasAddress)
+                            _SheetInfoRow(
+                              icon: Icons.location_on_rounded,
+                              label: _tr('Address', 'Anwani'),
+                              value: live.address,
+                              isFirst: !hasPhone && !hasEmail,
+                              isLast: !hasTin,
+                            ),
+                          if (hasTin)
+                            _SheetInfoRow(
+                              icon: Icons.numbers_rounded,
+                              label: 'TIN',
+                              value: live.tinNumber,
+                              isFirst: !hasPhone && !hasEmail && !hasAddress,
+                              isLast: true,
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
+
+                  // ── View full profile ─────────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) =>
+                              CustomerDetailScreen(customer: live),
+                        ));
+                      },
+                      icon: const Icon(Icons.person_rounded, size: 18),
+                      label: Text(
+                        _tr('View Full Profile', 'Ona Profaili Kamili'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.navyPrimary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SheetActionBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 22, color: color),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isFirst;
+  final bool isLast;
+
+  const _SheetInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.isFirst = false,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!isFirst)
+          const Divider(
+              height: 1, indent: 16, endIndent: 16, color: AppColors.border),
+        InkWell(
+          onTap: () async {
+            await Clipboard.setData(ClipboardData(text: value));
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(_tr('$label copied', '$label imenakiliwa')),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ));
+            }
+          },
+          borderRadius: BorderRadius.vertical(
+            top: isFirst ? const Radius.circular(14) : Radius.zero,
+            bottom: isLast ? const Radius.circular(14) : Radius.zero,
+          ),
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: AppColors.navyPrimary.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 15, color: AppColors.textMuted),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        value,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.copy_rounded,
+                  size: 14,
+                  color: AppColors.textMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SheetTagChip extends StatelessWidget {
+  final String tag;
+  const _SheetTagChip({required this.tag});
+
+  Color _color() {
+    final t = tag.toLowerCase();
+    if (t == 'vip') return const Color(0xFFB45309);
+    if (t.contains('nyeusi') || t.contains('black')) return AppColors.error;
+    if (t.contains('jumla') || t.contains('wholesale')) {
+      return AppColors.tealAccent;
+    }
+    return AppColors.navySecondary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        tag,
+        style: GoogleFonts.dmSans(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
 }

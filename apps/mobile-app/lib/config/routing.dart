@@ -185,7 +185,19 @@ class _RouterNotifier extends ChangeNotifier {
     // ── Post-completion guards ────────────────────────────────────────────
     if (ob.isComplete) {
       if (path == AppRoutes.success) return null;
-      if (AppRoutes.isOnboardingPath(path)) return AppRoutes.dashboard;
+      if (AppRoutes.isOnboardingPath(path)) {
+        // For brand-new owners: redirect to the success screen while their
+        // users/{uid} profile doc is still being written. This prevents the
+        // dashboard from rendering with denied() permissions during the
+        // first-install race (Firebase Auth fires before saveUser() completes).
+        // Returning users and team members are exempt: their profile doc
+        // already exists so permissionsLoadedProvider settles quickly.
+        if (!ob.isReturningUser && !ob.isTeamMember) {
+          final loaded = _ref.read(permissionsLoadedProvider);
+          if (!loaded) return AppRoutes.success;
+        }
+        return AppRoutes.dashboard;
+      }
 
       // ── Session bootstrap guard ───────────────────────────────────────
       // If the user's member record can't be found after the profile loaded,
@@ -218,7 +230,18 @@ class _RouterNotifier extends ChangeNotifier {
 
     // ── Pre-completion: block shell routes ────────────────────────────────
     if (!AppRoutes.isOnboardingPath(path) && path != AppRoutes.login) {
+      // Fast-path for post-logout: skip language + intro and go to phone entry.
+      if (ob.currentStep.stepIndex >= OnboardingStep.phoneEntry.stepIndex) {
+        return AppRoutes.phone;
+      }
       return AppRoutes.welcome;
+    }
+
+    // Fast-path: user has been through intro already (e.g. logged out),
+    // skip language + intro screens and land directly on phone entry.
+    if (ob.currentStep.stepIndex >= OnboardingStep.phoneEntry.stepIndex &&
+        (path == AppRoutes.welcome || path == AppRoutes.intro)) {
+      return AppRoutes.phone;
     }
 
     // ── Step-by-step guards ───────────────────────────────────────────────

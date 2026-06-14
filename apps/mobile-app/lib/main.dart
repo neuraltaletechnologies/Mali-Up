@@ -12,7 +12,8 @@ import 'package:mali_up/core/services/localization_service.dart';
 import 'package:mali_up/core/services/motion_service.dart';
 import 'package:mali_up/core/services/sentry_metrics_service.dart';
 import 'package:mali_up/core/services/security_service.dart';
-import 'package:mali_up/features/onboarding/providers/onboarding_notifier.dart';
+import 'package:mali_up/features/onboarding/providers/onboarding_notifier.dart'
+    show onboardingBootstrapProvider, onboardingPhoneEntryBootstrapProvider;
 import 'package:mali_up/features/security/presentation/screens/pin_lock_screen.dart';
 import 'firebase_options.dart';
 
@@ -58,13 +59,21 @@ Future<void> _startApp() async {
       prefs.getBool(_onboardingCompletedKey) ?? false;
   final hasSelectedLanguage =
       await LocalizationService.hasLanguageBeenSelected();
+  // If onboarding was completed before but there is no active Firebase session
+  // (user logged out then killed the app), we must NOT treat them as fully
+  // onboarded — instead start at phone-entry so they can sign back in.
+  final hasActiveSession = FirebaseAuth.instance.currentUser != null;
+  final startAtPhoneEntry = hasCompletedOnboarding && !hasActiveSession;
 
   runApp(
     ProviderScope(
       overrides: [
         // Tell the router immediately whether to skip onboarding.
         // This prevents a one-frame flicker to /welcome for returning users.
-        onboardingBootstrapProvider.overrideWithValue(hasCompletedOnboarding),
+        onboardingBootstrapProvider.overrideWithValue(
+          hasCompletedOnboarding && hasActiveSession,
+        ),
+        onboardingPhoneEntryBootstrapProvider.overrideWithValue(startAtPhoneEntry),
       ],
       child: MaliUpApp(
         hasCompletedOnboarding: hasCompletedOnboarding,
