@@ -13,6 +13,7 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../onboarding/domain/validators/onboarding_validator.dart';
+import '../../../onboarding/presentation/screens/_onboarding_scaffold.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../data/team_providers.dart';
@@ -1001,7 +1002,9 @@ class _InviteMemberSheet extends ConsumerStatefulWidget {
       _InviteMemberSheetState();
 }
 
-class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
+class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
+    with SingleTickerProviderStateMixin {
+  final _formKey  = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -1011,14 +1014,26 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
   Set<AppPermission> _customPerms = {};
   bool _isSaving = false;
 
+  late final AnimationController _animCtrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
   @override
   void initState() {
     super.initState();
     _customPerms = Set.of(defaultPermissionsFor(TeamRole.cashier));
+
+    _animCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 480));
+    _fade  = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
+    _animCtrl.forward();
   }
 
   @override
   void dispose() {
+    _animCtrl.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
@@ -1036,11 +1051,8 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
   }
 
   Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
     final name = _nameCtrl.text.trim();
-    if (name.isEmpty) {
-      _snack(_tr('Enter member name.', 'Ingiza jina la mwanachama.'));
-      return;
-    }
 
     final rawPhone = _phoneCtrl.text.trim();
     if (rawPhone.isNotEmpty) {
@@ -1135,145 +1147,241 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: size.height * 0.95),
-      child: Material(
-        color: Colors.white,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(28)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            // Handle + title
-            _handle(),
-            _sheetTitle(_tr('Add Team Member', 'Ongeza Mwanachama')),
-            const Divider(height: 1, color: AppColors.border),
-            // Scrollable body
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                    20,
-                    16,
-                    20,
-                    MediaQuery.of(context).viewInsets.bottom + 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // ── Name & contact ──────────────────────────────────
-                    _sectionLabel(_tr('Member Details', 'Maelezo ya Mwanachama')),
-                    const SizedBox(height: 8),
-                    _field(
-                        ctrl: _nameCtrl,
-                        label: _tr('Full Name *', 'Jina Kamili *'),
-                        icon: Icons.person_outline_rounded,
-                        caps: TextCapitalization.words),
-                    const SizedBox(height: 10),
-                    _field(
-                        ctrl: _emailCtrl,
-                        label: _tr('Email', 'Barua pepe'),
-                        icon: Icons.email_outlined,
-                        keyboard: TextInputType.emailAddress),
-                    const SizedBox(height: 10),
-                    _field(
-                        ctrl: _phoneCtrl,
-                        label: _tr('Phone', 'Simu'),
-                        icon: Icons.phone_outlined,
-                        keyboard: TextInputType.phone),
-                    const SizedBox(height: 20),
+    final size       = MediaQuery.sizeOf(context);
+    final topHeight  = size.height * 0.35;
 
-                    // ── Role selector ───────────────────────────────────
-                    _sectionLabel(_tr('Role', 'Jukumu')),
-                    const SizedBox(height: 10),
-                    ...TeamRole.values.map((r) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _RoleCard(
-                            role: r,
-                            selected: _selectedRole == r,
-                            onTap: () => _onRoleChanged(r),
-                          ),
-                        )),
-                    const SizedBox(height: 20),
+    final headingStyle = GoogleFonts.poppins(
+      fontSize: 26,
+      color: AppColors.navyPrimary,
+      fontWeight: FontWeight.w800,
+      height: 1.2,
+      letterSpacing: -0.4,
+    );
+    final subtitleStyle = GoogleFonts.poppins(
+      color: AppColors.textMuted,
+      fontSize: 14,
+      height: 1.5,
+      fontWeight: FontWeight.w400,
+    );
 
-                    // ── Custom permissions ──────────────────────────────
-                    if (_selectedRole == TeamRole.custom) ...[
-                      _sectionLabel(
-                          _tr('Permissions', 'Ruhusa')),
-                      const SizedBox(height: 10),
-                      _PermissionEditor(
-                        perms: _customPerms,
-                        onChanged: (p) =>
-                            setState(() => _customPerms = p),
-                      ),
-                      const SizedBox(height: 20),
-                    ] else ...[
-                      // Show read-only permission summary
-                      _PermissionSummary(
-                          role: _selectedRole),
-                      const SizedBox(height: 20),
-                    ],
+    return SizedBox.expand(
+      child: Stack(
+        children: [
+          // ── Header image ─────────────────────────────────────────────
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: topHeight,
+            child: ClipRect(
+              child: Image.asset(
+                'assets/Picture/sign_up.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
 
-                    // ── Notes ───────────────────────────────────────────
-                    _field(
-                        ctrl: _notesCtrl,
-                        label: _tr('Notes (optional)', 'Maelezo (hiari)'),
-                        icon: Icons.notes_outlined,
-                        maxLines: 2),
-                    const SizedBox(height: 24),
-
-                    // ── Save button ─────────────────────────────────────
-                    SizedBox(
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _save,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.navyPrimary,
-                          disabledBackgroundColor:
-                              AppColors.primary.withValues(alpha: 0.5),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          elevation: 0,
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: AppColors.navyPrimary))
-                            : Text(
-                                _tr('Add to Team', 'Ongeza kwenye Timu'),
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700)),
-                      ),
+          // ── Draggable content sheet ───────────────────────────────────
+          DraggableScrollableSheet(
+            initialChildSize: 0.68,
+            minChildSize: 0.68,
+            maxChildSize: 0.96,
+            builder: (context, scrollController) {
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
                     ),
                   ],
                 ),
-              ),
-            ),
-          ],
-        ),
+                child: NotificationListener<OverscrollIndicatorNotification>(
+                  onNotification: (overscroll) {
+                    overscroll.disallowIndicator();
+                    return true;
+                  },
+                  child: FadeTransition(
+                    opacity: _fade,
+                    child: SlideTransition(
+                      position: _slide,
+                      child: Form(
+                        key: _formKey,
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          physics: const ClampingScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Handle bar
+                              Center(
+                                child: Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 20),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.border,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+
+                              // Title
+                              Center(
+                                child: Text(
+                                  _tr('Add Team Member', 'Ongeza Mwanachama'),
+                                  textAlign: TextAlign.center,
+                                  style: headingStyle,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Center(
+                                child: Text(
+                                  _tr(
+                                    'Invite someone to join your business team.',
+                                    'Mkaribishe mtu kujiunga na timu yako ya biashara.',
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  style: subtitleStyle,
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+
+                              // ── Member details ──────────────────────────
+                              _sectionLabel(
+                                  _tr('Member Details', 'Maelezo ya Mwanachama')),
+                              const SizedBox(height: 8),
+
+                              OnboardingField(
+                                controller: _nameCtrl,
+                                label: _tr('Full Name *', 'Jina Kamili *'),
+                                hint: _tr('Enter full name', 'Ingiza jina kamili'),
+                                autofocus: true,
+                                prefix: const Icon(Icons.person_outline_rounded,
+                                    size: 18, color: AppColors.textMuted),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? _tr('Name is required.',
+                                            'Jina linahitajika.')
+                                        : null,
+                              ),
+                              const SizedBox(height: 16),
+
+                              OnboardingField(
+                                controller: _emailCtrl,
+                                label: _tr('Email (optional)', 'Barua pepe (hiari)'),
+                                hint: _tr('you@example.com', 'jina@mfano.com'),
+                                keyboardType: TextInputType.emailAddress,
+                                prefix: const Icon(Icons.alternate_email_rounded,
+                                    size: 18, color: AppColors.textMuted),
+                              ),
+                              const SizedBox(height: 16),
+
+                              OnboardingField(
+                                controller: _phoneCtrl,
+                                label: _tr('Phone (optional)', 'Simu (hiari)'),
+                                hint: '+255 700 000 000',
+                                keyboardType: TextInputType.phone,
+                                prefix: const Icon(Icons.phone_outlined,
+                                    size: 18, color: AppColors.textMuted),
+                              ),
+                              const SizedBox(height: 24),
+
+                              // ── Role ─────────────────────────────────────
+                              _sectionLabel(_tr('Role', 'Jukumu')),
+                              const SizedBox(height: 10),
+                              ...TeamRole.values.map((r) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: _RoleCard(
+                                      role: r,
+                                      selected: _selectedRole == r,
+                                      onTap: () => _onRoleChanged(r),
+                                    ),
+                                  )),
+                              const SizedBox(height: 16),
+
+                              // ── Permissions ───────────────────────────────
+                              if (_selectedRole == TeamRole.custom) ...[
+                                _sectionLabel(_tr('Permissions', 'Ruhusa')),
+                                const SizedBox(height: 10),
+                                _PermissionEditor(
+                                  perms: _customPerms,
+                                  onChanged: (p) =>
+                                      setState(() => _customPerms = p),
+                                ),
+                                const SizedBox(height: 16),
+                              ] else ...[
+                                _PermissionSummary(role: _selectedRole),
+                                const SizedBox(height: 16),
+                              ],
+
+                              // ── Notes ─────────────────────────────────────
+                              OnboardingField(
+                                controller: _notesCtrl,
+                                label:
+                                    _tr('Notes (optional)', 'Maelezo (hiari)'),
+                                hint: _tr(
+                                    'Any extra info...', 'Maelezo ya ziada...'),
+                                prefix: const Icon(Icons.notes_outlined,
+                                    size: 18, color: AppColors.textMuted),
+                              ),
+                              const SizedBox(height: 28),
+
+                              // ── Save button ───────────────────────────────
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: _isSaving ? null : _save,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.navyPrimary,
+                                    elevation: 4,
+                                    shadowColor: AppColors.primary
+                                        .withValues(alpha: 0.3),
+                                    minimumSize: const Size.fromHeight(52),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: _isSaving
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                              color: AppColors.navyPrimary))
+                                      : Text(
+                                          _tr('Add to Team',
+                                              'Ongeza kwenye Timu'),
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
-
-  Widget _field({
-    required TextEditingController ctrl,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboard,
-    TextCapitalization caps = TextCapitalization.none,
-    int maxLines = 1,
-  }) =>
-      TextField(
-        controller: ctrl,
-        keyboardType: keyboard,
-        textCapitalization: caps,
-        maxLines: maxLines,
-        decoration: _dec(label: label, icon: icon),
-      );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -2121,14 +2229,6 @@ Widget _handle() => Center(
       ),
     );
 
-Widget _sheetTitle(String title) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-      child: Text(title,
-          style: GoogleFonts.dmSans(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary)),
-    );
 
 Widget _sectionLabel(String label) => Text(
       label,
@@ -2138,22 +2238,3 @@ Widget _sectionLabel(String label) => Text(
           color: AppColors.textMuted),
     );
 
-InputDecoration _dec({required String label, required IconData icon}) =>
-    InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, size: 20),
-      filled: true,
-      fillColor: AppColors.surface,
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border)),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 2)),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    );
