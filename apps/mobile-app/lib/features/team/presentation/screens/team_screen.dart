@@ -66,16 +66,18 @@ class TeamScreen extends ConsumerStatefulWidget {
 
 class _TeamScreenState extends ConsumerState<TeamScreen> {
   _TeamFilter _filter = _TeamFilter.all;
-  final _searchCtrl = TextEditingController();
+  bool _searchExpanded = false;
+  String _query = '';
+
+  int get _activeFilters => _filter != _TeamFilter.all ? 1 : 0;
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
     super.dispose();
   }
 
   List<TeamMember> _applyFilter(List<TeamMember> all) {
-    final query = _searchCtrl.text.toLowerCase().trim();
+    final query = _query.toLowerCase();
     var result = switch (_filter) {
       _TeamFilter.all => all,
       _TeamFilter.active => all.where((m) => m.status == 'active').toList(),
@@ -100,18 +102,21 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
     final ps = ref.watch(permissionServiceProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       floatingActionButton: ps.isOwner
-          ? FloatingActionButton.extended(
-              onPressed: () => _showInviteSheet(context),
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.navyPrimary,
-              elevation: 3,
-              icon: const Icon(Icons.person_add_rounded, size: 20),
-              label: Text(
-                _tr('Add Member', 'Ongeza Mwanachama'),
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, fontWeight: FontWeight.w700),
+          ? Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).padding.bottom + 64),
+              child: FloatingActionButton.extended(
+                onPressed: () => _showInviteSheet(context),
+                backgroundColor: AppColors.yellowBrand,
+                foregroundColor: AppColors.navyPrimary,
+                elevation: 3,
+                icon: const Icon(Icons.person_add_rounded, size: 20),
+                label: Text(
+                  _tr('Add Member', 'Ongeza Mwanachama'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.w700),
+                ),
               ),
             )
           : null,
@@ -122,67 +127,59 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
         ),
         data: (members) {
           final filtered = _applyFilter(members);
-          final counts = {
-            _TeamFilter.all: members.length,
-            _TeamFilter.active:
-                members.where((m) => m.status == 'active').length,
-            _TeamFilter.pending:
-                members.where((m) => m.status == 'pending').length,
-            _TeamFilter.suspended:
-                members.where((m) => m.status == 'suspended').length,
-          };
+          final active = members.where((m) => m.status == 'active').length;
+          final pending = members.where((m) => m.status == 'pending').length;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Padding(
-                padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 66, 24, 0),
-                child: Text(
-                  _tr('My Team', 'Timu Yangu'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navyPrimary,
+              _TeamDarkHeader(
+                totalCount: members.length,
+                activeCount: active,
+                pendingCount: pending,
+                searchExpanded: _searchExpanded,
+                activeFilters: _activeFilters,
+                onSearchToggle: () => setState(() {
+                  _searchExpanded = !_searchExpanded;
+                  if (!_searchExpanded) _query = '';
+                }),
+                onSearchChanged: (v) => setState(() => _query = v.trim()),
+                onFilterTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  useRootNavigator: true,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => _TeamFilterSheet(
+                    selected: _filter,
+                    onApply: (f) => setState(() => _filter = f),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              // Stats card
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: _StatsCard(members: members),
-              ),
-              const SizedBox(height: 10),
-              // Search bar
-              AppSearchBar(
-                controller: _searchCtrl,
-                hintText: _tr('Search by name, email…', 'Tafuta kwa jina, barua pepe…'),
-                onChanged: (_) => setState(() {}),
-              ),
-              // Filter pills
-              _FilterPills(
-                selected: _filter,
-                counts: counts,
-                onSelect: (f) => setState(() => _filter = f),
-              ),
-              const SizedBox(height: 4),
-              // List
+              const SizedBox(height: _TeamDarkHeader._pillHalf + 8),
+              if (_filter != _TeamFilter.all)
+                _ActiveTeamFilterChip(
+                  filter: _filter,
+                  onRemove: () => setState(() => _filter = _TeamFilter.all),
+                ),
               Expanded(
                 child: filtered.isEmpty
                     ? _EmptyState(filter: _filter)
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(24, 4, 24, 120),
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 104),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: 12),
                         itemBuilder: (ctx, i) => ListSwipeCard(
                           itemKey: ValueKey(filtered[i].id),
-                          onEdit: ps.isOwner ? () => _showMemberSheet(context, filtered[i]) : null,
-                          onDelete: ps.isOwner ? () => _removeMember(context, ref, filtered[i]) : null,
+                          onEdit: ps.isOwner
+                              ? () => _showMemberSheet(context, filtered[i])
+                              : null,
+                          onDelete: ps.isOwner
+                              ? () => _removeMember(context, ref, filtered[i])
+                              : null,
                           child: _MemberCard(
                             member: filtered[i],
-                            onTap: () => _showMemberSheet(context, filtered[i]),
+                            isLast: i == filtered.length - 1,
+                            onTap: () =>
+                                _showMemberSheet(context, filtered[i]),
                           ),
                         ),
                       ),
@@ -307,191 +304,481 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   }
 }
 
-// ── Stats card ─────────────────────────────────────────────────────────────────
+// ── Dark Header ────────────────────────────────────────────────────────────────
 
-class _StatsCard extends StatelessWidget {
-  final List<TeamMember> members;
+class _TeamDarkHeader extends StatefulWidget {
+  static const double _pillHalf = 22.0;
 
-  const _StatsCard({required this.members});
+  final int totalCount;
+  final int activeCount;
+  final int pendingCount;
+  final bool searchExpanded;
+  final int activeFilters;
+  final VoidCallback onSearchToggle;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onFilterTap;
+
+  const _TeamDarkHeader({
+    required this.totalCount,
+    required this.activeCount,
+    required this.pendingCount,
+    required this.searchExpanded,
+    required this.activeFilters,
+    required this.onSearchToggle,
+    required this.onSearchChanged,
+    required this.onFilterTap,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    final active = members.where((m) => m.status == 'active').length;
-    final pending = members.where((m) => m.status == 'pending').length;
+  State<_TeamDarkHeader> createState() => _TeamDarkHeaderState();
+}
 
-    // Role breakdown (top 3 roles)
-    final roleCount = <TeamRole, int>{};
-    for (final m in members) {
-      roleCount[m.role] = (roleCount[m.role] ?? 0) + 1;
+class _TeamDarkHeaderState extends State<_TeamDarkHeader> {
+  final _ctrl = TextEditingController();
+  final _focus = FocusNode();
+
+  @override
+  void didUpdateWidget(_TeamDarkHeader old) {
+    super.didUpdateWidget(old);
+    if (!widget.searchExpanded && old.searchExpanded) {
+      _ctrl.clear();
+      _focus.unfocus();
+    } else if (widget.searchExpanded && !old.searchExpanded) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _focus.requestFocus());
     }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.navyPrimary, AppColors.navySecondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _StatCol(
-            label: _tr('Total', 'Jumla'),
-            value: '${members.length}',
-            color: AppColors.primary,
-          ),
-          _divider(),
-          _StatCol(
-            label: _tr('Active', 'Amilifu'),
-            value: '$active',
-            color: const Color(0xFF6EE7B7),
-          ),
-          _divider(),
-          _StatCol(
-            label: _tr('Pending', 'Wanaosubiri'),
-            value: '$pending',
-            color: pending > 0
-                ? const Color(0xFFFCD34D)
-                : Colors.white38,
-          ),
-        ],
-      ),
-    );
   }
 
-  Widget _divider() => Container(
-        width: 1,
-        height: 32,
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        color: Colors.white.withValues(alpha: 0.12),
-      );
-}
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
 
-class _StatCol extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _StatCol(
-      {required this.label, required this.value, required this.color});
+  Color get _alertDotColor {
+    if (widget.pendingCount > 0) return AppColors.warning;
+    if (widget.activeFilters > 0) return AppColors.yellowBrand;
+    return Colors.transparent;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label,
-              style: GoogleFonts.dmSans(
-                  fontSize: 11, color: Colors.white54)),
-          const SizedBox(height: 2),
-          Text(value,
-              style: GoogleFonts.jetBrainsMono(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: color)),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Filter pills ───────────────────────────────────────────────────────────────
-
-class _FilterPills extends StatelessWidget {
-  final _TeamFilter selected;
-  final Map<_TeamFilter, int> counts;
-  final ValueChanged<_TeamFilter> onSelect;
-
-  const _FilterPills(
-      {required this.selected,
-      required this.counts,
-      required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        children: _TeamFilter.values.map((f) {
-          final active = f == selected;
-          final count = counts[f] ?? 0;
-          final color = f == _TeamFilter.pending
-              ? AppColors.warning
-              : f == _TeamFilter.suspended
-                  ? AppColors.error
-                  : f == _TeamFilter.active
-                      ? AppColors.success
-                      : AppColors.navyPrimary;
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => onSelect(f),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14),
-                decoration: BoxDecoration(
-                  color: active
-                      ? color.withValues(alpha: 0.12)
-                      : AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: active
-                        ? color.withValues(alpha: 0.6)
-                        : AppColors.border,
-                    width: active ? 1.5 : 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(f.label,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: active
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color:
-                              active ? color : AppColors.textMuted,
-                        )),
-                    if (count > 0 && f != _TeamFilter.all) ...[
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: active
-                              ? color
-                              : AppColors.textDisabled,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('$count',
-                            style: GoogleFonts.dmSans(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white)),
+    final top = MediaQuery.of(context).padding.top;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          padding: EdgeInsets.fromLTRB(
+              20, top + 16, 20, _TeamDarkHeader._pillHalf + 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _tr('My Team', 'Timu Yangu'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: widget.onSearchToggle,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: widget.searchExpanded
+                            ? Colors.white.withValues(alpha: 0.20)
+                            : Colors.white.withValues(alpha: 0.10),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        widget.searchExpanded
+                            ? Icons.close_rounded
+                            : Icons.search_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: widget.onFilterTap,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 140),
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: widget.activeFilters > 0
+                                ? Colors.white.withValues(alpha: 0.20)
+                                : Colors.white.withValues(alpha: 0.10),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.tune_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                        if (_alertDotColor != Colors.transparent)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: _alertDotColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: AppColors.navyPrimary, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                child: widget.searchExpanded
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: TextField(
+                          controller: _ctrl,
+                          focusNode: _focus,
+                          onChanged: widget.onSearchChanged,
+                          style: GoogleFonts.dmSans(
+                              color: Colors.white, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: _tr(
+                              'Search by name, email…',
+                              'Tafuta kwa jina, barua pepe…',
+                            ),
+                            hintStyle: GoogleFonts.dmSans(
+                                color: Colors.white54, fontSize: 14),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            prefixIcon: const Icon(Icons.search_rounded,
+                                color: Colors.white54, size: 18),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: -_TeamDarkHeader._pillHalf,
+          left: 24,
+          right: 24,
+          child: Container(
+            height: _TeamDarkHeader._pillHalf * 2,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius:
+                  BorderRadius.circular(_TeamDarkHeader._pillHalf),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _PillStat(
+                  value: '${widget.totalCount}',
+                  label: _tr('Members', 'Wanachama'),
+                  valueColor: AppColors.tealAccent,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: '${widget.activeCount}',
+                  label: _tr('Active', 'Amilifu'),
+                  valueColor: AppColors.success,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: '${widget.pendingCount}',
+                  label: _tr('Pending', 'Wanaosubiri'),
+                  valueColor: widget.pendingCount > 0
+                      ? AppColors.warning
+                      : AppColors.success,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PillStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color valueColor;
+  const _PillStat({
+    required this.value,
+    required this.label,
+    required this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: valueColor,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 10,
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PillDivider extends StatelessWidget {
+  const _PillDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 28,
+      color: AppColors.border,
+    );
+  }
+}
+
+// ── Filter Sheet ───────────────────────────────────────────────────────────────
+
+class _TeamFilterSheet extends StatefulWidget {
+  final _TeamFilter selected;
+  final ValueChanged<_TeamFilter> onApply;
+
+  const _TeamFilterSheet({
+    required this.selected,
+    required this.onApply,
+  });
+
+  @override
+  State<_TeamFilterSheet> createState() => _TeamFilterSheetState();
+}
+
+class _TeamFilterSheetState extends State<_TeamFilterSheet> {
+  late _TeamFilter _pick;
+
+  @override
+  void initState() {
+    super.initState();
+    _pick = widget.selected;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-          );
-        }).toList(),
+            const SizedBox(height: 16),
+            _SheetSectionLabel(_tr('Status', 'Hali')),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _TeamFilter.values
+                  .map((f) => _SortChip(
+                        label: f.label,
+                        selected: _pick == f,
+                        onTap: () => setState(() => _pick = f),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () {
+                  widget.onApply(_pick);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navyPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  _tr('Apply', 'Tumia'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetSectionLabel extends StatelessWidget {
+  final String text;
+  const _SheetSectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: GoogleFonts.dmSans(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textMuted,
+        letterSpacing: 0.6,
+      ),
+    );
+  }
+}
+
+class _SortChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _SortChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.navyPrimary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.navyPrimary : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Active filter chip ─────────────────────────────────────────────────────────
+
+class _ActiveTeamFilterChip extends StatelessWidget {
+  final _TeamFilter filter;
+  final VoidCallback onRemove;
+  const _ActiveTeamFilterChip({
+    required this.filter,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Row(
+        children: [
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.navyPrimary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.20)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  filter.label,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: onRemove,
+                  child: const Icon(Icons.close_rounded,
+                      size: 14, color: AppColors.navyPrimary),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -501,9 +788,14 @@ class _FilterPills extends StatelessWidget {
 
 class _MemberCard extends StatelessWidget {
   final TeamMember member;
+  final bool isLast;
   final VoidCallback onTap;
 
-  const _MemberCard({required this.member, required this.onTap});
+  const _MemberCard({
+    required this.member,
+    required this.isLast,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -521,40 +813,20 @@ class _MemberCard extends StatelessWidget {
       _ => _tr('Suspended', 'Imezuiliwa'),
     };
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-            boxShadow: const [
-              BoxShadow(
-                  color: AppColors.shadowCard,
-                  blurRadius: 6,
-                  offset: Offset(0, 1)),
-            ],
-          ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Left stripe — role color
-                Container(width: 4, color: rc),
-                Expanded(
-                  child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Row(
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
                 // Avatar
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: rc.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
@@ -563,7 +835,7 @@ class _MemberCard extends StatelessWidget {
                     child: Text(
                       member.initials,
                       style: GoogleFonts.dmSans(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w800,
                         color: rc,
                       ),
@@ -571,7 +843,6 @@ class _MemberCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -590,7 +861,6 @@ class _MemberCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          // Status dot
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
@@ -623,8 +893,7 @@ class _MemberCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          Icon(_roleIcon(member.role),
-                              size: 12, color: rc),
+                          Icon(_roleIcon(member.role), size: 12, color: rc),
                           const SizedBox(width: 4),
                           Text(
                             member.role.label,
@@ -652,7 +921,6 @@ class _MemberCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 5),
-                      // Permission count chip
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 7, vertical: 2),
@@ -677,14 +945,19 @@ class _MemberCard extends StatelessWidget {
                     color: AppColors.textMuted, size: 20),
               ],
             ),
-          ),
-                ),   // Expanded
-              ],     // outer Row children
-            ),       // outer Row
-          ),         // IntrinsicHeight
-        ),           // Ink
-      ),             // InkWell
-    );               // Material
+            if (!isLast)
+              const Padding(
+                padding: EdgeInsets.only(top: 12, left: 54),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.border,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

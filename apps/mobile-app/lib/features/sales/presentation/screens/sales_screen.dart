@@ -13,7 +13,6 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -70,15 +69,6 @@ extension _SalesFilterX on _SalesFilter {
         _SalesFilter.draft => _tr('Draft', 'Rasimu'),
         _SalesFilter.cancelled => _tr('Cancelled', 'Imefutwa'),
       };
-
-  Color get activeColor => switch (this) {
-        _SalesFilter.all => AppColors.navyPrimary,
-        _SalesFilter.paid => AppColors.success,
-        _SalesFilter.sent => AppColors.tealAccent,
-        _SalesFilter.overdue => AppColors.error,
-        _SalesFilter.draft => AppColors.textMuted,
-        _SalesFilter.cancelled => AppColors.textDisabled,
-      };
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -120,17 +110,6 @@ bool _matchesFilter(Map<String, dynamic> item, _SalesFilter filter) {
   };
 }
 
-Color _statusColor(Map<String, dynamic> item) {
-  if (_isOverdue(item)) return AppColors.error;
-  final s = _normalizeStatus(item);
-  return switch (s) {
-    'paid' => AppColors.success,
-    'draft' => AppColors.textMuted,
-    'cancelled' => AppColors.textDisabled,
-    _ => AppColors.tealAccent,
-  };
-}
-
 String _fmtAmt(double v) {
   if (v >= 1000000) return 'TSh ${(v / 1000000).toStringAsFixed(1)}M';
   if (v >= 1000) return 'TSh ${(v / 1000).toStringAsFixed(0)}K';
@@ -157,22 +136,20 @@ class SalesScreen extends ConsumerStatefulWidget {
 
 class _SalesScreenState extends ConsumerState<SalesScreen> {
   _SalesFilter _filter = _SalesFilter.all;
-  bool _searchActive = false;
-  String _searchQuery = '';
-  final _searchCtrl = TextEditingController();
-  final _searchFocus = FocusNode();
+  bool _searchExpanded = false;
+  String _query = '';
+
+  int get _activeFilters => _filter != _SalesFilter.all ? 1 : 0;
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
-    _searchFocus.dispose();
     super.dispose();
   }
 
   List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> items) {
     var list = items.where((i) => _matchesFilter(i, _filter)).toList();
-    if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
+    if (_query.isNotEmpty) {
+      final q = _query.toLowerCase();
       list = list.where((i) {
         final cn = (i['customerName'] ?? '').toString().toLowerCase();
         final inv = (i['invoiceNumber'] ?? i['id'] ?? '').toString().toLowerCase();
@@ -278,22 +255,25 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final ps = ref.watch(permissionServiceProvider);
 
     return Scaffold(
-      // Read-only roles (e.g. accountants) can view sales but not create them.
       floatingActionButton: !ps.canCreateSale
           ? null
-          : Builder(
-              builder: (ctx) => FloatingActionButton.extended(
-                onPressed: () => _showNewSaleSheet(ctx),
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.navyPrimary,
-                elevation: 3,
-                icon: const Icon(Icons.add_rounded, size: 22),
-                label: Text(
-                  _tr('New Sale', 'Mauzo Mapya'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navyPrimary),
+          : Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).padding.bottom + 64),
+              child: Builder(
+                builder: (ctx) => FloatingActionButton.extended(
+                  onPressed: () => _showNewSaleSheet(ctx),
+                  backgroundColor: AppColors.yellowBrand,
+                  foregroundColor: AppColors.navyPrimary,
+                  elevation: 3,
+                  icon: const Icon(Icons.add_rounded, size: 22),
+                  label: Text(
+                    _tr('New Sale', 'Mauzo Mapya'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary),
+                  ),
                 ),
               ),
             ),
@@ -327,100 +307,48 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   (s, i) =>
                       s +
                       (readInvoiceTotal(i) -
-                          parseNumericAmount(i['amountPaid'])).clamp(0, double.infinity));
+                              parseNumericAmount(i['amountPaid']))
+                          .clamp(0, double.infinity));
 
           final overdueCount = counts[_SalesFilter.overdue] ?? 0;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header row
-              Padding(
-                padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 66, 12, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _tr('Sales', 'Mauzo'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        _searchActive
-                            ? Icons.close_rounded
-                            : Icons.search_rounded,
-                        color: AppColors.textSecondary,
-                        size: 22,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _searchActive = !_searchActive;
-                          if (!_searchActive) {
-                            _searchQuery = '';
-                            _searchCtrl.clear();
-                            _searchFocus.unfocus();
-                          } else {
-                            WidgetsBinding.instance.addPostFrameCallback(
-                                (_) => _searchFocus.requestFocus());
-                          }
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              // ── Stats card
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-                child: _SalesStatsCard(
-                  todayRevenue: todayRevenue,
-                  pendingTotal: pendingTotal,
-                  overdueCount: overdueCount,
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // ── Filter pills
-              _FilterPills(
-                selected: _filter,
-                counts: counts,
-                onSelect: (f) => setState(() => _filter = f),
-              ),
-
-              // ── Search bar
-              if (_searchActive) ...[
-                const SizedBox(height: 10),
-                AppSearchBar(
-                  controller: _searchCtrl,
-                  focusNode: _searchFocus,
-                  hintText: _tr(
-                    'Customer name or invoice number…',
-                    'Jina la mteja au namba ya ankara…',
+              _SalesDarkHeader(
+                todayRevenue: todayRevenue,
+                pendingTotal: pendingTotal,
+                overdueCount: overdueCount,
+                searchExpanded: _searchExpanded,
+                activeFilters: _activeFilters,
+                onSearchToggle: () => setState(() {
+                  _searchExpanded = !_searchExpanded;
+                  if (!_searchExpanded) _query = '';
+                }),
+                onSearchChanged: (v) => setState(() => _query = v.trim()),
+                onFilterTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  useRootNavigator: true,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => _SalesFilterSheet(
+                    selected: _filter,
+                    onApply: (f) => setState(() => _filter = f),
                   ),
-                  onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
                 ),
-              ],
-
-              const SizedBox(height: 8),
-
-              // ── List
+              ),
+              const SizedBox(height: _SalesDarkHeader._pillHalf + 8),
+              if (_filter != _SalesFilter.all)
+                _ActiveSalesFilterChip(
+                  filter: _filter,
+                  onRemove: () => setState(() => _filter = _SalesFilter.all),
+                ),
               Expanded(
                 child: filtered.isEmpty
                     ? _EmptySalesState(filter: _filter)
-                    : ListView.separated(
-                        padding:
-                            const EdgeInsets.fromLTRB(24, 4, 24, 104),
+                    : ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 104),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: 10),
                         itemBuilder: (ctx, i) {
                           final item = filtered[i];
                           return ListSwipeCard(
@@ -437,6 +365,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                 : null,
                             child: _InvoiceCard(
                               item: item,
+                              isLast: i == filtered.length - 1,
                               onTap: () => Navigator.of(ctx).push(
                                 MaterialPageRoute(
                                   builder: (_) => InvoiceDetailScreen(
@@ -724,116 +653,481 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
 // ── Stats Card ─────────────────────────────────────────────────────────────────
 
-class _SalesStatsCard extends StatelessWidget {
+// ── Dark Header ────────────────────────────────────────────────────────────────
+
+class _SalesDarkHeader extends StatefulWidget {
+  static const double _pillHalf = 22.0;
+
   final double todayRevenue;
   final double pendingTotal;
   final int overdueCount;
+  final bool searchExpanded;
+  final int activeFilters;
+  final VoidCallback onSearchToggle;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onFilterTap;
 
-  const _SalesStatsCard({
+  const _SalesDarkHeader({
     required this.todayRevenue,
     required this.pendingTotal,
     required this.overdueCount,
+    required this.searchExpanded,
+    required this.activeFilters,
+    required this.onSearchToggle,
+    required this.onSearchChanged,
+    required this.onFilterTap,
   });
+
+  @override
+  State<_SalesDarkHeader> createState() => _SalesDarkHeaderState();
+}
+
+class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
+  final _ctrl = TextEditingController();
+  final _focus = FocusNode();
+
+  @override
+  void didUpdateWidget(_SalesDarkHeader old) {
+    super.didUpdateWidget(old);
+    if (!widget.searchExpanded && old.searchExpanded) {
+      _ctrl.clear();
+      _focus.unfocus();
+    } else if (widget.searchExpanded && !old.searchExpanded) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _focus.requestFocus());
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Color get _alertDotColor {
+    if (widget.overdueCount > 0) return AppColors.error;
+    if (widget.activeFilters > 0) return AppColors.yellowBrand;
+    return Colors.transparent;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+    return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.navyPrimary,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                20, top + 16, 20, _SalesDarkHeader._pillHalf + 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _tr('Sales', 'Mauzo'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    // Search icon
+                    GestureDetector(
+                      onTap: widget.onSearchToggle,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 140),
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: widget.searchExpanded
+                              ? Colors.white.withValues(alpha: 0.20)
+                              : Colors.white.withValues(alpha: 0.10),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          widget.searchExpanded
+                              ? Icons.close_rounded
+                              : Icons.search_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Filter icon
+                    GestureDetector(
+                      onTap: widget.onFilterTap,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 140),
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: widget.activeFilters > 0
+                                  ? Colors.white.withValues(alpha: 0.20)
+                                  : Colors.white.withValues(alpha: 0.10),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.tune_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                          if (_alertDotColor != Colors.transparent)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: _alertDotColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: AppColors.navyPrimary, width: 1.5),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  child: widget.searchExpanded
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: TextField(
+                            controller: _ctrl,
+                            focusNode: _focus,
+                            onChanged: widget.onSearchChanged,
+                            style: GoogleFonts.dmSans(
+                                color: Colors.white, fontSize: 14),
+                            decoration: InputDecoration(
+                              hintText: _tr(
+                                'Customer name or invoice #…',
+                                'Jina la mteja au namba ya ankara…',
+                              ),
+                              hintStyle: GoogleFonts.dmSans(
+                                  color: Colors.white54, fontSize: 14),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              filled: true,
+                              fillColor: Colors.white.withValues(alpha: 0.10),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              prefixIcon: const Icon(Icons.search_rounded,
+                                  color: Colors.white54, size: 18),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+          // Stats pill
+          Positioned(
+            bottom: -_SalesDarkHeader._pillHalf,
+            left: 24,
+            right: 24,
+            child: Container(
+              height: _SalesDarkHeader._pillHalf * 2,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(_SalesDarkHeader._pillHalf),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.navyPrimary.withValues(alpha: 0.10),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _PillStat(
+                    value: _fmtAmt(widget.todayRevenue),
+                    label: _tr('Today', 'Leo'),
+                    valueColor: AppColors.tealAccent,
+                  ),
+                  const _PillDivider(),
+                  _PillStat(
+                    value: _fmtAmt(widget.pendingTotal),
+                    label: _tr('Pending', 'Inasubiri'),
+                    valueColor: widget.pendingTotal > 0
+                        ? AppColors.warning
+                        : AppColors.success,
+                  ),
+                  const _PillDivider(),
+                  _PillStat(
+                    value: widget.overdueCount.toString(),
+                    label: _tr('Overdue', 'Imechelewa'),
+                    valueColor: widget.overdueCount > 0
+                        ? AppColors.error
+                        : AppColors.success,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+    );
+  }
+}
+
+class _PillStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color valueColor;
+  const _PillStat({
+    required this.value,
+    required this.label,
+    required this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: valueColor,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 10,
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PillDivider extends StatelessWidget {
+  const _PillDivider();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.navyPrimary, AppColors.navySecondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      width: 1,
+      height: 28,
+      color: AppColors.border,
+    );
+  }
+}
+
+// ── Filter Sheet ───────────────────────────────────────────────────────────────
+
+class _SalesFilterSheet extends StatefulWidget {
+  final _SalesFilter selected;
+  final ValueChanged<_SalesFilter> onApply;
+
+  const _SalesFilterSheet({
+    required this.selected,
+    required this.onApply,
+  });
+
+  @override
+  State<_SalesFilterSheet> createState() => _SalesFilterSheetState();
+}
+
+class _SalesFilterSheetState extends State<_SalesFilterSheet> {
+  late _SalesFilter _pick;
+
+  @override
+  void initState() {
+    super.initState();
+    _pick = widget.selected;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _SheetSectionLabel(_tr('Status', 'Hali')),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _SalesFilter.values
+                  .map((f) => _SortChip(
+                        label: f.label,
+                        selected: _pick == f,
+                        onTap: () => setState(() => _pick = f),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () {
+                  widget.onApply(_pick);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navyPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  _tr('Apply', 'Tumia'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _StatItem(
-            label: _tr('Today', 'Leo'),
-            value: _fmtAmt(todayRevenue),
-            color: AppColors.primary,
-          ),
-          _vDivider(),
-          _StatItem(
-            label: _tr('Pending', 'Inasubiri'),
-            value: _fmtAmt(pendingTotal),
-            color: const Color(0xFF7DD3FC),
-          ),
-          _vDivider(),
-          _StatItem(
-            label: _tr('Overdue', 'Imechelewa'),
-            value: overdueCount.toString(),
-            color: overdueCount > 0
-                ? const Color(0xFFFCA5A5)
-                : Colors.white54,
-            suffix: _tr(' inv.', ' ank.'),
-          ),
-        ],
       ),
     );
   }
-
-  Widget _vDivider() => Container(
-        width: 1,
-        height: 32,
-        color: Colors.white.withValues(alpha: 0.12),
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-      );
 }
 
-class _StatItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final String suffix;
+class _SheetSectionLabel extends StatelessWidget {
+  final String text;
+  const _SheetSectionLabel(this.text);
 
-  const _StatItem({
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: GoogleFonts.dmSans(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textMuted,
+        letterSpacing: 0.6,
+      ),
+    );
+  }
+}
+
+class _SortChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _SortChip({
     required this.label,
-    required this.value,
-    required this.color,
-    this.suffix = '',
+    required this.selected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.dmSans(
-                fontSize: 11,
-                color: Colors.white54,
-                fontWeight: FontWeight.w500),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.navyPrimary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.navyPrimary : AppColors.border,
           ),
-          const SizedBox(height: 2),
-          RichText(
-            text: TextSpan(
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Active filter chip ─────────────────────────────────────────────────────────
+
+class _ActiveSalesFilterChip extends StatelessWidget {
+  final _SalesFilter filter;
+  final VoidCallback onRemove;
+  const _ActiveSalesFilterChip({
+    required this.filter,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Row(
+        children: [
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.navyPrimary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.20)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextSpan(
-                  text: value,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: color,
+                Text(
+                  filter.label,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navyPrimary,
                   ),
                 ),
-                if (suffix.isNotEmpty)
-                  TextSpan(
-                    text: suffix,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11, color: color.withValues(alpha: 0.7)),
-                  ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: onRemove,
+                  child: const Icon(Icons.close_rounded,
+                      size: 14, color: AppColors.navyPrimary),
+                ),
               ],
             ),
           ),
@@ -843,105 +1137,17 @@ class _StatItem extends StatelessWidget {
   }
 }
 
-// ── Filter Pills ───────────────────────────────────────────────────────────────
-
-class _FilterPills extends StatelessWidget {
-  final _SalesFilter selected;
-  final Map<_SalesFilter, int> counts;
-  final ValueChanged<_SalesFilter> onSelect;
-
-  const _FilterPills({
-    required this.selected,
-    required this.counts,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        children: _SalesFilter.values.map((f) {
-          final isSelected = f == selected;
-          final count = counts[f] ?? 0;
-          final color = f.activeColor;
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => onSelect(f),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? color.withValues(alpha: 0.12)
-                      : AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected
-                        ? color.withValues(alpha: 0.6)
-                        : AppColors.border,
-                    width: isSelected ? 1.5 : 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      f.label,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                        color: isSelected ? color : AppColors.textMuted,
-                      ),
-                    ),
-                    if (count > 0 && f != _SalesFilter.all) ...[
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? color
-                              : AppColors.textDisabled,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$count',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
 // ── Invoice Card ───────────────────────────────────────────────────────────────
 
 class _InvoiceCard extends StatelessWidget {
   final Map<String, dynamic> item;
+  final bool isLast;
   final VoidCallback onTap;
   final VoidCallback onReceiptAction;
 
   const _InvoiceCard({
     required this.item,
+    required this.isLast,
     required this.onTap,
     required this.onReceiptAction,
   });
@@ -950,7 +1156,6 @@ class _InvoiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = _normalizeStatus(item);
     final overdue = _isOverdue(item);
-    final sColor = _statusColor(item);
 
     final customer =
         (item['customerName'] ?? _tr('Walk-in', 'Mteja wa Kawaida'))
@@ -1013,232 +1218,218 @@ class _InvoiceCard extends StatelessWidget {
       };
     }
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            border: Border.all(color: AppColors.border),
-            boxShadow: AppTheme.cardShadow,
-          ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1: invoice number + date + status chip
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(width: 4, color: sColor),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 12, 14, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                // Row 1: invoice number + date + status chip
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              if (invoiceNo.isNotEmpty)
-                                Text(
-                                  invoiceNo,
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 11,
-                                    color: AppColors.textMuted,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              if (isQuotation) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceVariant,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    _tr('QUO', 'NUK'),
-                                    style: GoogleFonts.dmSans(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textMuted,
-                                        letterSpacing: 0.5),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            customer,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.navyPrimary,
+                          if (invoiceNo.isNotEmpty)
+                            Text(
+                              invoiceNo,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          if (isQuotation) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                _tr('QUO', 'NUK'),
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textMuted,
+                                    letterSpacing: 0.5),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        customer,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: chipData.bg,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(chipData.icon,
+                              size: 10, color: chipData.text),
+                          const SizedBox(width: 3),
+                          Text(
+                            chipData.label,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: chipData.text,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    const SizedBox(height: 4),
+                    Text(
+                      _fmtDate(date),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Row 2: amount + item count + share button
+            Row(
+              children: [
+                Text(
+                  _fmtAmt(amount),
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                if (itemCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '· $itemCount ${_tr(itemCount == 1 ? "item" : "items", itemCount == 1 ? "kitu" : "vitu")}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                GestureDetector(
+                  onTap: onReceiptAction,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Status badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: chipData.bg,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(chipData.icon,
-                                  size: 10, color: chipData.text),
-                              const SizedBox(width: 3),
-                              Text(
-                                chipData.label,
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: chipData.text,
-                                ),
-                              ),
-                            ],
-                          ),
+                        const Icon(
+                          Icons.ios_share_rounded,
+                          size: 13,
+                          color: AppColors.textSecondary,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(width: 4),
                         Text(
-                          _fmtDate(date),
+                          _tr('Share', 'Shiriki'),
                           style: GoogleFonts.dmSans(
                             fontSize: 11,
-                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-
-                // Row 2: amount + item count + action button
-                Row(
-                  children: [
-                    Text(
-                      _fmtAmt(amount),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    if (itemCount > 0) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        '· $itemCount ${_tr(itemCount == 1 ? "item" : "items", itemCount == 1 ? "kitu" : "vitu")}',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    // Receipt action button
-                    GestureDetector(
-                      onTap: onReceiptAction,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(8),
-                          border:
-                              Border.all(color: AppColors.border),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.ios_share_rounded,
-                              size: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _tr('Share', 'Shiriki'),
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Row 3: overdue / balance warning
-                if (overdue && dueDate != null) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.schedule_rounded,
-                          size: 12, color: AppColors.error),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_tr("Due was", "Malipo ilikuwa")} ${_fmtDate(dueDate)} ${dueDate.year}',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: AppColors.error,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ),
-                ] else if (status == 'partial' && outstanding > 0) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.account_balance_wallet_outlined,
-                          size: 12, color: AppColors.warning),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_tr("Balance due", "Baki")}: ${_fmtAmt(outstanding)}',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: AppColors.warning,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                ),
+              ],
+            ),
+
+            // Row 3: overdue / balance warning
+            if (overdue && dueDate != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.schedule_rounded,
+                      size: 12, color: AppColors.error),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_tr("Due was", "Malipo ilikuwa")} ${_fmtDate(dueDate)} ${dueDate.year}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
-                      ],    // Column children
-                    ),      // Column
-                  ),        // Padding
-                ),          // Expanded
-              ],            // Row children
-            ),              // Row
-          ),                // IntrinsicHeight
-        ),                  // Ink
-      ),                    // InkWell
-    );                      // Material return
+              ),
+            ] else if (status == 'partial' && outstanding > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_outlined,
+                      size: 12, color: AppColors.warning),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_tr("Balance due", "Baki")}: ${_fmtAmt(outstanding)}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            if (!isLast)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.border,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
