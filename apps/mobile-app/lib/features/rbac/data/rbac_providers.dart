@@ -218,7 +218,14 @@ final permissionsLoadedProvider = Provider<bool>((ref) {
   if (profileAsync.isLoading) return false;
 
   final profile = profileAsync.valueOrNull;
-  if (profile == null) return true; // Signed-out / no profile → treat as loaded.
+  if (profile == null) {
+    // Null profile has two meanings:
+    //   1. Signed out — nothing to load, treat as settled.
+    //   2. Signed in but users/{uid} hasn't been written yet (first-install
+    //      race: Firebase Auth fired before saveUser() completed).
+    // Only case 1 should be treated as "loaded". For case 2 we must wait.
+    return FirebaseAuth.instance.currentUser == null;
+  }
 
   final isTeamMember = profile['isTeamMember'] == true;
   if (!isTeamMember) return true; // Owner is always ready.

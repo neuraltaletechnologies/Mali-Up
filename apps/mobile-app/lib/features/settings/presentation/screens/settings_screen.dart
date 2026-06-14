@@ -281,7 +281,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _switchAccount() async {
     await FirebaseAuth.instance.signOut();
-    ref.read(onboardingNotifierProvider.notifier).reset();
+    ref.read(onboardingNotifierProvider.notifier).resetToPhoneEntry();
     if (!mounted) return;
     context.go(AppRouter.phonePath, extra: {'switchAccount': true});
   }

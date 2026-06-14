@@ -366,11 +366,14 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             child: _InvoiceCard(
                               item: item,
                               isLast: i == filtered.length - 1,
-                              onTap: () => Navigator.of(ctx).push(
-                                MaterialPageRoute(
-                                  builder: (_) => InvoiceDetailScreen(
-                                    invoice: Map<String, dynamic>.from(item),
-                                  ),
+                              onTap: () => showModalBottomSheet<void>(
+                                context: ctx,
+                                useRootNavigator: true,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                useSafeArea: true,
+                                builder: (_) => _SaleInfoSheet(
+                                  item: Map<String, dynamic>.from(item),
                                 ),
                               ),
                               onReceiptAction: () => _openReceiptActions(
@@ -3608,4 +3611,800 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SALE INFO SLIDE-UP SHEET — tap-a-card to view details
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _SaleInfoSheet extends ConsumerStatefulWidget {
+  final Map<String, dynamic> item;
+  const _SaleInfoSheet({required this.item});
+
+  @override
+  ConsumerState<_SaleInfoSheet> createState() => _SaleInfoSheetState();
+}
+
+class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
+  late Map<String, dynamic> _inv;
+  bool _updating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _inv = Map.from(widget.item);
+  }
+
+  // ── Derived ──────────────────────────────────────────────────────────────────
+
+  String get _status {
+    final raw = readInvoiceStatus(_inv).toLowerCase().trim();
+    return switch (raw) {
+      'paid' => 'paid',
+      'partial' => 'partial',
+      'unpaid' => 'unpaid',
+      'sent' => 'sent',
+      'draft' => 'draft',
+      'overdue' => 'overdue',
+      'cancelled' => 'cancelled',
+      _ => 'sent',
+    };
+  }
+
+  bool get _isQuotation =>
+      (_inv['type'] ?? '').toString().toLowerCase() == 'quotation';
+  double get _total => readInvoiceTotal(_inv);
+  double get _subtotal => parseNumericAmount(_inv['subtotal']);
+  double get _discount => parseNumericAmount(_inv['discountAmount']);
+  double get _vat => parseNumericAmount(_inv['vatAmount']);
+  double get _amountPaid => parseNumericAmount(_inv['amountPaid']);
+  double get _outstanding => (_total - _amountPaid).clamp(0.0, _total);
+
+  String get _invoiceNumber =>
+      _inv['invoiceNumber']?.toString() ?? _inv['id']?.toString() ?? '—';
+
+  String get _customerName =>
+      _inv['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
+
+  DateTime? get _invoiceDate =>
+      readTimestamp(_inv['createdAt'] ?? _inv['date']);
+  DateTime? get _dueDate => readTimestamp(_inv['dueDate']);
+
+  bool get _isOverdueNow {
+    final s = _status;
+    if (s == 'paid' || s == 'cancelled' || s == 'draft') return false;
+    if (s == 'overdue') return true;
+    final due = _dueDate;
+    return due != null && due.isBefore(DateTime.now());
+  }
+
+  List<Map<String, dynamic>> get _lineItems {
+    final raw = _inv['lineItems'];
+    if (raw is List && raw.isNotEmpty) {
+      return raw.whereType<Map<String, dynamic>>().toList();
+    }
+    final fallback = _inv['items'];
+    if (fallback is List) {
+      return fallback.whereType<Map<String, dynamic>>().map((it) => {
+            'productName': it['productName'] ?? it['name'] ?? '',
+            'qty': it['qty'] ?? it['quantity'] ?? 1,
+            'unitPrice': it['unitPrice'],
+            'lineTotal': it['lineTotal'] ?? it['total'],
+            'unit': it['unit'] ?? '',
+          }).toList();
+    }
+    return [];
+  }
+
+  ({Color bg, Color text, String label, IconData icon}) get _chipData {
+    if (_isOverdueNow) {
+      return (
+        bg: AppColors.errorBg,
+        text: AppColors.error,
+        label: _tr('Overdue', 'Imechelewa'),
+        icon: Icons.warning_amber_rounded,
+      );
+    }
+    return switch (_status) {
+      'paid' => (
+        bg: AppColors.successBg,
+        text: AppColors.success,
+        label: _tr('Paid', 'Imelipwa'),
+        icon: Icons.check_circle_rounded,
+      ),
+      'partial' => (
+        bg: AppColors.warningBg,
+        text: AppColors.warning,
+        label: _tr('Partial', 'Nusu'),
+        icon: Icons.timelapse_rounded,
+      ),
+      'draft' => (
+        bg: AppColors.surfaceVariant,
+        text: AppColors.textMuted,
+        label: _tr('Draft', 'Rasimu'),
+        icon: Icons.edit_rounded,
+      ),
+      'cancelled' => (
+        bg: AppColors.surfaceVariant,
+        text: AppColors.textDisabled,
+        label: _tr('Cancelled', 'Imefutwa'),
+        icon: Icons.cancel_rounded,
+      ),
+      _ => (
+        bg: AppColors.infoBg,
+        text: AppColors.tealAccent,
+        label: _isQuotation ? _tr('Quotation', 'Nukuu') : _tr('Sent', 'Imetumwa'),
+        icon: _isQuotation
+            ? Icons.description_outlined
+            : Icons.send_rounded,
+      ),
+    };
+  }
+
+  // ── Permissions ───────────────────────────────────────────────────────────────
+
+  bool get _canTakePayment {
+    final ps = ref.read(permissionServiceProvider);
+    return ps.canCreateSale || ps.canEditSale;
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────────
+
+  Future<void> _markPaid() async {
+    setState(() => _updating = true);
+    try {
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) return;
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final col = repo.scopeCollection(
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'sales_invoices');
+
+      final batch = FirebaseFirestore.instance.batch();
+      batch.update(col.doc(_inv['id'] as String), {
+        'status': 'paid',
+        'amountPaid': _total,
+        'paidAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final customerId = (_inv['customerId'] ?? '').toString();
+      if (customerId.isNotEmpty && _outstanding > 0) {
+        final customersCol = repo.scopeCollection(
+            uid: scope.ownerUid,
+            context: scope.context,
+            childCollection: 'customers');
+        batch.set(
+            customersCol.doc(customerId),
+            {
+              'balance': FieldValue.increment(-_outstanding),
+              'lastTransactionDate': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
+      }
+
+      await batch.commit();
+      unawaited(AuditLogService().logSaleAction(
+        ownerUid: scope.ownerUid,
+        businessId: scope.businessId,
+        performedByUid: scope.userUid,
+        performedByRole: ref.read(currentUserRoleProvider),
+        action: AuditLogService.paymentReceived,
+        invoiceId: _inv['id'] as String,
+        invoiceNumber: _invoiceNumber,
+        amount: _total,
+        details: 'mark_paid',
+      ));
+      unawaited(ref.read(syncServiceProvider).syncNow());
+
+      if (!mounted) return;
+      setState(() {
+        _inv = {..._inv, 'status': 'paid', 'amountPaid': _total};
+        _updating = false;
+      });
+      _showSnack(_tr('Invoice marked as paid!', 'Ankara imewekwa kama imelipwa!'));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _updating = false);
+      _showSnack(_tr('Update failed. Try again.', 'Imeshindwa. Jaribu tena.'));
+    }
+  }
+
+  void _openFullDetail() {
+    Navigator.of(context).pop();
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) => InvoiceDetailScreen(invoice: Map.from(_inv)),
+    ));
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final chip = _chipData;
+    final isPaidOrCancelled = _status == 'paid' || _status == 'cancelled';
+    final lineItems = _lineItems;
+    final hasDiscount = _discount > 0;
+    final hasVat = _vat > 0;
+    final hasTotalsBreakdown = hasDiscount || hasVat;
+    final payMethod = (_inv['paymentMethod'] ?? '').toString();
+    final notes = (_inv['notes'] ?? '').toString();
+    final invoiceDate = _invoiceDate;
+    final dueDate = _dueDate;
+    final overdue = _isOverdueNow;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: size.height * 0.92),
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Drag handle ──────────────────────────────────────────────────
+            Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+
+            Flexible(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  0,
+                  20,
+                  MediaQuery.of(context).viewInsets.bottom + 28,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Invoice header ───────────────────────────────────────
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  if (_invoiceNumber.isNotEmpty)
+                                    Text(
+                                      _invoiceNumber,
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 11,
+                                        color: AppColors.textMuted,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  if (_isQuotation) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceVariant,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        _tr('QUO', 'NUK'),
+                                        style: GoogleFonts.dmSans(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textMuted,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _customerName,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.navyPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: chip.bg,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(chip.icon, size: 12, color: chip.text),
+                              const SizedBox(width: 4),
+                              Text(
+                                chip.label,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: chip.text,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // ── Date row ─────────────────────────────────────────────
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (invoiceDate != null) ...[
+                          const Icon(Icons.calendar_today_rounded,
+                              size: 11, color: AppColors.textMuted),
+                          const SizedBox(width: 4),
+                          Text(
+                            _fmtDate(invoiceDate),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 12, color: AppColors.textMuted),
+                          ),
+                        ],
+                        if (dueDate != null) ...[
+                          if (invoiceDate != null) const SizedBox(width: 8),
+                          const Text('·',
+                              style:
+                                  TextStyle(color: AppColors.textMuted)),
+                          const SizedBox(width: 8),
+                          Icon(Icons.event_rounded,
+                              size: 11,
+                              color: overdue
+                                  ? AppColors.error
+                                  : AppColors.textMuted),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_tr("Due", "Mwisho")}: ${_fmtDate(dueDate)}',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              color: overdue
+                                  ? AppColors.error
+                                  : AppColors.textMuted,
+                              fontWeight: overdue
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    // ── Total + outstanding ───────────────────────────────────
+                    const SizedBox(height: 14),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'TZS ${_sNum(_total)}',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyPrimary,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (!isPaidOrCancelled && _outstanding > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.07),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                  color: AppColors.error
+                                      .withValues(alpha: 0.2)),
+                            ),
+                            child: Text(
+                              '${_tr("Due", "Baki")}: TZS ${_sNum(_outstanding)}',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.error,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+                    Container(height: 1, color: AppColors.border),
+
+                    // ── Line items ────────────────────────────────────────────
+                    if (lineItems.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Text(
+                            _tr('ITEMS', 'BIDHAA').toUpperCase(),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '(${lineItems.length})',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: lineItems.asMap().entries.map((e) {
+                            final idx = e.key;
+                            final it = e.value;
+                            final name = (it['productName'] ??
+                                    it['name'] ??
+                                    '—')
+                                .toString();
+                            final qty =
+                                (it['qty'] ?? it['quantity'] ?? 1).toString();
+                            final unitPrice =
+                                parseNumericAmount(it['unitPrice']);
+                            final lineTotal = parseNumericAmount(
+                                it['lineTotal'] ?? it['total']);
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (idx > 0)
+                                  const Divider(
+                                      height: 1,
+                                      indent: 16,
+                                      endIndent: 16,
+                                      color: AppColors.border),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              name,
+                                              style: GoogleFonts.dmSans(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                            if (unitPrice > 0) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '×$qty · TZS ${_sNum(unitPrice)} ${_tr("each", "kila")}',
+                                                style: GoogleFonts.dmSans(
+                                                  fontSize: 11,
+                                                  color: AppColors.textMuted,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        'TZS ${_sNum(lineTotal)}',
+                                        style: GoogleFonts.jetBrainsMono(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.navyPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(height: 1, color: AppColors.border),
+                    ],
+
+                    // ── Totals breakdown ──────────────────────────────────────
+                    const SizedBox(height: 14),
+                    if (hasTotalsBreakdown) ...[
+                      _SaleSheetRow(
+                        label: _tr('Subtotal', 'Jumla Ndogo'),
+                        value:
+                            'TZS ${_sNum(_subtotal > 0 ? _subtotal : _total)}',
+                      ),
+                      if (hasDiscount) ...[
+                        const SizedBox(height: 6),
+                        _SaleSheetRow(
+                          label: _tr('Discount', 'Punguzo'),
+                          value: '-TZS ${_sNum(_discount)}',
+                          valueColor: AppColors.success,
+                        ),
+                      ],
+                      if (hasVat) ...[
+                        const SizedBox(height: 6),
+                        _SaleSheetRow(
+                          label: _tr('VAT (18%)', 'VAT (18%)'),
+                          value: 'TZS ${_sNum(_vat)}',
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Container(height: 1, color: AppColors.border),
+                      const SizedBox(height: 10),
+                    ],
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _tr('TOTAL', 'JUMLA').toUpperCase(),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.7,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          'TZS ${_sNum(_total)}',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // ── Payment method ────────────────────────────────────────
+                    if (payMethod.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      Container(height: 1, color: AppColors.border),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: AppColors.navyPrimary
+                                  .withValues(alpha: 0.07),
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: const Icon(Icons.payments_rounded,
+                                size: 14, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            switch (payMethod) {
+                              'cash' => _tr('Cash', 'Taslimu'),
+                              'mpesa' => 'M-Pesa',
+                              'bank_transfer' =>
+                                _tr('Bank Transfer', 'Uhamisho wa Benki'),
+                              'card' => _tr('Card', 'Kadi'),
+                              'credit' => _tr('On Account', 'Mkopo'),
+                              _ => payMethod,
+                            },
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          if ((_inv['mpesaRef'] ?? '').toString().isNotEmpty)
+                            ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              (_inv['mpesaRef'] ?? '').toString(),
+                              style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 11,
+                                  color: AppColors.textMuted),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+
+                    // ── Notes ────────────────────────────────────────────────
+                    if (notes.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(height: 1, color: AppColors.border),
+                      const SizedBox(height: 10),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.notes_rounded,
+                              size: 14, color: AppColors.textMuted),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              notes,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    const SizedBox(height: 18),
+                    Container(height: 1, color: AppColors.border),
+                    const SizedBox(height: 14),
+
+                    // ── Share Receipt ─────────────────────────────────────────
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _SalesScreenState._openReceiptActions(
+                          context: context,
+                          sale: _inv,
+                          ref: ref,
+                        ),
+                        icon: const Icon(Icons.ios_share_rounded, size: 16),
+                        label: Text(
+                          _tr('Share Receipt', 'Shiriki Risiti'),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.navyPrimary,
+                          side: const BorderSide(color: AppColors.border),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+
+                    // ── Mark as Paid ──────────────────────────────────────────
+                    if (_canTakePayment && !isPaidOrCancelled) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton.icon(
+                          onPressed: _updating ? null : _markPaid,
+                          icon: _updating
+                              ? const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white))
+                              : const Icon(Icons.check_circle_rounded,
+                                  size: 16),
+                          label: Text(
+                            _tr('Mark as Paid', 'Weka kama Imelipwa'),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 14, fontWeight: FontWeight.w700),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // ── View Full Details ─────────────────────────────────────
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _openFullDetail,
+                        icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                        label: Text(
+                          _tr('View Full Details', 'Ona Maelezo Kamili'),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.navyPrimary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SaleSheetRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const _SaleSheetRow({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+              fontSize: 13, color: AppColors.textSecondary),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _sNum(double v) {
+  if (v == 0) return '0';
+  final s = v.toStringAsFixed(0);
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
+  }
+  return buf.toString();
 }

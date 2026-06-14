@@ -25,6 +25,12 @@ import '../../../core/services/localization_service.dart';
 /// ```
 final onboardingBootstrapProvider = Provider<bool>((_) => false);
 
+/// When true on cold-start (onboarding was previously completed but there is no
+/// active Firebase session — i.e. the user logged out then closed the app),
+/// the notifier initialises at the phone-entry step so the router can send the
+/// user straight to /phone without replaying the language + intro screens.
+final onboardingPhoneEntryBootstrapProvider = Provider<bool>((_) => false);
+
 // ─── PROVIDER ────────────────────────────────────────────────────────────────
 
 /// The single source of truth for the onboarding flow.
@@ -50,6 +56,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   @override
   OnboardingState build() {
     _service = ref.read(onboardingServiceProvider);
+    final startAtPhoneEntry = ref.read(onboardingPhoneEntryBootstrapProvider);
+    if (startAtPhoneEntry) {
+      // Onboarding was completed before but there is no active session (logged
+      // out then app was killed). Skip language + intro and land at phone entry.
+      return const OnboardingState(currentStep: OnboardingStep.phoneEntry);
+    }
     // If main.dart seeded the bootstrap provider as true, the user has already
     // completed onboarding — start in a done state so the router redirects
     // immediately to /dashboard without any intermediate flicker.
@@ -405,6 +417,13 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
 
   void reset() {
     state = const OnboardingState();
+  }
+
+  /// Resets session state but keeps the user at the phone-entry step so the
+  /// router sends them to /phone instead of replaying language + intro.
+  /// Use this on logout / account switch rather than [reset].
+  void resetToPhoneEntry() {
+    state = const OnboardingState(currentStep: OnboardingStep.phoneEntry);
   }
 
   // ─── PRIVATE HELPERS ─────────────────────────────────────────────────────

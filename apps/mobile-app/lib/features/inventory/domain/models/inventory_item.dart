@@ -1,3 +1,31 @@
+class SellingUnit {
+  final String name;
+  final int qty;
+  final double price;
+  final double costPrice;
+
+  const SellingUnit({
+    required this.name,
+    required this.qty,
+    required this.price,
+    this.costPrice = 0,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'qty': qty,
+    'price': price,
+    'costPrice': costPrice,
+  };
+
+  factory SellingUnit.fromJson(Map<String, dynamic> j) => SellingUnit(
+    name: (j['name'] as String?) ?? '',
+    qty: (j['qty'] as num?)?.toInt() ?? 1,
+    price: (j['price'] as num?)?.toDouble() ?? 0,
+    costPrice: (j['costPrice'] as num?)?.toDouble() ?? 0,
+  );
+}
+
 class InventoryItem {
   final String id;
   final String name;
@@ -24,6 +52,10 @@ class InventoryItem {
   // Electronics-specific
   final String warrantyPeriod;
   final String brand;
+  // Multi-unit selling (e.g. single/dozen/carton)
+  final List<SellingUnit> sellingUnits;
+  // Customer return metadata
+  final String returnReason;
 
   InventoryItem({
     required this.id,
@@ -48,6 +80,8 @@ class InventoryItem {
     this.batchNumber = '',
     this.warrantyPeriod = '',
     this.brand = '',
+    this.sellingUnits = const [],
+    this.returnReason = '',
   });
 
   factory InventoryItem.fromFirestore(Map<String, dynamic> data, String id) {
@@ -83,7 +117,17 @@ class InventoryItem {
       batchNumber: data['batchNumber'] as String? ?? '',
       warrantyPeriod: data['warrantyPeriod'] as String? ?? '',
       brand: data['brand'] as String? ?? '',
+      sellingUnits: _parseSellingUnits(data['sellingUnits']),
+      returnReason: data['returnReason'] as String? ?? '',
     );
+  }
+
+  static List<SellingUnit> _parseSellingUnits(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(SellingUnit.fromJson)
+        .toList();
   }
 
   Map<String, dynamic> toFirestore() {
@@ -112,6 +156,8 @@ class InventoryItem {
       'batchNumber': batchNumber,
       'warrantyPeriod': warrantyPeriod,
       'brand': brand,
+      'sellingUnits': sellingUnits.map((u) => u.toJson()).toList(),
+      'returnReason': returnReason,
     };
   }
 
@@ -138,6 +184,8 @@ class InventoryItem {
     String? batchNumber,
     String? warrantyPeriod,
     String? brand,
+    List<SellingUnit>? sellingUnits,
+    String? returnReason,
   }) {
     return InventoryItem(
       id: id ?? this.id,
@@ -162,6 +210,8 @@ class InventoryItem {
       batchNumber: batchNumber ?? this.batchNumber,
       warrantyPeriod: warrantyPeriod ?? this.warrantyPeriod,
       brand: brand ?? this.brand,
+      sellingUnits: sellingUnits ?? this.sellingUnits,
+      returnReason: returnReason ?? this.returnReason,
     );
   }
 

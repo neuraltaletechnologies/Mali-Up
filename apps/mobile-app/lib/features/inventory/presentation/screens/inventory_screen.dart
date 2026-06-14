@@ -30,7 +30,7 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
-enum ProductType { stock, perishable, service }
+enum ProductType { stock, perishable, service, customerReturn }
 
 enum SortOption { nameAz, nameZa, stockLow, stockHigh, priceLow, priceHigh, marginHigh }
 
@@ -38,9 +38,11 @@ enum SortOption { nameAz, nameZa, stockLow, stockHigh, priceLow, priceHigh, marg
 
 ProductType _readType(Map<String, dynamic> item) {
   switch (item['productType'] as String?) {
-    case 'perishable': return ProductType.perishable;
-    case 'service':    return ProductType.service;
-    default:           return ProductType.stock;
+    case 'perishable':     return ProductType.perishable;
+    case 'service':        return ProductType.service;
+    case 'return':
+    case 'customerReturn': return ProductType.customerReturn;
+    default:               return ProductType.stock;
   }
 }
 
@@ -76,23 +78,26 @@ int _stock(Map<String, dynamic> item) =>
 
 String _typeName(ProductType t) {
   switch (t) {
-    case ProductType.stock:      return _tr('Stock', 'Stoo');
-    case ProductType.perishable: return _tr('Perishable', 'Inayoharibika');
-    case ProductType.service:    return _tr('Service', 'Huduma');
+    case ProductType.stock:          return _tr('Stock', 'Stoo');
+    case ProductType.perishable:     return _tr('Perishable', 'Inayoharibika');
+    case ProductType.service:        return _tr('Service', 'Huduma');
+    case ProductType.customerReturn: return _tr('Return', 'Urejesho');
   }
 }
 
 IconData _typeIcon(ProductType t) {
   switch (t) {
-    case ProductType.stock:      return Icons.inventory_2_outlined;
-    case ProductType.perishable: return Icons.eco_outlined;
-    case ProductType.service:    return Icons.handyman_outlined;
+    case ProductType.stock:          return Icons.inventory_2_outlined;
+    case ProductType.perishable:     return Icons.eco_outlined;
+    case ProductType.service:        return Icons.handyman_outlined;
+    case ProductType.customerReturn: return Icons.assignment_return_outlined;
   }
 }
 
-// stock health: 0=service, 1=ok, 2=low, 3=out
+// stock health: 0=service/return, 1=ok, 2=low, 3=out
 int _healthLevel(Map<String, dynamic> item) {
-  if (_readType(item) == ProductType.service) return 0;
+  final t = _readType(item);
+  if (t == ProductType.service || t == ProductType.customerReturn) return 0;
   final s = _stock(item);
   if (s == 0) return 3;
   if (s <= _reorder(item)) return 2;
@@ -134,9 +139,10 @@ int _daysUntilExpiry(Map<String, dynamic> item) {
   return date.difference(DateTime.now()).inDays;
 }
 
-// Full status: 0=service, 1=healthy, 2=low, 3=out, 4=expiring_soon, 5=expired
+// Full status: 0=service/return, 1=healthy, 2=low, 3=out, 4=expiring_soon, 5=expired
 int _fullStatusLevel(Map<String, dynamic> item) {
-  if (_readType(item) == ProductType.service) return 0;
+  final t = _readType(item);
+  if (t == ProductType.service || t == ProductType.customerReturn) return 0;
   if (_isExpiredItem(item)) return 5;
   if (_isExpiringSoonItem(item)) return 4;
   final s = _stock(item);
@@ -264,6 +270,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         typeFilter: _typeFilter,
         healthFilter: _healthFilter,
         expiryFilter: _expiryFilter,
+        allItems: allItems,
         onApply: (sort, types, health, expiry) => setState(() {
           _sort = sort;
           _typeFilter = types;
@@ -334,14 +341,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     // Space for the pill's lower half that overflows the header
                     const SizedBox(height: _InventoryDarkHeader._pillHalf + 8),
 
-                    // ── Active type filter chips ─────────────────────────
-                    if (_typeFilter.isNotEmpty)
+                    // ── Active filter chips ──────────────────────────────
+                    if (_typeFilter.isNotEmpty || _healthFilter > 0 || _expiryFilter > 0)
                       _ActiveFilterRow(
                         typeFilter: _typeFilter,
-                        healthFilter: 0,
+                        healthFilter: _healthFilter,
+                        expiryFilter: _expiryFilter,
                         onClearType: (t) =>
                             setState(() => _typeFilter = {..._typeFilter}..remove(t)),
                         onClearHealth: () => setState(() => _healthFilter = 0),
+                        onClearExpiry: () => setState(() => _expiryFilter = 0),
                       ),
 
                     // ── List ─────────────────────────────────────────────
@@ -650,15 +659,25 @@ class _PillDivider extends StatelessWidget {
 class _ActiveFilterRow extends StatelessWidget {
   final Set<ProductType> typeFilter;
   final int healthFilter;
+  final int expiryFilter;
   final ValueChanged<ProductType> onClearType;
   final VoidCallback onClearHealth;
+  final VoidCallback onClearExpiry;
 
   const _ActiveFilterRow({
     required this.typeFilter,
     required this.healthFilter,
+    required this.expiryFilter,
     required this.onClearType,
     required this.onClearHealth,
+    required this.onClearExpiry,
   });
+
+  String _expiryLabel(int f) => switch (f) {
+        1 => _tr('Expiring Soon', 'Karibu Kuisha'),
+        2 => _tr('Expired', 'Imeisha Muda'),
+        _ => '',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -679,6 +698,12 @@ class _ActiveFilterRow extends StatelessWidget {
               label: _healthLabel(healthFilter),
               onRemove: onClearHealth,
             ),
+          if (expiryFilter > 0)
+            _FilterChip(
+              label: _expiryLabel(expiryFilter),
+              onRemove: onClearExpiry,
+              color: expiryFilter == 2 ? AppColors.error : const Color(0xFFD97706),
+            ),
         ],
       ),
     );
@@ -688,15 +713,17 @@ class _ActiveFilterRow extends StatelessWidget {
 class _FilterChip extends StatelessWidget {
   final String label;
   final VoidCallback onRemove;
-  const _FilterChip({required this.label, required this.onRemove});
+  final Color? color;
+  const _FilterChip({required this.label, required this.onRemove, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final bg = color ?? AppColors.navyPrimary;
     return Container(
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.navyPrimary,
+        color: bg,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -974,6 +1001,7 @@ class _FilterSortSheet extends StatefulWidget {
   final Set<ProductType> typeFilter;
   final int healthFilter;
   final int expiryFilter;
+  final List<Map<String, dynamic>> allItems;
   final void Function(SortOption, Set<ProductType>, int, int) onApply;
 
   const _FilterSortSheet({
@@ -981,6 +1009,7 @@ class _FilterSortSheet extends StatefulWidget {
     required this.typeFilter,
     required this.healthFilter,
     required this.expiryFilter,
+    required this.allItems,
     required this.onApply,
   });
 
@@ -1019,206 +1048,319 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final items = widget.allItems;
+    final outOfStock   = items.where((i) => _healthLevel(i) == 3).length;
+    final lowStock     = items.where((i) => _healthLevel(i) == 2).length;
+    final expiringSoon = items.where((i) => _isExpiringSoonItem(i)).length;
+    final expired      = items.where((i) => _isExpiredItem(i)).length;
+    final totalAlerts  = outOfStock + lowStock + expiringSoon + expired;
+
+    final size = MediaQuery.of(context).size;
+
     return Material(
       color: Colors.white,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: size.height * 0.90),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  width: 36, height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
+              // ── Fixed header ───────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        width: 36, height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _tr('Sort & Filter', 'Panga na Chuja'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _reset,
+                          child: Text(
+                            _tr('Reset', 'Futa'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              color: AppColors.tealAccent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tr('Sort & Filter', 'Panga na Chuja'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navyPrimary,
+              // ── Scrollable body ────────────────────────────────────────
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      // ── Alerts section ───────────────────────────────
+                      if (totalAlerts > 0) ...[
+                        Row(
+                          children: [
+                            _SheetSectionLabel(_tr('Alerts', 'Tahadhari')),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$totalAlerts',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            children: [
+                              if (outOfStock > 0)
+                                _AlertRow(
+                                  icon: Icons.remove_circle_outline_rounded,
+                                  color: AppColors.error,
+                                  label: _tr('Out of Stock', 'Imeisha'),
+                                  count: outOfStock,
+                                  selected: _health == 3,
+                                  onTap: () => setState(() => _health = _health == 3 ? 0 : 3),
+                                  showDivider: lowStock > 0 || expiringSoon > 0 || expired > 0,
+                                ),
+                              if (lowStock > 0)
+                                _AlertRow(
+                                  icon: Icons.warning_amber_rounded,
+                                  color: const Color(0xFFD97706),
+                                  label: _tr('Low Stock', 'Inakwisha'),
+                                  count: lowStock,
+                                  selected: _health == 2,
+                                  onTap: () => setState(() => _health = _health == 2 ? 0 : 2),
+                                  showDivider: expiringSoon > 0 || expired > 0,
+                                ),
+                              if (expiringSoon > 0)
+                                _AlertRow(
+                                  icon: Icons.schedule_rounded,
+                                  color: const Color(0xFFD97706),
+                                  label: _tr('Expiring Soon', 'Karibu Kuisha'),
+                                  count: expiringSoon,
+                                  selected: _expiry == 1,
+                                  onTap: () => setState(() => _expiry = _expiry == 1 ? 0 : 1),
+                                  showDivider: expired > 0,
+                                ),
+                              if (expired > 0)
+                                _AlertRow(
+                                  icon: Icons.event_busy_rounded,
+                                  color: AppColors.error,
+                                  label: _tr('Expired', 'Imeisha Muda'),
+                                  count: expired,
+                                  selected: _expiry == 2,
+                                  onTap: () => setState(() => _expiry = _expiry == 2 ? 0 : 2),
+                                  showDivider: false,
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // ── Sort ─────────────────────────────────────────
+                      _SheetSectionLabel(_tr('Sort by', 'Panga kwa')),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _SortChip(
+                            label: _tr('Name A–Z', 'Jina A–Z'),
+                            selected: _sort == SortOption.nameAz,
+                            onTap: () => setState(() => _sort = SortOption.nameAz),
+                          ),
+                          _SortChip(
+                            label: _tr('Name Z–A', 'Jina Z–A'),
+                            selected: _sort == SortOption.nameZa,
+                            onTap: () => setState(() => _sort = SortOption.nameZa),
+                          ),
+                          _SortChip(
+                            label: _tr('Stock ↑', 'Stoo ↑'),
+                            selected: _sort == SortOption.stockHigh,
+                            onTap: () => setState(() => _sort = SortOption.stockHigh),
+                          ),
+                          _SortChip(
+                            label: _tr('Stock ↓', 'Stoo ↓'),
+                            selected: _sort == SortOption.stockLow,
+                            onTap: () => setState(() => _sort = SortOption.stockLow),
+                          ),
+                          _SortChip(
+                            label: _tr('Price ↑', 'Bei ↑'),
+                            selected: _sort == SortOption.priceHigh,
+                            onTap: () => setState(() => _sort = SortOption.priceHigh),
+                          ),
+                          _SortChip(
+                            label: _tr('Price ↓', 'Bei ↓'),
+                            selected: _sort == SortOption.priceLow,
+                            onTap: () => setState(() => _sort = SortOption.priceLow),
+                          ),
+                          _SortChip(
+                            label: _tr('Best Margin', 'Faida Zaidi'),
+                            selected: _sort == SortOption.marginHigh,
+                            onTap: () => setState(() => _sort = SortOption.marginHigh),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _reset,
-                    child: Text(
-                      _tr('Reset', 'Futa'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        color: AppColors.tealAccent,
-                        fontWeight: FontWeight.w600,
+
+                      const SizedBox(height: 20),
+
+                      // ── Type filter ───────────────────────────────────
+                      _SheetSectionLabel(_tr('Product type', 'Aina ya bidhaa')),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ProductType.values.map((t) {
+                          final sel = _types.contains(t);
+                          return _SortChip(
+                            label: _typeName(t),
+                            selected: sel,
+                            onTap: () => setState(() {
+                              if (sel) {
+                                _types = {..._types}..remove(t);
+                              } else {
+                                _types = {..._types, t};
+                              }
+                            }),
+                          );
+                        }).toList(),
                       ),
-                    ),
-                  ),
-                ],
-              ),
 
-              const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-              // ── Sort ──────────────────────────────────────────────────
-              _SheetSectionLabel(_tr('Sort by', 'Panga kwa')),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _SortChip(
-                    label: _tr('Name A–Z', 'Jina A–Z'),
-                    selected: _sort == SortOption.nameAz,
-                    onTap: () => setState(() => _sort = SortOption.nameAz),
-                  ),
-                  _SortChip(
-                    label: _tr('Name Z–A', 'Jina Z–A'),
-                    selected: _sort == SortOption.nameZa,
-                    onTap: () => setState(() => _sort = SortOption.nameZa),
-                  ),
-                  _SortChip(
-                    label: _tr('Stock ↑', 'Stoo ↑'),
-                    selected: _sort == SortOption.stockHigh,
-                    onTap: () => setState(() => _sort = SortOption.stockHigh),
-                  ),
-                  _SortChip(
-                    label: _tr('Stock ↓', 'Stoo ↓'),
-                    selected: _sort == SortOption.stockLow,
-                    onTap: () => setState(() => _sort = SortOption.stockLow),
-                  ),
-                  _SortChip(
-                    label: _tr('Price ↑', 'Bei ↑'),
-                    selected: _sort == SortOption.priceHigh,
-                    onTap: () => setState(() => _sort = SortOption.priceHigh),
-                  ),
-                  _SortChip(
-                    label: _tr('Price ↓', 'Bei ↓'),
-                    selected: _sort == SortOption.priceLow,
-                    onTap: () => setState(() => _sort = SortOption.priceLow),
-                  ),
-                  _SortChip(
-                    label: _tr('Best Margin', 'Faida Zaidi'),
-                    selected: _sort == SortOption.marginHigh,
-                    onTap: () => setState(() => _sort = SortOption.marginHigh),
-                  ),
-                ],
-              ),
+                      // ── Stock health filter ───────────────────────────
+                      _SheetSectionLabel(_tr('Stock status', 'Hali ya stoo')),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _SortChip(
+                            label: _tr('All', 'Zote'),
+                            selected: _health == 0,
+                            onTap: () => setState(() => _health = 0),
+                          ),
+                          _SortChip(
+                            label: _tr('Healthy Stock', 'Stoo Ipo'),
+                            selected: _health == 1,
+                            onTap: () => setState(() => _health = 1),
+                          ),
+                          _SortChip(
+                            label: _tr('Low Stock', 'Inakwisha'),
+                            selected: _health == 2,
+                            onTap: () => setState(() => _health = 2),
+                            badge: lowStock,
+                            badgeColor: const Color(0xFFD97706),
+                          ),
+                          _SortChip(
+                            label: _tr('Out of Stock', 'Imeisha'),
+                            selected: _health == 3,
+                            onTap: () => setState(() => _health = 3),
+                            badge: outOfStock,
+                            badgeColor: AppColors.error,
+                          ),
+                        ],
+                      ),
 
-              const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-              // ── Type filter ───────────────────────────────────────────
-              _SheetSectionLabel(_tr('Product type', 'Aina ya bidhaaa')),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: ProductType.values.map((t) {
-                  final sel = _types.contains(t);
-                  return _SortChip(
-                    label: _typeName(t),
-                    selected: sel,
-                    onTap: () => setState(() {
-                      if (sel) {
-                        _types = {..._types}..remove(t);
-                      } else {
-                        _types = {..._types, t};
-                      }
-                    }),
-                  );
-                }).toList(),
-              ),
+                      // ── Expiry filter ─────────────────────────────────
+                      _SheetSectionLabel(_tr('Expiry status', 'Hali ya tarehe')),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _SortChip(
+                            label: _tr('Any', 'Yote'),
+                            selected: _expiry == 0,
+                            onTap: () => setState(() => _expiry = 0),
+                          ),
+                          _SortChip(
+                            label: _tr('Expiring Soon', 'Karibu Kuisha'),
+                            selected: _expiry == 1,
+                            onTap: () => setState(() => _expiry = 1),
+                            badge: expiringSoon,
+                            badgeColor: const Color(0xFFD97706),
+                          ),
+                          _SortChip(
+                            label: _tr('Expired', 'Imeisha Muda'),
+                            selected: _expiry == 2,
+                            onTap: () => setState(() => _expiry = 2),
+                            badge: expired,
+                            badgeColor: AppColors.error,
+                          ),
+                        ],
+                      ),
 
-              const SizedBox(height: 20),
+                      const SizedBox(height: 24),
 
-              // ── Stock health filter ───────────────────────────────────
-              _SheetSectionLabel(_tr('Stock status', 'Hali ya stoo')),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _SortChip(
-                    label: _tr('All', 'Zote'),
-                    selected: _health == 0,
-                    onTap: () => setState(() => _health = 0),
-                  ),
-                  _SortChip(
-                    label: _tr('Healthy Stock', 'Stoo Ipo'),
-                    selected: _health == 1,
-                    onTap: () => setState(() => _health = 1),
-                  ),
-                  _SortChip(
-                    label: _tr('Low Stock', 'Inakwisha'),
-                    selected: _health == 2,
-                    onTap: () => setState(() => _health = 2),
-                  ),
-                  _SortChip(
-                    label: _tr('Out of Stock', 'Imeisha'),
-                    selected: _health == 3,
-                    onTap: () => setState(() => _health = 3),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Expiry filter ─────────────────────────────────────────
-              _SheetSectionLabel(_tr('Expiry status', 'Hali ya tarehe')),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _SortChip(
-                    label: _tr('Any', 'Yote'),
-                    selected: _expiry == 0,
-                    onTap: () => setState(() => _expiry = 0),
-                  ),
-                  _SortChip(
-                    label: _tr('Expiring Soon', 'Karibu Kuisha'),
-                    selected: _expiry == 1,
-                    onTap: () => setState(() => _expiry = 1),
-                  ),
-                  _SortChip(
-                    label: _tr('Expired', 'Imeisha Muda'),
-                    selected: _expiry == 2,
-                    onTap: () => setState(() => _expiry = 2),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _apply,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.navyPrimary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    _tr('Apply', 'Tumia'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 15, fontWeight: FontWeight.w700,
-                    ),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _apply,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.navyPrimary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            _tr('Apply', 'Tumia'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 15, fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1226,6 +1368,99 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Alert Row (used in filter sheet) ─────────────────────────────────────────
+
+class _AlertRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool showDivider;
+
+  const _AlertRow({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+    required this.showDivider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            child: Row(
+              children: [
+                Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 16, color: color),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  width: 18, height: 18,
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.navyPrimary : Colors.transparent,
+                    border: Border.all(
+                      color: selected ? AppColors.navyPrimary : AppColors.border,
+                      width: 1.5,
+                    ),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: selected
+                      ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (showDivider)
+          const Divider(height: 1, indent: 58, color: AppColors.border),
+      ],
     );
   }
 }
@@ -1252,7 +1487,15 @@ class _SortChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _SortChip({required this.label, required this.selected, required this.onTap});
+  final int? badge;
+  final Color? badgeColor;
+  const _SortChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.badge,
+    this.badgeColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1268,13 +1511,40 @@ class _SortChip extends StatelessWidget {
             color: selected ? AppColors.navyPrimary : AppColors.border,
           ),
         ),
-        child: Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : AppColors.textMuted,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : AppColors.textMuted,
+              ),
+            ),
+            if (badge != null && badge! > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : (badgeColor ?? AppColors.error).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$badge',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: selected
+                        ? Colors.white
+                        : (badgeColor ?? AppColors.error),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -1854,6 +2124,32 @@ class _PriceLine extends StatelessWidget {
   }
 }
 
+// ── Selling unit entry (UI state holder) ──────────────────────────────────────
+
+class _UnitEntry {
+  final nameCtrl  = TextEditingController();
+  final qtyCtrl   = TextEditingController(text: '1');
+  final priceCtrl = TextEditingController();
+
+  _UnitEntry({String name = '', int qty = 1, double price = 0}) {
+    if (name.isNotEmpty) nameCtrl.text = name;
+    if (qty != 1) qtyCtrl.text = '$qty';
+    if (price > 0) priceCtrl.text = price.toStringAsFixed(0);
+  }
+
+  void dispose() {
+    nameCtrl.dispose();
+    qtyCtrl.dispose();
+    priceCtrl.dispose();
+  }
+
+  SellingUnit toModel(String baseUnit) => SellingUnit(
+    name: nameCtrl.text.trim(),
+    qty: int.tryParse(qtyCtrl.text) ?? 1,
+    price: double.tryParse(priceCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0,
+  );
+}
+
 // ── Product Form Sheet (Add / Edit) ───────────────────────────────────────────
 
 class _ProductFormSheet extends ConsumerStatefulWidget {
@@ -1870,15 +2166,16 @@ class _ProductFormSheet extends ConsumerStatefulWidget {
 class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   late ProductType _type;
 
-  final _nameCtrl    = TextEditingController();
-  final _skuCtrl     = TextEditingController();
-  final _buyCtrl     = TextEditingController();
-  final _sellCtrl    = TextEditingController();
-  final _stockCtrl   = TextEditingController(text: '1');
-  final _reorderCtrl = TextEditingController(text: '5');
-  final _batchCtrl   = TextEditingController();
-  final _brandCtrl   = TextEditingController();
-  final _warrantyCtrl = TextEditingController();
+  final _nameCtrl        = TextEditingController();
+  final _skuCtrl         = TextEditingController();
+  final _buyCtrl         = TextEditingController();
+  final _sellCtrl        = TextEditingController();
+  final _stockCtrl       = TextEditingController(text: '1');
+  final _reorderCtrl     = TextEditingController(text: '5');
+  final _batchCtrl       = TextEditingController();
+  final _brandCtrl       = TextEditingController();
+  final _warrantyCtrl    = TextEditingController();
+  final _returnReasonCtrl = TextEditingController();
 
   String _unit = 'pcs';
   bool _saving = false;
@@ -1889,6 +2186,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   // Expiry date state
   DateTime? _expiryDate;
+
+  // Selling units (optional multi-tier pricing)
+  final List<_UnitEntry> _sellingUnits = [];
 
   static const _units = [
     'pcs','kg','liters','boxes','bottles','bags','meters','sets','dozen','packets',
@@ -1911,7 +2211,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       _skuCtrl.text    = (item['sku'] ?? '').toString();
       _batchCtrl.text  = (item['batchNumber'] ?? '').toString();
       _brandCtrl.text  = (item['brand'] ?? '').toString();
-      _warrantyCtrl.text = (item['warrantyPeriod'] ?? '').toString();
+      _warrantyCtrl.text    = (item['warrantyPeriod'] ?? '').toString();
+      _returnReasonCtrl.text = (item['returnReason']  ?? '').toString();
 
       _selectedCategoryId   = (item['categoryId']   ?? '').toString();
       _selectedCategoryName = (item['categoryName'] ?? item['category'] ?? '').toString();
@@ -1928,6 +2229,20 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       final r = parseStock(item['reorderPoint']);
       _reorderCtrl.text = r > 0 ? '$r' : '5';
       _unit = (item['unit'] ?? 'pcs').toString();
+
+      // Restore selling units from Firestore list
+      final raw = item['sellingUnits'];
+      if (raw is List) {
+        for (final u in raw) {
+          if (u is Map<String, dynamic>) {
+            _sellingUnits.add(_UnitEntry(
+              name:  (u['name']  as String?)?.toString() ?? '',
+              qty:   (u['qty']  as num?)?.toInt() ?? 1,
+              price: (u['price'] as num?)?.toDouble() ?? 0,
+            ));
+          }
+        }
+      }
     } else {
       _type = ProductType.stock;
     }
@@ -1939,7 +2254,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     _buyCtrl.dispose();    _sellCtrl.dispose();
     _stockCtrl.dispose();  _reorderCtrl.dispose();
     _batchCtrl.dispose();  _brandCtrl.dispose();
-    _warrantyCtrl.dispose();
+    _warrantyCtrl.dispose(); _returnReasonCtrl.dispose();
+    for (final u in _sellingUnits) { u.dispose(); }
     super.dispose();
   }
 
@@ -1949,16 +2265,30 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       _snack(_tr('Enter product name', 'Ingiza jina la bidhaa'));
       return;
     }
-    if (_sellVal <= 0) {
+    final isReturn = _type == ProductType.customerReturn;
+    if (!isReturn && _sellVal <= 0) {
       _snack(_tr('Enter a selling price', 'Ingiza bei ya kuuza'));
       return;
     }
 
     final bizType = ref.read(currentBusinessTypeProvider).valueOrNull ?? '';
     final config  = BusinessProductConfig.forBusinessType(bizType);
-    if (config.isExpiryRequired && _expiryDate == null) {
+    if (config.isExpiryRequired && _expiryDate == null && !isReturn) {
       _snack(_tr('Expiry date is required', 'Tarehe ya mwisho inahitajika'));
       return;
+    }
+
+    // Validate selling units — each must have a name and price
+    for (final u in _sellingUnits) {
+      if (u.nameCtrl.text.trim().isEmpty) {
+        _snack(_tr('Each selling unit needs a name', 'Kila kitengo kinahitaji jina'));
+        return;
+      }
+      final p = double.tryParse(u.priceCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+      if (p <= 0) {
+        _snack(_tr('Enter a price for each selling unit', 'Ingiza bei kwa kila kitengo'));
+        return;
+      }
     }
 
     setState(() => _saving = true);
@@ -1978,10 +2308,18 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
               '${_expiryDate!.day.toString().padLeft(2, '0')}'
           : '';
 
+      // productType stored as string: 'stock', 'perishable', 'service', 'customerReturn'
+      final ptName = _type == ProductType.customerReturn ? 'customerReturn' : _type.name;
+
+      final units = _sellingUnits
+          .map((u) => u.toModel(_unit))
+          .where((u) => u.name.isNotEmpty && u.price > 0)
+          .toList();
+
       final item = InventoryItem(
         id: widget.existingId ?? '',
         name: name,
-        productType: _type.name,
+        productType: ptName,
         category: resolvedCatName,
         categoryId: _selectedCategoryId,
         categoryName: resolvedCatName,
@@ -1989,7 +2327,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         currentStock: _type != ProductType.service
             ? (double.tryParse(_stockCtrl.text) ?? 0)
             : 0,
-        reorderPoint: _type != ProductType.service
+        reorderPoint: (_type == ProductType.stock || _type == ProductType.perishable)
             ? (double.tryParse(_reorderCtrl.text) ?? 5)
             : 0,
         unitPrice: _sellVal,
@@ -1999,6 +2337,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         batchNumber: _batchCtrl.text.trim(),
         brand: _brandCtrl.text.trim(),
         warrantyPeriod: _warrantyCtrl.text.trim(),
+        returnReason: _returnReasonCtrl.text.trim(),
+        sellingUnits: units,
         supplier: (existing?['supplier'] as String?) ?? '',
         lastRestocked: (existing?['lastRestocked'] as String?) ?? '',
         createdAt: (existing?['createdAt'] as String?) ?? now,
@@ -2011,7 +2351,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       msg.showSnackBar(SnackBar(
         content: Text(_isEdit
             ? _tr('Product updated', 'Bidhaa imesasishwa')
-            : _tr('Product added', 'Bidhaa imeongezwa')),
+            : isReturn
+                ? _tr('Return recorded', 'Urejesho umerekodiwa')
+                : _tr('Product added', 'Bidhaa imeongezwa')),
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
       ));
@@ -2022,8 +2364,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       msg.showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
         content: Text(_tr(
-            'Could not save product. Please try again.',
-            'Imeshindikana kuhifadhi bidhaa. Jaribu tena.')),
+            'Could not save. Please try again.',
+            'Imeshindikana kuhifadhi. Jaribu tena.')),
       ));
     }
   }
@@ -2104,8 +2446,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final bizType = bizTypeAsync.valueOrNull ?? '';
     final config  = BusinessProductConfig.forBusinessType(bizType);
 
-    final showStock  = _type != ProductType.service && config.showStock;
-    final showProfit = _buyVal > 0 && _sellVal > 0;
+    final isReturn   = _type == ProductType.customerReturn;
+    final showStock  = !isReturn && _type != ProductType.service && config.showStock;
+    final showProfit = !isReturn && _buyVal > 0 && _sellVal > 0;
     final profitAmt  = _profit(_buyVal, _sellVal);
     final marginAmt  = _margin(_buyVal, _sellVal);
     final sheetWidth = MediaQuery.sizeOf(context).width;
@@ -2143,11 +2486,15 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           child: Text(
                             _isEdit
                                 ? _tr('Edit Product', 'Hariri Bidhaa')
-                                : _tr('Add Product', 'Ongeza Bidhaa'),
+                                : _type == ProductType.customerReturn
+                                    ? _tr('Record Return', 'Rekodi Urejesho')
+                                    : _tr('Add Product', 'Ongeza Bidhaa'),
                             style: GoogleFonts.dmSans(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.navyPrimary,
+                              color: _type == ProductType.customerReturn
+                                  ? AppColors.tealAccent
+                                  : AppColors.navyPrimary,
                             ),
                           ),
                         ),
@@ -2162,46 +2509,63 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // ── Type pills ────────────────────────────────────────
-                    Row(
-                      children: ProductType.values.map((t) {
-                        final sel = t == _type;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _type = t),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              margin: EdgeInsets.only(
-                                right: t != ProductType.values.last ? 8 : 0,
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: sel ? AppColors.navyPrimary : AppColors.surface,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: sel ? AppColors.navyPrimary : AppColors.border,
+                    // ── Type pills (2×2 grid) ─────────────────────────────
+                    LayoutBuilder(
+                      builder: (ctx, box) {
+                        final itemW = (box.maxWidth - 8) / 2;
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: ProductType.values.map((t) {
+                            final sel = t == _type;
+                            Color tileColor;
+                            Color borderColor;
+                            Color contentColor;
+                            if (sel) {
+                              if (t == ProductType.customerReturn) {
+                                tileColor   = AppColors.tealAccent;
+                                borderColor = AppColors.tealAccent;
+                              } else {
+                                tileColor   = AppColors.navyPrimary;
+                                borderColor = AppColors.navyPrimary;
+                              }
+                              contentColor = Colors.white;
+                            } else {
+                              tileColor   = AppColors.surface;
+                              borderColor = AppColors.border;
+                              contentColor = AppColors.textMuted;
+                            }
+                            return GestureDetector(
+                              onTap: () => setState(() => _type = t),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: itemW,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: tileColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: borderColor),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(_typeIcon(t), size: 18, color: contentColor),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _typeName(t),
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.dmSans(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: contentColor,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              child: Column(
-                                children: [
-                                  Icon(_typeIcon(t), size: 18,
-                                      color: sel ? Colors.white : AppColors.textMuted),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _typeName(t),
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.dmSans(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: sel ? Colors.white : AppColors.textMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                            );
+                          }).toList(),
                         );
-                      }).toList(),
+                      },
                     ),
                   ],
                 ),
@@ -2222,14 +2586,18 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                     children: [
 
                       // Product name
-                      _FormLabel('${BusinessProductConfig.productNameLabel(
-                        bizType,
-                        isSwahili: LocalizationService.isSwahili,
-                      )} *'),
+                      _FormLabel('${isReturn
+                          ? _tr('Returned Product Name', 'Jina la Bidhaa Iliyorudishwa')
+                          : BusinessProductConfig.productNameLabel(
+                              bizType,
+                              isSwahili: LocalizationService.isSwahili,
+                            )} *'),
                       const SizedBox(height: 6),
                       _FormField(
                         ctrl: _nameCtrl,
-                        hint: _tr('e.g. Unga wa mahindi 2kg', 'k.m. Unga wa mahindi 2kg'),
+                        hint: isReturn
+                            ? _tr('e.g. Book, T-Shirt …', 'k.m. Kitabu, Shati …')
+                            : _tr('e.g. Unga wa mahindi 2kg', 'k.m. Unga wa mahindi 2kg'),
                         caps: TextCapitalization.words,
                       ),
                       const SizedBox(height: 14),
@@ -2255,60 +2623,63 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             ),
                             const SizedBox(width: 12),
                           ],
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _FormLabel(_tr('Unit', 'Kitengo')),
-                                const SizedBox(height: 6),
-                                _UnitDropdown(
-                                  value: _unit,
-                                  units: _units,
-                                  onChanged: (v) => setState(() => _unit = v),
-                                ),
-                              ],
+                          if (!isReturn)
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Unit', 'Kitengo')),
+                                  const SizedBox(height: 6),
+                                  _UnitDropdown(
+                                    value: _unit,
+                                    units: _units,
+                                    onChanged: (v) => setState(() => _unit = v),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 14),
 
-                      // SKU / Barcode
-                      _FormLabel('SKU / ${_tr("Barcode", "Nambari")} (${_tr("optional", "hiari")})'),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _FormField(
-                              ctrl: _skuCtrl,
-                              hint: 'e.g. ABC-001',
-                              caps: TextCapitalization.characters,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 48, height: 48,
-                            child: OutlinedButton(
-                              onPressed: _scanSku,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                side: const BorderSide(color: AppColors.tealAccent),
-                                foregroundColor: AppColors.tealAccent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                      // SKU / Barcode — hidden for returns
+                      if (!isReturn) ...[
+                        _FormLabel('SKU / ${_tr("Barcode", "Nambari")} (${_tr("optional", "hiari")})'),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _FormField(
+                                ctrl: _skuCtrl,
+                                hint: 'e.g. ABC-001',
+                                caps: TextCapitalization.characters,
                               ),
-                              child: const Icon(Icons.qr_code_scanner_rounded, size: 22),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 48, height: 48,
+                              child: OutlinedButton(
+                                onPressed: _scanSku,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  side: const BorderSide(color: AppColors.tealAccent),
+                                  foregroundColor: AppColors.tealAccent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Icon(Icons.qr_code_scanner_rounded, size: 22),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                      ],
 
-                      // ── Business-type-specific fields ──────────────────────
+                      // ── Business-type-specific fields (not for returns) ────
 
                       // Expiry date (pharmacy required, perishable optional)
-                      if (config.showExpiryDate) ...[
-                        const SizedBox(height: 14),
+                      if (!isReturn && config.showExpiryDate) ...[
                         _FormLabel(config.isExpiryRequired
                             ? _tr('Expiry Date *', 'Tarehe ya Mwisho *')
                             : _tr('Expiry Date (optional)', 'Tarehe ya Mwisho (hiari)')),
@@ -2319,11 +2690,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           onTap: _pickExpiryDate,
                           onClear: () => setState(() => _expiryDate = null),
                         ),
+                        const SizedBox(height: 14),
                       ],
 
                       // Batch number (pharmacy / health)
-                      if (config.showBatchNumber) ...[
-                        const SizedBox(height: 14),
+                      if (!isReturn && config.showBatchNumber) ...[
                         _FormLabel('${_tr('Batch Number', 'Nambari ya Kundi')} (${_tr("optional", "hiari")})'),
                         const SizedBox(height: 6),
                         _FormField(
@@ -2331,11 +2702,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           hint: 'e.g. BN-2024-001',
                           caps: TextCapitalization.characters,
                         ),
+                        const SizedBox(height: 14),
                       ],
 
                       // Brand (electronics / pharmacy)
-                      if (config.showBrand) ...[
-                        const SizedBox(height: 14),
+                      if (!isReturn && config.showBrand) ...[
                         _FormLabel('${_tr('Brand', 'Chapa')} (${_tr("optional", "hiari")})'),
                         const SizedBox(height: 6),
                         _FormField(
@@ -2343,69 +2714,175 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           hint: 'e.g. Samsung, Dawa Ltd',
                           caps: TextCapitalization.words,
                         ),
+                        const SizedBox(height: 14),
                       ],
 
                       // Warranty period (electronics)
-                      if (config.showWarrantyPeriod) ...[
-                        const SizedBox(height: 14),
+                      if (!isReturn && config.showWarrantyPeriod) ...[
                         _FormLabel('${_tr('Warranty Period', 'Kipindi cha Dhamana')} (${_tr("optional", "hiari")})'),
                         const SizedBox(height: 6),
                         _FormField(
                           ctrl: _warrantyCtrl,
                           hint: _tr('e.g. 12 months', 'k.m. miezi 12'),
                         ),
+                        const SizedBox(height: 14),
                       ],
 
-                      const SizedBox(height: 20),
+                      // ── Return-specific fields ─────────────────────────────
+                      if (isReturn) ...[
+                        _FormLabel(_tr('Return Reason (optional)', 'Sababu ya Urejesho (hiari)')),
+                        const SizedBox(height: 6),
+                        _FormField(
+                          ctrl: _returnReasonCtrl,
+                          hint: _tr('e.g. Defective, Wrong item', 'k.m. Kasoro, Bidhaa isiyofaa'),
+                          caps: TextCapitalization.sentences,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
                       Container(height: 1, color: AppColors.border),
                       const SizedBox(height: 20),
 
                       // ── Pricing ───────────────────────────────────────────
-                      _FormSectionLabel(_tr('Pricing', 'Bei')),
+                      _FormSectionLabel(isReturn
+                          ? _tr('Reference Price', 'Bei ya Kumbukumbu')
+                          : _tr('Pricing', 'Bei')),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _FormLabel(_tr('Buying price', 'Bei ya kununua')),
-                                const SizedBox(height: 6),
-                                _FormField(
-                                  ctrl: _buyCtrl,
-                                  hint: '0',
-                                  prefix: 'TSh',
-                                  keyboard: const TextInputType.numberWithOptions(decimal: true),
-                                  formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                                  onChanged: (_) => setState(() {}),
-                                ),
-                              ],
+                      if (isReturn) ...[
+                        // For returns: just reference/original selling price
+                        _FormLabel(_tr('Original Price (optional)', 'Bei ya Awali (hiari)')),
+                        const SizedBox(height: 6),
+                        _FormField(
+                          ctrl: _sellCtrl,
+                          hint: '0',
+                          prefix: 'TSh',
+                          keyboard: const TextInputType.numberWithOptions(decimal: true),
+                          formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ] else ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Buying price', 'Bei ya kununua')),
+                                  const SizedBox(height: 6),
+                                  _FormField(
+                                    ctrl: _buyCtrl,
+                                    hint: '0',
+                                    prefix: 'TSh',
+                                    keyboard: const TextInputType.numberWithOptions(decimal: true),
+                                    formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _FormLabel(_tr('Selling price *', 'Bei ya kuuza *')),
-                                const SizedBox(height: 6),
-                                _FormField(
-                                  ctrl: _sellCtrl,
-                                  hint: '0',
-                                  prefix: 'TSh',
-                                  keyboard: const TextInputType.numberWithOptions(decimal: true),
-                                  formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                                  onChanged: (_) => setState(() {}),
-                                ),
-                              ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Selling price *', 'Bei ya kuuza *')),
+                                  const SizedBox(height: 6),
+                                  _FormField(
+                                    ctrl: _sellCtrl,
+                                    hint: '0',
+                                    prefix: 'TSh',
+                                    keyboard: const TextInputType.numberWithOptions(decimal: true),
+                                    formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
+                        ),
+                        if (showProfit) ...[
+                          const SizedBox(height: 10),
+                          _ProfitStrip(profit: profitAmt, margin: marginAmt),
                         ],
-                      ),
+                      ],
 
-                      if (showProfit) ...[
-                        const SizedBox(height: 10),
-                        _ProfitStrip(profit: profitAmt, margin: marginAmt),
+                      // ── Selling Units ──────────────────────────────────────
+                      if (!isReturn) ...[
+                        const SizedBox(height: 20),
+                        Container(height: 1, color: AppColors.border),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormSectionLabel(_tr('Selling Units', 'Vitengo vya Mauzo')),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _tr(
+                                      'Define bulk / wholesale units (e.g. Dozen, Carton)',
+                                      'Ongeza vitengo vikubwa (k.m. Dazani, Kartoni)',
+                                    ),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 11,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Current selling units
+                        ..._sellingUnits.asMap().entries.map((e) {
+                          final idx = e.key;
+                          final u   = e.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _SellingUnitCard(
+                              entry: u,
+                              baseUnit: _unit,
+                              index: idx + 1,
+                              onRemove: () => setState(() {
+                                u.dispose();
+                                _sellingUnits.removeAt(idx);
+                              }),
+                              onChanged: () => setState(() {}),
+                            ),
+                          );
+                        }),
+                        // Add unit button
+                        GestureDetector(
+                          onTap: () => setState(() => _sellingUnits.add(_UnitEntry())),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.tealAccent.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.add_rounded, size: 17, color: AppColors.tealAccent),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _tr('Add selling unit', 'Ongeza kitengo'),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.tealAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
 
                       // ── Stock ─────────────────────────────────────────────
@@ -2460,6 +2937,21 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         ),
                       ],
 
+                      // Return: qty returned field
+                      if (isReturn) ...[
+                        const SizedBox(height: 20),
+                        Container(height: 1, color: AppColors.border),
+                        const SizedBox(height: 20),
+                        _FormSectionLabel(_tr('Quantity Returned', 'Kiasi Kilichorudishwa')),
+                        const SizedBox(height: 12),
+                        _FormField(
+                          ctrl: _stockCtrl,
+                          hint: '1',
+                          keyboard: TextInputType.number,
+                          formatters: [FilteringTextInputFormatter.digitsOnly],
+                        ),
+                      ],
+
                       const SizedBox(height: 28),
 
                       SizedBox(
@@ -2468,10 +2960,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         child: ElevatedButton(
                           onPressed: _saving ? null : _save,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.navyPrimary,
+                            backgroundColor: isReturn
+                                ? AppColors.tealAccent
+                                : AppColors.navyPrimary,
                             foregroundColor: Colors.white,
-                            disabledBackgroundColor:
-                                AppColors.navyPrimary.withValues(alpha: 0.4),
+                            disabledBackgroundColor: (isReturn
+                                ? AppColors.tealAccent
+                                : AppColors.navyPrimary).withValues(alpha: 0.4),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
@@ -2486,7 +2981,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                               : Text(
                                   _isEdit
                                       ? _tr('Save changes', 'Hifadhi mabadiliko')
-                                      : _tr('Add to inventory', 'Ongeza kwenye bidhaa'),
+                                      : isReturn
+                                          ? _tr('Record Return', 'Rekodi Urejesho')
+                                          : _tr('Add to inventory', 'Ongeza kwenye bidhaa'),
                                   style: GoogleFonts.dmSans(
                                     fontSize: 15, fontWeight: FontWeight.w700,
                                   ),
@@ -2500,6 +2997,173 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Selling Unit Card ─────────────────────────────────────────────────────────
+
+class _SellingUnitCard extends StatelessWidget {
+  final _UnitEntry entry;
+  final String baseUnit;
+  final int index;
+  final VoidCallback onRemove;
+  final VoidCallback onChanged;
+
+  const _SellingUnitCard({
+    required this.entry,
+    required this.baseUnit,
+    required this.index,
+    required this.onRemove,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row: label + remove
+          Row(
+            children: [
+              Text(
+                _tr('Unit $index', 'Kitengo $index'),
+                style: GoogleFonts.dmSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onRemove,
+                child: const Icon(Icons.close_rounded,
+                    size: 18, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Name
+          TextField(
+            controller: entry.nameCtrl,
+            textCapitalization: TextCapitalization.words,
+            onChanged: (_) => onChanged(),
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.navyPrimary,
+            ),
+            decoration: InputDecoration(
+              hintText: _tr('Unit name (e.g. Dozen, Carton)', 'Jina (k.m. Dazani, Kartoni)'),
+              hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Qty + Price row
+          Row(
+            children: [
+              // Qty per pack
+              SizedBox(
+                width: 100,
+                child: TextField(
+                  controller: entry.qtyCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (_) => onChanged(),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navyPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: '1',
+                    hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+                    labelText: _tr('Qty/$baseUnit', 'Idadi/$baseUnit'),
+                    labelStyle: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Price
+              Expanded(
+                child: TextField(
+                  controller: entry.priceCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                  onChanged: (_) => onChanged(),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navyPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+                    prefixText: 'TSh ',
+                    prefixStyle: GoogleFonts.dmSans(
+                        fontSize: 12, color: AppColors.textMuted),
+                    labelText: _tr('Selling Price', 'Bei ya Mauzo'),
+                    labelStyle: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -10,7 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
 import '../../core/providers/sync_provider.dart';
-import 'sync_status_banner.dart';
+import '../../core/sync/sync_service.dart';
 import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/domain/permission_service.dart';
 import '../../features/team/domain/models/team_member.dart';
@@ -595,6 +595,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     final location = GoRouterState.of(context).uri.toString();
     final currentUser = _currentUser;
     ref.watch(syncServiceProvider); // starts SyncService (local→Firestore push) when uid + bizId are ready
+    final syncState = ref.watch(syncStateProvider);
+    final isOnline = syncState == SyncState.idle || syncState == SyncState.syncing;
     final ps = ref.watch(permissionServiceProvider);
     final memberAsync = ref.watch(currentMemberProvider);
     final member = memberAsync.valueOrNull;
@@ -653,6 +655,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                               selectedContext: selectedContext,
                               canSwitch: canSwitch,
                               businesses: businesses,
+                              isOnline: isOnline,
                               onChanged: _switchFinanceContext,
                               onManageBusinesses: () => context.go(AppRouter.businessesPath),
                             ),
@@ -667,7 +670,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
           bottomNavigationBar: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SyncStatusBanner(),
               Padding(
                 padding: EdgeInsets.fromLTRB(
                   24, 0, 24,
@@ -751,6 +753,7 @@ class _NavDestination {
 class _FinanceContextSwitcher extends StatelessWidget {
   final String selectedContext;
   final bool canSwitch;
+  final bool isOnline;
   final List<Map<String, dynamic>> businesses;
   final ValueChanged<String> onChanged;
   final VoidCallback onManageBusinesses;
@@ -758,6 +761,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
   const _FinanceContextSwitcher({
     required this.selectedContext,
     required this.canSwitch,
+    required this.isOnline,
     required this.businesses,
     required this.onChanged,
     required this.onManageBusinesses,
@@ -909,53 +913,72 @@ class _FinanceContextSwitcher extends StatelessWidget {
     final rawName = (selectedBusiness?['name'] as String?)?.trim() ?? '';
     final label = rawName.isNotEmpty ? _shortName(rawName) : tr('Business', 'Biashara');
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: canSwitch ? () => _openBusinessSwitcherSheet(context, selectedBusinessId) : null,
-      onDoubleTap: canSwitch ? _switchToNextBusiness : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: canSwitch
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : AppColors.surface.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: canSwitch
-                ? AppColors.primary.withValues(alpha: 0.2)
-                : AppColors.border,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.business_center_rounded, size: 16, color: AppColors.primary),
-            const SizedBox(width: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 130),
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: canSwitch ? AppColors.primary : AppColors.secondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: canSwitch ? () => _openBusinessSwitcherSheet(context, selectedBusinessId) : null,
+          onDoubleTap: canSwitch ? _switchToNextBusiness : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: canSwitch
+                  ? AppColors.primary.withValues(alpha: 0.1)
+                  : AppColors.surface.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: canSwitch
+                    ? AppColors.primary.withValues(alpha: 0.2)
+                    : AppColors.border,
               ),
             ),
-            if (canSwitch) ...[
-              const SizedBox(width: 6),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 16,
-                color: AppColors.primary,
-              ),
-            ]
-          ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.business_center_rounded, size: 16, color: AppColors.primary),
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 130),
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: canSwitch ? AppColors.primary : AppColors.secondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                if (canSwitch) ...[
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                ]
+              ],
+            ),
+          ),
         ),
-      ),
+        Positioned(
+          top: -3,
+          right: -3,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 500),
+            width: 9,
+            height: 9,
+            decoration: BoxDecoration(
+              color: isOnline ? AppColors.success : AppColors.error,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
