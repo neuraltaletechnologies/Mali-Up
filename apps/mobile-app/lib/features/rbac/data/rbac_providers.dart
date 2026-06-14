@@ -3,20 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers/auth_provider.dart' show authStateProvider;
 import '../../team/domain/models/team_member.dart';
 import '../domain/permission_service.dart';
-
-// ── Auth state ────────────────────────────────────────────────────────────────
-//
-// Reactive wrapper around FirebaseAuth.authStateChanges().
-// All RBAC providers that need the current user MUST derive from this so that
-// sign-in / sign-out events rebuild the whole provider chain automatically.
-// Reading FirebaseAuth.instance.currentUser directly is NOT reactive — it
-// captures the value at build time and never updates.
-
-final authStateProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
-});
 
 // ── Session state ─────────────────────────────────────────────────────────────
 //

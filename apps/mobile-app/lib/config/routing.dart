@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/providers/auth_provider.dart' show authStateProvider;
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/onboarding/presentation/screens/splash_screen.dart';
 import '../features/onboarding/presentation/screens/intro_slides_screen.dart';
@@ -66,7 +67,6 @@ import '../features/settings/presentation/screens/sync_diagnostics_screen.dart'
     deferred as screen_sync_diagnostics;
 import '../features/rbac/data/rbac_providers.dart'
     show
-        authStateProvider,
         permissionServiceProvider,
         permissionsLoadedProvider,
         SessionState,
