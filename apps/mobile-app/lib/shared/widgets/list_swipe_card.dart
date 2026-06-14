@@ -33,7 +33,7 @@ class ListSwipeCard extends StatelessWidget {
 
     return Slidable(
       key: itemKey,
-      startActionPane: ActionPane(
+      endActionPane: ActionPane(
         motion: const DrawerMotion(),
         extentRatio: hasEdit && hasDel ? 0.44 : 0.22,
         children: [
