@@ -326,8 +326,6 @@ class _TeamMemberSetupScreenState
                                       key: const ValueKey('invite'),
                                       sw: sw,
                                       name: name,
-                                      phone: state.phone,
-                                      email: state.memberEmail,
                                       role: state.role,
                                       businessName: state.businessName,
                                       isLoading: state.isLoading,
@@ -358,8 +356,6 @@ class _InvitationBody extends StatelessWidget {
     super.key,
     required this.sw,
     required this.name,
-    required this.phone,
-    required this.email,
     required this.role,
     required this.businessName,
     required this.isLoading,
@@ -370,8 +366,6 @@ class _InvitationBody extends StatelessWidget {
 
   final bool sw;
   final String name;
-  final String phone;
-  final String email;
   final String role;
   final String businessName;
   final bool isLoading;
@@ -530,58 +524,6 @@ class _InvitationBody extends StatelessWidget {
                 ),
               ],
 
-              if (phone.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Divider(height: 1, color: Colors.white.withValues(alpha: 0.12)),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.phone_outlined,
-                        size: 16, color: Colors.white54),
-                    const SizedBox(width: 8),
-                    Text(
-                      sw ? 'Simu: ' : 'Phone: ',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.60),
-                      ),
-                    ),
-                    Text(
-                      phone,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-
-              if (email.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Divider(height: 1, color: Colors.white.withValues(alpha: 0.12)),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.email_outlined,
-                        size: 16, color: Colors.white54),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        email,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),
