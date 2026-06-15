@@ -232,7 +232,9 @@ class OnboardingRepository {
 
     if (ownerUid.isNotEmpty && businessId.isNotEmpty && memberId.isNotEmpty) {
       // 2. Activate the team_member record and stamp userId.
-      batch.update(
+      // Use set with merge to handle cases where the document might not exist
+      // or be partially created due to prior network issues.
+      batch.set(
         _db
             .collection('tenants')
             .doc(ownerUid)
@@ -246,6 +248,7 @@ class OnboardingRepository {
           'updatedAt': FieldValue.serverTimestamp(),
           'userId': uid,
         },
+        SetOptions(merge: true),
       );
 
       // 3. memberAccess doc for server-side Firestore rule checks.
@@ -270,15 +273,29 @@ class OnboardingRepository {
 
     // 4. Mark pendingInvite as accepted.
     if (inviteId.isNotEmpty) {
-      batch.update(_db.collection('pendingInvites').doc(inviteId), {
-        'status': 'accepted',
-        'pinCreated': true,
-        'acceptedAt': FieldValue.serverTimestamp(),
-        'uid': uid,
-      });
+      batch.set(
+        _db.collection('pendingInvites').doc(inviteId),
+        {
+          'status': 'accepted',
+          'pinCreated': true,
+          'acceptedAt': FieldValue.serverTimestamp(),
+          'uid': uid,
+        },
+        SetOptions(merge: true),
+      );
     }
 
-    await batch.commit();
+    try {
+      await batch.commit();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '[OnboardingRepository.createTeamMemberAccount] batch commit failed '
+          'for member=$memberId owner=$ownerUid phone=$phone: $e',
+        );
+      }
+      rethrow;
+    }
   }
 
   // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
