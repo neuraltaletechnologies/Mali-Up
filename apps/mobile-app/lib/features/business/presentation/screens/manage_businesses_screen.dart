@@ -920,7 +920,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
       }
 
       Map<String, dynamic> buildEntry(Map<String, dynamic>? base) => {
-            if (base != null) ...base,
+            ...?base,
             'id': resolvedId,
             'name': name,
             'category': category,

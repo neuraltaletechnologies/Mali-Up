@@ -528,6 +528,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    super.dispose();
+  }
+
   void _openDebtPanel(BuildContext context) {
     showModalBottomSheet(
       context: context,
