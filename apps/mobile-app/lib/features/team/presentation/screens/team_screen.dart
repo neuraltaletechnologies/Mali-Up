@@ -1128,6 +1128,18 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
         );
       }
 
+      // Audit log — best-effort, do not await
+      unawaited(AuditLogService().log(
+        ownerUid: user.uid,
+        businessId: ctx.businessId ?? '',
+        performedByUid: user.uid,
+        performedByName: user.displayName ?? 'Owner',
+        action: AuditLogService.memberInvited,
+        targetMemberId: memberRef.id,
+        targetName: name,
+        newValue: _selectedRole.name,
+      ));
+
       navigator.pop();
       messenger.showSnackBar(SnackBar(
         content: Text(
@@ -1476,6 +1488,29 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
 
       // Audit log — best-effort, do not await
       final bizId = ctx.businessId ?? '';
+
+      // Log custom permissions changes (before role changes, to capture both)
+      if (data.containsKey('customPermissions')) {
+        final previousPerms = _member.customPermissions.map((p) => p.name).toList();
+        final newPerms = (data['customPermissions'] as List?)
+                ?.whereType<String>()
+                .toList() ??
+            previousPerms;
+        if (previousPerms != newPerms) {
+          unawaited(AuditLogService().log(
+            ownerUid: user.uid,
+            businessId: bizId,
+            performedByUid: user.uid,
+            performedByName: user.displayName ?? 'Owner',
+            action: AuditLogService.permissionsChanged,
+            targetMemberId: _member.id,
+            targetName: _member.name,
+            previousValue: previousPerms,
+            newValue: newPerms,
+          ));
+        }
+      }
+
       if (data.containsKey('role')) {
         unawaited(AuditLogService().log(
           ownerUid: user.uid,
