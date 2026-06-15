@@ -13435,6 +13435,1274 @@ class DailyReconciliationsTableCompanion
   }
 }
 
+class $MasterCategoriesTableTable extends MasterCategoriesTable
+    with TableInfo<$MasterCategoriesTableTable, MasterCategoriesTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MasterCategoriesTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessTypeIdMeta = const VerificationMeta(
+    'businessTypeId',
+  );
+  @override
+  late final GeneratedColumn<String> businessTypeId = GeneratedColumn<String>(
+    'business_type_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryNameMeta = const VerificationMeta(
+    'categoryName',
+  );
+  @override
+  late final GeneratedColumn<String> categoryName = GeneratedColumn<String>(
+    'category_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
+  @override
+  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
+    'icon',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<int> isActive = GeneratedColumn<int>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _cachedAtMeta = const VerificationMeta(
+    'cachedAt',
+  );
+  @override
+  late final GeneratedColumn<int> cachedAt = GeneratedColumn<int>(
+    'cached_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessTypeId,
+    categoryName,
+    description,
+    icon,
+    isActive,
+    cachedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'master_categories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MasterCategoriesTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_type_id')) {
+      context.handle(
+        _businessTypeIdMeta,
+        businessTypeId.isAcceptableOrUnknown(
+          data['business_type_id']!,
+          _businessTypeIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_businessTypeIdMeta);
+    }
+    if (data.containsKey('category_name')) {
+      context.handle(
+        _categoryNameMeta,
+        categoryName.isAcceptableOrUnknown(
+          data['category_name']!,
+          _categoryNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryNameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('icon')) {
+      context.handle(
+        _iconMeta,
+        icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('cached_at')) {
+      context.handle(
+        _cachedAtMeta,
+        cachedAt.isAcceptableOrUnknown(data['cached_at']!, _cachedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MasterCategoriesTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MasterCategoriesTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessTypeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_type_id'],
+      )!,
+      categoryName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_name'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      )!,
+      icon: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon'],
+      )!,
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_active'],
+      )!,
+      cachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cached_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MasterCategoriesTableTable createAlias(String alias) {
+    return $MasterCategoriesTableTable(attachedDatabase, alias);
+  }
+}
+
+class MasterCategoriesTableData extends DataClass
+    implements Insertable<MasterCategoriesTableData> {
+  final String id;
+  final String businessTypeId;
+  final String categoryName;
+  final String description;
+  final String icon;
+  final int isActive;
+  final int cachedAt;
+  const MasterCategoriesTableData({
+    required this.id,
+    required this.businessTypeId,
+    required this.categoryName,
+    required this.description,
+    required this.icon,
+    required this.isActive,
+    required this.cachedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_type_id'] = Variable<String>(businessTypeId);
+    map['category_name'] = Variable<String>(categoryName);
+    map['description'] = Variable<String>(description);
+    map['icon'] = Variable<String>(icon);
+    map['is_active'] = Variable<int>(isActive);
+    map['cached_at'] = Variable<int>(cachedAt);
+    return map;
+  }
+
+  MasterCategoriesTableCompanion toCompanion(bool nullToAbsent) {
+    return MasterCategoriesTableCompanion(
+      id: Value(id),
+      businessTypeId: Value(businessTypeId),
+      categoryName: Value(categoryName),
+      description: Value(description),
+      icon: Value(icon),
+      isActive: Value(isActive),
+      cachedAt: Value(cachedAt),
+    );
+  }
+
+  factory MasterCategoriesTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MasterCategoriesTableData(
+      id: serializer.fromJson<String>(json['id']),
+      businessTypeId: serializer.fromJson<String>(json['businessTypeId']),
+      categoryName: serializer.fromJson<String>(json['categoryName']),
+      description: serializer.fromJson<String>(json['description']),
+      icon: serializer.fromJson<String>(json['icon']),
+      isActive: serializer.fromJson<int>(json['isActive']),
+      cachedAt: serializer.fromJson<int>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessTypeId': serializer.toJson<String>(businessTypeId),
+      'categoryName': serializer.toJson<String>(categoryName),
+      'description': serializer.toJson<String>(description),
+      'icon': serializer.toJson<String>(icon),
+      'isActive': serializer.toJson<int>(isActive),
+      'cachedAt': serializer.toJson<int>(cachedAt),
+    };
+  }
+
+  MasterCategoriesTableData copyWith({
+    String? id,
+    String? businessTypeId,
+    String? categoryName,
+    String? description,
+    String? icon,
+    int? isActive,
+    int? cachedAt,
+  }) => MasterCategoriesTableData(
+    id: id ?? this.id,
+    businessTypeId: businessTypeId ?? this.businessTypeId,
+    categoryName: categoryName ?? this.categoryName,
+    description: description ?? this.description,
+    icon: icon ?? this.icon,
+    isActive: isActive ?? this.isActive,
+    cachedAt: cachedAt ?? this.cachedAt,
+  );
+  MasterCategoriesTableData copyWithCompanion(
+    MasterCategoriesTableCompanion data,
+  ) {
+    return MasterCategoriesTableData(
+      id: data.id.present ? data.id.value : this.id,
+      businessTypeId: data.businessTypeId.present
+          ? data.businessTypeId.value
+          : this.businessTypeId,
+      categoryName: data.categoryName.present
+          ? data.categoryName.value
+          : this.categoryName,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      icon: data.icon.present ? data.icon.value : this.icon,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MasterCategoriesTableData(')
+          ..write('id: $id, ')
+          ..write('businessTypeId: $businessTypeId, ')
+          ..write('categoryName: $categoryName, ')
+          ..write('description: $description, ')
+          ..write('icon: $icon, ')
+          ..write('isActive: $isActive, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessTypeId,
+    categoryName,
+    description,
+    icon,
+    isActive,
+    cachedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MasterCategoriesTableData &&
+          other.id == this.id &&
+          other.businessTypeId == this.businessTypeId &&
+          other.categoryName == this.categoryName &&
+          other.description == this.description &&
+          other.icon == this.icon &&
+          other.isActive == this.isActive &&
+          other.cachedAt == this.cachedAt);
+}
+
+class MasterCategoriesTableCompanion
+    extends UpdateCompanion<MasterCategoriesTableData> {
+  final Value<String> id;
+  final Value<String> businessTypeId;
+  final Value<String> categoryName;
+  final Value<String> description;
+  final Value<String> icon;
+  final Value<int> isActive;
+  final Value<int> cachedAt;
+  final Value<int> rowid;
+  const MasterCategoriesTableCompanion({
+    this.id = const Value.absent(),
+    this.businessTypeId = const Value.absent(),
+    this.categoryName = const Value.absent(),
+    this.description = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MasterCategoriesTableCompanion.insert({
+    required String id,
+    required String businessTypeId,
+    required String categoryName,
+    this.description = const Value.absent(),
+    this.icon = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessTypeId = Value(businessTypeId),
+       categoryName = Value(categoryName);
+  static Insertable<MasterCategoriesTableData> custom({
+    Expression<String>? id,
+    Expression<String>? businessTypeId,
+    Expression<String>? categoryName,
+    Expression<String>? description,
+    Expression<String>? icon,
+    Expression<int>? isActive,
+    Expression<int>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessTypeId != null) 'business_type_id': businessTypeId,
+      if (categoryName != null) 'category_name': categoryName,
+      if (description != null) 'description': description,
+      if (icon != null) 'icon': icon,
+      if (isActive != null) 'is_active': isActive,
+      if (cachedAt != null) 'cached_at': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MasterCategoriesTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessTypeId,
+    Value<String>? categoryName,
+    Value<String>? description,
+    Value<String>? icon,
+    Value<int>? isActive,
+    Value<int>? cachedAt,
+    Value<int>? rowid,
+  }) {
+    return MasterCategoriesTableCompanion(
+      id: id ?? this.id,
+      businessTypeId: businessTypeId ?? this.businessTypeId,
+      categoryName: categoryName ?? this.categoryName,
+      description: description ?? this.description,
+      icon: icon ?? this.icon,
+      isActive: isActive ?? this.isActive,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessTypeId.present) {
+      map['business_type_id'] = Variable<String>(businessTypeId.value);
+    }
+    if (categoryName.present) {
+      map['category_name'] = Variable<String>(categoryName.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (icon.present) {
+      map['icon'] = Variable<String>(icon.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<int>(isActive.value);
+    }
+    if (cachedAt.present) {
+      map['cached_at'] = Variable<int>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MasterCategoriesTableCompanion(')
+          ..write('id: $id, ')
+          ..write('businessTypeId: $businessTypeId, ')
+          ..write('categoryName: $categoryName, ')
+          ..write('description: $description, ')
+          ..write('icon: $icon, ')
+          ..write('isActive: $isActive, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MasterProductsTableTable extends MasterProductsTable
+    with TableInfo<$MasterProductsTableTable, MasterProductsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MasterProductsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessTypeIdMeta = const VerificationMeta(
+    'businessTypeId',
+  );
+  @override
+  late final GeneratedColumn<String> businessTypeId = GeneratedColumn<String>(
+    'business_type_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryNameMeta = const VerificationMeta(
+    'categoryName',
+  );
+  @override
+  late final GeneratedColumn<String> categoryName = GeneratedColumn<String>(
+    'category_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _productNameMeta = const VerificationMeta(
+    'productName',
+  );
+  @override
+  late final GeneratedColumn<String> productName = GeneratedColumn<String>(
+    'product_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _skuTemplateMeta = const VerificationMeta(
+    'skuTemplate',
+  );
+  @override
+  late final GeneratedColumn<String> skuTemplate = GeneratedColumn<String>(
+    'sku_template',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _barcodeMeta = const VerificationMeta(
+    'barcode',
+  );
+  @override
+  late final GeneratedColumn<String> barcode = GeneratedColumn<String>(
+    'barcode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _defaultUnitMeta = const VerificationMeta(
+    'defaultUnit',
+  );
+  @override
+  late final GeneratedColumn<String> defaultUnit = GeneratedColumn<String>(
+    'default_unit',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pcs'),
+  );
+  static const VerificationMeta _suggestedCostPriceMeta =
+      const VerificationMeta('suggestedCostPrice');
+  @override
+  late final GeneratedColumn<double> suggestedCostPrice =
+      GeneratedColumn<double>(
+        'suggested_cost_price',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
+  static const VerificationMeta _suggestedSellingPriceMeta =
+      const VerificationMeta('suggestedSellingPrice');
+  @override
+  late final GeneratedColumn<double> suggestedSellingPrice =
+      GeneratedColumn<double>(
+        'suggested_selling_price',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
+  static const VerificationMeta _searchableKeywordsMeta =
+      const VerificationMeta('searchableKeywords');
+  @override
+  late final GeneratedColumn<String> searchableKeywords =
+      GeneratedColumn<String>(
+        'searchable_keywords',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<int> isActive = GeneratedColumn<int>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _cachedAtMeta = const VerificationMeta(
+    'cachedAt',
+  );
+  @override
+  late final GeneratedColumn<int> cachedAt = GeneratedColumn<int>(
+    'cached_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    businessTypeId,
+    categoryId,
+    categoryName,
+    productName,
+    skuTemplate,
+    barcode,
+    defaultUnit,
+    suggestedCostPrice,
+    suggestedSellingPrice,
+    searchableKeywords,
+    isActive,
+    cachedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'master_products';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MasterProductsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('business_type_id')) {
+      context.handle(
+        _businessTypeIdMeta,
+        businessTypeId.isAcceptableOrUnknown(
+          data['business_type_id']!,
+          _businessTypeIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_businessTypeIdMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('category_name')) {
+      context.handle(
+        _categoryNameMeta,
+        categoryName.isAcceptableOrUnknown(
+          data['category_name']!,
+          _categoryNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('product_name')) {
+      context.handle(
+        _productNameMeta,
+        productName.isAcceptableOrUnknown(
+          data['product_name']!,
+          _productNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_productNameMeta);
+    }
+    if (data.containsKey('sku_template')) {
+      context.handle(
+        _skuTemplateMeta,
+        skuTemplate.isAcceptableOrUnknown(
+          data['sku_template']!,
+          _skuTemplateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('barcode')) {
+      context.handle(
+        _barcodeMeta,
+        barcode.isAcceptableOrUnknown(data['barcode']!, _barcodeMeta),
+      );
+    }
+    if (data.containsKey('default_unit')) {
+      context.handle(
+        _defaultUnitMeta,
+        defaultUnit.isAcceptableOrUnknown(
+          data['default_unit']!,
+          _defaultUnitMeta,
+        ),
+      );
+    }
+    if (data.containsKey('suggested_cost_price')) {
+      context.handle(
+        _suggestedCostPriceMeta,
+        suggestedCostPrice.isAcceptableOrUnknown(
+          data['suggested_cost_price']!,
+          _suggestedCostPriceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('suggested_selling_price')) {
+      context.handle(
+        _suggestedSellingPriceMeta,
+        suggestedSellingPrice.isAcceptableOrUnknown(
+          data['suggested_selling_price']!,
+          _suggestedSellingPriceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('searchable_keywords')) {
+      context.handle(
+        _searchableKeywordsMeta,
+        searchableKeywords.isAcceptableOrUnknown(
+          data['searchable_keywords']!,
+          _searchableKeywordsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('cached_at')) {
+      context.handle(
+        _cachedAtMeta,
+        cachedAt.isAcceptableOrUnknown(data['cached_at']!, _cachedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MasterProductsTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MasterProductsTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      businessTypeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_type_id'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      )!,
+      categoryName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_name'],
+      )!,
+      productName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_name'],
+      )!,
+      skuTemplate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sku_template'],
+      )!,
+      barcode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}barcode'],
+      )!,
+      defaultUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}default_unit'],
+      )!,
+      suggestedCostPrice: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}suggested_cost_price'],
+      )!,
+      suggestedSellingPrice: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}suggested_selling_price'],
+      )!,
+      searchableKeywords: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}searchable_keywords'],
+      )!,
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}is_active'],
+      )!,
+      cachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cached_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MasterProductsTableTable createAlias(String alias) {
+    return $MasterProductsTableTable(attachedDatabase, alias);
+  }
+}
+
+class MasterProductsTableData extends DataClass
+    implements Insertable<MasterProductsTableData> {
+  final String id;
+  final String businessTypeId;
+  final String categoryId;
+  final String categoryName;
+  final String productName;
+  final String skuTemplate;
+  final String barcode;
+  final String defaultUnit;
+  final double suggestedCostPrice;
+  final double suggestedSellingPrice;
+  final String searchableKeywords;
+  final int isActive;
+  final int cachedAt;
+  const MasterProductsTableData({
+    required this.id,
+    required this.businessTypeId,
+    required this.categoryId,
+    required this.categoryName,
+    required this.productName,
+    required this.skuTemplate,
+    required this.barcode,
+    required this.defaultUnit,
+    required this.suggestedCostPrice,
+    required this.suggestedSellingPrice,
+    required this.searchableKeywords,
+    required this.isActive,
+    required this.cachedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['business_type_id'] = Variable<String>(businessTypeId);
+    map['category_id'] = Variable<String>(categoryId);
+    map['category_name'] = Variable<String>(categoryName);
+    map['product_name'] = Variable<String>(productName);
+    map['sku_template'] = Variable<String>(skuTemplate);
+    map['barcode'] = Variable<String>(barcode);
+    map['default_unit'] = Variable<String>(defaultUnit);
+    map['suggested_cost_price'] = Variable<double>(suggestedCostPrice);
+    map['suggested_selling_price'] = Variable<double>(suggestedSellingPrice);
+    map['searchable_keywords'] = Variable<String>(searchableKeywords);
+    map['is_active'] = Variable<int>(isActive);
+    map['cached_at'] = Variable<int>(cachedAt);
+    return map;
+  }
+
+  MasterProductsTableCompanion toCompanion(bool nullToAbsent) {
+    return MasterProductsTableCompanion(
+      id: Value(id),
+      businessTypeId: Value(businessTypeId),
+      categoryId: Value(categoryId),
+      categoryName: Value(categoryName),
+      productName: Value(productName),
+      skuTemplate: Value(skuTemplate),
+      barcode: Value(barcode),
+      defaultUnit: Value(defaultUnit),
+      suggestedCostPrice: Value(suggestedCostPrice),
+      suggestedSellingPrice: Value(suggestedSellingPrice),
+      searchableKeywords: Value(searchableKeywords),
+      isActive: Value(isActive),
+      cachedAt: Value(cachedAt),
+    );
+  }
+
+  factory MasterProductsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MasterProductsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      businessTypeId: serializer.fromJson<String>(json['businessTypeId']),
+      categoryId: serializer.fromJson<String>(json['categoryId']),
+      categoryName: serializer.fromJson<String>(json['categoryName']),
+      productName: serializer.fromJson<String>(json['productName']),
+      skuTemplate: serializer.fromJson<String>(json['skuTemplate']),
+      barcode: serializer.fromJson<String>(json['barcode']),
+      defaultUnit: serializer.fromJson<String>(json['defaultUnit']),
+      suggestedCostPrice: serializer.fromJson<double>(
+        json['suggestedCostPrice'],
+      ),
+      suggestedSellingPrice: serializer.fromJson<double>(
+        json['suggestedSellingPrice'],
+      ),
+      searchableKeywords: serializer.fromJson<String>(
+        json['searchableKeywords'],
+      ),
+      isActive: serializer.fromJson<int>(json['isActive']),
+      cachedAt: serializer.fromJson<int>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'businessTypeId': serializer.toJson<String>(businessTypeId),
+      'categoryId': serializer.toJson<String>(categoryId),
+      'categoryName': serializer.toJson<String>(categoryName),
+      'productName': serializer.toJson<String>(productName),
+      'skuTemplate': serializer.toJson<String>(skuTemplate),
+      'barcode': serializer.toJson<String>(barcode),
+      'defaultUnit': serializer.toJson<String>(defaultUnit),
+      'suggestedCostPrice': serializer.toJson<double>(suggestedCostPrice),
+      'suggestedSellingPrice': serializer.toJson<double>(suggestedSellingPrice),
+      'searchableKeywords': serializer.toJson<String>(searchableKeywords),
+      'isActive': serializer.toJson<int>(isActive),
+      'cachedAt': serializer.toJson<int>(cachedAt),
+    };
+  }
+
+  MasterProductsTableData copyWith({
+    String? id,
+    String? businessTypeId,
+    String? categoryId,
+    String? categoryName,
+    String? productName,
+    String? skuTemplate,
+    String? barcode,
+    String? defaultUnit,
+    double? suggestedCostPrice,
+    double? suggestedSellingPrice,
+    String? searchableKeywords,
+    int? isActive,
+    int? cachedAt,
+  }) => MasterProductsTableData(
+    id: id ?? this.id,
+    businessTypeId: businessTypeId ?? this.businessTypeId,
+    categoryId: categoryId ?? this.categoryId,
+    categoryName: categoryName ?? this.categoryName,
+    productName: productName ?? this.productName,
+    skuTemplate: skuTemplate ?? this.skuTemplate,
+    barcode: barcode ?? this.barcode,
+    defaultUnit: defaultUnit ?? this.defaultUnit,
+    suggestedCostPrice: suggestedCostPrice ?? this.suggestedCostPrice,
+    suggestedSellingPrice: suggestedSellingPrice ?? this.suggestedSellingPrice,
+    searchableKeywords: searchableKeywords ?? this.searchableKeywords,
+    isActive: isActive ?? this.isActive,
+    cachedAt: cachedAt ?? this.cachedAt,
+  );
+  MasterProductsTableData copyWithCompanion(MasterProductsTableCompanion data) {
+    return MasterProductsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      businessTypeId: data.businessTypeId.present
+          ? data.businessTypeId.value
+          : this.businessTypeId,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      categoryName: data.categoryName.present
+          ? data.categoryName.value
+          : this.categoryName,
+      productName: data.productName.present
+          ? data.productName.value
+          : this.productName,
+      skuTemplate: data.skuTemplate.present
+          ? data.skuTemplate.value
+          : this.skuTemplate,
+      barcode: data.barcode.present ? data.barcode.value : this.barcode,
+      defaultUnit: data.defaultUnit.present
+          ? data.defaultUnit.value
+          : this.defaultUnit,
+      suggestedCostPrice: data.suggestedCostPrice.present
+          ? data.suggestedCostPrice.value
+          : this.suggestedCostPrice,
+      suggestedSellingPrice: data.suggestedSellingPrice.present
+          ? data.suggestedSellingPrice.value
+          : this.suggestedSellingPrice,
+      searchableKeywords: data.searchableKeywords.present
+          ? data.searchableKeywords.value
+          : this.searchableKeywords,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MasterProductsTableData(')
+          ..write('id: $id, ')
+          ..write('businessTypeId: $businessTypeId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('categoryName: $categoryName, ')
+          ..write('productName: $productName, ')
+          ..write('skuTemplate: $skuTemplate, ')
+          ..write('barcode: $barcode, ')
+          ..write('defaultUnit: $defaultUnit, ')
+          ..write('suggestedCostPrice: $suggestedCostPrice, ')
+          ..write('suggestedSellingPrice: $suggestedSellingPrice, ')
+          ..write('searchableKeywords: $searchableKeywords, ')
+          ..write('isActive: $isActive, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    businessTypeId,
+    categoryId,
+    categoryName,
+    productName,
+    skuTemplate,
+    barcode,
+    defaultUnit,
+    suggestedCostPrice,
+    suggestedSellingPrice,
+    searchableKeywords,
+    isActive,
+    cachedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MasterProductsTableData &&
+          other.id == this.id &&
+          other.businessTypeId == this.businessTypeId &&
+          other.categoryId == this.categoryId &&
+          other.categoryName == this.categoryName &&
+          other.productName == this.productName &&
+          other.skuTemplate == this.skuTemplate &&
+          other.barcode == this.barcode &&
+          other.defaultUnit == this.defaultUnit &&
+          other.suggestedCostPrice == this.suggestedCostPrice &&
+          other.suggestedSellingPrice == this.suggestedSellingPrice &&
+          other.searchableKeywords == this.searchableKeywords &&
+          other.isActive == this.isActive &&
+          other.cachedAt == this.cachedAt);
+}
+
+class MasterProductsTableCompanion
+    extends UpdateCompanion<MasterProductsTableData> {
+  final Value<String> id;
+  final Value<String> businessTypeId;
+  final Value<String> categoryId;
+  final Value<String> categoryName;
+  final Value<String> productName;
+  final Value<String> skuTemplate;
+  final Value<String> barcode;
+  final Value<String> defaultUnit;
+  final Value<double> suggestedCostPrice;
+  final Value<double> suggestedSellingPrice;
+  final Value<String> searchableKeywords;
+  final Value<int> isActive;
+  final Value<int> cachedAt;
+  final Value<int> rowid;
+  const MasterProductsTableCompanion({
+    this.id = const Value.absent(),
+    this.businessTypeId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.categoryName = const Value.absent(),
+    this.productName = const Value.absent(),
+    this.skuTemplate = const Value.absent(),
+    this.barcode = const Value.absent(),
+    this.defaultUnit = const Value.absent(),
+    this.suggestedCostPrice = const Value.absent(),
+    this.suggestedSellingPrice = const Value.absent(),
+    this.searchableKeywords = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MasterProductsTableCompanion.insert({
+    required String id,
+    required String businessTypeId,
+    required String categoryId,
+    this.categoryName = const Value.absent(),
+    required String productName,
+    this.skuTemplate = const Value.absent(),
+    this.barcode = const Value.absent(),
+    this.defaultUnit = const Value.absent(),
+    this.suggestedCostPrice = const Value.absent(),
+    this.suggestedSellingPrice = const Value.absent(),
+    this.searchableKeywords = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       businessTypeId = Value(businessTypeId),
+       categoryId = Value(categoryId),
+       productName = Value(productName);
+  static Insertable<MasterProductsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? businessTypeId,
+    Expression<String>? categoryId,
+    Expression<String>? categoryName,
+    Expression<String>? productName,
+    Expression<String>? skuTemplate,
+    Expression<String>? barcode,
+    Expression<String>? defaultUnit,
+    Expression<double>? suggestedCostPrice,
+    Expression<double>? suggestedSellingPrice,
+    Expression<String>? searchableKeywords,
+    Expression<int>? isActive,
+    Expression<int>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (businessTypeId != null) 'business_type_id': businessTypeId,
+      if (categoryId != null) 'category_id': categoryId,
+      if (categoryName != null) 'category_name': categoryName,
+      if (productName != null) 'product_name': productName,
+      if (skuTemplate != null) 'sku_template': skuTemplate,
+      if (barcode != null) 'barcode': barcode,
+      if (defaultUnit != null) 'default_unit': defaultUnit,
+      if (suggestedCostPrice != null)
+        'suggested_cost_price': suggestedCostPrice,
+      if (suggestedSellingPrice != null)
+        'suggested_selling_price': suggestedSellingPrice,
+      if (searchableKeywords != null) 'searchable_keywords': searchableKeywords,
+      if (isActive != null) 'is_active': isActive,
+      if (cachedAt != null) 'cached_at': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MasterProductsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? businessTypeId,
+    Value<String>? categoryId,
+    Value<String>? categoryName,
+    Value<String>? productName,
+    Value<String>? skuTemplate,
+    Value<String>? barcode,
+    Value<String>? defaultUnit,
+    Value<double>? suggestedCostPrice,
+    Value<double>? suggestedSellingPrice,
+    Value<String>? searchableKeywords,
+    Value<int>? isActive,
+    Value<int>? cachedAt,
+    Value<int>? rowid,
+  }) {
+    return MasterProductsTableCompanion(
+      id: id ?? this.id,
+      businessTypeId: businessTypeId ?? this.businessTypeId,
+      categoryId: categoryId ?? this.categoryId,
+      categoryName: categoryName ?? this.categoryName,
+      productName: productName ?? this.productName,
+      skuTemplate: skuTemplate ?? this.skuTemplate,
+      barcode: barcode ?? this.barcode,
+      defaultUnit: defaultUnit ?? this.defaultUnit,
+      suggestedCostPrice: suggestedCostPrice ?? this.suggestedCostPrice,
+      suggestedSellingPrice:
+          suggestedSellingPrice ?? this.suggestedSellingPrice,
+      searchableKeywords: searchableKeywords ?? this.searchableKeywords,
+      isActive: isActive ?? this.isActive,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (businessTypeId.present) {
+      map['business_type_id'] = Variable<String>(businessTypeId.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (categoryName.present) {
+      map['category_name'] = Variable<String>(categoryName.value);
+    }
+    if (productName.present) {
+      map['product_name'] = Variable<String>(productName.value);
+    }
+    if (skuTemplate.present) {
+      map['sku_template'] = Variable<String>(skuTemplate.value);
+    }
+    if (barcode.present) {
+      map['barcode'] = Variable<String>(barcode.value);
+    }
+    if (defaultUnit.present) {
+      map['default_unit'] = Variable<String>(defaultUnit.value);
+    }
+    if (suggestedCostPrice.present) {
+      map['suggested_cost_price'] = Variable<double>(suggestedCostPrice.value);
+    }
+    if (suggestedSellingPrice.present) {
+      map['suggested_selling_price'] = Variable<double>(
+        suggestedSellingPrice.value,
+      );
+    }
+    if (searchableKeywords.present) {
+      map['searchable_keywords'] = Variable<String>(searchableKeywords.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<int>(isActive.value);
+    }
+    if (cachedAt.present) {
+      map['cached_at'] = Variable<int>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MasterProductsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('businessTypeId: $businessTypeId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('categoryName: $categoryName, ')
+          ..write('productName: $productName, ')
+          ..write('skuTemplate: $skuTemplate, ')
+          ..write('barcode: $barcode, ')
+          ..write('defaultUnit: $defaultUnit, ')
+          ..write('suggestedCostPrice: $suggestedCostPrice, ')
+          ..write('suggestedSellingPrice: $suggestedSellingPrice, ')
+          ..write('searchableKeywords: $searchableKeywords, ')
+          ..write('isActive: $isActive, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -13461,6 +14729,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $CashTransactionsTableTable(this);
   late final $DailyReconciliationsTableTable dailyReconciliationsTable =
       $DailyReconciliationsTableTable(this);
+  late final $MasterCategoriesTableTable masterCategoriesTable =
+      $MasterCategoriesTableTable(this);
+  late final $MasterProductsTableTable masterProductsTable =
+      $MasterProductsTableTable(this);
   late final InvoiceDao invoiceDao = InvoiceDao(this as AppDatabase);
   late final CustomerDao customerDao = CustomerDao(this as AppDatabase);
   late final ExpenseDao expenseDao = ExpenseDao(this as AppDatabase);
@@ -13470,6 +14742,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final DebtDao debtDao = DebtDao(this as AppDatabase);
   late final TeamDao teamDao = TeamDao(this as AppDatabase);
   late final CashFlowDao cashFlowDao = CashFlowDao(this as AppDatabase);
+  late final MasterCatalogDao masterCatalogDao = MasterCatalogDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -13489,6 +14764,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     cashAccountsTable,
     cashTransactionsTable,
     dailyReconciliationsTable,
+    masterCategoriesTable,
+    masterProductsTable,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -20106,6 +21383,655 @@ typedef $$DailyReconciliationsTableTableProcessedTableManager =
       DailyReconciliationsTableData,
       PrefetchHooks Function()
     >;
+typedef $$MasterCategoriesTableTableCreateCompanionBuilder =
+    MasterCategoriesTableCompanion Function({
+      required String id,
+      required String businessTypeId,
+      required String categoryName,
+      Value<String> description,
+      Value<String> icon,
+      Value<int> isActive,
+      Value<int> cachedAt,
+      Value<int> rowid,
+    });
+typedef $$MasterCategoriesTableTableUpdateCompanionBuilder =
+    MasterCategoriesTableCompanion Function({
+      Value<String> id,
+      Value<String> businessTypeId,
+      Value<String> categoryName,
+      Value<String> description,
+      Value<String> icon,
+      Value<int> isActive,
+      Value<int> cachedAt,
+      Value<int> rowid,
+    });
+
+class $$MasterCategoriesTableTableFilterComposer
+    extends Composer<_$AppDatabase, $MasterCategoriesTableTable> {
+  $$MasterCategoriesTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessTypeId => $composableBuilder(
+    column: $table.businessTypeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryName => $composableBuilder(
+    column: $table.categoryName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MasterCategoriesTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $MasterCategoriesTableTable> {
+  $$MasterCategoriesTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessTypeId => $composableBuilder(
+    column: $table.businessTypeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryName => $composableBuilder(
+    column: $table.categoryName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MasterCategoriesTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MasterCategoriesTableTable> {
+  $$MasterCategoriesTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessTypeId => $composableBuilder(
+    column: $table.businessTypeId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get categoryName => $composableBuilder(
+    column: $table.categoryName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<int> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<int> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$MasterCategoriesTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MasterCategoriesTableTable,
+          MasterCategoriesTableData,
+          $$MasterCategoriesTableTableFilterComposer,
+          $$MasterCategoriesTableTableOrderingComposer,
+          $$MasterCategoriesTableTableAnnotationComposer,
+          $$MasterCategoriesTableTableCreateCompanionBuilder,
+          $$MasterCategoriesTableTableUpdateCompanionBuilder,
+          (
+            MasterCategoriesTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $MasterCategoriesTableTable,
+              MasterCategoriesTableData
+            >,
+          ),
+          MasterCategoriesTableData,
+          PrefetchHooks Function()
+        > {
+  $$MasterCategoriesTableTableTableManager(
+    _$AppDatabase db,
+    $MasterCategoriesTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MasterCategoriesTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$MasterCategoriesTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$MasterCategoriesTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessTypeId = const Value.absent(),
+                Value<String> categoryName = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<String> icon = const Value.absent(),
+                Value<int> isActive = const Value.absent(),
+                Value<int> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MasterCategoriesTableCompanion(
+                id: id,
+                businessTypeId: businessTypeId,
+                categoryName: categoryName,
+                description: description,
+                icon: icon,
+                isActive: isActive,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessTypeId,
+                required String categoryName,
+                Value<String> description = const Value.absent(),
+                Value<String> icon = const Value.absent(),
+                Value<int> isActive = const Value.absent(),
+                Value<int> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MasterCategoriesTableCompanion.insert(
+                id: id,
+                businessTypeId: businessTypeId,
+                categoryName: categoryName,
+                description: description,
+                icon: icon,
+                isActive: isActive,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MasterCategoriesTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MasterCategoriesTableTable,
+      MasterCategoriesTableData,
+      $$MasterCategoriesTableTableFilterComposer,
+      $$MasterCategoriesTableTableOrderingComposer,
+      $$MasterCategoriesTableTableAnnotationComposer,
+      $$MasterCategoriesTableTableCreateCompanionBuilder,
+      $$MasterCategoriesTableTableUpdateCompanionBuilder,
+      (
+        MasterCategoriesTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $MasterCategoriesTableTable,
+          MasterCategoriesTableData
+        >,
+      ),
+      MasterCategoriesTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$MasterProductsTableTableCreateCompanionBuilder =
+    MasterProductsTableCompanion Function({
+      required String id,
+      required String businessTypeId,
+      required String categoryId,
+      Value<String> categoryName,
+      required String productName,
+      Value<String> skuTemplate,
+      Value<String> barcode,
+      Value<String> defaultUnit,
+      Value<double> suggestedCostPrice,
+      Value<double> suggestedSellingPrice,
+      Value<String> searchableKeywords,
+      Value<int> isActive,
+      Value<int> cachedAt,
+      Value<int> rowid,
+    });
+typedef $$MasterProductsTableTableUpdateCompanionBuilder =
+    MasterProductsTableCompanion Function({
+      Value<String> id,
+      Value<String> businessTypeId,
+      Value<String> categoryId,
+      Value<String> categoryName,
+      Value<String> productName,
+      Value<String> skuTemplate,
+      Value<String> barcode,
+      Value<String> defaultUnit,
+      Value<double> suggestedCostPrice,
+      Value<double> suggestedSellingPrice,
+      Value<String> searchableKeywords,
+      Value<int> isActive,
+      Value<int> cachedAt,
+      Value<int> rowid,
+    });
+
+class $$MasterProductsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $MasterProductsTableTable> {
+  $$MasterProductsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessTypeId => $composableBuilder(
+    column: $table.businessTypeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryName => $composableBuilder(
+    column: $table.categoryName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get productName => $composableBuilder(
+    column: $table.productName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get skuTemplate => $composableBuilder(
+    column: $table.skuTemplate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get barcode => $composableBuilder(
+    column: $table.barcode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get defaultUnit => $composableBuilder(
+    column: $table.defaultUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get suggestedCostPrice => $composableBuilder(
+    column: $table.suggestedCostPrice,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get suggestedSellingPrice => $composableBuilder(
+    column: $table.suggestedSellingPrice,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get searchableKeywords => $composableBuilder(
+    column: $table.searchableKeywords,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MasterProductsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $MasterProductsTableTable> {
+  $$MasterProductsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessTypeId => $composableBuilder(
+    column: $table.businessTypeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryName => $composableBuilder(
+    column: $table.categoryName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get productName => $composableBuilder(
+    column: $table.productName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get skuTemplate => $composableBuilder(
+    column: $table.skuTemplate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get barcode => $composableBuilder(
+    column: $table.barcode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get defaultUnit => $composableBuilder(
+    column: $table.defaultUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get suggestedCostPrice => $composableBuilder(
+    column: $table.suggestedCostPrice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get suggestedSellingPrice => $composableBuilder(
+    column: $table.suggestedSellingPrice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get searchableKeywords => $composableBuilder(
+    column: $table.searchableKeywords,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MasterProductsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MasterProductsTableTable> {
+  $$MasterProductsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get businessTypeId => $composableBuilder(
+    column: $table.businessTypeId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get categoryName => $composableBuilder(
+    column: $table.categoryName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get productName => $composableBuilder(
+    column: $table.productName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get skuTemplate => $composableBuilder(
+    column: $table.skuTemplate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get barcode =>
+      $composableBuilder(column: $table.barcode, builder: (column) => column);
+
+  GeneratedColumn<String> get defaultUnit => $composableBuilder(
+    column: $table.defaultUnit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get suggestedCostPrice => $composableBuilder(
+    column: $table.suggestedCostPrice,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get suggestedSellingPrice => $composableBuilder(
+    column: $table.suggestedSellingPrice,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get searchableKeywords => $composableBuilder(
+    column: $table.searchableKeywords,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<int> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$MasterProductsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MasterProductsTableTable,
+          MasterProductsTableData,
+          $$MasterProductsTableTableFilterComposer,
+          $$MasterProductsTableTableOrderingComposer,
+          $$MasterProductsTableTableAnnotationComposer,
+          $$MasterProductsTableTableCreateCompanionBuilder,
+          $$MasterProductsTableTableUpdateCompanionBuilder,
+          (
+            MasterProductsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $MasterProductsTableTable,
+              MasterProductsTableData
+            >,
+          ),
+          MasterProductsTableData,
+          PrefetchHooks Function()
+        > {
+  $$MasterProductsTableTableTableManager(
+    _$AppDatabase db,
+    $MasterProductsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MasterProductsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MasterProductsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$MasterProductsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> businessTypeId = const Value.absent(),
+                Value<String> categoryId = const Value.absent(),
+                Value<String> categoryName = const Value.absent(),
+                Value<String> productName = const Value.absent(),
+                Value<String> skuTemplate = const Value.absent(),
+                Value<String> barcode = const Value.absent(),
+                Value<String> defaultUnit = const Value.absent(),
+                Value<double> suggestedCostPrice = const Value.absent(),
+                Value<double> suggestedSellingPrice = const Value.absent(),
+                Value<String> searchableKeywords = const Value.absent(),
+                Value<int> isActive = const Value.absent(),
+                Value<int> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MasterProductsTableCompanion(
+                id: id,
+                businessTypeId: businessTypeId,
+                categoryId: categoryId,
+                categoryName: categoryName,
+                productName: productName,
+                skuTemplate: skuTemplate,
+                barcode: barcode,
+                defaultUnit: defaultUnit,
+                suggestedCostPrice: suggestedCostPrice,
+                suggestedSellingPrice: suggestedSellingPrice,
+                searchableKeywords: searchableKeywords,
+                isActive: isActive,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String businessTypeId,
+                required String categoryId,
+                Value<String> categoryName = const Value.absent(),
+                required String productName,
+                Value<String> skuTemplate = const Value.absent(),
+                Value<String> barcode = const Value.absent(),
+                Value<String> defaultUnit = const Value.absent(),
+                Value<double> suggestedCostPrice = const Value.absent(),
+                Value<double> suggestedSellingPrice = const Value.absent(),
+                Value<String> searchableKeywords = const Value.absent(),
+                Value<int> isActive = const Value.absent(),
+                Value<int> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MasterProductsTableCompanion.insert(
+                id: id,
+                businessTypeId: businessTypeId,
+                categoryId: categoryId,
+                categoryName: categoryName,
+                productName: productName,
+                skuTemplate: skuTemplate,
+                barcode: barcode,
+                defaultUnit: defaultUnit,
+                suggestedCostPrice: suggestedCostPrice,
+                suggestedSellingPrice: suggestedSellingPrice,
+                searchableKeywords: searchableKeywords,
+                isActive: isActive,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MasterProductsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MasterProductsTableTable,
+      MasterProductsTableData,
+      $$MasterProductsTableTableFilterComposer,
+      $$MasterProductsTableTableOrderingComposer,
+      $$MasterProductsTableTableAnnotationComposer,
+      $$MasterProductsTableTableCreateCompanionBuilder,
+      $$MasterProductsTableTableUpdateCompanionBuilder,
+      (
+        MasterProductsTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $MasterProductsTableTable,
+          MasterProductsTableData
+        >,
+      ),
+      MasterProductsTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -20141,4 +22067,8 @@ class $AppDatabaseManager {
         _db,
         _db.dailyReconciliationsTable,
       );
+  $$MasterCategoriesTableTableTableManager get masterCategoriesTable =>
+      $$MasterCategoriesTableTableTableManager(_db, _db.masterCategoriesTable);
+  $$MasterProductsTableTableTableManager get masterProductsTable =>
+      $$MasterProductsTableTableTableManager(_db, _db.masterProductsTable);
 }

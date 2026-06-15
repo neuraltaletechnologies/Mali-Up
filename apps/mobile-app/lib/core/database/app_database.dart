@@ -7,6 +7,7 @@ import 'daos/debt_dao.dart';
 import 'daos/expense_dao.dart';
 import 'daos/inventory_dao.dart';
 import 'daos/invoice_dao.dart';
+import 'daos/master_catalog_dao.dart';
 import 'daos/settings_dao.dart';
 import 'daos/sync_queue_dao.dart';
 import 'daos/team_dao.dart';
@@ -21,6 +22,7 @@ import 'tables/expenses_table.dart';
 import 'tables/inventory_table.dart';
 import 'tables/invoice_items_table.dart';
 import 'tables/invoices_table.dart';
+import 'tables/master_catalog_tables.dart';
 import 'tables/sync_queue_table.dart';
 import 'tables/team_members_table.dart';
 import 'tables/user_settings_table.dart';
@@ -43,6 +45,8 @@ part 'app_database.g.dart';
     CashAccountsTable,
     CashTransactionsTable,
     DailyReconciliationsTable,
+    MasterCategoriesTable,
+    MasterProductsTable,
   ],
   daos: [
     InvoiceDao,
@@ -54,6 +58,7 @@ part 'app_database.g.dart';
     DebtDao,
     TeamDao,
     CashFlowDao,
+    MasterCatalogDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -61,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -117,12 +122,33 @@ class AppDatabase extends _$AppDatabase {
               "ALTER TABLE invoices ADD COLUMN payment_method TEXT NOT NULL DEFAULT ''",
             );
           }
+          if (from < 7) {
+            // Industry Master Catalog: global read-only product/category cache.
+            await m.createTable(masterCategoriesTable);
+            await m.createTable(masterProductsTable);
+            await _createV7Indexes();
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
           await customStatement('PRAGMA journal_mode = WAL');
         },
       );
+
+  Future<void> _createV7Indexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_master_categories_type '
+      'ON master_categories(business_type_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_master_products_type '
+      'ON master_products(business_type_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_master_products_category '
+      'ON master_products(business_type_id, category_id)',
+    );
+  }
 
   Future<void> _createIndexes() async {
     await customStatement(
@@ -159,6 +185,7 @@ class AppDatabase extends _$AppDatabase {
     );
     await _createV3Indexes();
     await _createV5Indexes();
+    await _createV7Indexes();
   }
 
   Future<void> _createV3Indexes() async {
