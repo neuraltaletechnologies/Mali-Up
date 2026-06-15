@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../data/customer_providers.dart';
+import '../../data/repositories/customer_repository.dart';
 import '../../domain/models/customer.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -530,74 +533,51 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       final selectedContacts = await _showContactPickerSheet(basicContacts);
       if (selectedContacts == null || selectedContacts.isEmpty) return;
 
-      // ── Batch import with progress ────────────────────────────────────
+      // Navigate back immediately — import continues in the background
       if (!mounted) return;
       final total = selectedContacts.length;
-      var done = 0;
 
-      // Show a progress snackbar that we update.
+      // Capture everything needed before closing the dialog
       final messenger = ScaffoldMessenger.of(context);
+      final router = GoRouter.of(context);
+      final customerRepo = ref.read(customerRepositoryProvider);
+      final auditLogger = ref.read(customerAuditLoggerProvider);
+      final user = FirebaseAuth.instance.currentUser;
+      final bizId =
+          ref.read(currentBusinessIdProvider).valueOrNull?.trim() ?? '';
+
+      if (user == null || bizId.isEmpty) {
+        _showSnackBar(
+          _tr(
+            'No active session. Please sign in and try again.',
+            'Hakuna kikao kinachotumika. Tafadhali ingia tena.',
+          ),
+          AppColors.error,
+        );
+        return;
+      }
+
+      // Close dialog and navigate so the user is not blocked
+      Navigator.pop(context);
+      router.go(AppRouter.crmPath);
+
       messenger.showSnackBar(SnackBar(
         content: Text(_tr(
-          'Importing contacts… 0 / $total',
-          'Inaingiza mawasiliano… 0 / $total',
+          'Importing $total contact${total == 1 ? '' : 's'}…',
+          'Inaingiza mawasiliano $total…',
         )),
-        duration: const Duration(seconds: 30),
+        duration: const Duration(seconds: 60),
         behavior: SnackBarBehavior.floating,
       ));
 
-      for (final contact in selectedContacts) {
-        final name = contact.displayName.trim();
-        final phone = await _resolveImportPhone(contact);
-        if (name.isEmpty || phone.isEmpty) {
-          done++;
-          continue;
-        }
-        await _saveCustomer(
-          name: name,
-          phone: phone,
-          email: '',
-          balance: '0',
-          tags: const ['Contact'],
-          isOrganisation: false,
-          tinNumber: '',
-          address: '',
-        );
-        done++;
-        if (mounted) {
-          messenger
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(
-              content: Text(_tr(
-                'Importing contacts… $done / $total',
-                'Inaingiza mawasiliano… $done / $total',
-              )),
-              duration: const Duration(seconds: 30),
-              behavior: SnackBarBehavior.floating,
-            ));
-        }
-      }
-
-      if (!mounted) return;
-      messenger.hideCurrentSnackBar();
-      // Close the dialog first, then navigate to the contacts screen
-      final router = GoRouter.of(context);
-      Navigator.pop(context);
-      router.go(AppRouter.crmPath);
-      messenger.showSnackBar(SnackBar(
-        content: Text(_tr(
-          done == 1
-              ? '1 contact imported'
-              : '$done contacts imported',
-          done == 1
-              ? 'Mawasiliano 1 yameingizwa'
-              : 'Mawasiliano $done yameingizwa',
-        )),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
+      // Run the import detached from the widget tree; list updates live via Drift
+      unawaited(_runBackgroundImport(
+        contacts: selectedContacts,
+        user: user,
+        customerRepo: customerRepo,
+        auditLogger: auditLogger,
+        messenger: messenger,
+        total: total,
       ));
     } catch (e) {
       _showSnackBar(
@@ -607,6 +587,59 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     } finally {
       if (mounted) setState(() => _isImportingContact = false);
     }
+  }
+
+  /// Saves each contact to Drift + audit log, then shows a completion snackbar.
+  /// Runs fully detached from the widget tree so the dialog can close first.
+  Future<void> _runBackgroundImport({
+    required List<Contact> contacts,
+    required User user,
+    required CustomerRepository customerRepo,
+    required CustomerAuditLogger auditLogger,
+    required ScaffoldMessengerState messenger,
+    required int total,
+  }) async {
+    var done = 0;
+    for (final contact in contacts) {
+      final name = contact.displayName.trim();
+      final phone = await _resolveImportPhone(contact);
+      if (name.isEmpty || phone.isEmpty) {
+        done++;
+        continue;
+      }
+      try {
+        final customer = Customer(
+          id: '',
+          name: name,
+          phone: phone,
+          tags: const ['Contact'],
+          createdByUserId: user.uid,
+        );
+        final saved = await customerRepo.save(customer);
+        SentryMetricsService.customerAdded(source: 'add_customer_dialog');
+        await auditLogger.log(
+          AuditLogService.customerCreated,
+          customerId: saved.id,
+          customerName: saved.name,
+        );
+      } catch (_) {
+        // Skip failed contacts silently; the rest still import
+      }
+      done++;
+    }
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text(_tr(
+        done == 1 ? '1 contact imported' : '$done contacts imported',
+        done == 1
+            ? 'Mawasiliano 1 yameingizwa'
+            : 'Mawasiliano $done yameingizwa',
+      )),
+      backgroundColor: AppColors.success,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
   /// Shows a bottom sheet contact picker.

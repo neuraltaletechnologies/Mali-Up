@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../product/data/category_providers.dart';
 import '../../../product/domain/models/business_product_config.dart';
@@ -246,6 +247,19 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _openAdd(BuildContext ctx) {
+    showModalBottomSheet<void>(
+      context: ctx,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (_) => AddProductChoiceSheet(
+        onCreateCustom: () => _openCustomProductForm(ctx),
+      ),
+    );
+  }
+
+  void _openCustomProductForm(BuildContext ctx) {
     final mq = MediaQuery.of(ctx).size;
     showModalBottomSheet<void>(
       context: ctx,
