@@ -11,6 +11,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../onboarding/domain/validators/onboarding_validator.dart';
 import '../../../onboarding/presentation/screens/_onboarding_scaffold.dart';
@@ -1105,7 +1106,10 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       // Write pendingInvite for fast phone-based lookup during staff login
       if (normalizedPhone.isNotEmpty) {
         final bizId = ctx.businessId ?? '';
-        final bizName = await repo.getBusinessName(uid: user.uid, context: ctx);
+        // Ensure we have a valid businessId; fetch businessName using an explicit context
+        final bizName = bizId.isNotEmpty
+            ? await repo.getBusinessName(uid: user.uid, context: ResolvedFinanceContext.business(bizId))
+            : '';
         await repo.writePendingInvite(
           inviteData: {
             'businessId': bizId,
