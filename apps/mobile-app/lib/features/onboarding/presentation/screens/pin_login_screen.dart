@@ -9,6 +9,7 @@ import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
+import '../../../rbac/data/rbac_providers.dart' show permissionsLoadedProvider;
 import '_onboarding_scaffold.dart';
 
 /// Screen 4A — shown when an existing owner/activated team member
@@ -70,9 +71,10 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     if (!mounted) return;
     final s = ref.read(onboardingNotifierProvider);
     if (s.errorMessage != null) setState(() => _hasError = true);
-    // Returning users skip the success screen — they've already been onboarded.
-    // Navigate straight to dashboard; the router's redirect handles RBAC checks.
-    if (s.isComplete) context.go(AppRoutes.dashboard);
+    // Navigation is handled by the router redirect: when isComplete = true AND
+    // permissionsLoadedProvider = true, _RouterNotifier redirects to dashboard.
+    // Do NOT call context.go() here — it would bypass the RBAC loading gate and
+    // render the dashboard with denied() permissions on the first frame.
   }
 
   Future<void> _openWhatsAppHelp(bool sw) async {
@@ -101,6 +103,11 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
+    final permissionsLoaded = ref.watch(permissionsLoadedProvider);
+    // Keep showing the loading indicator after loginWithPin() completes while
+    // the RBAC providers are settling (Firestore snap in-flight).  Once both
+    // isComplete and permissionsLoaded are true, the router redirects to /.
+    final isLoading = state.isLoading || (state.isComplete && !permissionsLoaded);
     final sw = state.isSwahili;
     final name = state.firstName.isNotEmpty ? state.firstName : '';
     final topHeight = MediaQuery.of(context).size.height * 0.35;
@@ -293,7 +300,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                   PinDotsInput(
                                     controller: _pinCtrl,
                                     hasError: _hasError,
-                                    enabled: !state.isLoading,
+                                    enabled: !isLoading,
                                     onComplete: _submit,
                                     onChanged: (_) {
                                       if (_hasError) {
@@ -331,8 +338,8 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                   ),
                                 ),
                                 onPressed:
-                                    state.isLoading ? null : _submit,
-                                child: state.isLoading
+                                    isLoading ? null : _submit,
+                                child: isLoading
                                     ? const SizedBox(
                                         width: 22,
                                         height: 22,
@@ -353,7 +360,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                             const SizedBox(height: 16),
 
                             // Loading status label
-                            if (state.isLoading)
+                            if (isLoading)
                               Center(
                                 child: Text(
                                   sw
@@ -370,7 +377,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                             // Forgot PIN
                             Center(
                               child: TextButton(
-                                onPressed: state.isLoading
+                                onPressed: isLoading
                                     ? null
                                     : () => _showForgotPin(context, sw),
                                 child: Text(
