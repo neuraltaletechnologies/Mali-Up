@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -14,7 +14,6 @@ Future<PlanTier?> showUpgradeSheet(
 }) {
   return showModalBottomSheet<PlanTier>(
     context: context,
-    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     useSafeArea: true,

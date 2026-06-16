@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -249,7 +249,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   void _openAdd(BuildContext ctx) {
     showModalBottomSheet<void>(
       context: ctx,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -263,7 +262,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final mq = MediaQuery.of(ctx).size;
     showModalBottomSheet<void>(
       context: ctx,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -275,7 +273,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   void _openFilterSort(BuildContext ctx, List<Map<String, dynamic>> allItems) {
     showModalBottomSheet<void>(
       context: ctx,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -840,7 +837,6 @@ class _ProductRow extends ConsumerWidget {
         final mq = MediaQuery.of(context).size;
         await showModalBottomSheet<void>(
           context: context,
-          useRootNavigator: true,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           useSafeArea: true,
@@ -886,7 +882,6 @@ class _ProductRow extends ConsumerWidget {
           final mq = MediaQuery.of(context).size;
           showModalBottomSheet<void>(
             context: context,
-            useRootNavigator: true,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
             useSafeArea: true,

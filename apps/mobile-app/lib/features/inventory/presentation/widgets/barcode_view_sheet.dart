@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -25,7 +25,6 @@ class BarcodeViewSheet extends StatelessWidget {
   }) {
     return showModalBottomSheet<void>(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,

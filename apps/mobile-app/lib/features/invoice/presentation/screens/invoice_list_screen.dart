@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/invoice_provider.dart';
@@ -266,7 +266,6 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
   void _showInvoiceDetails(Invoice invoice) {
     showModalBottomSheet(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       builder: (context) => _buildInvoiceDetailsSheet(invoice),
     );

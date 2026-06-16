@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -53,7 +53,6 @@ class _CustomerPickerFieldState extends ConsumerState<CustomerPickerField> {
 
     final picked = await showModalBottomSheet<Customer>(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => CustomerPickerSheet(
@@ -62,6 +61,7 @@ class _CustomerPickerFieldState extends ConsumerState<CustomerPickerField> {
       ),
     );
 
+    if (!mounted) return;
     if (picked != null) widget.onSelected(picked);
   }
 

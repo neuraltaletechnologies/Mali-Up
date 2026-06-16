@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -804,7 +804,6 @@ class _FinanceContextSwitcher extends StatelessWidget {
 
     await showModalBottomSheet<void>(
       context: context,
-      useRootNavigator: true,
       backgroundColor: Colors.white,
       showDragHandle: true,
       builder: (sheetContext) {

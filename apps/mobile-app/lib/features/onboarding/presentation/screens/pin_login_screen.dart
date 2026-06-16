@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -51,7 +51,6 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
   void _showForgotPin(BuildContext ctx, bool sw) {
     showModalBottomSheet<void>(
       context: ctx,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _ForgotPinSheet(sw: sw),

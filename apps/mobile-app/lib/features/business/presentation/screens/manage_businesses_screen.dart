@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -337,7 +337,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
     final result = await showModalBottomSheet<bool>(
       context: context,
-      useRootNavigator: true,
       useSafeArea: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -556,7 +555,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             onTap: () async {
                               final picked = await showModalBottomSheet<String>(
                                 context: dlgCtx,
-                                useRootNavigator: true,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
                                 builder: (_) => _BizTypePickerSheet(
@@ -597,7 +595,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             onTap: () async {
                               final picked = await showModalBottomSheet<String>(
                                 context: dlgCtx,
-                                useRootNavigator: true,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
                                 builder: (_) => _CityPickerSheet(
@@ -1020,7 +1017,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
     await showModalBottomSheet<void>(
       context: context,
-      useRootNavigator: true,
       backgroundColor: Colors.white,
       showDragHandle: true,
       builder: (sheetContext) {
