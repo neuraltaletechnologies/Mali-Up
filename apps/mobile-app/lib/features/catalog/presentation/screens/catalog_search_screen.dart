@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/master_catalog_repository.dart';
 import '../../domain/models/master_category.dart';
 import '../../domain/models/master_product.dart';
 import '../../providers/master_catalog_providers.dart';
@@ -128,6 +129,7 @@ class _CatalogSearchScreenState extends ConsumerState<CatalogSearchScreen> {
             child: resultsAsync.when(
               loading: () => const _CatalogLoading(),
               error: (e, _) => _CatalogError(
+                error: e,
                 onRetry: () {
                   ref.invalidate(catalogSearchResultsProvider);
                   ref.invalidate(masterCategoriesProvider);
@@ -506,34 +508,90 @@ class _SkeletonCard extends StatelessWidget {
 }
 
 class _CatalogError extends StatelessWidget {
+  final Object error;
   final VoidCallback onRetry;
-  const _CatalogError({required this.onRetry});
+  const _CatalogError({required this.error, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
+    final isNoCache = error is CatalogOfflineException;
+    final isExpired = error is CatalogCacheExpiredException;
+
+    final icon = isNoCache || isExpired
+        ? Icons.wifi_off_rounded
+        : Icons.error_outline_rounded;
+
+    final title = isNoCache
+        ? _tr(
+            'Internet required for first use',
+            'Muunganiko wa intaneti unahitajika mara ya kwanza',
+          )
+        : isExpired
+            ? _tr(
+                'Catalog needs a refresh',
+                'Katalogi inahitaji kusasishwa',
+              )
+            : _tr('Could not load catalog', 'Imeshindikana kupakia katalogi');
+
+    final subtitle = isNoCache
+        ? _tr(
+            'Connect to the internet once to download your industry catalog. '
+            'After that it works offline for 24 hours.',
+            'Unganisha intaneti mara moja kupakua katalogi ya tasnia yako. '
+            'Baadaye inafanya kazi bila intaneti kwa masaa 24.',
+          )
+        : isExpired
+            ? _tr(
+                'Your offline catalog is more than 24 hours old. '
+                'Connect briefly to refresh it.',
+                'Katalogi yako ya nje ya mtandao ina zaidi ya masaa 24. '
+                'Unganisha kwa muda mfupi kuisasisha.',
+              )
+            : _tr(
+                'Check your connection and try again.',
+                'Angalia muunganiko wako na ujaribu tena.',
+              );
+
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.wifi_off_rounded, size: 48, color: Color(0xFF94A3B8)),
-          const SizedBox(height: 12),
-          Text(
-            _tr('Could not load catalog', 'Imeshindikana kupakia katalogi'),
-            style: GoogleFonts.inter(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 56, color: const Color(0xFF94A3B8)),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: GoogleFonts.inter(
                 fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.navyPrimary),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onRetry,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.tealAccent,
-              foregroundColor: Colors.white,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navyPrimary,
+              ),
+              textAlign: TextAlign.center,
             ),
-            child: Text(_tr('Try Again', 'Jaribu Tena')),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                  fontSize: 14, color: AppColors.textMuted, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(_tr('Try Again', 'Jaribu Tena')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.tealAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
