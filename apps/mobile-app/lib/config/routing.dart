@@ -186,15 +186,21 @@ class _RouterNotifier extends ChangeNotifier {
     if (ob.isComplete) {
       if (path == AppRoutes.success) return null;
       if (AppRoutes.isOnboardingPath(path)) {
-        // For brand-new owners: redirect to the success screen while their
-        // users/{uid} profile doc is still being written. This prevents the
-        // dashboard from rendering with denied() permissions during the
-        // first-install race (Firebase Auth fires before saveUser() completes).
-        // Returning users and team members are exempt: their profile doc
-        // already exists so permissionsLoadedProvider settles quickly.
-        if (!ob.isReturningUser && !ob.isTeamMember) {
-          final loaded = _ref.read(permissionsLoadedProvider);
-          if (!loaded) return AppRoutes.success;
+        // Hold here until RBAC bootstrap has settled so the dashboard always
+        // renders with the correct PermissionService on the first frame.
+        //
+        // • New owners  → their users/{uid} doc is written concurrently with
+        //   Firebase Auth, so there is a race window. Show the success screen.
+        // • Returning users / team members → doc already exists, but the
+        //   Firestore snapshot is still in-flight immediately after sign-in.
+        //   Keep them on their current screen for the sub-second wait.
+        //   RoleCacheService means this wait is effectively zero after the
+        //   first login (cache hit → permissionsLoaded settles synchronously).
+        final loaded = _ref.read(permissionsLoadedProvider);
+        if (!loaded) {
+          return (!ob.isReturningUser && !ob.isTeamMember)
+              ? AppRoutes.success // new-owner buffer screen
+              : null; // stay on pin-login / team-setup
         }
         return AppRoutes.dashboard;
       }

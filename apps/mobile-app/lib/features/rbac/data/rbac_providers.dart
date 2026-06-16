@@ -278,7 +278,10 @@ final permissionsLoadedProvider = Provider<bool>((ref) {
   }
 
   final isTeamMember = profile['isTeamMember'] == true;
-  if (!isTeamMember) return true; // Owner is always ready.
+  if (!isTeamMember) {
+    if (kDebugMode) debugPrint('[RBAC] permissionsLoaded → true (owner)');
+    return true;
+  }
 
   // For team members, wait for the member record too.
   final memberAsync = ref.watch(currentMemberProvider);
