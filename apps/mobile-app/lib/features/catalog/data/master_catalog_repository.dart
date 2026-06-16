@@ -6,19 +6,42 @@ import 'package:drift/drift.dart';
 import '../../../core/database/app_database.dart';
 import '../domain/models/master_category.dart';
 import '../domain/models/master_product.dart';
-import 'catalog_seed_data.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MasterCatalogRepository
 //
-// The master catalog is global (not scoped to any tenant/business).
-// Firestore collections: master_categories / master_products
+// Source of truth: Firestore global collections (master_categories,
+// master_products), filtered by businessTypeId.
 //
-// Strategy:
-//   1. On first call, seed the local Drift cache from bundled static data.
-//   2. Attempt a background refresh from Firestore (non-blocking).
-//   3. All reads come from the local Drift cache — fully offline capable.
+// Cache: local Drift SQLite — valid for 24 hours per business type.
+//
+// First use REQUIRES a network connection. After that the app works
+// fully offline for up to 24 hours using the cached rows.
+//
+// After 24 hours without connectivity the caller receives a
+// [CatalogCacheExpiredException] so the UI can tell the user to reconnect.
 // ─────────────────────────────────────────────────────────────────────────────
+
+const _cacheTtlMs = 24 * 60 * 60 * 1000; // 24 hours
+
+class CatalogOfflineException implements Exception {
+  final String businessTypeId;
+  const CatalogOfflineException(this.businessTypeId);
+
+  @override
+  String toString() =>
+      'CatalogOfflineException: no cached catalog for "$businessTypeId". '
+      'Connect to the internet to load the product catalog.';
+}
+
+class CatalogCacheExpiredException implements Exception {
+  const CatalogCacheExpiredException();
+
+  @override
+  String toString() =>
+      'CatalogCacheExpiredException: catalog cache is older than 24 hours. '
+      'Connect to refresh.';
+}
 
 class MasterCatalogRepository {
   final AppDatabase _db;
@@ -30,13 +53,14 @@ class MasterCatalogRepository {
   })  : _db = db,
         _firestore = firestore ?? FirebaseFirestore.instance;
 
-  // ── Read API ───────────────────────────────────────────────────────────────
+  // ── Public read API ────────────────────────────────────────────────────────
 
   Future<List<MasterCategory>> getCategoriesForType(
     String businessTypeId,
   ) async {
-    await _ensureSeeded(businessTypeId);
-    final rows = await _db.masterCatalogDao.getCategoriesForType(businessTypeId);
+    await _ensureFresh(businessTypeId);
+    final rows =
+        await _db.masterCatalogDao.getCategoriesForType(businessTypeId);
     return rows
         .map((r) => MasterCategory(
               id: r.id,
@@ -49,9 +73,12 @@ class MasterCatalogRepository {
         .toList();
   }
 
-  Future<List<MasterProduct>> getProductsForType(String businessTypeId) async {
-    await _ensureSeeded(businessTypeId);
-    final rows = await _db.masterCatalogDao.getProductsForType(businessTypeId);
+  Future<List<MasterProduct>> getProductsForType(
+    String businessTypeId,
+  ) async {
+    await _ensureFresh(businessTypeId);
+    final rows =
+        await _db.masterCatalogDao.getProductsForType(businessTypeId);
     return rows.map(_rowToProduct).toList();
   }
 
@@ -59,7 +86,7 @@ class MasterCatalogRepository {
     String businessTypeId,
     String categoryId,
   ) async {
-    await _ensureSeeded(businessTypeId);
+    await _ensureFresh(businessTypeId);
     final rows = await _db.masterCatalogDao
         .getProductsForCategory(businessTypeId, categoryId);
     return rows.map(_rowToProduct).toList();
@@ -69,150 +96,126 @@ class MasterCatalogRepository {
     String businessTypeId,
     String query,
   ) async {
-    await _ensureSeeded(businessTypeId);
+    await _ensureFresh(businessTypeId);
     if (query.trim().isEmpty) return getProductsForType(businessTypeId);
-    final rows = await _db.masterCatalogDao
-        .searchProducts(businessTypeId, query.trim());
+    final rows =
+        await _db.masterCatalogDao.searchProducts(businessTypeId, query.trim());
     return rows.map(_rowToProduct).toList();
   }
 
-  // ── Seed / Refresh ─────────────────────────────────────────────────────────
+  // ── Cache management ───────────────────────────────────────────────────────
 
-  /// Ensures local cache has data for [businessTypeId].
-  /// Seeding is idempotent — runs once, then checks Firestore for updates.
-  Future<void> _ensureSeeded(String businessTypeId) async {
+  /// Ensures the local cache for [businessTypeId] is populated and not older
+  /// than 24 hours.
+  ///
+  /// - No cache → fetch from Firestore. Throws [CatalogOfflineException] if
+  ///   the device is offline and the cache is empty.
+  /// - Cache exists but is stale (> 24 h) → attempt Firestore refresh.
+  ///   If refresh fails (offline), throws [CatalogCacheExpiredException].
+  /// - Cache is fresh → use as-is, no network call.
+  Future<void> _ensureFresh(String businessTypeId) async {
     final catCount =
         await _db.masterCatalogDao.categoryCount(businessTypeId);
+
     if (catCount == 0) {
-      await _seedFromBundledData(businessTypeId);
-      // Non-blocking Firestore refresh — updates cache if online.
-      _refreshFromFirestore(businessTypeId);
+      // No cache at all — must go online.
+      await _fetchFromFirestore(businessTypeId);
+      return;
+    }
+
+    final ageMs = await _cacheAgeMs(businessTypeId);
+    if (ageMs == null || ageMs > _cacheTtlMs) {
+      // Cache is stale — try to refresh; if offline throw so UI can warn.
+      await _fetchFromFirestore(businessTypeId);
     }
   }
 
-  /// Writes bundled static seed data into Drift for [businessTypeId].
-  Future<void> _seedFromBundledData(String businessTypeId) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-
-    final cats = masterCatalogCategories
-        .where((c) => c.businessTypeId == businessTypeId)
-        .map((c) => MasterCategoriesTableCompanion(
-              id: Value(c.id),
-              businessTypeId: Value(c.businessTypeId),
-              categoryName: Value(c.categoryName),
-              description: Value(c.description),
-              icon: Value(c.icon),
-              isActive: const Value(1),
-              cachedAt: Value(now),
-            ))
-        .toList();
-
-    final prods = masterCatalogProducts
-        .where((p) => p.businessTypeId == businessTypeId)
-        .map((p) => MasterProductsTableCompanion(
-              id: Value(p.id),
-              businessTypeId: Value(p.businessTypeId),
-              categoryId: Value(p.categoryId),
-              categoryName: Value(p.categoryName),
-              productName: Value(p.productName),
-              skuTemplate: Value(p.skuTemplate),
-              barcode: Value(p.barcode),
-              defaultUnit: Value(p.defaultUnit),
-              suggestedCostPrice: Value(p.suggestedCostPrice),
-              suggestedSellingPrice: Value(p.suggestedSellingPrice),
-              searchableKeywords:
-                  Value(jsonEncode(p.searchableKeywords)),
-              isActive: const Value(1),
-              cachedAt: Value(now),
-            ))
-        .toList();
-
-    if (cats.isNotEmpty) {
-      await _db.masterCatalogDao.upsertCategories(cats);
-    }
-    if (prods.isNotEmpty) {
-      await _db.masterCatalogDao.upsertProducts(prods);
-    }
+  /// Returns how old the cache is in milliseconds, or null if no rows exist.
+  Future<int?> _cacheAgeMs(String businessTypeId) async {
+    final rows =
+        await _db.masterCatalogDao.getCategoriesForType(businessTypeId);
+    if (rows.isEmpty) return null;
+    final cachedAt = rows.first.cachedAt;
+    if (cachedAt == 0) return null;
+    return DateTime.now().millisecondsSinceEpoch - cachedAt;
   }
 
-  /// Tries to fetch fresh data from Firestore global collections.
-  /// Falls back silently on network failure.
-  Future<void> _refreshFromFirestore(String businessTypeId) async {
+  /// Fetches categories + products for [businessTypeId] from Firestore and
+  /// writes them into Drift. Throws on network failure.
+  Future<void> _fetchFromFirestore(String businessTypeId) async {
+    final hasCacheAlready =
+        await _db.masterCatalogDao.categoryCount(businessTypeId) > 0;
+
     try {
       final now = DateTime.now().millisecondsSinceEpoch;
 
-      // Fetch categories
+      // ── Categories ────────────────────────────────────────────────────────
       final catSnap = await _firestore
           .collection('master_categories')
           .where('businessTypeId', isEqualTo: businessTypeId)
           .where('isActive', isEqualTo: true)
           .get();
 
-      if (catSnap.docs.isNotEmpty) {
-        final cats = catSnap.docs
-            .map((d) {
-              final data = d.data();
-              return MasterCategoriesTableCompanion(
-                id: Value(d.id),
-                businessTypeId:
-                    Value(data['businessTypeId'] as String? ?? businessTypeId),
-                categoryName:
-                    Value(data['categoryName'] as String? ?? ''),
-                description:
-                    Value(data['description'] as String? ?? ''),
-                icon: Value(data['icon'] as String? ?? ''),
-                isActive: const Value(1),
-                cachedAt: Value(now),
-              );
-            })
-            .toList();
+      final cats = catSnap.docs.map((d) {
+        final data = d.data();
+        return MasterCategoriesTableCompanion(
+          id: Value(d.id),
+          businessTypeId:
+              Value(data['businessTypeId'] as String? ?? businessTypeId),
+          categoryName: Value(data['categoryName'] as String? ?? ''),
+          description: Value(data['description'] as String? ?? ''),
+          icon: Value(data['icon'] as String? ?? ''),
+          isActive: const Value(1),
+          cachedAt: Value(now),
+        );
+      }).toList();
+
+      if (cats.isNotEmpty) {
         await _db.masterCatalogDao.upsertCategories(cats);
       }
 
-      // Fetch products
+      // ── Products ──────────────────────────────────────────────────────────
       final prodSnap = await _firestore
           .collection('master_products')
           .where('businessTypeId', isEqualTo: businessTypeId)
           .where('isActive', isEqualTo: true)
           .get();
 
-      if (prodSnap.docs.isNotEmpty) {
-        final prods = prodSnap.docs
-            .map((d) {
-              final data = d.data();
-              final rawKw = data['searchableKeywords'];
-              final kwJson = rawKw is List
-                  ? jsonEncode(rawKw)
-                  : '[]';
-              return MasterProductsTableCompanion(
-                id: Value(d.id),
-                businessTypeId:
-                    Value(data['businessTypeId'] as String? ?? businessTypeId),
-                categoryId:
-                    Value(data['categoryId'] as String? ?? ''),
-                categoryName:
-                    Value(data['categoryName'] as String? ?? ''),
-                productName:
-                    Value(data['productName'] as String? ?? ''),
-                skuTemplate:
-                    Value(data['skuTemplate'] as String? ?? ''),
-                barcode: Value(data['barcode'] as String? ?? ''),
-                defaultUnit:
-                    Value(data['defaultUnit'] as String? ?? 'pcs'),
-                suggestedCostPrice: Value(
-                    (data['suggestedCostPrice'] as num?)?.toDouble() ?? 0),
-                suggestedSellingPrice: Value(
-                    (data['suggestedSellingPrice'] as num?)?.toDouble() ?? 0),
-                searchableKeywords: Value(kwJson),
-                isActive: const Value(1),
-                cachedAt: Value(now),
-              );
-            })
-            .toList();
+      final prods = prodSnap.docs.map((d) {
+        final data = d.data();
+        final rawKw = data['searchableKeywords'];
+        final kwJson = rawKw is List ? jsonEncode(rawKw) : '[]';
+        return MasterProductsTableCompanion(
+          id: Value(d.id),
+          businessTypeId:
+              Value(data['businessTypeId'] as String? ?? businessTypeId),
+          categoryId: Value(data['categoryId'] as String? ?? ''),
+          categoryName: Value(data['categoryName'] as String? ?? ''),
+          productName: Value(data['productName'] as String? ?? ''),
+          skuTemplate: Value(data['skuTemplate'] as String? ?? ''),
+          barcode: Value(data['barcode'] as String? ?? ''),
+          defaultUnit: Value(data['defaultUnit'] as String? ?? 'pcs'),
+          suggestedCostPrice:
+              Value((data['suggestedCostPrice'] as num?)?.toDouble() ?? 0),
+          suggestedSellingPrice:
+              Value((data['suggestedSellingPrice'] as num?)?.toDouble() ?? 0),
+          searchableKeywords: Value(kwJson),
+          isActive: const Value(1),
+          cachedAt: Value(now),
+        );
+      }).toList();
+
+      if (prods.isNotEmpty) {
         await _db.masterCatalogDao.upsertProducts(prods);
       }
     } catch (_) {
-      // Network failure — local seed data remains available.
+      // Network failure — decide how to handle based on whether we have
+      // any (stale) local data to fall back on.
+      if (!hasCacheAlready) {
+        throw const CatalogOfflineException('');
+      } else {
+        throw const CatalogCacheExpiredException();
+      }
     }
   }
 

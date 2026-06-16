@@ -32,8 +32,8 @@ enum SessionState {
 /// Settles immediately for owners; may take a round-trip for team members.
 final sessionStateProvider = Provider<SessionState>((ref) {
   final profileAsync = ref.watch(userProfileStreamProvider);
-  if (profileAsync.isLoading) return SessionState.loading;
-
+  // Use valueOrNull so that during resubscription (AsyncLoading with previous
+  // data) we preserve the cached profile instead of reverting to loading.
   final profile = profileAsync.valueOrNull;
   if (profile == null) return SessionState.loading;
 
@@ -62,7 +62,10 @@ final sessionStateProvider = Provider<SessionState>((ref) {
   }
 
   final memberAsync = ref.watch(currentMemberProvider);
-  if (memberAsync.isLoading) return SessionState.loading;
+  // Use valueOrNull so cached member record survives resubscription.
+  if (memberAsync.valueOrNull == null && memberAsync.isLoading) {
+    return SessionState.loading;
+  }
 
   if (memberAsync.valueOrNull == null) {
     if (kDebugMode) {
@@ -142,18 +145,14 @@ final currentMemberProvider = StreamProvider<TeamMember?>((ref) async* {
   }
 
   final profileAsync = ref.watch(userProfileStreamProvider);
-  // Yield null immediately so downstream providers (permissionsLoadedProvider)
-  // settle to a non-loading state.  The provider rebuilds automatically when
-  // profileAsync transitions from loading → data because ref.watch tracks it.
-  if (profileAsync.isLoading) {
-    if (kDebugMode) debugPrint('[RBAC] currentMember: profile loading');
-    yield null;
-    return;
-  }
-
+  // Use valueOrNull so cached profile survives resubscription (AsyncLoading
+  // with previous data). Only yield null when there is genuinely no data yet.
   final profile = profileAsync.valueOrNull;
   if (profile == null) {
-    if (kDebugMode) debugPrint('[RBAC] currentMember: no profile doc');
+    if (kDebugMode) {
+      debugPrint('[RBAC] currentMember: '
+          '${profileAsync.isLoading ? 'profile loading' : 'no profile doc'}');
+    }
     yield null;
     return;
   }
@@ -215,15 +214,15 @@ final currentMemberProvider = StreamProvider<TeamMember?>((ref) async* {
 
 final permissionsLoadedProvider = Provider<bool>((ref) {
   final profileAsync = ref.watch(userProfileStreamProvider);
-  if (profileAsync.isLoading) return false;
-
+  // Use valueOrNull first so cached profile survives resubscription.
   final profile = profileAsync.valueOrNull;
   if (profile == null) {
     // Null profile has two meanings:
     //   1. Signed out — nothing to load, treat as settled.
     //   2. Signed in but users/{uid} hasn't been written yet (first-install
     //      race: Firebase Auth fired before saveUser() completed).
-    // Only case 1 should be treated as "loaded". For case 2 we must wait.
+    // For case 2, isLoading is true and we genuinely have no previous data.
+    if (profileAsync.isLoading) return false;
     return FirebaseAuth.instance.currentUser == null;
   }
 
@@ -232,7 +231,8 @@ final permissionsLoadedProvider = Provider<bool>((ref) {
 
   // For team members, wait for the member record too.
   final memberAsync = ref.watch(currentMemberProvider);
-  if (memberAsync.isLoading) return false;
+  // Only block if there is genuinely no member data yet (not a resubscription).
+  if (memberAsync.valueOrNull == null && memberAsync.isLoading) return false;
 
   // Member record settled (either has data or is null/missing).
   if (kDebugMode) {
@@ -252,8 +252,8 @@ final permissionServiceProvider = Provider<PermissionService>((ref) {
   if (user == null) return PermissionService.denied();
 
   final profileAsync = ref.watch(userProfileStreamProvider);
-  if (profileAsync.isLoading) return PermissionService.denied();
-
+  // Use valueOrNull so cached profile survives resubscription (AsyncLoading
+  // with previous data). Avoids reverting to denied() on auth token refresh.
   final profile = profileAsync.valueOrNull;
   if (profile == null) return PermissionService.denied();
 
@@ -264,7 +264,10 @@ final permissionServiceProvider = Provider<PermissionService>((ref) {
   }
 
   final memberAsync = ref.watch(currentMemberProvider);
-  if (memberAsync.isLoading) return PermissionService.denied();
+  // Only deny if there is genuinely no member data (not just resubscribing).
+  if (memberAsync.valueOrNull == null && memberAsync.isLoading) {
+    return PermissionService.denied();
+  }
 
   final member = memberAsync.valueOrNull;
   if (member == null) return PermissionService.denied();
