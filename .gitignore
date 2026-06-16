@@ -28,3 +28,7 @@ pnpm-debug.log*
 
 # OS
 Thumbs.db
+
+# Secrets — never commit service account keys
+**/serviceAccountKey.json
+*serviceAccountKey*.json
