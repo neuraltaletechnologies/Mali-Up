@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_provider.dart' show authStateProvider;
 import '../../team/domain/models/team_member.dart';
 import '../domain/permission_service.dart';
+import 'role_cache_service.dart';
 
 // ── Session state ─────────────────────────────────────────────────────────────
 //
@@ -88,19 +89,43 @@ final sessionStateProvider = Provider<SessionState>((ref) {
 // during registration, sign-out from the recovery screen, etc.).
 // All RBAC providers derive from this to avoid redundant reads.
 
-final userProfileStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) {
+final userProfileStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) async* {
   // React to auth changes — this is what fixes the first-login race condition
   // where the provider is built before the registration Firebase Auth call
   // completes, capturing a null user and never updating.
   final authAsync = ref.watch(authStateProvider);
-  if (authAsync.isLoading) return Stream.value(null);
+  if (authAsync.isLoading) {
+    yield null;
+    return;
+  }
   final user = authAsync.valueOrNull;
-  if (user == null) return Stream.value(null);
-  return FirebaseFirestore.instance
+  if (user == null) {
+    yield null;
+    return;
+  }
+
+  // Yield the last-known role immediately so RBAC works on cold offline starts.
+  // If Firestore is reachable the real snapshot follows in the same frame.
+  final cached = await RoleCacheService.load(user.uid);
+  if (cached != null) {
+    if (kDebugMode) {
+      debugPrint('[RBAC] userProfile: offline cache hit uid=${user.uid}');
+    }
+    yield cached;
+  }
+
+  // Stream live Firestore updates and keep the SharedPreferences cache fresh.
+  await for (final snap in FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
-      .snapshots()
-      .map((s) => s.data());
+      .snapshots()) {
+    final data = snap.data();
+    if (data != null) {
+      // Fire-and-forget: cache update is idempotent and non-critical.
+      RoleCacheService.save(user.uid, data);
+    }
+    yield data;
+  }
 });
 
 // ── Tenant owner UID ─────────────────────────────────────────────────────────
