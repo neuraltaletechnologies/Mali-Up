@@ -657,6 +657,19 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // MASTER CATALOG (global, Mali Up managed — read-only for all signed-in users)
+    // =========================================================================
+    match /master_categories/{categoryId} {
+      allow read: if isSignedIn();
+      allow write: if isCms();
+    }
+
+    match /master_products/{productId} {
+      allow read: if isSignedIn();
+      allow write: if isCms();
+    }
+
+    // =========================================================================
     // DEFAULT DENY
     // =========================================================================
     match /{document=**} {
