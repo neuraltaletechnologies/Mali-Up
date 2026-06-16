@@ -68,13 +68,19 @@ class AddProductChoiceSheet extends StatelessWidget {
             iconBg: const Color(0xFFE0F2F7),
             title: _tr('Search Product Catalog', 'Tafuta Bidhaa kwenye Katalogi'),
             subtitle: _tr(
-              'Browse prebuilt products for your industry and import in one tap.',
-              'Pata bidhaa za tasnia yako na zilete kwa kubonyeza mara moja.',
+              'Browse products for your industry and import them.',
+              'Pata bidhaa za tasnia yako na zilete mara moja.',
             ),
             badge: _tr('Recommended', 'Inapendekezwa'),
             onTap: () {
+              // Capture navigator before pop — the sheet context deactivates
+              // as soon as pop() is called, making it unsafe to use after.
+              final nav = Navigator.of(context, rootNavigator: true);
               Navigator.of(context).pop();
-              _openCatalog(context);
+              nav.push(MaterialPageRoute<void>(
+                builder: (_) => const CatalogSearchScreen(),
+                fullscreenDialog: true,
+              ));
             },
           ),
 
@@ -100,14 +106,6 @@ class AddProductChoiceSheet extends StatelessWidget {
     );
   }
 
-  void _openCatalog(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const CatalogSearchScreen(),
-        fullscreenDialog: true,
-      ),
-    );
-  }
 }
 
 class _ChoiceCard extends StatelessWidget {

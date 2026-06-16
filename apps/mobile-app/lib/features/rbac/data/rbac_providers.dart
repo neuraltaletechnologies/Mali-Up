@@ -36,7 +36,13 @@ final sessionStateProvider = Provider<SessionState>((ref) {
   // Use valueOrNull so that during resubscription (AsyncLoading with previous
   // data) we preserve the cached profile instead of reverting to loading.
   final profile = profileAsync.valueOrNull;
-  if (profile == null) return SessionState.loading;
+  if (profile == null) {
+    if (kDebugMode) {
+      debugPrint('[RBAC] session → loading '
+          '(isLoading=${profileAsync.isLoading} hasValue=${profileAsync.hasValue})');
+    }
+    return SessionState.loading;
+  }
 
   final isTeamMember = profile['isTeamMember'] == true;
   if (!isTeamMember) {
@@ -95,14 +101,18 @@ final userProfileStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) as
   // completes, capturing a null user and never updating.
   final authAsync = ref.watch(authStateProvider);
   if (authAsync.isLoading) {
+    if (kDebugMode) debugPrint('[RBAC] userProfile: auth still loading → yield null');
     yield null;
     return;
   }
   final user = authAsync.valueOrNull;
   if (user == null) {
+    if (kDebugMode) debugPrint('[RBAC] userProfile: signed out → yield null');
     yield null;
     return;
   }
+
+  if (kDebugMode) debugPrint('[RBAC] userProfile: starting for uid=${user.uid}');
 
   // Yield the last-known role immediately so RBAC works on cold offline starts.
   // If Firestore is reachable the real snapshot follows in the same frame.
@@ -115,17 +125,23 @@ final userProfileStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) as
   }
 
   // Stream live Firestore updates and keep the SharedPreferences cache fresh.
+  if (kDebugMode) debugPrint('[RBAC] userProfile: opening Firestore stream uid=${user.uid}');
   await for (final snap in FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
       .snapshots()) {
     final data = snap.data();
+    if (kDebugMode) {
+      debugPrint('[RBAC] userProfile: Firestore snap exists=${snap.exists} '
+          'isTeamMember=${data?['isTeamMember']} uid=${user.uid}');
+    }
     if (data != null) {
       // Fire-and-forget: cache update is idempotent and non-critical.
       RoleCacheService.save(user.uid, data);
     }
     yield data;
   }
+  if (kDebugMode) debugPrint('[RBAC] userProfile: Firestore stream closed uid=${user.uid}');
 });
 
 // ── Tenant owner UID ─────────────────────────────────────────────────────────
@@ -247,8 +263,18 @@ final permissionsLoadedProvider = Provider<bool>((ref) {
     //   2. Signed in but users/{uid} hasn't been written yet (first-install
     //      race: Firebase Auth fired before saveUser() completed).
     // For case 2, isLoading is true and we genuinely have no previous data.
-    if (profileAsync.isLoading) return false;
-    return FirebaseAuth.instance.currentUser == null;
+    if (profileAsync.isLoading) {
+      if (kDebugMode) {
+        debugPrint('[RBAC] permissionsLoaded → false (profile loading, no previous data)');
+      }
+      return false;
+    }
+    final signedIn = FirebaseAuth.instance.currentUser != null;
+    if (kDebugMode && signedIn) {
+      debugPrint('[RBAC] permissionsLoaded → false '
+          '(signed in but profile is null and not loading — Firestore doc missing?)');
+    }
+    return !signedIn;
   }
 
   final isTeamMember = profile['isTeamMember'] == true;
@@ -274,13 +300,22 @@ final permissionsLoadedProvider = Provider<bool>((ref) {
 
 final permissionServiceProvider = Provider<PermissionService>((ref) {
   final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return PermissionService.denied();
+  if (user == null) {
+    if (kDebugMode) debugPrint('[RBAC] permissionService → denied (no auth user)');
+    return PermissionService.denied();
+  }
 
   final profileAsync = ref.watch(userProfileStreamProvider);
   // Use valueOrNull so cached profile survives resubscription (AsyncLoading
   // with previous data). Avoids reverting to denied() on auth token refresh.
   final profile = profileAsync.valueOrNull;
-  if (profile == null) return PermissionService.denied();
+  if (profile == null) {
+    if (kDebugMode) {
+      debugPrint('[RBAC] permissionService → denied '
+          '(profile null: isLoading=${profileAsync.isLoading} hasValue=${profileAsync.hasValue})');
+    }
+    return PermissionService.denied();
+  }
 
   final isTeamMember = profile['isTeamMember'] == true;
   if (!isTeamMember) {

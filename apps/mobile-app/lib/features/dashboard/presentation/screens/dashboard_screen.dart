@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -537,7 +537,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void _openDebtPanel(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const FractionallySizedBox(
@@ -1838,7 +1837,6 @@ class _ModuleGrid extends StatelessWidget {
   void _openDebtPanelFromModule(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const FractionallySizedBox(

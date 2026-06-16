@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -313,7 +313,6 @@ class LegalComplianceScreen extends StatelessWidget {
   }) {
     showModalBottomSheet<void>(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: AppColors.background,
       showDragHandle: true,

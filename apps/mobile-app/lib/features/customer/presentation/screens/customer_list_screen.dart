@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -109,7 +109,6 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   void _openFilterSheet(BuildContext ctx) {
     showModalBottomSheet<void>(
       context: ctx,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -204,7 +203,6 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   void _showAddDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -876,7 +874,6 @@ class _CustomerCard extends ConsumerWidget {
           ? () async {
               await showModalBottomSheet<void>(
                 context: context,
-                useRootNavigator: true,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
                 useSafeArea: true,
@@ -929,7 +926,6 @@ class _CustomerCard extends ConsumerWidget {
         onTap: () {
           showModalBottomSheet<void>(
             context: context,
-            useRootNavigator: true,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
             useSafeArea: true,
@@ -1783,7 +1779,6 @@ class _CustomerInfoSheet extends ConsumerWidget {
                           onTap: () async {
                             await showModalBottomSheet<void>(
                               context: context,
-                              useRootNavigator: true,
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
                               useSafeArea: true,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../rbac/data/rbac_providers.dart' show permissionsLoadedProvider;
 import '../../providers/onboarding_notifier.dart';
 
 class OnboardingSuccessScreen extends ConsumerStatefulWidget {
@@ -83,6 +85,18 @@ class _OnboardingSuccessScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
     final sw = state.isSwahili;
+
+    // For brand-new owners the users/{uid} Firestore doc is written just
+    // before this screen appears.  Wait for it to be reflected in the RBAC
+    // providers before allowing navigation to the dashboard — otherwise the
+    // dashboard can render with denied() permissions on the first frame.
+    final isNewOwner = !state.isReturningUser && !state.isTeamMember;
+    final permissionsReady = ref.watch(permissionsLoadedProvider);
+    final canNavigate = !isNewOwner || permissionsReady;
+
+    if (kDebugMode && isNewOwner) {
+      debugPrint('[SuccessScreen] permissionsReady=$permissionsReady canNavigate=$canNavigate');
+    }
     final firstName = state.firstName;
     final bizName = state.businessName;
     final topHeight = MediaQuery.of(context).size.height * 0.35;
@@ -304,19 +318,28 @@ class _OnboardingSuccessScreenState
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                onPressed: () =>
-                                    context.go(AppRoutes.dashboard),
-                                child: Text(
-                                  OnboardingStrings.s(
-                                    sw,
-                                    en: OnboardingStrings.successCtaEn,
-                                    sw: OnboardingStrings.successCtaSw,
-                                  ),
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16,
-                                  ),
-                                ),
+                                onPressed: canNavigate
+                                    ? () => context.go(AppRoutes.dashboard)
+                                    : null,
+                                child: canNavigate
+                                    ? Text(
+                                        OnboardingStrings.s(
+                                          sw,
+                                          en: OnboardingStrings.successCtaEn,
+                                          sw: OnboardingStrings.successCtaSw,
+                                        ),
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16,
+                                        ),
+                                      )
+                                    : const SizedBox.square(
+                                        dimension: 22,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      ),
                               ),
                             ),
                             const SizedBox(height: 24),

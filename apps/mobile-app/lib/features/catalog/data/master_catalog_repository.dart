@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/database/app_database.dart';
 import '../domain/models/master_category.dart';
@@ -149,12 +150,16 @@ class MasterCatalogRepository {
     try {
       final now = DateTime.now().millisecondsSinceEpoch;
 
+      // Always fetch from server — persistence is disabled so the SDK
+      // in-memory cache is irrelevant; being explicit avoids ambiguity.
+      const opts = GetOptions(source: Source.server);
+
       // ── Categories ────────────────────────────────────────────────────────
       final catSnap = await _firestore
           .collection('master_categories')
           .where('businessTypeId', isEqualTo: businessTypeId)
           .where('isActive', isEqualTo: true)
-          .get();
+          .get(opts);
 
       final cats = catSnap.docs.map((d) {
         final data = d.data();
@@ -179,7 +184,7 @@ class MasterCatalogRepository {
           .collection('master_products')
           .where('businessTypeId', isEqualTo: businessTypeId)
           .where('isActive', isEqualTo: true)
-          .get();
+          .get(opts);
 
       final prods = prodSnap.docs.map((d) {
         final data = d.data();
@@ -208,13 +213,22 @@ class MasterCatalogRepository {
       if (prods.isNotEmpty) {
         await _db.masterCatalogDao.upsertProducts(prods);
       }
-    } catch (_) {
-      // Network failure — decide how to handle based on whether we have
-      // any (stale) local data to fall back on.
+    } catch (e) {
+      // Only treat genuine network/connectivity errors as offline.
+      // permission-denied, failed-precondition, etc. are NOT offline errors —
+      // catching them as offline was hiding the real cause from the user.
+      debugPrint('[MasterCatalog] fetch failed for "$businessTypeId": $e');
+      final isOffline = e is FirebaseException &&
+          (e.code == 'unavailable' ||
+              e.code == 'deadline-exceeded' ||
+              e.code == 'network-request-failed');
+
       if (!hasCacheAlready) {
-        throw const CatalogOfflineException('');
+        if (isOffline) throw const CatalogOfflineException('');
+        rethrow;
       } else {
-        throw const CatalogCacheExpiredException();
+        if (isOffline) throw const CatalogCacheExpiredException();
+        rethrow;
       }
     }
   }

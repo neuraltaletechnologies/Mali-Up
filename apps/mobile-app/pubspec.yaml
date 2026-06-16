@@ -53,8 +53,7 @@ dependencies:
   timer_count_down: ^2.2.2
   image_picker: ^1.1.2
   firebase_storage: ^12.4.4
-  sentry_flutter: ^9.21.0
-  flutter_native_contact_picker: ^0.0.11
+  sentry_flutter: ^9.22.0
   flutter_contacts: ^1.1.9+2
   permission_handler: ^12.0.0
   local_auth: ^2.3.0

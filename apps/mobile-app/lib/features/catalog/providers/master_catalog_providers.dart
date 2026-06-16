@@ -24,8 +24,20 @@ final masterCatalogRepositoryProvider =
 final masterCategoriesProvider =
     FutureProvider<List<MasterCategory>>((ref) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
-  final bizType =
-      ref.watch(currentBusinessTypeProvider).valueOrNull ?? 'retail';
+
+  // Await the stream's first emission so that:
+  //  (a) we use the real business type, not the 'retail' fallback, and
+  //  (b) the Firebase Auth token has been applied to the Firestore connection
+  //      before we hit the master_categories collection.
+  final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
+  String bizType;
+  try {
+    bizType = await bizTypeFuture;
+  } catch (_) {
+    bizType = '';
+  }
+  if (bizType.isEmpty) bizType = 'retail';
+
   return repo.getCategoriesForType(bizType);
 });
 
@@ -37,8 +49,15 @@ final masterCategoriesProvider =
 final masterProductsProvider =
     FutureProvider<List<MasterProduct>>((ref) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
-  final bizType =
-      ref.watch(currentBusinessTypeProvider).valueOrNull ?? 'retail';
+  final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
+  String bizType;
+  try {
+    bizType = await bizTypeFuture;
+  } catch (_) {
+    bizType = '';
+  }
+  if (bizType.isEmpty) bizType = 'retail';
+
   return repo.getProductsForType(bizType);
 });
 
@@ -46,8 +65,15 @@ final masterProductsProvider =
 final masterProductsByCategoryProvider =
     FutureProvider.family<List<MasterProduct>, String>((ref, categoryId) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
-  final bizType =
-      ref.watch(currentBusinessTypeProvider).valueOrNull ?? 'retail';
+  final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
+  String bizType;
+  try {
+    bizType = await bizTypeFuture;
+  } catch (_) {
+    bizType = '';
+  }
+  if (bizType.isEmpty) bizType = 'retail';
+
   if (categoryId.isEmpty) return repo.getProductsForType(bizType);
   return repo.getProductsForCategory(bizType, categoryId);
 });
@@ -66,10 +92,17 @@ final catalogSelectedCategoryProvider = StateProvider<String>((ref) => '');
 final catalogSearchResultsProvider =
     FutureProvider<List<MasterProduct>>((ref) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
-  final bizType =
-      ref.watch(currentBusinessTypeProvider).valueOrNull ?? 'retail';
+  final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
   final query = ref.watch(catalogSearchQueryProvider);
   final categoryId = ref.watch(catalogSelectedCategoryProvider);
+
+  String bizType;
+  try {
+    bizType = await bizTypeFuture;
+  } catch (_) {
+    bizType = '';
+  }
+  if (bizType.isEmpty) bizType = 'retail';
 
   if (query.isEmpty && categoryId.isEmpty) {
     return repo.getProductsForType(bizType);

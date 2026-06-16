@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -557,9 +557,14 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         return;
       }
 
-      // Close dialog and navigate so the user is not blocked
+      // Pop the dialog first; GoRouter navigation deferred to the next frame so
+      // the pop finishes cleaning up its inherited-widget dependencies before
+      // GoRouter rebuilds its own inherited widget — doing both in the same
+      // synchronous block triggers a Flutter framework assertion.
       Navigator.pop(context);
-      router.go(AppRouter.crmPath);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        router.go(AppRouter.crmPath);
+      });
 
       messenger.showSnackBar(SnackBar(
         content: Text(_tr(
@@ -655,7 +660,6 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      useRootNavigator: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),

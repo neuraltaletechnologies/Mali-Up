@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -241,7 +241,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     if (!ctx.mounted) return;
     await showModalBottomSheet<void>(
       context: ctx,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -328,7 +327,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 onSearchChanged: (v) => setState(() => _query = v.trim()),
                 onFilterTap: () => showModalBottomSheet<void>(
                   context: context,
-                  useRootNavigator: true,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   builder: (_) => _SalesFilterSheet(
@@ -368,7 +366,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                               isLast: i == filtered.length - 1,
                               onTap: () => showModalBottomSheet<void>(
                                 context: ctx,
-                                useRootNavigator: true,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
                                 useSafeArea: true,
@@ -568,7 +565,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     await showModalBottomSheet<void>(
       context: context,
-      useRootNavigator: true,
       backgroundColor: AppColors.background,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
@@ -2318,7 +2314,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           InkWell(
             onTap: () => showModalBottomSheet<void>(
               context: context,
-              useRootNavigator: true,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
               useSafeArea: true,
@@ -2557,7 +2552,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               child: InkWell(
                 onTap: () => showModalBottomSheet<void>(
                   context: context,
-                  useRootNavigator: true,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   useSafeArea: true,

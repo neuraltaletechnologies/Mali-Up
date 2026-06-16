@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -196,7 +196,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
   void _showReceiptOptions() {
     showModalBottomSheet(
       context: context,
-      useRootNavigator: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => SafeArea(

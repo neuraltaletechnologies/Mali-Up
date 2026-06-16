@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
@@ -350,7 +350,6 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
   void _openEdit() {
     showModalBottomSheet(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -656,7 +655,6 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
   void _showAddNoteSheet() {
     showModalBottomSheet(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(

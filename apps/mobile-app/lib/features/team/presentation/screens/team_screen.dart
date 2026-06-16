@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -148,7 +148,6 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                 onSearchChanged: (v) => setState(() => _query = v.trim()),
                 onFilterTap: () => showModalBottomSheet<void>(
                   context: context,
-                  useRootNavigator: true,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   builder: (_) => _TeamFilterSheet(
@@ -196,7 +195,6 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   void _showInviteSheet(BuildContext ctx) {
     showModalBottomSheet<void>(
       context: ctx,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
@@ -297,7 +295,6 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   void _showMemberSheet(BuildContext ctx, TeamMember member) {
     showModalBottomSheet<void>(
       context: ctx,
-      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
