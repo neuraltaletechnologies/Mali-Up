@@ -1,0 +1,12 @@
+{
+  "name": "maliup-scripts",
+  "version": "1.0.0",
+  "description": "One-time admin scripts for Mali Up",
+  "main": "seed-master-catalog.js",
+  "scripts": {
+    "seed": "node seed-master-catalog.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.10.0"
+  }
+}
