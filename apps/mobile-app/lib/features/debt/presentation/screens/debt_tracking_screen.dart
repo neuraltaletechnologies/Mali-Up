@@ -112,20 +112,16 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
       ),
       floatingActionButton: _tabCtrl.index == 2
           ? null
-          : Padding(
-              padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).padding.bottom + 64),
-              child: FloatingActionButton.extended(
-                onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
-                backgroundColor: AppColors.yellowBrand,
-                foregroundColor: AppColors.navyPrimary,
-                icon: const Icon(Icons.add_rounded),
-                label: Text(
-                  _tabCtrl.index == 0
-                      ? _tr('Add Receivable', 'Ongeza Dai')
-                      : _tr('Add Payable', 'Ongeza Deni'),
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-                ),
+          : FloatingActionButton.extended(
+              onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
+              backgroundColor: AppColors.yellowBrand,
+              foregroundColor: AppColors.navyPrimary,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(
+                _tabCtrl.index == 0
+                    ? _tr('Add Receivable', 'Ongeza Dai')
+                    : _tr('Add Payable', 'Ongeza Deni'),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
               ),
             ),
     );

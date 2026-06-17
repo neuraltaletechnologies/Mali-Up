@@ -140,20 +140,15 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
 
     return Scaffold(
       floatingActionButton: ps.canManageCustomers || ps.isOwner
-          ? Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).padding.bottom + 64,
-              ),
-              child: FloatingActionButton.extended(
-                onPressed: () => _showAddDialog(context),
-                backgroundColor: AppColors.yellowBrand,
-                foregroundColor: AppColors.navyPrimary,
-                elevation: 3,
-                icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
-                label: Text(
-                  _tr('Add Customer', 'Ongeza Mteja'),
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-                ),
+          ? FloatingActionButton.extended(
+              onPressed: () => _showAddDialog(context),
+              backgroundColor: AppColors.yellowBrand,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 3,
+              icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+              label: Text(
+                _tr('Add Customer', 'Ongeza Mteja'),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
               ),
             )
           : null,

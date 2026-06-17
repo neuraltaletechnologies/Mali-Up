@@ -165,20 +165,15 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
           ),
         ],
       ),
-      floatingActionButton: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).padding.bottom + 64,
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () => _navigateToCreateInvoice(),
-          backgroundColor: AppColors.yellowBrand,
-          foregroundColor: AppColors.navyPrimary,
-          elevation: 3,
-          icon: const Icon(Icons.description_rounded, size: 20),
-          label: Text(
-            LocalizationService.tr(en: 'New Invoice', sw: 'Ankara Mpya'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-          ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _navigateToCreateInvoice(),
+        backgroundColor: AppColors.yellowBrand,
+        foregroundColor: AppColors.navyPrimary,
+        elevation: 3,
+        icon: const Icon(Icons.description_rounded, size: 20),
+        label: Text(
+          LocalizationService.tr(en: 'New Invoice', sw: 'Ankara Mpya'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
         ),
       ),
     );

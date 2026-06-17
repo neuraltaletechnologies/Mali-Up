@@ -174,38 +174,28 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen>
         ],
       ),
       floatingActionButton: _tabCtrl.index == 0
-          ? Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).padding.bottom + 64,
-              ),
-              child: FloatingActionButton.extended(
-                onPressed: _openAdd,
-                backgroundColor: AppColors.yellowBrand,
-                foregroundColor: AppColors.navyPrimary,
-                elevation: 3,
-                icon: const Icon(Icons.receipt_long_rounded, size: 20),
-                label: Text(
-                  _tr('Add Expense', 'Ongeza Matumizi'),
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-                ),
+          ? FloatingActionButton.extended(
+              onPressed: _openAdd,
+              backgroundColor: AppColors.yellowBrand,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 3,
+              icon: const Icon(Icons.receipt_long_rounded, size: 20),
+              label: Text(
+                _tr('Add Expense', 'Ongeza Matumizi'),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
               ),
             )
           : _tabCtrl.index == 2
-              ? Padding(
-                  padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).padding.bottom + 64,
-                  ),
-                  child: FloatingActionButton.extended(
-                    heroTag: 'add-recurring-fab',
-                    onPressed: () => _showAddRecurringSheet(context),
-                    backgroundColor: AppColors.yellowBrand,
-                    foregroundColor: AppColors.navyPrimary,
-                    elevation: 3,
-                    icon: const Icon(Icons.repeat_rounded, size: 20),
-                    label: Text(
-                      _tr('Add Recurring', 'Ongeza ya Kawaida'),
-                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-                    ),
+              ? FloatingActionButton.extended(
+                  heroTag: 'add-recurring-fab',
+                  onPressed: () => _showAddRecurringSheet(context),
+                  backgroundColor: AppColors.yellowBrand,
+                  foregroundColor: AppColors.navyPrimary,
+                  elevation: 3,
+                  icon: const Icon(Icons.repeat_rounded, size: 20),
+                  label: Text(
+                    _tr('Add Recurring', 'Ongeza ya Kawaida'),
+                    style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
                   ),
                 )
               : null,

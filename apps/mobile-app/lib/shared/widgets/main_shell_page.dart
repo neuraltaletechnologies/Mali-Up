@@ -715,7 +715,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.yellowBrand : Colors.transparent,
+          color: isSelected ? Colors.white.withValues(alpha: 0.18) : Colors.transparent,
           shape: BoxShape.circle,
         ),
         child: Center(
@@ -726,7 +726,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
             child: Icon(
               isSelected ? destination.activeIcon : destination.icon,
               key: ValueKey<bool>(isSelected),
-              color: isSelected ? AppColors.navyPrimary : Colors.white54,
+              color: isSelected ? Colors.white : Colors.white54,
               size: 22,
             ),
           ),
