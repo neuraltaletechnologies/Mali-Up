@@ -259,23 +259,19 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     return Scaffold(
       floatingActionButton: !ps.canCreateSale
           ? null
-          : Padding(
-              padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).padding.bottom + 64),
-              child: Builder(
-                builder: (ctx) => FloatingActionButton.extended(
-                  onPressed: () => _showNewSaleSheet(ctx),
-                  backgroundColor: AppColors.yellowBrand,
-                  foregroundColor: AppColors.navyPrimary,
-                  elevation: 3,
-                  icon: const Icon(Icons.add_rounded, size: 22),
-                  label: Text(
-                    _tr('New Sale', 'Mauzo Mapya'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navyPrimary),
-                  ),
+          : Builder(
+              builder: (ctx) => FloatingActionButton.extended(
+                onPressed: () => _showNewSaleSheet(ctx),
+                backgroundColor: AppColors.yellowBrand,
+                foregroundColor: AppColors.navyPrimary,
+                elevation: 3,
+                icon: const Icon(Icons.add_rounded, size: 22),
+                label: Text(
+                  _tr('New Sale', 'Mauzo Mapya'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navyPrimary),
                 ),
               ),
             ),

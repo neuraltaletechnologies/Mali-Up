@@ -12,11 +12,13 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/data/repositories/context_firestore_repository.dart';
+import '../../../../core/providers/sync_provider.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../onboarding/domain/validators/onboarding_validator.dart';
 import '../../../onboarding/presentation/screens/_onboarding_scaffold.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../data/mappers/team_member_mapper.dart';
 import '../../data/team_providers.dart';
 import '../../domain/models/team_member.dart';
 
@@ -105,20 +107,16 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
 
     return Scaffold(
       floatingActionButton: ps.isOwner
-          ? Padding(
-              padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).padding.bottom + 64),
-              child: FloatingActionButton.extended(
-                onPressed: () => _showInviteSheet(context),
-                backgroundColor: AppColors.yellowBrand,
-                foregroundColor: AppColors.navyPrimary,
-                elevation: 3,
-                icon: const Icon(Icons.person_add_rounded, size: 20),
-                label: Text(
-                  _tr('Add Member', 'Ongeza Mwanachama'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w700),
-                ),
+          ? FloatingActionButton.extended(
+              onPressed: () => _showInviteSheet(context),
+              backgroundColor: AppColors.yellowBrand,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 3,
+              icon: const Icon(Icons.person_add_rounded, size: 20),
+              label: Text(
+                _tr('Add Member', 'Ongeza Mwanachama'),
+                style: GoogleFonts.dmSans(
+                    fontSize: 14, fontWeight: FontWeight.w700),
               ),
             )
           : null,
@@ -1123,6 +1121,38 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
             'createdAt': FieldValue.serverTimestamp(),
           },
         );
+      }
+
+      // Write to Drift immediately so the member appears in the list right away.
+      // syncStatus='synced' because the record is already in Firestore.
+      try {
+        final db = ref.read(appDatabaseProvider);
+        final bizId = ctx.businessId ?? '';
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final member = TeamMember(
+          id: memberRef.id,
+          name: name,
+          email: _emailCtrl.text.trim(),
+          phone: storedPhone,
+          role: _selectedRole,
+          customPermissions: permsToStore,
+          status: 'pending',
+          invitedAt: DateTime.now(),
+          invitedBy: user.uid,
+          notes: _notesCtrl.text.trim().isNotEmpty
+              ? _notesCtrl.text.trim()
+              : null,
+        );
+        await db.teamDao.upsert(
+          TeamMemberMapper.toCompanion(
+            member,
+            businessId: bizId,
+            syncStatus: 'synced',
+            createdAtMs: nowMs,
+          ),
+        );
+      } catch (_) {
+        // Best-effort — sync cycle will populate Drift on next pull
       }
 
       // Audit log — best-effort, do not await

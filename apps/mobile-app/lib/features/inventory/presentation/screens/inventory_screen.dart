@@ -303,20 +303,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         (_sort != SortOption.nameAz ? 1 : 0);
 
     return Scaffold(
-      floatingActionButton: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).padding.bottom + 64,
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () => _openAdd(context),
-          backgroundColor: AppColors.yellowBrand,
-          foregroundColor: AppColors.navyPrimary,
-          elevation: 3,
-          icon: const Icon(Icons.inventory_2_rounded, size: 20),
-          label: Text(
-            _tr('Add Product', 'Ongeza Bidhaa'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-          ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openAdd(context),
+        backgroundColor: AppColors.yellowBrand,
+        foregroundColor: AppColors.navyPrimary,
+        elevation: 3,
+        icon: const Icon(Icons.inventory_2_rounded, size: 20),
+        label: Text(
+          _tr('Add Product', 'Ongeza Bidhaa'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

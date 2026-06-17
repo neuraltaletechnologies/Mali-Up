@@ -281,25 +281,20 @@ class _PillDivider extends StatelessWidget {
 class _CashFlowFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).padding.bottom + 64,
+    return FloatingActionButton.extended(
+      onPressed: () => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const AddTransactionDialog(),
       ),
-      child: FloatingActionButton.extended(
-        onPressed: () => showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => const AddTransactionDialog(),
-        ),
-        backgroundColor: AppColors.yellowBrand,
-        foregroundColor: AppColors.navyPrimary,
-        elevation: 3,
-        icon: const Icon(Icons.swap_horiz_rounded, size: 20),
-        label: Text(
-          _tr('Add Transaction', 'Ongeza Muamala'),
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-        ),
+      backgroundColor: AppColors.yellowBrand,
+      foregroundColor: AppColors.navyPrimary,
+      elevation: 3,
+      icon: const Icon(Icons.swap_horiz_rounded, size: 20),
+      label: Text(
+        _tr('Add Transaction', 'Ongeza Muamala'),
+        style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
       ),
     );
   }
