@@ -657,11 +657,21 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // MASTER CATALOG (global, Mali Up managed — read-only for all signed-in users)
+    // MASTER CATALOG (global, Mali Up managed)
+    // All signed-in users can read. CMS can write anything.
+    // Signed-in users may CREATE a community-contributed category only —
+    // updates and deletes of catalog entries remain CMS-only.
     // =========================================================================
     match /master_categories/{categoryId} {
       allow read: if isSignedIn();
-      allow write: if isCms();
+      allow create: if isSignedIn()
+        && request.resource.data.source == 'community'
+        && request.resource.data.businessTypeId is string
+        && request.resource.data.businessTypeId.size() > 0
+        && request.resource.data.categoryName is string
+        && request.resource.data.categoryName.size() > 0
+        && request.resource.data.categoryName.size() <= 100;
+      allow update, delete: if isCms();
     }
 
     match /master_products/{productId} {

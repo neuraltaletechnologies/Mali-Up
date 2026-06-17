@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/invoice_provider.dart';
 import '../../domain/models/invoice.dart';
@@ -164,9 +165,21 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _navigateToCreateInvoice(),
-        child: const Icon(Icons.add),
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom + 64,
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () => _navigateToCreateInvoice(),
+          backgroundColor: AppColors.yellowBrand,
+          foregroundColor: AppColors.navyPrimary,
+          elevation: 3,
+          icon: const Icon(Icons.description_rounded, size: 20),
+          label: Text(
+            LocalizationService.tr(en: 'New Invoice', sw: 'Ankara Mpya'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          ),
+        ),
       ),
     );
   }

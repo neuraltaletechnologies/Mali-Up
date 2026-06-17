@@ -144,13 +144,16 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).padding.bottom + 64,
               ),
-              child: FloatingActionButton(
+              child: FloatingActionButton.extended(
                 onPressed: () => _showAddDialog(context),
                 backgroundColor: AppColors.yellowBrand,
                 foregroundColor: AppColors.navyPrimary,
                 elevation: 3,
-                tooltip: _tr('Add customer', 'Ongeza mteja'),
-                child: const Icon(Icons.person_add_alt_1_rounded, size: 26),
+                icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+                label: Text(
+                  _tr('Add Customer', 'Ongeza Mteja'),
+                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                ),
               ),
             )
           : null,

@@ -8,7 +8,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
-import '../../../product/domain/models/product_category.dart';
+import '../../../catalog/domain/models/master_category.dart';
 import '../../data/inventory_providers.dart';
 import '../widgets/category_picker_sheet.dart';
 
@@ -407,7 +407,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
   final _priceCtrl = TextEditingController();
   final _supplierCtrl = TextEditingController();
 
-  ProductCategory? _selectedCategory;
+  MasterCategory? _selectedCategory;
   String _selectedUnit = 'pcs';
   bool _isLoading = false;
 
@@ -779,9 +779,9 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
         'name': _nameCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
         // Smart category — both legacy and structured fields
-        'category': _selectedCategory?.name ?? 'General',
+        'category': _selectedCategory?.categoryName ?? 'General',
         'categoryId': _selectedCategory?.id ?? '',
-        'categoryName': _selectedCategory?.name ?? '',
+        'categoryName': _selectedCategory?.categoryName ?? '',
         'currentStock': double.tryParse(_stockCtrl.text) ?? 0,
         'reorderPoint': double.tryParse(_reorderCtrl.text) ?? 0,
         'unitPrice': double.tryParse(_priceCtrl.text) ?? 0,

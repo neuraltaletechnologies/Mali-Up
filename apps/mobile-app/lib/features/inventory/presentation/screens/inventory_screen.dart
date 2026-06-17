@@ -10,10 +10,12 @@ import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
-import '../../../customer/data/customer_providers.dart';
+import '../../../catalog/domain/models/master_category.dart';
+import '../../../catalog/providers/master_catalog_providers.dart';
 import '../../../product/data/category_providers.dart';
 import '../../../product/domain/models/business_product_config.dart';
-import '../../../product/domain/models/product_category.dart';
+import '../../../finance/data/finance_providers.dart';
+import '../../../finance/domain/models/cash_transaction.dart';
 import '../../data/inventory_providers.dart';
 import '../../domain/models/inventory_item.dart';
 import '../providers/inventory_providers.dart';
@@ -305,12 +307,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).padding.bottom + 64,
         ),
-        child: FloatingActionButton(
+        child: FloatingActionButton.extended(
           onPressed: () => _openAdd(context),
           backgroundColor: AppColors.yellowBrand,
           foregroundColor: AppColors.navyPrimary,
           elevation: 3,
-          child: const Icon(Icons.add_rounded, size: 26),
+          icon: const Icon(Icons.inventory_2_rounded, size: 20),
+          label: Text(
+            _tr('Add Product', 'Ongeza Bidhaa'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -2196,6 +2202,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   // Expiry date state
   DateTime? _expiryDate;
 
+  // Stock entry type: 'opening' = existing stock (no cash), 'purchase' = new buy (deduct cash)
+  String _stockEntryType = 'opening';
+  String _selectedAccountId = '';
+  double _originalStock = 0.0;
+
   // Selling units (optional multi-tier pricing)
   final List<_UnitEntry> _sellingUnits = [];
 
@@ -2255,6 +2266,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     } else {
       _type = ProductType.stock;
     }
+    // Store original stock so edit flow can compute the delta for purchase deduction
+    _originalStock = double.tryParse(_stockCtrl.text) ?? 0.0;
   }
 
   @override
@@ -2356,6 +2369,37 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
       await ref.read(inventoryRepositoryProvider).save(item);
 
+      // Auto-deduct cash when this is declared as a new purchase
+      if (_stockEntryType == 'purchase' &&
+          _selectedAccountId.isNotEmpty &&
+          _buyVal > 0 &&
+          !isReturn) {
+        final qty = double.tryParse(_stockCtrl.text) ?? 0;
+        final deductQty = _isEdit
+            ? (qty - _originalStock).clamp(0.0, double.infinity)
+            : qty;
+        if (deductQty > 0) {
+          final total = deductQty * _buyVal;
+          final today = DateTime.now();
+          final dateStr =
+              '${today.year}-${today.month.toString().padLeft(2, '0')}-'
+              '${today.day.toString().padLeft(2, '0')}';
+          await ref.read(cashRepositoryProvider).addTransaction(
+                CashTransaction(
+                  id: '',
+                  type: 'withdrawal',
+                  amount: total,
+                  fromAccountId: _selectedAccountId,
+                  description: _tr(
+                    'Purchase: $name',
+                    'Ununuzi: $name',
+                  ),
+                  date: dateStr,
+                ),
+              );
+        }
+      }
+
       if (!mounted) return;
       msg.showSnackBar(SnackBar(
         content: Text(_isEdit
@@ -2409,40 +2453,22 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     if (picked != null) setState(() => _expiryDate = picked);
   }
 
-  Future<void> _openCategoryPicker(List<ProductCategory> categories) async {
-    await showModalBottomSheet<void>(
+  Future<void> _openCategoryPicker(List<MasterCategory> categories) async {
+    final result = await showModalBottomSheet<MasterCategory?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _CategoryPickerSheet(
         categories: categories,
         selectedId: _selectedCategoryId,
-        onSelect: (cat) {
-          setState(() {
-            _selectedCategoryId   = cat.id;
-            _selectedCategoryName = cat.name;
-          });
-        },
-        onAddNew: (name) async {
-          final user = FirebaseAuth.instance.currentUser;
-          if (user == null) return;
-          final bizId = ref.read(currentBusinessIdProvider).valueOrNull ?? '';
-          if (bizId.isEmpty) return;
-          final repo = ref.read(contextFirestoreRepositoryProvider);
-          final id = await addCategory(
-            uid: user.uid,
-            bizId: bizId,
-            businessType: ref.read(currentBusinessTypeProvider).valueOrNull ?? '',
-            name: name,
-            repo: repo,
-          );
-          setState(() {
-            _selectedCategoryId   = id;
-            _selectedCategoryName = name;
-          });
-        },
       ),
     );
+    if (result != null) {
+      setState(() {
+        _selectedCategoryId   = result.id;
+        _selectedCategoryName = result.categoryName;
+      });
+    }
   }
 
   void _snack(String t) =>
@@ -2450,7 +2476,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final categoriesAsync = ref.watch(categoryListProvider);
+    final categoriesAsync = ref.watch(masterCategoriesProvider);
     final bizTypeAsync    = ref.watch(currentBusinessTypeProvider);
     final bizType = bizTypeAsync.valueOrNull ?? '';
     final config  = BusinessProductConfig.forBusinessType(bizType);
@@ -2462,7 +2488,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final marginAmt  = _margin(_buyVal, _sellVal);
     final sheetWidth = MediaQuery.sizeOf(context).width;
 
-    final categories = categoriesAsync.valueOrNull ?? const <ProductCategory>[];
+    final categories = categoriesAsync.valueOrNull ?? const <MasterCategory>[];
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -2944,6 +2970,93 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           ),
                           style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
                         ),
+
+                        // ── Stock entry type ───────────────────────────────
+                        const SizedBox(height: 20),
+                        Container(height: 1, color: AppColors.border),
+                        const SizedBox(height: 20),
+                        _FormSectionLabel(
+                          _tr('Stock origin', 'Asili ya Stoo'),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _tr(
+                            'Is this stock you already own, or a new purchase?',
+                            'Je, hii ni stoo uliyonayo tayari, au umenunua sasa?',
+                          ),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 12),
+                        _StockEntryToggle(
+                          value: _stockEntryType,
+                          onChanged: (v) => setState(() {
+                            _stockEntryType = v;
+                            if (v == 'opening') _selectedAccountId = '';
+                          }),
+                        ),
+                        if (_stockEntryType == 'purchase') ...[
+                          const SizedBox(height: 12),
+                          _AccountDropdown(
+                            selectedId: _selectedAccountId,
+                            onSelected: (id) =>
+                                setState(() => _selectedAccountId = id),
+                          ),
+                          Builder(builder: (context) {
+                            final qty =
+                                double.tryParse(_stockCtrl.text) ?? 0;
+                            final deductQty = _isEdit
+                                ? (qty - _originalStock)
+                                    .clamp(0.0, double.infinity)
+                                : qty;
+                            final total = deductQty * _buyVal;
+                            if (deductQty <= 0 || _buyVal <= 0) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.navyPrimary
+                                      .withValues(alpha: 0.06),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: AppColors.navyPrimary
+                                          .withValues(alpha: 0.15)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                        Icons.account_balance_wallet_outlined,
+                                        size: 15,
+                                        color: AppColors.navyPrimary),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _isEdit
+                                            ? _tr(
+                                                '${deductQty.toStringAsFixed(0)} new units × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} will be deducted',
+                                                'Vipande ${deductQty.toStringAsFixed(0)} vipya × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} vitakatwa',
+                                              )
+                                            : _tr(
+                                                '${deductQty.toStringAsFixed(0)} units × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} will be deducted',
+                                                'Vipande ${deductQty.toStringAsFixed(0)} × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} vitakatwa',
+                                              ),
+                                        style: GoogleFonts.dmSans(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.navyPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
                       ],
 
                       // Return: qty returned field
@@ -3182,7 +3295,7 @@ class _SellingUnitCard extends StatelessWidget {
 
 class _CategoryDropdownButton extends StatelessWidget {
   final String selectedName;
-  final List<ProductCategory> categories;
+  final List<MasterCategory> categories;
   final bool loading;
   final VoidCallback onTap;
 
@@ -3251,16 +3364,12 @@ class _CategoryDropdownButton extends StatelessWidget {
 // ── Category Picker bottom sheet ──────────────────────────────────────────────
 
 class _CategoryPickerSheet extends ConsumerStatefulWidget {
-  final List<ProductCategory> categories;
+  final List<MasterCategory> categories;
   final String selectedId;
-  final ValueChanged<ProductCategory> onSelect;
-  final Future<void> Function(String name) onAddNew;
 
   const _CategoryPickerSheet({
     required this.categories,
     required this.selectedId,
-    required this.onSelect,
-    required this.onAddNew,
   });
 
   @override
@@ -3270,9 +3379,9 @@ class _CategoryPickerSheet extends ConsumerStatefulWidget {
 class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
   final _searchCtrl = TextEditingController();
   final _newCtrl    = TextEditingController();
-  String _query = '';
-  bool _showAdd = false;
-  bool _adding  = false;
+  String _query  = '';
+  bool _showAdd  = false;
+  bool _adding   = false;
 
   @override
   void dispose() {
@@ -3281,19 +3390,33 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
     super.dispose();
   }
 
-  List<ProductCategory> get _filtered {
+  List<MasterCategory> get _filtered {
     if (_query.isEmpty) return widget.categories;
     return widget.categories
-        .where((c) => c.name.toLowerCase().contains(_query.toLowerCase()))
+        .where((c) => c.categoryName.toLowerCase().contains(_query.toLowerCase()))
         .toList();
   }
 
-  Future<void> _addCategory() async {
+  Future<void> _addCommunityCategory() async {
     final name = _newCtrl.text.trim();
     if (name.isEmpty) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
     setState(() => _adding = true);
-    await widget.onAddNew(name);
-    if (mounted) Navigator.of(context).pop();
+    try {
+      final bizType =
+          ref.read(currentBusinessTypeProvider).valueOrNull ?? 'retail';
+      final repo = ref.read(masterCatalogRepositoryProvider);
+      final newCat = await repo.addCommunityCategory(
+        businessTypeId: bizType,
+        categoryName: name,
+        addedByUid: user.uid,
+      );
+      ref.invalidate(masterCategoriesProvider);
+      if (mounted) Navigator.of(context).pop(newCat);
+    } catch (_) {
+      if (mounted) setState(() => _adding = false);
+    }
   }
 
   @override
@@ -3318,7 +3441,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 0, 4, 0),
             child: Row(
               children: [
                 Expanded(
@@ -3331,11 +3454,13 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: () => setState(() => _showAdd = !_showAdd),
+                  onPressed: () => setState(() {
+                    _showAdd = !_showAdd;
+                    if (!_showAdd) _newCtrl.clear();
+                  }),
                   icon: Icon(
                     _showAdd ? Icons.close_rounded : Icons.add_rounded,
-                    size: 18,
-                    color: AppColors.tealAccent,
+                    size: 18, color: AppColors.tealAccent,
                   ),
                   label: Text(
                     _showAdd
@@ -3351,10 +3476,9 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
             ),
           ),
 
-          // Add new category field
           if (_showAdd) ...[
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
               child: Row(
                 children: [
                   Expanded(
@@ -3369,8 +3493,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                       decoration: InputDecoration(
                         hintText: _tr('Category name', 'Jina la kategoria'),
                         hintStyle: GoogleFonts.dmSans(
-                          fontSize: 14, color: AppColors.textDisabled,
-                        ),
+                            fontSize: 14, color: AppColors.textDisabled),
                         filled: true,
                         fillColor: AppColors.surface,
                         contentPadding: const EdgeInsets.symmetric(
@@ -3381,7 +3504,8 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.border),
+                          borderSide:
+                              const BorderSide(color: AppColors.border),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -3395,13 +3519,12 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: _adding ? null : _addCategory,
+                      onPressed: _adding ? null : _addCommunityCategory,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.navyPrimary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                            borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
                       child: _adding
@@ -3412,7 +3535,8 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                             )
                           : Text(_tr('Save', 'Hifadhi'),
                               style: GoogleFonts.dmSans(
-                                  fontSize: 13, fontWeight: FontWeight.w700)),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -3464,8 +3588,8 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                         const SizedBox(height: 10),
                         Text(
                           _tr(
-                            'No categories found.\nTap "+ Add New" to create one.',
-                            'Hakuna category zilizopo.\nBonyeza "+ Ongeza Mpya" kuunda moja.',
+                            'No categories found.',
+                            'Hakuna kategoria zilizopatikana.',
                           ),
                           textAlign: TextAlign.center,
                           style: GoogleFonts.dmSans(
@@ -3505,7 +3629,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                           ),
                         ),
                         title: Text(
-                          cat.name,
+                          cat.categoryName,
                           style: GoogleFonts.dmSans(
                             fontSize: 14,
                             fontWeight: isSelected
@@ -3518,10 +3642,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                             ? const Icon(Icons.check_rounded,
                                 size: 20, color: AppColors.success)
                             : null,
-                        onTap: () {
-                          widget.onSelect(cat);
-                          Navigator.of(context).pop();
-                        },
+                        onTap: () => Navigator.of(context).pop(cat),
                       );
                     },
                   ),
@@ -3786,6 +3907,224 @@ class _ProfitStrip extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Stock Entry Type Toggle ───────────────────────────────────────────────────
+
+class _StockEntryToggle extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+  const _StockEntryToggle({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _StockToggleOption(
+            icon: Icons.inventory_2_outlined,
+            label: _tr('Stoki niliyonayo', 'Stoki niliyonayo'),
+            sub: _tr('Money not spent now', 'Pesa haikutoka sasa'),
+            selected: value == 'opening',
+            selectedColor: AppColors.tealAccent,
+            onTap: () => onChanged('opening'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StockToggleOption(
+            icon: Icons.shopping_cart_outlined,
+            label: _tr('New purchase', 'Nimenunua sasa'),
+            sub: _tr('Deduct from account', 'Toa kutoka akaunti'),
+            selected: value == 'purchase',
+            selectedColor: AppColors.navyPrimary,
+            onTap: () => onChanged('purchase'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StockToggleOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String sub;
+  final bool selected;
+  final Color selectedColor;
+  final VoidCallback onTap;
+
+  const _StockToggleOption({
+    required this.icon,
+    required this.label,
+    required this.sub,
+    required this.selected,
+    required this.selectedColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? selectedColor.withValues(alpha: 0.07)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? selectedColor : AppColors.border,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon,
+                    size: 16,
+                    color: selected ? selectedColor : AppColors.textMuted),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color:
+                          selected ? selectedColor : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  Icon(Icons.check_circle_rounded,
+                      size: 14, color: selectedColor),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              sub,
+              style: GoogleFonts.dmSans(
+                  fontSize: 10, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Account Dropdown ──────────────────────────────────────────────────────────
+
+class _AccountDropdown extends ConsumerWidget {
+  final String selectedId;
+  final ValueChanged<String> onSelected;
+  const _AccountDropdown(
+      {required this.selectedId, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accountsAsync = ref.watch(cashAccountListProvider);
+    return accountsAsync.when(
+      loading: () => const LinearProgressIndicator(
+          color: AppColors.navyPrimary, minHeight: 2),
+      error: (_, _) => Text(
+        _tr('Could not load accounts', 'Imeshindwa kupakia akaunti'),
+        style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.error),
+      ),
+      data: (accounts) {
+        if (accounts.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.warningBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: AppColors.warning.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline,
+                    size: 16, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _tr(
+                      'No accounts yet. Add one in Cash Flow first.',
+                      'Hakuna akaunti bado. Ongeza kwanza katika Mtiririko wa Fedha.',
+                    ),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 12, color: AppColors.warning),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Auto-select first account on first render
+        if (selectedId.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => onSelected(accounts.first.id),
+          );
+        }
+
+        final effectiveId =
+            selectedId.isEmpty ? accounts.first.id : selectedId;
+
+        return DropdownButtonFormField<String>(
+          key: ValueKey(effectiveId),
+          initialValue: effectiveId,
+          decoration: InputDecoration(
+            labelText: _tr('Pay from account', 'Lipa kutoka akaunti'),
+            labelStyle: GoogleFonts.dmSans(fontSize: 13),
+            prefixIcon: const Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 20),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                  color: AppColors.navyPrimary, width: 2),
+            ),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 14),
+          ),
+          items: accounts.map((a) {
+            final icon = a.type == 'Bank'
+                ? Icons.account_balance_outlined
+                : a.type == 'Mobile'
+                    ? Icons.smartphone_outlined
+                    : Icons.payments_outlined;
+            return DropdownMenuItem(
+              value: a.id,
+              child: Row(
+                children: [
+                  Icon(icon, size: 16, color: AppColors.textMuted),
+                  const SizedBox(width: 8),
+                  Text(a.name,
+                      style: GoogleFonts.dmSans(fontSize: 13)),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (v) {
+            if (v != null) onSelected(v);
+          },
+        );
+      },
     );
   }
 }

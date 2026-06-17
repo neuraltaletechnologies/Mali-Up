@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -97,6 +98,7 @@ class _TeamMemberSetupScreenState
   }
 
   Future<void> _savePin() async {
+    if (!ref.read(isOnlineProvider)) return;
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
     final err =
         OnboardingValidator.validatePin(_confirmCtrl.text, isSwahili: sw);
@@ -155,6 +157,7 @@ class _TeamMemberSetupScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
     final sw = state.isSwahili;
+    final isOnline = ref.watch(isOnlineProvider);
     final name = state.firstName.isNotEmpty ? state.firstName : state.fullName;
     final topHeight = MediaQuery.of(context).size.height * 0.35;
 
@@ -304,6 +307,7 @@ class _TeamMemberSetupScreenState
                                       pinHasError: _pinHasError,
                                       confirmHasError: _confirmHasError,
                                       isLoading: state.isLoading,
+                                      isOnline: isOnline,
                                       errorMessage: state.errorMessage,
                                       onPinChanged: (_) {
                                         if (_pinHasError) {
@@ -606,6 +610,7 @@ class _PinSetupBody extends StatelessWidget {
     required this.pinHasError,
     required this.confirmHasError,
     required this.isLoading,
+    required this.isOnline,
     required this.errorMessage,
     required this.onPinChanged,
     required this.onConfirmChanged,
@@ -624,6 +629,7 @@ class _PinSetupBody extends StatelessWidget {
   final bool pinHasError;
   final bool confirmHasError;
   final bool isLoading;
+  final bool isOnline;
   final String? errorMessage;
   final ValueChanged<String> onPinChanged;
   final ValueChanged<String> onConfirmChanged;
@@ -735,6 +741,12 @@ class _PinSetupBody extends StatelessWidget {
           OnboardingErrorBanner(message: errorMessage!),
         ],
 
+        // Show offline banner on the confirm step (where Firebase is called)
+        if (isConfirm && !isOnline) ...[
+          const SizedBox(height: 16),
+          _TeamOfflineBanner(sw: sw),
+        ],
+
         const SizedBox(height: 36),
 
         SizedBox(
@@ -755,8 +767,9 @@ class _PinSetupBody extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed:
-                isLoading ? null : (isConfirm ? onConfirmSubmit : onPinSubmit),
+            onPressed: (isLoading || (isConfirm && !isOnline))
+                ? null
+                : (isConfirm ? onConfirmSubmit : onPinSubmit),
             child: isLoading
                 ? SizedBox(
                     width: 22,
@@ -779,6 +792,46 @@ class _PinSetupBody extends StatelessWidget {
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+}
+
+// ── Offline banner ────────────────────────────────────────────────────────────
+
+class _TeamOfflineBanner extends StatelessWidget {
+  final bool sw;
+  const _TeamOfflineBanner({required this.sw});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3CD),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: const Color(0xFFFFD60A).withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.wifi_off_rounded,
+              size: 18, color: Color(0xFF856404)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              sw
+                  ? 'Hatua hii inahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
+                  : 'This step requires internet. Please connect and try again.',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF856404),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

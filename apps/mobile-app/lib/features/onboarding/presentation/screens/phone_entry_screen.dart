@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
+import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -158,6 +159,8 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   }
 
   Future<void> _submit() async {
+    final isOnline = ref.read(isOnlineProvider);
+    if (!isOnline) return; // offline banner already visible; silently ignore taps
     if (!_formKey.currentState!.validate()) return;
 
     final local = _phoneCtrl.text.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
@@ -234,6 +237,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingNotifierProvider);
     final sw = state.isSwahili;
+    final isOnline = ref.watch(isOnlineProvider);
     final mediaQuery = MediaQuery.of(context);
     final topHeight = mediaQuery.size.height * 0.35;
 
@@ -424,6 +428,12 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                               ),
                               const SizedBox(height: 24),
 
+                              // Offline banner
+                              if (!isOnline) ...[
+                                _OfflineBanner(sw: sw),
+                                const SizedBox(height: 16),
+                              ],
+
                               // Error banner
                               if (state.errorMessage != null) ...[
                                 OnboardingErrorBanner(
@@ -447,7 +457,9 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  onPressed: state.isLoading ? null : _submit,
+                                  onPressed: (state.isLoading || !isOnline)
+                                      ? null
+                                      : _submit,
                                   child: state.isLoading
                                       ? const SizedBox(
                                           width: 22,
@@ -863,6 +875,58 @@ class _CountryTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Offline banner ────────────────────────────────────────────────────────────
+
+class _OfflineBanner extends StatelessWidget {
+  final bool sw;
+  const _OfflineBanner({required this.sw});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3CD),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFD60A).withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 18, color: Color(0xFF856404)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  sw ? 'Hakuna mtandao' : 'No internet connection',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF856404),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sw
+                      ? 'Tafadhali unganisha mtandao na ujaribu tena.'
+                      : 'Please connect to the internet and try again.',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF856404),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

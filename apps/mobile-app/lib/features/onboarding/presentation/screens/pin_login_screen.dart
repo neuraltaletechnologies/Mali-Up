@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -59,6 +60,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
   }
 
   Future<void> _submit() async {
+    if (!ref.read(isOnlineProvider)) return;
     final pin = _pinCtrl.text.trim();
     final isSwahili = ref.read(onboardingNotifierProvider).isSwahili;
     final err = OnboardingValidator.validatePin(pin, isSwahili: isSwahili);
@@ -108,6 +110,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     // the RBAC providers are settling (Firestore snap in-flight).  Once both
     // isComplete and permissionsLoaded are true, the router redirects to /.
     final isLoading = state.isLoading || (state.isComplete && !permissionsLoaded);
+    final isOnline = ref.watch(isOnlineProvider);
     final sw = state.isSwahili;
     final name = state.firstName.isNotEmpty ? state.firstName : '';
     final topHeight = MediaQuery.of(context).size.height * 0.35;
@@ -321,6 +324,12 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                               const SizedBox(height: 16),
                             ],
 
+                            // Offline banner
+                            if (!isOnline) ...[
+                              _PinLoginOfflineBanner(sw: sw),
+                              const SizedBox(height: 16),
+                            ],
+
                             // CTA button
                             SizedBox(
                               width: double.infinity,
@@ -337,8 +346,9 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                onPressed:
-                                    isLoading ? null : _submit,
+                                onPressed: (isLoading || !isOnline)
+                                    ? null
+                                    : _submit,
                                 child: isLoading
                                     ? const SizedBox(
                                         width: 22,
@@ -675,6 +685,44 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PinLoginOfflineBanner extends StatelessWidget {
+  final bool sw;
+  const _PinLoginOfflineBanner({required this.sw});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3CD),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: const Color(0xFFFFD60A).withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.wifi_off_rounded,
+              size: 18, color: Color(0xFF856404)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              sw
+                  ? 'Kuingia kunahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
+                  : 'Signing in requires internet. Please connect and try again.',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF856404),
+                height: 1.4,
+              ),
+            ),
+          ),
         ],
       ),
     );
