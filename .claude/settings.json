@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"c:/SIDE/GIT/Maliapp/apps/admin/app/\\(dashboard\\)/businesses/[uid]/[bizId]\" && echo done)"
+    ],
+    "additionalDirectories": [
+      "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]"
+    ]
+  }
+}

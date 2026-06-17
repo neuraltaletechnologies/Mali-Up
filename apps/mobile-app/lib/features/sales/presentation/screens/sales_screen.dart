@@ -2126,12 +2126,34 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       // in the sales list without waiting for the next connectivity event.
       unawaited(ref.read(syncServiceProvider).syncNow());
 
+      // Build a plain data map for the receipt popup — no server timestamps,
+      // just the values we already have in memory.
+      final saleReceipt = <String, dynamic>{
+        'invoiceNumber': invoiceNumber,
+        'customerName': customerName,
+        'items': itemsData,
+        'subtotal': _subtotal,
+        'discountAmount': _discountAmt,
+        'vatAmount': _vatAmt,
+        'amount': _grandTotal,
+        'amountPaid': amountPaid,
+        if (payStatus != _PayStatus.unpaid)
+          'paymentMethod': _payMethod.firestoreKey,
+        if (mpesaRef.isNotEmpty) 'mpesaRef': mpesaRef,
+        'status': statusStr,
+        'createdAt': now,
+      };
+
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) =>
+            _SaleSuccessSheet(saleData: saleReceipt, ref: ref),
+      );
+      if (!mounted) return;
       navigator.pop();
-      messenger.showSnackBar(SnackBar(
-        content: Text(_tr('Sale recorded!', 'Mauzo yamerekodiwa!')),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ));
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
@@ -4458,4 +4480,590 @@ String _sNum(double v) {
     buf.write(s[i]);
   }
   return buf.toString();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SALE SUCCESS RECEIPT POPUP
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _SaleSuccessSheet extends StatefulWidget {
+  final Map<String, dynamic> saleData;
+  final WidgetRef ref;
+
+  const _SaleSuccessSheet({required this.saleData, required this.ref});
+
+  @override
+  State<_SaleSuccessSheet> createState() => _SaleSuccessSheetState();
+}
+
+class _SaleSuccessSheetState extends State<_SaleSuccessSheet>
+    with TickerProviderStateMixin {
+  late final AnimationController _checkCtrl;
+  late final AnimationController _contentCtrl;
+  late final AnimationController _pulseCtrl;
+
+  late final Animation<double> _checkScale;
+  late final Animation<double> _checkOpacity;
+  late final Animation<Offset> _contentSlide;
+  late final Animation<double> _contentOpacity;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _checkCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _contentCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+
+    _checkScale = CurvedAnimation(
+      parent: _checkCtrl,
+      curve: Curves.elasticOut,
+    );
+    _checkOpacity = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: _checkCtrl,
+        curve: const Interval(0, 0.4, curve: Curves.easeIn),
+      ),
+    );
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0, 0.25),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOutCubic),
+    );
+    _contentOpacity =
+        CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOut);
+
+    _checkCtrl.forward();
+    Future.delayed(const Duration(milliseconds: 380), () {
+      if (mounted) _contentCtrl.forward();
+    });
+    HapticFeedback.heavyImpact();
+  }
+
+  @override
+  void dispose() {
+    _checkCtrl.dispose();
+    _contentCtrl.dispose();
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sale = widget.saleData;
+    final amount = (sale['amount'] as num?)?.toDouble() ?? 0;
+    final amountPaid = (sale['amountPaid'] as num?)?.toDouble() ?? 0;
+    final items =
+        (sale['items'] as List?)?.whereType<Map>().toList() ?? const [];
+    final invoiceNo = (sale['invoiceNumber'] ?? '').toString();
+    final customerName =
+        (sale['customerName'] ?? _tr('Walk-in', 'Mteja wa kawaida'))
+            .toString();
+    final statusStr = (sale['status'] ?? 'paid').toString();
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 4),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Animated checkmark with pulsing rings
+                _buildCheckHero(),
+
+                const SizedBox(height: 20),
+
+                // Headline — fades + slides in slightly after the check
+                FadeTransition(
+                  opacity: _contentOpacity,
+                  child: SlideTransition(
+                    position: _contentSlide,
+                    child: Column(
+                      children: [
+                        Text(
+                          _tr('Sale Recorded!', 'Mauzo Yamerekodiwa!'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          _tr('Receipt ready to share with customer',
+                              'Risiti iko tayari kushirikiwa na mteja'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            color: AppColors.textMuted,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Receipt card
+                FadeTransition(
+                  opacity: _contentOpacity,
+                  child: SlideTransition(
+                    position: _contentSlide,
+                    child: _SuccessReceiptCard(
+                      invoiceNo: invoiceNo,
+                      customerName: customerName,
+                      amount: amount,
+                      amountPaid: amountPaid,
+                      items: items,
+                      sale: sale,
+                      statusStr: statusStr,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Action buttons
+                FadeTransition(
+                  opacity: _contentOpacity,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              await _SalesScreenState._openReceiptActions(
+                                context: context,
+                                sale: widget.saleData,
+                                ref: widget.ref,
+                              );
+                            },
+                            icon: const Icon(Icons.share_rounded, size: 18),
+                            label: Text(
+                              _tr('Share Receipt', 'Shiriki Risiti'),
+                              style: GoogleFonts.dmSans(
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              foregroundColor: AppColors.tealAccent,
+                              side: const BorderSide(
+                                  color: AppColors.tealAccent, width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: ElevatedButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              backgroundColor: AppColors.navyPrimary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: Text(
+                              _tr('Done', 'Maliza'),
+                              style: GoogleFonts.dmSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckHero() {
+    return SizedBox(
+      width: 130,
+      height: 130,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Three expanding pulse rings
+          AnimatedBuilder(
+            animation: _pulseCtrl,
+            builder: (_, child) => Stack(
+              alignment: Alignment.center,
+              children: List.generate(3, (i) {
+                final t = (_pulseCtrl.value + i / 3) % 1.0;
+                return Opacity(
+                  opacity: (1 - t) * 0.3,
+                  child: Transform.scale(
+                    scale: 0.65 + t * 0.85,
+                    child: Container(
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.success.withValues(alpha: 0.18),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          // Bouncy checkmark circle
+          ScaleTransition(
+            scale: _checkScale,
+            child: FadeTransition(
+              opacity: _checkOpacity,
+              child: Container(
+                width: 82,
+                height: 82,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.success,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x3305966A),
+                      blurRadius: 20,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 48,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Receipt card shown inside the success popup ────────────────────────────────
+
+class _SuccessReceiptCard extends StatelessWidget {
+  final String invoiceNo;
+  final String customerName;
+  final double amount;
+  final double amountPaid;
+  final List<Map> items;
+  final Map<String, dynamic> sale;
+  final String statusStr;
+
+  const _SuccessReceiptCard({
+    required this.invoiceNo,
+    required this.customerName,
+    required this.amount,
+    required this.amountPaid,
+    required this.items,
+    required this.sale,
+    required this.statusStr,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final discount = (sale['discountAmount'] as num?)?.toDouble() ?? 0;
+    final vat = (sale['vatAmount'] as num?)?.toDouble() ?? 0;
+    final outstanding = (amount - amountPaid).clamp(0.0, amount);
+    final payMethod = (sale['paymentMethod'] ?? '').toString();
+    final mpesaRef = (sale['mpesaRef'] ?? '').toString();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Dark navy header row
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: const BoxDecoration(
+              color: AppColors.navyPrimary,
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(15)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        invoiceNo,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        customerName,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 12, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+                _SuccessStatusBadge(statusStr),
+              ],
+            ),
+          ),
+
+          // Body
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Line items
+                for (final item in items)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${item['name'] ?? '-'}  ×${item['qty'] ?? 1}',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'TSh ${_sNum(((item['total'] as num?)?.toDouble() ?? 0))}',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.navyPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                if (items.isNotEmpty)
+                  const Divider(height: 16, color: AppColors.border),
+
+                if (discount > 0) ...[
+                  _SuccessTotalRow(
+                    label: _tr('Discount', 'Punguzo'),
+                    value: '-TSh ${_sNum(discount)}',
+                    valueColor: AppColors.success,
+                  ),
+                  const SizedBox(height: 5),
+                ],
+                if (vat > 0) ...[
+                  _SuccessTotalRow(
+                    label: 'VAT (18%)',
+                    value: 'TSh ${_sNum(vat)}',
+                  ),
+                  const SizedBox(height: 5),
+                ],
+
+                const Divider(height: 14, color: AppColors.border),
+
+                _SuccessTotalRow(
+                  label: _tr('TOTAL', 'JUMLA KUU'),
+                  value: 'TSh ${_sNum(amount)}',
+                  isBold: true,
+                ),
+                const SizedBox(height: 7),
+                _SuccessTotalRow(
+                  label: _tr('Paid', 'Imelipwa'),
+                  value: 'TSh ${_sNum(amountPaid)}',
+                  valueColor: AppColors.success,
+                ),
+
+                if (outstanding > 0) ...[
+                  const SizedBox(height: 5),
+                  _SuccessTotalRow(
+                    label: _tr('Balance Due', 'Baki'),
+                    value: 'TSh ${_sNum(outstanding)}',
+                    valueColor: AppColors.error,
+                  ),
+                ],
+
+                // Payment method chip
+                if (payMethod.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(_pmIcon(payMethod),
+                          size: 14, color: AppColors.textMuted),
+                      const SizedBox(width: 6),
+                      Text(
+                        _pmLabel(payMethod),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 12, color: AppColors.textMuted),
+                      ),
+                      if (mpesaRef.isNotEmpty) ...[
+                        const Text(' · ',
+                            style:
+                                TextStyle(color: AppColors.textMuted)),
+                        Text(
+                          mpesaRef,
+                          style: GoogleFonts.jetBrainsMono(
+                              fontSize: 11, color: AppColors.textMuted),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _pmIcon(String m) => switch (m) {
+        'mpesa' => Icons.phone_android_rounded,
+        'bank_transfer' => Icons.account_balance_rounded,
+        'card' => Icons.credit_card_rounded,
+        _ => Icons.payments_rounded,
+      };
+
+  String _pmLabel(String m) => switch (m) {
+        'mpesa' => 'M-Pesa',
+        'bank_transfer' => _tr('Bank Transfer', 'Uhamisho wa Benki'),
+        'card' => _tr('Card', 'Kadi'),
+        'credit' => _tr('Credit', 'Mkopo'),
+        _ => _tr('Cash', 'Taslimu'),
+      };
+}
+
+class _SuccessTotalRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+  final bool isBold;
+
+  const _SuccessTotalRow({
+    required this.label,
+    required this.value,
+    this.valueColor,
+    this.isBold = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: isBold ? 14 : 13,
+            fontWeight:
+                isBold ? FontWeight.w700 : FontWeight.w400,
+            color: isBold
+                ? AppColors.navyPrimary
+                : AppColors.textSecondary,
+          ),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: isBold ? 15 : 13,
+            fontWeight:
+                isBold ? FontWeight.w800 : FontWeight.w600,
+            color: valueColor ??
+                (isBold
+                    ? AppColors.navyPrimary
+                    : AppColors.textPrimary),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SuccessStatusBadge extends StatelessWidget {
+  final String status;
+  const _SuccessStatusBadge(this.status);
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, bg) = switch (status) {
+      'paid' => (_tr('Paid', 'Imelipwa'), AppColors.success),
+      'partial' => (_tr('Partial', 'Sehemu'), AppColors.warning),
+      'unpaid' => (_tr('Credit', 'Mkopo'), AppColors.error),
+      _ => (_tr('Sent', 'Imetumwa'), AppColors.tealAccent),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.dmSans(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
 }
