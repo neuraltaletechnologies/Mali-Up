@@ -133,165 +133,82 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen>
     final expenses = ref.watch(expensesByMonthProvider);
     final isLoading = ref.watch(expenseListProvider).isLoading;
 
-    final pendingCount =
-        expenses.where((e) => e.status == 'pending').length;
-    final withReceipt =
-        expenses.where((e) => e.receiptUrl.isNotEmpty).length;
+    final pendingCount = expenses.where((e) => e.status == 'pending').length;
+    final withReceipt = expenses.where((e) => e.receiptUrl.isNotEmpty).length;
+
+    final now = DateTime.now();
+    final canGoNext = DateTime(month.year, month.month + 1)
+        .isBefore(DateTime(now.year, now.month + 1));
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: Padding(
-        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 50),
-        child: NestedScrollView(
-          headerSliverBuilder: (_, _) => [
-            _buildSliverHeader(month, total, pendingCount, withReceipt, isLoading),
-            SliverToBoxAdapter(child: _buildTabBar()),
-          ],
-          body: TabBarView(
-            controller: _tabCtrl,
-            children: [
-              _ExpensesTab(
-                filterCat: _filterCat,
-                onFilterChanged: (c) => setState(() => _filterCat = c),
-                onTap: _openDetail,
-                onEdit: (e) => _openAdd(edit: e),
-              ),
-              const _BudgetTab(),
-              const _RecurringTab(),
-            ],
+      body: Column(
+        children: [
+          _ExpenseDarkHeader(
+            month: month,
+            total: total,
+            pendingCount: pendingCount,
+            withReceipt: withReceipt,
+            loading: isLoading,
+            onPrev: _prevMonth,
+            onNext: _nextMonth,
+            canGoNext: canGoNext,
           ),
-        ),
+          const SizedBox(height: _ExpenseDarkHeader._pillHalf + 8),
+          _buildTabBar(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabCtrl,
+              children: [
+                _ExpensesTab(
+                  filterCat: _filterCat,
+                  onFilterChanged: (c) => setState(() => _filterCat = c),
+                  onTap: _openDetail,
+                  onEdit: (e) => _openAdd(edit: e),
+                ),
+                const _BudgetTab(),
+                const _RecurringTab(),
+              ],
+            ),
+          ),
+        ],
       ),
       floatingActionButton: _tabCtrl.index == 0
-          ? FloatingActionButton(
-              onPressed: _openAdd,
-              backgroundColor: AppColors.navyPrimary,
-              child: const Icon(Icons.add_rounded, color: AppColors.yellowBrand),
+          ? Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom + 64,
+              ),
+              child: FloatingActionButton.extended(
+                onPressed: _openAdd,
+                backgroundColor: AppColors.yellowBrand,
+                foregroundColor: AppColors.navyPrimary,
+                elevation: 3,
+                icon: const Icon(Icons.receipt_long_rounded, size: 20),
+                label: Text(
+                  _tr('Add Expense', 'Ongeza Matumizi'),
+                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                ),
+              ),
             )
           : _tabCtrl.index == 2
-              ? FloatingActionButton(
-                  heroTag: 'add-recurring-fab',
-                  onPressed: () => _showAddRecurringSheet(context),
-                  backgroundColor: AppColors.navyPrimary,
-                  child: const Icon(Icons.repeat_rounded,
-                      color: AppColors.yellowBrand),
+              ? Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom + 64,
+                  ),
+                  child: FloatingActionButton.extended(
+                    heroTag: 'add-recurring-fab',
+                    onPressed: () => _showAddRecurringSheet(context),
+                    backgroundColor: AppColors.yellowBrand,
+                    foregroundColor: AppColors.navyPrimary,
+                    elevation: 3,
+                    icon: const Icon(Icons.repeat_rounded, size: 20),
+                    label: Text(
+                      _tr('Add Recurring', 'Ongeza ya Kawaida'),
+                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 )
               : null,
-    );
-  }
-
-  Widget _buildSliverHeader(DateTime month, double total, int pending,
-      int withReceipt, bool loading) {
-    final now = DateTime.now();
-    final canGoNext =
-        DateTime(month.year, month.month + 1).isBefore(DateTime(now.year, now.month + 1));
-
-    return SliverAppBar(
-      expandedHeight: 200,
-      pinned: true,
-      backgroundColor: AppColors.navyPrimary,
-      foregroundColor: Colors.white,
-      automaticallyImplyLeading: false,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.navyPrimary, AppColors.navySecondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Month navigation
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.chevron_left_rounded,
-                            color: Colors.white70),
-                        onPressed: _prevMonth,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _monthLabel(month),
-                        style: GoogleFonts.dmSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white),
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: Icon(Icons.chevron_right_rounded,
-                            color: canGoNext
-                                ? Colors.white70
-                                : Colors.white24),
-                        onPressed: canGoNext ? _nextMonth : null,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const Spacer(),
-                      Text(
-                        _tr('Expenses', 'Matumizi'),
-                        style: GoogleFonts.dmSans(
-                            fontSize: 13, color: Colors.white54),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Total spend
-                  loading
-                      ? Container(
-                          height: 36,
-                          width: 160,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        )
-                      : Text(
-                          'TZS ${_fmtNum(total)}',
-                          style: GoogleFonts.dmSerifDisplay(
-                              fontSize: 34, color: Colors.white),
-                        ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _tr('total spent this month',
-                        'jumla iliyotumika mwezi huu'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 12, color: Colors.white54),
-                  ),
-                  const Spacer(),
-                  // Mini stats row
-                  Row(
-                    children: [
-                      _MiniStat(
-                        icon: Icons.pending_actions_rounded,
-                        label: '$pending ${_tr("pending", "zinasubiri")}',
-                        color: pending > 0
-                            ? AppColors.warning
-                            : Colors.white54,
-                      ),
-                      const SizedBox(width: 16),
-                      _MiniStat(
-                        icon: Icons.receipt_rounded,
-                        label:
-                            '$withReceipt ${_tr("with receipt", "na risiti")}',
-                        color: Colors.white54,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1720,31 +1637,202 @@ class _FreqChip extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared widgets
+// Dark Header
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _MiniStat extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
+class _ExpenseDarkHeader extends StatelessWidget {
+  static const double _pillHalf = 22.0;
 
-  const _MiniStat(
-      {required this.icon, required this.label, required this.color});
+  final DateTime month;
+  final double total;
+  final int pendingCount;
+  final int withReceipt;
+  final bool loading;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final bool canGoNext;
+
+  const _ExpenseDarkHeader({
+    required this.month,
+    required this.total,
+    required this.pendingCount,
+    required this.withReceipt,
+    required this.loading,
+    required this.onPrev,
+    required this.onNext,
+    required this.canGoNext,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    final top = MediaQuery.of(context).padding.top;
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 5),
-        Text(label,
-            style: GoogleFonts.dmSans(fontSize: 12, color: color)),
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left_rounded,
+                        color: Colors.white70),
+                    onPressed: onPrev,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _monthLabel(month),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white70),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(Icons.chevron_right_rounded,
+                        color: canGoNext ? Colors.white70 : Colors.white24),
+                    onPressed: canGoNext ? onNext : null,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _tr('Expenses', 'Matumizi'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, color: Colors.white54),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              loading
+                  ? Container(
+                      height: 34,
+                      width: 160,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    )
+                  : Text(
+                      'TZS ${_fmtNum(total)}',
+                      style: GoogleFonts.dmSans(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white),
+                    ),
+              const SizedBox(height: 4),
+              Text(
+                _tr('total spent this month', 'jumla iliyotumika mwezi huu'),
+                style: GoogleFonts.dmSans(fontSize: 12, color: Colors.white54),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: -_pillHalf,
+          left: 24,
+          right: 24,
+          child: Container(
+            height: _pillHalf * 2,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(_pillHalf),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _PillStat(
+                  value: 'TZS ${_fmtShort(total)}',
+                  label: _tr('Spent', 'Imetumika'),
+                  valueColor: AppColors.error,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: '$pendingCount',
+                  label: _tr('Pending', 'Zinasubiri'),
+                  valueColor:
+                      pendingCount > 0 ? AppColors.warning : AppColors.success,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: '$withReceipt',
+                  label: _tr('Receipts', 'Risiti'),
+                  valueColor: AppColors.tealAccent,
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
+class _PillStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color valueColor;
+  const _PillStat({
+    required this.value,
+    required this.label,
+    required this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: valueColor,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 10,
+            color: AppColors.textMuted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PillDivider extends StatelessWidget {
+  const _PillDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 24, color: AppColors.border);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared widgets
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _OutlineField extends StatelessWidget {
   final TextEditingController controller;

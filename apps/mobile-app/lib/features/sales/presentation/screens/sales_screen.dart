@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
@@ -21,6 +22,8 @@ import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../customer/presentation/widgets/add_customer_dialog.dart';
 import '../../../inventory/data/inventory_providers.dart';
+import '../../../invoice/data/mappers/invoice_mapper.dart';
+import '../../../invoice/domain/models/invoice.dart';
 import '../../../invoice/presentation/providers/invoice_providers.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
@@ -1918,6 +1921,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           childCollection: 'sales_invoices');
 
       final now = DateTime.now();
+      final invoiceId = const Uuid().v4();
       final invoiceNumber =
           'INV-${now.year}${now.month.toString().padLeft(2, '0')}-${(now.millisecondsSinceEpoch % 10000).toString().padLeft(4, '0')}';
       final statusStr = payStatus == _PayStatus.paid
@@ -1951,7 +1955,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       // debt record all commit together, so a crash or permission failure
       // can never leave half-written financial records.
       final batch = FirebaseFirestore.instance.batch();
-      final invoiceDoc = invoicesRef.doc();
+      final invoiceDoc = invoicesRef.doc(invoiceId);
 
       batch.set(invoiceDoc, {
         'invoiceNumber': invoiceNumber,
@@ -2050,6 +2054,63 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
       await batch.commit();
 
+      // Write to Drift immediately so the sale appears in the list right away
+      // without waiting for the next Firestore sync pull.
+      // syncStatus='synced' because the record is already in Firestore — no
+      // push needed and no conflict will be flagged.
+      try {
+        final bizId =
+            ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+        final db = ref.read(appDatabaseProvider);
+        final invoiceItems = _items
+            .map((e) => InvoiceItem(
+                  id: '',
+                  name: e.nameCtrl.text.trim(),
+                  quantity: e.qty.toDouble(),
+                  unitPrice: e.unitPrice,
+                  total: e.lineTotal,
+                ))
+            .toList();
+        final invoiceObj = Invoice(
+          id: invoiceId,
+          customerId: _selectedCustomer?.id ?? '',
+          customerName: customerName ?? '',
+          customerPhone: _selectedCustomer?.phone ?? '',
+          invoiceNumber: invoiceNumber,
+          date: now.toIso8601String(),
+          dueDate: _dueDate?.toIso8601String() ?? '',
+          status: statusStr,
+          subtotal: _subtotal,
+          discountAmount: _discountAmt,
+          tax: _vatAmt,
+          total: _grandTotal,
+          amountPaid: amountPaid,
+          paymentMethod: payStatus != _PayStatus.unpaid
+              ? _payMethod.firestoreKey
+              : '',
+          items: invoiceItems,
+          note: notes,
+          createdAt: now.toIso8601String(),
+          updatedAt: now.toIso8601String(),
+        );
+        final nowMs = now.millisecondsSinceEpoch;
+        await db.invoiceDao.upsert(
+          InvoiceMapper.toCompanion(
+            invoiceObj,
+            businessId: bizId,
+            syncStatus: 'synced',
+            localVersion: 1,
+            createdAtMs: nowMs,
+          ),
+        );
+        await db.invoiceDao.replaceItems(
+          invoiceId,
+          InvoiceMapper.toItemCompanions(invoiceItems, invoiceId),
+        );
+      } catch (_) {
+        // Drift write is best-effort — syncNow() below is the fallback
+      }
+
       SentryMetricsService.salesCreated(
         amount: _grandTotal,
         status: statusStr,
@@ -2111,13 +2172,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildCustomerSection(),
-                    const SizedBox(height: 16),
                     _buildItemsSection(),
                     const SizedBox(height: 16),
                     _buildTotalsSection(),
                     const SizedBox(height: 16),
                     _buildPaymentSection(),
+                    const SizedBox(height: 16),
+                    _buildCustomerSection(),
                     if (_payStatus != _PayStatus.paid) ...[
                       const SizedBox(height: 12),
                       _buildDueDateRow(),

@@ -233,6 +233,58 @@ class MasterCatalogRepository {
     }
   }
 
+  // ── Community contributions ────────────────────────────────────────────────
+
+  /// Writes a user-contributed category to the shared [master_categories]
+  /// collection (source = 'community') and upserts it into the local cache
+  /// so it appears immediately without waiting for the next TTL refresh.
+  Future<MasterCategory> addCommunityCategory({
+    required String businessTypeId,
+    required String categoryName,
+    required String addedByUid,
+  }) async {
+    final trimmed = categoryName.trim();
+    final slug = _slugify(trimmed);
+    final id = '${slug}_${businessTypeId}_community';
+
+    await _firestore.collection('master_categories').doc(id).set({
+      'businessTypeId': businessTypeId,
+      'categoryName': trimmed,
+      'description': '',
+      'icon': '',
+      'isActive': true,
+      'source': 'community',
+      'addedByUid': addedByUid,
+      'addedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _db.masterCatalogDao.upsertCategories([
+      MasterCategoriesTableCompanion(
+        id: Value(id),
+        businessTypeId: Value(businessTypeId),
+        categoryName: Value(trimmed),
+        description: const Value(''),
+        icon: const Value(''),
+        isActive: const Value(1),
+        cachedAt: Value(now),
+      ),
+    ]);
+
+    return MasterCategory(
+      id: id,
+      businessTypeId: businessTypeId,
+      categoryName: trimmed,
+    );
+  }
+
+  String _slugify(String s) => s
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+      .replaceAll(RegExp(r'_+'), '_')
+      .replaceAll(RegExp(r'^_|_$'), '');
+
   // ── Mapping ────────────────────────────────────────────────────────────────
 
   MasterProduct _rowToProduct(MasterProductsTableData r) {

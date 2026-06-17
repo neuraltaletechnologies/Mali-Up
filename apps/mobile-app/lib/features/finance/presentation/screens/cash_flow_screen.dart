@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -52,10 +53,9 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
     return Scaffold(
       body: Column(
         children: [
-          // Header with tab bar
-          _CashFlowHeader(tabController: _tabController),
-
-          // Tab content
+          const _CashFlowDarkHeader(),
+          const SizedBox(height: _CashFlowDarkHeader._pillHalf + 8),
+          _CashFlowTabBar(tabController: _tabController),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -73,99 +73,206 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
   }
 }
 
-// ── Header ────────────────────────────────────────────────────────────────────
+// ── Dark Header ───────────────────────────────────────────────────────────────
 
-class _CashFlowHeader extends ConsumerWidget {
-  final TabController tabController;
-  const _CashFlowHeader({required this.tabController});
+class _CashFlowDarkHeader extends ConsumerWidget {
+  static const double _pillHalf = 22.0;
+
+  const _CashFlowDarkHeader();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final totalPosition = ref.watch(totalCashPositionProvider);
+    final top = MediaQuery.of(context).padding.top;
+    final total = ref.watch(totalCashPositionProvider);
+    final inflow = ref.watch(monthlyInflowProvider);
+    final outflow = ref.watch(monthlyOutflowProvider);
 
-    return Container(
-      color: AppColors.secondary,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 62, 12, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _tr('Cash Position', 'Hali ya Fedha'),
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _fmtAmt(totalPosition),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Colors.white70),
-                    onSelected: (v) {
-                      if (v == 'add_account') {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => const AddAccountDialog(),
-                        );
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'add_account',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.add_card_outlined, size: 18),
-                            const SizedBox(width: 8),
-                            Text(_tr('Add Account', 'Ongeza Akaunti')),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
             ),
-            const SizedBox(height: 12),
-            TabBar(
-              controller: tabController,
-              indicatorColor: AppColors.primary,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white54,
-              indicatorWeight: 3,
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+          ),
+          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 24),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _tr('Cash Flow', 'Mtiririko wa Fedha'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _fmtAmt(total),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white60,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              tabs: [
-                Tab(text: _tr('Overview', 'Muhtasari')),
-                Tab(text: _tr('Transactions', 'Miamala')),
-                Tab(text: _tr('Statement', 'Taarifa')),
+              GestureDetector(
+                onTap: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const AddAccountDialog(),
+                ),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.add_card_outlined,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: -_pillHalf,
+          left: 24,
+          right: 24,
+          child: Container(
+            height: _pillHalf * 2,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(_pillHalf),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
-          ],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _PillStat(
+                  value: _fmtCompact(inflow),
+                  label: _tr('Inflow', 'Mapato'),
+                  valueColor: AppColors.success,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: _fmtCompact(outflow),
+                  label: _tr('Outflow', 'Matumizi'),
+                  valueColor: AppColors.error,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: _fmtCompact(total),
+                  label: _tr('Position', 'Hali'),
+                  valueColor: AppColors.tealAccent,
+                ),
+              ],
+            ),
+          ),
         ),
+      ],
+    );
+  }
+}
+
+// ── Tab Bar ───────────────────────────────────────────────────────────────────
+
+class _CashFlowTabBar extends StatelessWidget {
+  final TabController tabController;
+  const _CashFlowTabBar({required this.tabController});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          TabBar(
+            controller: tabController,
+            labelStyle: GoogleFonts.dmSans(
+                fontSize: 13, fontWeight: FontWeight.w700),
+            unselectedLabelStyle: GoogleFonts.dmSans(
+                fontSize: 13, fontWeight: FontWeight.w500),
+            labelColor: AppColors.navyPrimary,
+            unselectedLabelColor: AppColors.textMuted,
+            indicatorColor: AppColors.navyPrimary,
+            indicatorWeight: 2.5,
+            tabs: [
+              Tab(text: _tr('Overview', 'Muhtasari')),
+              Tab(text: _tr('Transactions', 'Miamala')),
+              Tab(text: _tr('Statement', 'Taarifa')),
+            ],
+          ),
+          const Divider(height: 1, color: AppColors.border),
+        ],
       ),
     );
+  }
+}
+
+// ── Pill widgets ──────────────────────────────────────────────────────────────
+
+class _PillStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color valueColor;
+  const _PillStat({
+    required this.value,
+    required this.label,
+    required this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: valueColor,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 10,
+            color: AppColors.textMuted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PillDivider extends StatelessWidget {
+  const _PillDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 24, color: AppColors.border);
   }
 }
 
@@ -174,15 +281,26 @@ class _CashFlowHeader extends ConsumerWidget {
 class _CashFlowFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () => showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => const AddTransactionDialog(),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom + 64,
       ),
-      backgroundColor: AppColors.primary,
-      child: const Icon(Icons.add, color: AppColors.secondary),
+      child: FloatingActionButton.extended(
+        onPressed: () => showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => const AddTransactionDialog(),
+        ),
+        backgroundColor: AppColors.yellowBrand,
+        foregroundColor: AppColors.navyPrimary,
+        elevation: 3,
+        icon: const Icon(Icons.swap_horiz_rounded, size: 20),
+        label: Text(
+          _tr('Add Transaction', 'Ongeza Muamala'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        ),
+      ),
     );
   }
 }

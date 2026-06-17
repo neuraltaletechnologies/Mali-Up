@@ -88,52 +88,27 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
   Widget build(BuildContext context) {
     final totalRec = ref.watch(totalReceivablesProvider);
     final totalPay = ref.watch(totalPayablesProvider);
-    final isLoading = ref.watch(debtListProvider).isLoading;
 
     return Scaffold(
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverAppBar(
-            expandedHeight: 220,
-            pinned: true,
-            backgroundColor: AppColors.navyPrimary,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            automaticallyImplyLeading: false,
-            flexibleSpace: FlexibleSpaceBar(
-              collapseMode: CollapseMode.pin,
-              background: _HeroHeader(
-                totalReceivables: totalRec,
-                totalPayables: totalPay,
-                isLoading: isLoading,
-              ),
-            ),
-            bottom: TabBar(
+      body: Column(
+        children: [
+          _DebtDarkHeader(
+            totalReceivables: totalRec,
+            totalPayables: totalPay,
+          ),
+          const SizedBox(height: _DebtDarkHeader._pillHalf + 8),
+          _DebtTabBar(tabController: _tabCtrl),
+          Expanded(
+            child: TabBarView(
               controller: _tabCtrl,
-              indicatorColor: AppColors.yellowBrand,
-              indicatorWeight: 3,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white60,
-              labelStyle: GoogleFonts.dmSans(
-                  fontSize: 13, fontWeight: FontWeight.w700),
-              unselectedLabelStyle:
-                  GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w500),
-              tabs: [
-                Tab(text: _tr('Receivables', 'Wadai')),
-                Tab(text: _tr('Payables', 'Madeni')),
-                Tab(text: _tr('Aging', 'Uchambuzi')),
+              children: [
+                _ReceivablesTab(onTap: _openDetail),
+                _PayablesTab(onTap: _openDetail),
+                const _AgingTab(),
               ],
             ),
           ),
         ],
-        body: TabBarView(
-          controller: _tabCtrl,
-          children: [
-            _ReceivablesTab(onTap: _openDetail),
-            _PayablesTab(onTap: _openDetail),
-            const _AgingTab(),
-          ],
-        ),
       ),
       floatingActionButton: _tabCtrl.index == 2
           ? null
@@ -141,8 +116,7 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
               padding: EdgeInsets.only(
                   bottom: MediaQuery.of(context).padding.bottom + 64),
               child: FloatingActionButton.extended(
-                onPressed: () =>
-                    _openAdd(isReceivable: _tabCtrl.index == 0),
+                onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
                 backgroundColor: AppColors.yellowBrand,
                 foregroundColor: AppColors.navyPrimary,
                 icon: const Icon(Icons.add_rounded),
@@ -158,149 +132,201 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
   }
 }
 
-// ── Hero Header ───────────────────────────────────────────────────────────────
+// ── Dark Header ───────────────────────────────────────────────────────────────
 
-class _HeroHeader extends StatelessWidget {
+class _DebtDarkHeader extends StatelessWidget {
+  static const double _pillHalf = 22.0;
+
   final double totalReceivables;
   final double totalPayables;
-  final bool isLoading;
 
-  const _HeroHeader({
+  const _DebtDarkHeader({
     required this.totalReceivables,
     required this.totalPayables,
-    required this.isLoading,
   });
 
   @override
   Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
     final net = totalReceivables - totalPayables;
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.navyPrimary,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 56, 20, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _tr('Debt Tracker', 'Ufuatiliaji wa Madeni'),
-            style: GoogleFonts.dmSans(
-              color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.6,
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
             ),
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              children: [
-                Row(
+          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 24),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: _HeroStat(
-                        label: _tr('Owed to You', 'Unachodai'),
-                        value: isLoading ? '—' : _fmtAmt(totalReceivables),
-                        color: AppColors.success,
-                        icon: Icons.arrow_downward_rounded,
+                    Text(
+                      _tr('Debt Tracker', 'Ufuatiliaji wa Madeni'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                       ),
                     ),
-                    Container(
-                        width: 1,
-                        height: 40,
-                        color: Colors.white.withValues(alpha: 0.15)),
-                    Expanded(
-                      child: _HeroStat(
-                        label: _tr('You Owe', 'Unadaiwa'),
-                        value: isLoading ? '—' : _fmtAmt(totalPayables),
-                        color: AppColors.error,
-                        icon: Icons.arrow_upward_rounded,
-                      ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(
+                          net >= 0
+                              ? Icons.trending_up_rounded
+                              : Icons.trending_down_rounded,
+                          color: net >= 0 ? AppColors.success : AppColors.error,
+                          size: 12,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_fmtAmt(net.abs())} ${net >= 0 ? _tr('in your favour', 'unafaidi') : _tr('against you', 'dhidi yako')}',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white60,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      net >= 0
-                          ? Icons.trending_up_rounded
-                          : Icons.trending_down_rounded,
-                      color: net >= 0 ? AppColors.success : AppColors.error,
-                      size: 13,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '${_tr('Net', 'Net')}: ${isLoading ? '—' : _fmtAmt(net.abs())} '
-                      '${net >= 0 ? _tr('in your favour', 'unafaidi') : _tr('against you', 'dhidi yako')}',
-                      style: GoogleFonts.dmSans(
-                        color: Colors.white60,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: -_pillHalf,
+          left: 24,
+          right: 24,
+          child: Container(
+            height: _pillHalf * 2,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(_pillHalf),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _PillStat(
+                  value: _fmtAmt(totalReceivables),
+                  label: _tr('Owed to You', 'Unachodai'),
+                  valueColor: AppColors.success,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: _fmtAmt(totalPayables),
+                  label: _tr('You Owe', 'Unadaiwa'),
+                  valueColor: AppColors.error,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: _fmtAmt(net.abs()),
+                  label: _tr('Net', 'Net'),
+                  valueColor: net >= 0 ? AppColors.success : AppColors.error,
                 ),
               ],
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Tab Bar ───────────────────────────────────────────────────────────────────
+
+class _DebtTabBar extends StatelessWidget {
+  final TabController tabController;
+  const _DebtTabBar({required this.tabController});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          TabBar(
+            controller: tabController,
+            labelStyle:
+                GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700),
+            unselectedLabelStyle:
+                GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w500),
+            labelColor: AppColors.navyPrimary,
+            unselectedLabelColor: AppColors.textMuted,
+            indicatorColor: AppColors.navyPrimary,
+            indicatorWeight: 2.5,
+            tabs: [
+              Tab(text: _tr('Receivables', 'Wadai')),
+              Tab(text: _tr('Payables', 'Madeni')),
+              Tab(text: _tr('Aging', 'Uchambuzi')),
+            ],
+          ),
+          const Divider(height: 1, color: AppColors.border),
         ],
       ),
     );
   }
 }
 
-class _HeroStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
+// ── Pill widgets ──────────────────────────────────────────────────────────────
 
-  const _HeroStat({
-    required this.label,
+class _PillStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color valueColor;
+  const _PillStat({
     required this.value,
-    required this.color,
-    required this.icon,
+    required this.label,
+    required this.valueColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 14),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: GoogleFonts.dmSans(
-                  color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
         Text(
           value,
-          style: GoogleFonts.jetBrainsMono(
-            color: Colors.white,
-            fontSize: 18,
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
             fontWeight: FontWeight.w700,
+            color: valueColor,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 10,
+            color: AppColors.textMuted,
           ),
         ),
       ],
     );
+  }
+}
+
+class _PillDivider extends StatelessWidget {
+  const _PillDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 24, color: AppColors.border);
   }
 }
 
@@ -332,7 +358,7 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 64, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
             child: _AgingFilterPills(
               selected: _filterBucket,
               onSelect: (b) => setState(() =>
