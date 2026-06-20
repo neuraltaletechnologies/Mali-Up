@@ -632,7 +632,14 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     ref.watch(syncServiceProvider); // starts SyncService (local→Firestore push) when uid + bizId are ready
     final syncState = ref.watch(syncStateProvider);
     final isOnline = syncState == SyncState.idle || syncState == SyncState.syncing;
-    final ps = ref.watch(permissionServiceProvider);
+    final permissionsLoaded = ref.watch(permissionsLoadedProvider);
+    // Use owner-equivalent permissions while loading to avoid a flash of the
+    // one-icon nav bar on first login (no role cache yet on the device).
+    // The router already blocks navigation to restricted routes until
+    // permissions are settled, so this optimistic grant is safe.
+    final ps = permissionsLoaded
+        ? ref.watch(permissionServiceProvider)
+        : PermissionService.owner();
     final memberAsync = ref.watch(currentMemberProvider);
     final member = memberAsync.valueOrNull;
 
