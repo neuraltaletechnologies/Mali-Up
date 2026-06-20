@@ -6,15 +6,16 @@ import { StatusDot } from '@/components/ui/status-dot'
 import { MRRTrendChart } from '@/components/charts/mrr-trend-chart'
 import { TierDonut } from '@/components/charts/tier-donut'
 import { Skeleton } from '@/components/ui/skeleton'
-import { mockServices } from '@/lib/mock-data'
-import { fetchAnalytics } from '@/lib/admin-api'
+import { fetchAnalytics, fetchSystemHealth } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatTZSCompact, timeAgo } from '@/lib/format'
 import { Building2, Users, DollarSign, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { useCallback } from 'react'
 
 export default function DashboardPage() {
-  const { data, loading, error } = useAdminFetch(() => fetchAnalytics())
+  const { data, loading, error } = useAdminFetch(useCallback(() => fetchAnalytics(), []))
+  const { data: healthData } = useAdminFetch(useCallback(() => fetchSystemHealth(), []))
 
   if (loading) {
     return (
@@ -118,7 +119,7 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="flex flex-col divide-y divide-[var(--line)]">
-            {mockServices.slice(0, 6).map((svc) => (
+            {(healthData?.services ?? []).slice(0, 6).map((svc) => (
               <div key={svc.name} className="flex items-center justify-between py-2">
                 <StatusDot
                   status={svc.status === 'healthy' ? 'good' : svc.status === 'degraded' ? 'warn' : 'bad'}
@@ -130,6 +131,9 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
+            {!healthData && (
+              <p className="py-4 text-center text-[12px] text-[var(--ink-faint)]">Loading service status…</p>
+            )}
           </div>
         </div>
 
