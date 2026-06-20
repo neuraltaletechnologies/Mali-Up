@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -1177,8 +1177,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
   @override
   Widget build(BuildContext context) {
-    final size       = MediaQuery.sizeOf(context);
-    final topHeight  = size.height * 0.35;
+    final size = MediaQuery.sizeOf(context);
 
     final headingStyle = GoogleFonts.poppins(
       fontSize: 26,
@@ -1194,221 +1193,169 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       fontWeight: FontWeight.w400,
     );
 
-    return SizedBox.expand(
-      child: Stack(
-        children: [
-          // ── Header image ─────────────────────────────────────────────
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: topHeight,
-            child: ClipRect(
-              child: Image.asset(
-                'assets/Picture/sign_up.png',
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-              ),
-            ),
-          ),
-
-          // ── Draggable content sheet ───────────────────────────────────
-          DraggableScrollableSheet(
-            initialChildSize: 0.68,
-            minChildSize: 0.68,
-            maxChildSize: 0.96,
-            builder: (context, scrollController) {
-              return Container(
-                clipBehavior: Clip.hardEdge,
-                decoration: const BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 20,
-                      offset: Offset(0, -5),
-                    ),
-                  ],
-                ),
-                child: NotificationListener<OverscrollIndicatorNotification>(
-                  onNotification: (overscroll) {
-                    overscroll.disallowIndicator();
-                    return true;
-                  },
-                  child: FadeTransition(
-                    opacity: _fade,
-                    child: SlideTransition(
-                      position: _slide,
-                      child: Form(
-                        key: _formKey,
-                        child: SingleChildScrollView(
-                          controller: scrollController,
-                          physics: const ClampingScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Handle bar
-                              Center(
-                                child: Container(
-                                  width: 40,
-                                  height: 4,
-                                  margin: const EdgeInsets.only(bottom: 20),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.border,
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                              ),
-
-                              // Title
-                              Center(
-                                child: Text(
-                                  _tr('Add Team Member', 'Ongeza Mwanachama'),
-                                  textAlign: TextAlign.center,
-                                  style: headingStyle,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Center(
-                                child: Text(
-                                  _tr(
-                                    'Invite someone to join your business team.',
-                                    'Mkaribishe mtu kujiunga na timu yako ya biashara.',
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  style: subtitleStyle,
-                                ),
-                              ),
-                              const SizedBox(height: 28),
-
-                              // ── Member details ──────────────────────────
-                              _sectionLabel(
-                                  _tr('Member Details', 'Maelezo ya Mwanachama')),
-                              const SizedBox(height: 8),
-
-                              OnboardingField(
-                                controller: _nameCtrl,
-                                label: _tr('Full Name *', 'Jina Kamili *'),
-                                hint: _tr('Enter full name', 'Ingiza jina kamili'),
-                                autofocus: true,
-                                prefix: const Icon(Icons.person_outline_rounded,
-                                    size: 18, color: AppColors.textMuted),
-                                validator: (v) =>
-                                    (v == null || v.trim().isEmpty)
-                                        ? _tr('Name is required.',
-                                            'Jina linahitajika.')
-                                        : null,
-                              ),
-                              const SizedBox(height: 16),
-
-                              OnboardingField(
-                                controller: _emailCtrl,
-                                label: _tr('Email (optional)', 'Barua pepe (hiari)'),
-                                hint: _tr('you@example.com', 'jina@mfano.com'),
-                                keyboardType: TextInputType.emailAddress,
-                                prefix: const Icon(Icons.alternate_email_rounded,
-                                    size: 18, color: AppColors.textMuted),
-                              ),
-                              const SizedBox(height: 16),
-
-                              OnboardingField(
-                                controller: _phoneCtrl,
-                                label: _tr('Phone (optional)', 'Simu (hiari)'),
-                                hint: '+255 700 000 000',
-                                keyboardType: TextInputType.phone,
-                                prefix: const Icon(Icons.phone_outlined,
-                                    size: 18, color: AppColors.textMuted),
-                              ),
-                              const SizedBox(height: 24),
-
-                              // ── Role ─────────────────────────────────────
-                              _sectionLabel(_tr('Role', 'Jukumu')),
-                              const SizedBox(height: 10),
-                              ...TeamRole.values.map((r) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: _RoleCard(
-                                      role: r,
-                                      selected: _selectedRole == r,
-                                      onTap: () => _onRoleChanged(r),
-                                    ),
-                                  )),
-                              const SizedBox(height: 16),
-
-                              // ── Permissions ───────────────────────────────
-                              if (_selectedRole == TeamRole.custom) ...[
-                                _sectionLabel(_tr('Permissions', 'Ruhusa')),
-                                const SizedBox(height: 10),
-                                _PermissionEditor(
-                                  perms: _customPerms,
-                                  onChanged: (p) =>
-                                      setState(() => _customPerms = p),
-                                ),
-                                const SizedBox(height: 16),
-                              ] else ...[
-                                _PermissionSummary(role: _selectedRole),
-                                const SizedBox(height: 16),
-                              ],
-
-                              // ── Notes ─────────────────────────────────────
-                              OnboardingField(
-                                controller: _notesCtrl,
-                                label:
-                                    _tr('Notes (optional)', 'Maelezo (hiari)'),
-                                hint: _tr(
-                                    'Any extra info...', 'Maelezo ya ziada...'),
-                                prefix: const Icon(Icons.notes_outlined,
-                                    size: 18, color: AppColors.textMuted),
-                              ),
-                              const SizedBox(height: 28),
-
-                              // ── Save button ───────────────────────────────
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: ElevatedButton(
-                                  onPressed: _isSaving ? null : _save,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.navyPrimary,
-                                    elevation: 4,
-                                    shadowColor: AppColors.primary
-                                        .withValues(alpha: 0.3),
-                                    minimumSize: const Size.fromHeight(52),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: _isSaving
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2.5,
-                                              color: AppColors.navyPrimary))
-                                      : Text(
-                                          _tr('Add to Team',
-                                              'Ongeza kwenye Timu'),
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                ),
-                              ),
-                            ],
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: size.height * 0.92),
+      child: Material(
+        color: AppColors.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: FadeTransition(
+          opacity: _fade,
+          child: SlideTransition(
+            position: _slide,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  _handle(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title
+                          Center(
+                            child: Text(
+                              _tr('Add Team Member', 'Ongeza Mwanachama'),
+                              textAlign: TextAlign.center,
+                              style: headingStyle,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Text(
+                              _tr(
+                                'Invite someone to join your business team.',
+                                'Mkaribishe mtu kujiunga na timu yako ya biashara.',
+                              ),
+                              textAlign: TextAlign.center,
+                              style: subtitleStyle,
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+
+                          // ── Member details ──────────────────────────
+                          _sectionLabel(
+                              _tr('Member Details', 'Maelezo ya Mwanachama')),
+                          const SizedBox(height: 8),
+
+                          OnboardingField(
+                            controller: _nameCtrl,
+                            label: _tr('Full Name *', 'Jina Kamili *'),
+                            hint: _tr('Enter full name', 'Ingiza jina kamili'),
+                            autofocus: true,
+                            prefix: const Icon(Icons.person_outline_rounded,
+                                size: 18, color: AppColors.textMuted),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty)
+                                    ? _tr('Name is required.',
+                                        'Jina linahitajika.')
+                                    : null,
+                          ),
+                          const SizedBox(height: 16),
+
+                          OnboardingField(
+                            controller: _emailCtrl,
+                            label: _tr('Email (optional)', 'Barua pepe (hiari)'),
+                            hint: _tr('you@example.com', 'jina@mfano.com'),
+                            keyboardType: TextInputType.emailAddress,
+                            prefix: const Icon(Icons.alternate_email_rounded,
+                                size: 18, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: 16),
+
+                          OnboardingField(
+                            controller: _phoneCtrl,
+                            label: _tr('Phone (optional)', 'Simu (hiari)'),
+                            hint: '+255 700 000 000',
+                            keyboardType: TextInputType.phone,
+                            prefix: const Icon(Icons.phone_outlined,
+                                size: 18, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ── Role ─────────────────────────────────────
+                          _sectionLabel(_tr('Role', 'Jukumu')),
+                          const SizedBox(height: 10),
+                          ...TeamRole.values.map((r) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _RoleCard(
+                                  role: r,
+                                  selected: _selectedRole == r,
+                                  onTap: () => _onRoleChanged(r),
+                                ),
+                              )),
+                          const SizedBox(height: 16),
+
+                          // ── Permissions ───────────────────────────────
+                          if (_selectedRole == TeamRole.custom) ...[
+                            _sectionLabel(_tr('Permissions', 'Ruhusa')),
+                            const SizedBox(height: 10),
+                            _PermissionEditor(
+                              perms: _customPerms,
+                              onChanged: (p) =>
+                                  setState(() => _customPerms = p),
+                            ),
+                            const SizedBox(height: 16),
+                          ] else ...[
+                            _PermissionSummary(role: _selectedRole),
+                            const SizedBox(height: 16),
+                          ],
+
+                          // ── Notes ─────────────────────────────────────
+                          OnboardingField(
+                            controller: _notesCtrl,
+                            label: _tr('Notes (optional)', 'Maelezo (hiari)'),
+                            hint: _tr(
+                                'Any extra info...', 'Maelezo ya ziada...'),
+                            prefix: const Icon(Icons.notes_outlined,
+                                size: 18, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(height: 28),
+
+                          // ── Save button ───────────────────────────────
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: _isSaving ? null : _save,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: AppColors.navyPrimary,
+                                elevation: 4,
+                                shadowColor:
+                                    AppColors.primary.withValues(alpha: 0.3),
+                                minimumSize: const Size.fromHeight(52),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: _isSaving
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: AppColors.navyPrimary))
+                                  : Text(
+                                      _tr('Add to Team', 'Ongeza kwenye Timu'),
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                ],
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

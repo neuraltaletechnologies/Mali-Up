@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -765,7 +765,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                     ),
                                   );
                                   if (confirmed == true) {
-                                    if (mounted) Navigator.of(context).pop();
+                                    if (dlgCtx.mounted) Navigator.of(dlgCtx).pop(false);
                                     await _deleteBusiness(profile, business);
                                   }
                                 },

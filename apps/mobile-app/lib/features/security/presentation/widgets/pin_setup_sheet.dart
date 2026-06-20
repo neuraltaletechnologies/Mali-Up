@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/security_service.dart';

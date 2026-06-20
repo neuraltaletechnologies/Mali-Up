@@ -321,6 +321,9 @@ service cloud.firestore {
         allow read, create, update, delete: if isSignedIn() && isBusinessOwner(bizId);
         // Active worker reads their own record.
         allow read: if isSignedIn() && resource.data.workerUid == request.auth.uid;
+        // Phone lookup during login: collectionGroup query needs an explicit list
+        // rule because Firestore can't evaluate resource.data in query context.
+        allow list: if isSignedIn() && isLimitedLookup();
         // Worker accepts invite: stamps their UID + activates.
         allow update: if isSignedIn() &&
           request.resource.data.diff(resource.data).affectedKeys()

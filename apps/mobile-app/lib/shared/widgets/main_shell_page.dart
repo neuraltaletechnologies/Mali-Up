@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -663,7 +663,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
 
         return Scaffold(
           extendBodyBehindAppBar: true,
-          extendBody: true,
           drawerScrimColor: Colors.transparent,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(kToolbarHeight),
