@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/services/onboarding_service.dart';
 import '../domain/models/onboarding_state.dart';
 import '../domain/models/user_lookup_result.dart';
 import '../../../core/services/localization_service.dart';
+import '../../rbac/data/role_cache_service.dart';
 
 export '../data/services/onboarding_service.dart' show OnboardingDraft;
 
@@ -194,6 +196,18 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
             businessId: r.businessId,
             currentStep: OnboardingStep.pinLogin,
             isLoading: false,
+          );
+          // Pre-warm the role cache so that when loginWithPin fires
+          // Firebase Auth's authStateChanges, userProfileStreamProvider
+          // gets an immediate cache hit and permissionsLoaded settles
+          // synchronously — preventing the shell from mounting with
+          // PermissionService.denied() on a device with no prior cache.
+          unawaited(
+            RoleCacheService.save(r.userId, {'isTeamMember': false}).catchError(
+              (Object e) {
+                if (kDebugMode) debugPrint('[Onboarding] role cache pre-warm failed: $e');
+              },
+            ),
           );
 
         case final TeamMemberPending t:
