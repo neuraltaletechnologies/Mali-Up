@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -111,7 +111,6 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useSafeArea: true,
       builder: (_) => _CustomerFilterSheet(
         currentSort: _sort,
         currentSegment: _segment,
@@ -202,7 +201,6 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const AddCustomerDialog(),
     );
@@ -874,7 +872,6 @@ class _CustomerCard extends ConsumerWidget {
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                useSafeArea: true,
                 builder: (_) => _EditCustomerSheet(customer: customer),
               );
             }
@@ -926,7 +923,6 @@ class _CustomerCard extends ConsumerWidget {
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
-            useSafeArea: true,
             builder: (_) => _CustomerInfoSheet(
               customer: customer,
               showFinancials: showFinancials,
@@ -1779,7 +1775,6 @@ class _CustomerInfoSheet extends ConsumerWidget {
                               context: context,
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
-                              useSafeArea: true,
                               builder: (_) =>
                                   _EditCustomerSheet(customer: live),
                             );

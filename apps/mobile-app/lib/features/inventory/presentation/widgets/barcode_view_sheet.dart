@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -27,7 +27,6 @@ class BarcodeViewSheet extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useSafeArea: true,
       builder: (_) => BarcodeViewSheet(
         productName: productName,
         sku: sku,

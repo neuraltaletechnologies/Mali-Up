@@ -17,6 +17,7 @@ import '../features/onboarding/presentation/screens/onboarding_success_screen.da
 import '../features/onboarding/providers/onboarding_notifier.dart';
 import '../features/onboarding/domain/models/onboarding_state.dart';
 import '../shared/widgets/main_shell_page.dart';
+import '../shared/widgets/app_sheet.dart';
 
 // Deferred imports — loaded on first navigation to avoid bundling everything upfront.
 import '../features/onboarding/presentation/screens/language_selection_screen.dart'
@@ -148,6 +149,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     initialLocation: AppRoutes.splash,
     redirect: notifier._redirect,
+    observers: [AppSheetObserver()],
     routes: _buildRoutes(),
   );
 });

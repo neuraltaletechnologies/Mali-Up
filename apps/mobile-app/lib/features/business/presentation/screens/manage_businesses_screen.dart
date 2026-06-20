@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -350,7 +350,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
     final result = await showModalBottomSheet<bool>(
       context: context,
-      useSafeArea: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
@@ -826,16 +825,21 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                             existingLogoUrl: existingLogoUrl,
                                           );
                                           if (!mounted) return;
-                                          // On success: pop directly — calling setS
-                                          // before pop schedules a rebuild on an
-                                          // element that is simultaneously being
-                                          // deactivated, triggering the
-                                          // _dependents.isEmpty assertion.
-                                          // On failure: reset so the user can retry.
+                                          // Delay the pop by one post-frame callback.
+                                          // The Firestore write triggers a Riverpod
+                                          // provider cascade (currentBusinessIdProvider
+                                          // → syncServiceProvider → MainShellPage)
+                                          // that schedules widget rebuilds. If the pop
+                                          // starts in the same frame those rebuilds are
+                                          // processed, an InheritedElement is deactivated
+                                          // while the sheet's elements are still
+                                          // registered as dependents → _dependents.isEmpty
+                                          // assertion. Deferring to the next frame lets
+                                          // those rebuilds flush cleanly first.
                                           if (saved) {
-                                            if (dlgCtx.mounted) {
-                                              Navigator.of(dlgCtx).pop(true);
-                                            }
+                                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                                              if (dlgCtx.mounted) Navigator.of(dlgCtx).pop(true);
+                                            });
                                           } else if (dlgCtx.mounted) {
                                             setS(() => localSaving = false);
                                           }

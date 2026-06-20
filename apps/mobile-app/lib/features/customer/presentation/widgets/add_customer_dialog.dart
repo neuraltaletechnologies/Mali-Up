@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -139,45 +139,6 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Header ──────────────────────────────────────────────
-                    Row(
-                      children: [
-                        Container(
-                          width: 44, height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.navyPrimary,
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          child: const Icon(Icons.person_add_alt_1_rounded,
-                              size: 22, color: AppColors.yellowBrand),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _tr('Add New Customer', 'Ongeza Mteja Mpya'),
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.navyPrimary,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                              Text(
-                                _tr('Fill in the details below.',
-                                    'Jaza maelezo hapa chini.'),
-                                style: const TextStyle(
-                                    fontSize: 12, color: AppColors.textMuted),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
                     // ── Type toggle ──────────────────────────────────────────
                     Container(
                       decoration: BoxDecoration(
@@ -697,7 +658,6 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     final result = await showModalBottomSheet<List<Contact>>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),

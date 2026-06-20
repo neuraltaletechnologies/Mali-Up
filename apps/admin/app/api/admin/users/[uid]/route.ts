@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { adminFirestore } from '@/lib/firebase-admin'
 import { requireAdminSession } from '@/lib/api-guard'
 import { mapUser, mapBusiness } from '@/lib/firestore-mappers'
+import { writeAudit } from '@/lib/write-audit'
 
 export async function GET(
   _request: Request,
