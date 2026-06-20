@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -216,6 +217,11 @@ class _RouterNotifier extends ChangeNotifier {
       // ── Permission guards ─────────────────────────────────────────────
       // Skip checks while permissions are still loading to avoid a flash.
       final loaded = _ref.read(permissionsLoadedProvider);
+      if (kDebugMode) {
+        final ps2 = _ref.read(permissionServiceProvider);
+        debugPrint('[Router] redirect path=$path loaded=$loaded '
+            'isOwner=${ps2.isOwner} canSales=${ps2.canViewSales}');
+      }
       if (loaded) {
         final ps = _ref.read(permissionServiceProvider);
 

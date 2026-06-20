@@ -1,4 +1,5 @@
 ﻿import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -640,6 +641,12 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     final ps = permissionsLoaded
         ? ref.watch(permissionServiceProvider)
         : PermissionService.owner();
+    if (kDebugMode) {
+      debugPrint('[Shell] build: permissionsLoaded=$permissionsLoaded '
+          'isOwner=${ps.isOwner} '
+          'canSales=${ps.canViewSales} '
+          'canInventory=${ps.canViewInventory}');
+    }
     final memberAsync = ref.watch(currentMemberProvider);
     final member = memberAsync.valueOrNull;
 
