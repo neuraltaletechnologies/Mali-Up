@@ -4,7 +4,8 @@
       "Bash(mkdir -p \"c:/SIDE/GIT/Maliapp/apps/admin/app/\\(dashboard\\)/businesses/[uid]/[bizId]\" && echo done)",
       "Bash(xargs grep -l \"card\\\\|Card\\\\|stat\\\\|Stat\")",
       "Bash(mkdir -p \"c:/SIDE/GIT/Maliapp/apps/admin/app/api/admin/analytics\")",
-      "Bash(mkdir -p \"c:/SIDE/GIT/Maliapp/apps/admin/app/api/admin/catalog\")"
+      "Bash(mkdir -p \"c:/SIDE/GIT/Maliapp/apps/admin/app/api/admin/catalog\")",
+      "Bash(firebase deploy *)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
