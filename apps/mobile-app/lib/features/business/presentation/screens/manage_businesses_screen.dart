@@ -780,9 +780,18 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                             existingLogoUrl: existingLogoUrl,
                                           );
                                           if (!mounted) return;
-                                          setS(() => localSaving = false);
-                                          if (saved && dlgCtx.mounted) {
-                                            Navigator.of(dlgCtx).pop(true);
+                                          // On success: pop directly — calling setS
+                                          // before pop schedules a rebuild on an
+                                          // element that is simultaneously being
+                                          // deactivated, triggering the
+                                          // _dependents.isEmpty assertion.
+                                          // On failure: reset so the user can retry.
+                                          if (saved) {
+                                            if (dlgCtx.mounted) {
+                                              Navigator.of(dlgCtx).pop(true);
+                                            }
+                                          } else if (dlgCtx.mounted) {
+                                            setS(() => localSaving = false);
                                           }
                                         },
                                   child: localSaving

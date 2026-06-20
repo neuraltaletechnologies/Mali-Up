@@ -2539,38 +2539,34 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // ── Type pills (2×2 grid) ─────────────────────────────
-                    LayoutBuilder(
-                      builder: (ctx, box) {
-                        final itemW = (box.maxWidth - 8) / 2;
-                        return Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: ProductType.values.map((t) {
-                            final sel = t == _type;
-                            Color tileColor;
-                            Color borderColor;
-                            Color contentColor;
-                            if (sel) {
-                              if (t == ProductType.customerReturn) {
-                                tileColor   = AppColors.tealAccent;
-                                borderColor = AppColors.tealAccent;
-                              } else {
-                                tileColor   = AppColors.navyPrimary;
-                                borderColor = AppColors.navyPrimary;
-                              }
-                              contentColor = Colors.white;
+                    // ── Type pills (single row) ───────────────────────────
+                    Row(
+                      children: () {
+                        final tiles = ProductType.values.map((t) {
+                          final sel = t == _type;
+                          Color tileColor;
+                          Color borderColor;
+                          Color contentColor;
+                          if (sel) {
+                            if (t == ProductType.customerReturn) {
+                              tileColor   = AppColors.tealAccent;
+                              borderColor = AppColors.tealAccent;
                             } else {
-                              tileColor   = AppColors.surface;
-                              borderColor = AppColors.border;
-                              contentColor = AppColors.textMuted;
+                              tileColor   = AppColors.navyPrimary;
+                              borderColor = AppColors.navyPrimary;
                             }
-                            return GestureDetector(
+                            contentColor = Colors.white;
+                          } else {
+                            tileColor   = AppColors.surface;
+                            borderColor = AppColors.border;
+                            contentColor = AppColors.textMuted;
+                          }
+                          return Expanded(
+                            child: GestureDetector(
                               onTap: () => setState(() => _type = t),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),
-                                width: itemW,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding: const EdgeInsets.symmetric(vertical: 7),
                                 decoration: BoxDecoration(
                                   color: tileColor,
                                   borderRadius: BorderRadius.circular(10),
@@ -2578,13 +2574,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 ),
                                 child: Column(
                                   children: [
-                                    Icon(_typeIcon(t), size: 18, color: contentColor),
-                                    const SizedBox(height: 4),
+                                    Icon(_typeIcon(t), size: 15, color: contentColor),
+                                    const SizedBox(height: 3),
                                     Text(
                                       _typeName(t),
                                       textAlign: TextAlign.center,
                                       style: GoogleFonts.dmSans(
-                                        fontSize: 11,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.w600,
                                         color: contentColor,
                                       ),
@@ -2592,10 +2588,18 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                   ],
                                 ),
                               ),
-                            );
-                          }).toList(),
-                        );
-                      },
+                            ),
+                          );
+                        }).toList();
+
+                        // Interleave 6 px gaps between tiles
+                        final spaced = <Widget>[];
+                        for (var i = 0; i < tiles.length; i++) {
+                          if (i > 0) spaced.add(const SizedBox(width: 6));
+                          spaced.add(tiles[i]);
+                        }
+                        return spaced;
+                      }(),
                     ),
                   ],
                 ),

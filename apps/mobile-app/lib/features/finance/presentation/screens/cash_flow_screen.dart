@@ -18,10 +18,10 @@ import 'cash_flow_statement_screen.dart';
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 final _numFmt = NumberFormat('#,###', 'en_US');
-String _fmtAmt(double v) => 'TZS ${_numFmt.format(v)}';
+String _fmtAmt(double v) => 'TSh ${_numFmt.format(v)}';
 String _fmtCompact(double v) {
-  if (v >= 1000000) return 'TZS ${(v / 1000000).toStringAsFixed(1)}M';
-  if (v >= 1000) return 'TZS ${(v / 1000).toStringAsFixed(0)}K';
+  if (v >= 1000000) return 'TSh ${(v / 1000000).toStringAsFixed(1)}M';
+  if (v >= 1000) return 'TSh ${(v / 1000).toStringAsFixed(0)}K';
   return _fmtAmt(v);
 }
 
@@ -90,6 +90,7 @@ class _CashFlowDarkHeader extends ConsumerWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
+        // Dark card — matches inventory/sales header shape exactly
         Container(
           decoration: const BoxDecoration(
             color: AppColors.navyPrimary,
@@ -98,7 +99,7 @@ class _CashFlowDarkHeader extends ConsumerWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 24),
+          padding: EdgeInsets.fromLTRB(20, top + 16, 20, 20 + _pillHalf),
           child: Row(
             children: [
               Expanded(
@@ -106,11 +107,12 @@ class _CashFlowDarkHeader extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _tr('Cash Flow', 'Mtiririko wa Fedha'),
+                      _tr('Cash Flow', 'Mtitiko wa Fedha'),
                       style: GoogleFonts.dmSans(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -133,60 +135,63 @@ class _CashFlowDarkHeader extends ConsumerWidget {
                   builder: (_) => const AddAccountDialog(),
                 ),
                 child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.10),
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: Colors.white12,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.add_card_outlined,
                     color: Colors.white,
-                    size: 18,
+                    size: 20,
                   ),
                 ),
               ),
             ],
           ),
         ),
+        // Stats pill — same shape/shadow/position as inventory
         Positioned(
           bottom: -_pillHalf,
-          left: 24,
-          right: 24,
-          child: Container(
-            height: _pillHalf * 2,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(_pillHalf),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _PillStat(
-                  value: _fmtCompact(inflow),
-                  label: _tr('Inflow', 'Mapato'),
-                  valueColor: AppColors.success,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: _fmtCompact(outflow),
-                  label: _tr('Outflow', 'Matumizi'),
-                  valueColor: AppColors.error,
-                ),
-                const _PillDivider(),
-                _PillStat(
-                  value: _fmtCompact(total),
-                  label: _tr('Position', 'Hali'),
-                  valueColor: AppColors.tealAccent,
-                ),
-              ],
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _PillStat(
+                    value: _fmtCompact(inflow),
+                    label: _tr('Inflow', 'Mapato'),
+                    color: AppColors.success,
+                  ),
+                  const _PillDivider(),
+                  _PillStat(
+                    value: _fmtCompact(outflow),
+                    label: _tr('Outflow', 'Matumizi'),
+                    color: AppColors.error,
+                  ),
+                  const _PillDivider(),
+                  _PillStat(
+                    value: _fmtCompact(total),
+                    label: _tr('Position', 'Hali'),
+                    color: AppColors.tealAccent,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -230,35 +235,37 @@ class _CashFlowTabBar extends StatelessWidget {
   }
 }
 
-// ── Pill widgets ──────────────────────────────────────────────────────────────
+// ── Pill widgets (match inventory PillStat / PillDivider exactly) ─────────────
 
 class _PillStat extends StatelessWidget {
   final String value;
   final String label;
-  final Color valueColor;
+  final Color color;
   const _PillStat({
     required this.value,
     required this.label,
-    required this.valueColor,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           value,
           style: GoogleFonts.dmSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: valueColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: color,
           ),
         ),
+        const SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(
             fontSize: 10,
+            fontWeight: FontWeight.w500,
             color: AppColors.textMuted,
           ),
         ),
@@ -272,7 +279,10 @@ class _PillDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 24, color: AppColors.border);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Container(width: 1, height: 28, color: AppColors.border),
+    );
   }
 }
 
@@ -318,17 +328,16 @@ class _OverviewTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Month navigator
           _MonthNavigator(month: month),
 
-          // Account cards
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Text(
               _tr('My Accounts', 'Akaunti Zangu'),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.secondary,
+              style: GoogleFonts.dmSans(
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
+                color: AppColors.navyPrimary,
               ),
             ),
           ),
@@ -362,11 +371,10 @@ class _OverviewTab extends ConsumerWidget {
               ),
               error: (_, _) => Center(
                 child: Text(
-                  _tr('Unable to load accounts.', 'Imeshindikana kupakia akaunti.'),
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.textMuted),
+                  _tr('Unable to load accounts.',
+                      'Imeshindikana kupakia akaunti.'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 13, color: AppColors.textMuted),
                 ),
               ),
             ),
@@ -374,7 +382,6 @@ class _OverviewTab extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
-          // Monthly flow summary
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _FlowSummaryCard(
@@ -386,7 +393,6 @@ class _OverviewTab extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
-          // Recent movements
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -394,9 +400,10 @@ class _OverviewTab extends ConsumerWidget {
               children: [
                 Text(
                   _tr('Recent Movements', 'Mienendo ya Hivi Karibuni'),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.secondary,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
                   ),
                 ),
                 if (recentTxns.length > 5)
@@ -404,9 +411,10 @@ class _OverviewTab extends ConsumerWidget {
                     onPressed: () {},
                     child: Text(
                       _tr('See all', 'Tazama zote'),
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: AppColors.tealAccent,
                         fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -418,8 +426,8 @@ class _OverviewTab extends ConsumerWidget {
           if (recentTxns.isEmpty)
             EmptyState(
               icon: Icons.swap_horiz_rounded,
-              title: _tr('No transactions this month',
-                  'Hakuna miamala mwezi huu'),
+              title: _tr(
+                  'No transactions this month', 'Hakuna miamala mwezi huu'),
               subtitle: _tr(
                 'Record a deposit or withdrawal to see it here.',
                 'Rekodi amana au kutoa ili ione hapa.',
@@ -504,7 +512,6 @@ class _StatementTab extends ConsumerWidget {
           _MonthNavigator(month: month),
           const SizedBox(height: 8),
 
-          // View full statement button
           OutlinedButton.icon(
             onPressed: () => Navigator.push(
               context,
@@ -513,7 +520,10 @@ class _StatementTab extends ConsumerWidget {
               ),
             ),
             icon: const Icon(Icons.open_in_new, size: 16),
-            label: Text(_tr('Full Statement', 'Taarifa Kamili')),
+            label: Text(
+              _tr('Full Statement', 'Taarifa Kamili'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.tealAccent,
               side: const BorderSide(color: AppColors.tealAccent),
@@ -521,7 +531,6 @@ class _StatementTab extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // Activity breakdown cards
           _ActivityCard(
             title: _tr('Operating', 'Uendeshaji'),
             icon: Icons.store_outlined,
@@ -544,11 +553,11 @@ class _StatementTab extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // Net summary
+          // Net cash flow summary — navy card like other summary rows
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.secondary,
+              color: AppColors.navyPrimary,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -559,24 +568,23 @@ class _StatementTab extends ConsumerWidget {
                   children: [
                     Text(
                       monthLabel,
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                      ),
+                      style: GoogleFonts.dmSans(
+                          color: Colors.white60, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _tr('Net Cash Flow', 'Mtiririko Halisi'),
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
                   ],
                 ),
                 Text(
                   '${netFlow >= 0 ? '+' : ''}${_fmtCompact(netFlow)}',
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: netFlow >= 0
                         ? const Color(0xFF6EE7B7)
                         : const Color(0xFFFCA5A5),
@@ -602,8 +610,8 @@ class _MonthNavigator extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(cfMonthProvider.notifier);
-    final isCurrentMonth =
-        month.year == DateTime.now().year && month.month == DateTime.now().month;
+    final isCurrentMonth = month.year == DateTime.now().year &&
+        month.month == DateTime.now().month;
 
     return Container(
       color: AppColors.surface,
@@ -614,20 +622,23 @@ class _MonthNavigator extends ConsumerWidget {
           IconButton(
             onPressed: notifier.prev,
             icon: const Icon(Icons.chevron_left, size: 20),
-            color: AppColors.secondary,
+            color: AppColors.navyPrimary,
             visualDensity: VisualDensity.compact,
           ),
           Text(
             DateFormat.yMMMM().format(month),
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppColors.secondary,
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
               fontWeight: FontWeight.w600,
+              color: AppColors.navyPrimary,
             ),
           ),
           IconButton(
             onPressed: isCurrentMonth ? null : notifier.next,
             icon: const Icon(Icons.chevron_right, size: 20),
-            color: isCurrentMonth ? AppColors.textDisabled : AppColors.secondary,
+            color: isCurrentMonth
+                ? AppColors.textDisabled
+                : AppColors.navyPrimary,
             visualDensity: VisualDensity.compact,
           ),
         ],
@@ -651,16 +662,7 @@ class _AccountCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: AppColors.secondary.withValues(alpha: 0.06)),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.surface,
-              const Color(0xFF334155).withValues(alpha: 0.35),
-            ],
-          ),
+          border: Border.all(color: AppColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -674,7 +676,7 @@ class _AccountCard extends StatelessWidget {
                       : account.type == 'Bank'
                           ? Icons.account_balance_outlined
                           : Icons.smartphone_outlined,
-                  color: AppColors.textSecondary,
+                  color: AppColors.textMuted,
                   size: 18,
                 ),
                 const Icon(Icons.chevron_right,
@@ -684,8 +686,8 @@ class _AccountCard extends StatelessWidget {
             const Spacer(),
             Text(
               _fmtCompact(account.balance),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: AppColors.secondary,
+              style: GoogleFonts.dmSans(
+                color: AppColors.navyPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
@@ -693,9 +695,10 @@ class _AccountCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               account.name,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
+              style: GoogleFonts.dmSans(
+                color: AppColors.textMuted,
                 fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -726,9 +729,7 @@ class _NoAccountsCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             _tr('Add your first account', 'Ongeza akaunti yako ya kwanza'),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textMuted,
-            ),
+            style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
             textAlign: TextAlign.center,
           ),
         ],
@@ -754,16 +755,13 @@ class _FlowSummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
           Text(
             _tr('Monthly Flow Summary', 'Muhtasari wa Mtiririko wa Mwezi'),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textMuted,
-              fontSize: 12,
-            ),
+            style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 12),
           ),
           const SizedBox(height: 16),
           Row(
@@ -774,7 +772,7 @@ class _FlowSummaryCard extends StatelessWidget {
                 color: AppColors.success,
                 icon: Icons.south_west_rounded,
               ),
-              Container(width: 1, height: 40, color: AppColors.glassBorder),
+              Container(width: 1, height: 40, color: AppColors.border),
               _FlowStat(
                 label: _tr('Outflow', 'Matumizi'),
                 value: _fmtCompact(outflow),
@@ -787,7 +785,7 @@ class _FlowSummaryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: (netFlow >= 0 ? AppColors.successBg : AppColors.errorBg),
+              color: netFlow >= 0 ? AppColors.successBg : AppColors.errorBg,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -801,7 +799,7 @@ class _FlowSummaryCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   '${_tr('Net', 'Halisi')}: ${netFlow >= 0 ? '+' : ''}${_fmtCompact(netFlow)}',
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: netFlow >= 0 ? AppColors.success : AppColors.error,
@@ -840,17 +838,15 @@ class _FlowStat extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
-                ),
+                style: GoogleFonts.dmSans(
+                    color: AppColors.textMuted, fontSize: 11),
               ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            style: GoogleFonts.dmSans(
               color: color,
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -869,13 +865,13 @@ class _TxnListTile extends StatelessWidget {
 
   String _accountName(String id) {
     return accountsAsync.maybeWhen(
-      data: (list) => list.firstWhere((a) => a.id == id,
-          orElse: () => const CashAccount(
-                id: '',
-                name: '—',
-                type: '',
-                balance: 0,
-              )).name,
+      data: (list) => list
+          .firstWhere(
+            (a) => a.id == id,
+            orElse: () =>
+                const CashAccount(id: '', name: '—', type: '', balance: 0),
+          )
+          .name,
       orElse: () => '—',
     );
   }
@@ -905,7 +901,7 @@ class _TxnListTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -925,8 +921,8 @@ class _TxnListTile extends StatelessWidget {
               children: [
                 Text(
                   txn.description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.secondary,
+                  style: GoogleFonts.dmSans(
+                    color: AppColors.navyPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -936,10 +932,8 @@ class _TxnListTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$subtitle • ${txn.date}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                  ),
+                  style: GoogleFonts.dmSans(
+                      color: AppColors.textMuted, fontSize: 11),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -949,9 +943,10 @@ class _TxnListTile extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '$prefix${_fmtCompact(txn.amount)}',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            style: GoogleFonts.dmSans(
               color: color,
               fontWeight: FontWeight.w700,
+              fontSize: 14,
             ),
           ),
         ],
@@ -981,7 +976,7 @@ class _ActivityCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -1000,9 +995,10 @@ class _ActivityCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: AppColors.secondary,
+                  style: GoogleFonts.dmSans(
+                    color: AppColors.navyPrimary,
                     fontWeight: FontWeight.w600,
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1024,7 +1020,7 @@ class _ActivityCard extends StatelessWidget {
           ),
           Text(
             '${net >= 0 ? '+' : ''}${_fmtCompact(net)}',
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               color: net >= 0 ? AppColors.success : AppColors.error,
               fontWeight: FontWeight.w700,
               fontSize: 15,
@@ -1047,13 +1043,12 @@ class _MiniStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          '$label: ',
-          style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-        ),
+        Text('$label: ',
+            style:
+                GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
         Text(
           _fmtCompact(value),
-          style: TextStyle(
+          style: GoogleFonts.dmSans(
               fontSize: 10, color: color, fontWeight: FontWeight.w600),
         ),
       ],

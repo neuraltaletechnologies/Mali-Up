@@ -161,6 +161,49 @@ export interface MasterProduct {
   updatedAt: string
 }
 
+/** Real Firestore master catalog product (master_products collection) */
+export interface CatalogProduct {
+  id: string
+  businessTypeId: string
+  categoryId: string
+  categoryName: string
+  productName: string
+  skuTemplate: string
+  barcode: string
+  defaultUnit: string
+  suggestedCostPrice: number
+  suggestedSellingPrice: number
+  searchableKeywords: string[]
+  source: 'admin' | 'community' | string
+}
+
+/** Real Firestore master category (master_categories collection) */
+export interface CatalogCategory {
+  id: string
+  businessTypeId: string
+  categoryName: string
+  description: string
+  icon: string
+  source: 'admin' | 'community' | string
+  productCount: number
+}
+
+export interface AnalyticsOverview {
+  totalUsers: number
+  totalBusinesses: number
+  activeBusinesses: number
+  mrr: number
+  planDistribution: { name: string; value: number; color: string }[]
+  mrrTrend: { month: string; value: number }[]
+  recentSignups: {
+    uid: string
+    name: string
+    phone: string
+    businessName: string
+    createdAt: string
+  }[]
+}
+
 export interface CommunitySubmission {
   id: string
   productName: string

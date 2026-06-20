@@ -1,4 +1,4 @@
-import type { AdminUser, Business } from '@/types'
+import type { AdminUser, Business, AnalyticsOverview, CatalogProduct, CatalogCategory } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
 
@@ -46,6 +46,28 @@ export async function patchBusiness(uid: string, businessId: string, isActive: b
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
   })
+}
+
+// ─── Analytics ───────────────────────────────────────────────────────────────
+
+export async function fetchAnalytics(): Promise<AnalyticsOverview> {
+  return apiFetch('/api/admin/analytics')
+}
+
+// ─── Catalog ──────────────────────────────────────────────────────────────────
+
+export async function fetchCatalog(businessTypeId?: string): Promise<{
+  categories: CatalogCategory[]
+  products: CatalogProduct[]
+  businessTypeIds: string[]
+  total: number
+}> {
+  const qs = businessTypeId ? `?businessTypeId=${encodeURIComponent(businessTypeId)}` : ''
+  return apiFetch(`/api/admin/catalog${qs}`)
+}
+
+export async function postCatalogProduct(data: Record<string, unknown>): Promise<{ id: string }> {
+  return apiFetch('/api/admin/catalog', { method: 'POST', body: JSON.stringify(data) })
 }
 
 export async function postBusinessNote(
