@@ -417,9 +417,31 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       setState(() => _isLoading = true);
 
       try {
+        final phone = _phoneController.text.trim();
+
+        // Duplicate check before writing anything
+        final existing =
+            await ref.read(customerRepositoryProvider).findByPhone(phone);
+        if (existing != null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(_tr(
+                'A contact with this phone number already exists: ${existing.name}',
+                'Mteja mwenye namba hii tayari yupo: ${existing.name}',
+              )),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              margin: const EdgeInsets.all(16),
+            ));
+          }
+          return;
+        }
+
         final customer = await _saveCustomer(
           name: _nameController.text.trim(),
-          phone: _phoneController.text.trim(),
+          phone: phone,
           email: _emailController.text.trim(),
           balance: _balanceController.text.trim(),
           tags: _tags,
@@ -605,6 +627,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
     required int total,
   }) async {
     var done = 0;
+    var skipped = 0;
     for (final contact in contacts) {
       final name = contact.displayName.trim();
       final phone = await _resolveImportPhone(contact);
@@ -613,6 +636,13 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         continue;
       }
       try {
+        // Skip contacts whose phone already exists in the customer book
+        final duplicate = await customerRepo.findByPhone(phone);
+        if (duplicate != null) {
+          skipped++;
+          done++;
+          continue;
+        }
         final customer = Customer(
           id: '',
           name: name,
@@ -633,14 +663,22 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       done++;
     }
     messenger.hideCurrentSnackBar();
+    final imported = done - skipped;
+    final body = skipped > 0
+        ? _tr(
+            '$imported imported, $skipped already exist',
+            '$imported yameingizwa, $skipped tayari yapo',
+          )
+        : _tr(
+            imported == 1 ? '1 contact imported' : '$imported contacts imported',
+            imported == 1
+                ? 'Mawasiliano 1 yameingizwa'
+                : 'Mawasiliano $imported yameingizwa',
+          );
     messenger.showSnackBar(SnackBar(
-      content: Text(_tr(
-        done == 1 ? '1 contact imported' : '$done contacts imported',
-        done == 1
-            ? 'Mawasiliano 1 yameingizwa'
-            : 'Mawasiliano $done yameingizwa',
-      )),
-      backgroundColor: AppColors.success,
+      content: Text(body),
+      backgroundColor:
+          skipped > 0 && imported == 0 ? AppColors.error : AppColors.success,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       margin: const EdgeInsets.all(16),

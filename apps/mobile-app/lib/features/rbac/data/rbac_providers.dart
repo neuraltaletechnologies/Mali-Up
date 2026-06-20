@@ -224,15 +224,13 @@ final currentMemberProvider = StreamProvider<TeamMember?>((ref) async* {
 
   if (kDebugMode) {
     debugPrint('[RBAC] currentMember: streaming '
-        'tenants/$ownerUid/businesses/$businessId/team_members/$memberId');
+        'businesses/$businessId/staff/$memberId');
   }
 
   yield* FirebaseFirestore.instance
-      .collection('tenants')
-      .doc(ownerUid)
       .collection('businesses')
       .doc(businessId)
-      .collection('team_members')
+      .collection('staff')
       .doc(memberId)
       .snapshots()
       .map((snap) {

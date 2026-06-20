@@ -4,6 +4,7 @@ abstract interface class CustomerRepository {
   Stream<List<Customer>> watchAll();
 
   Future<Customer?> getById(String id);
+  Future<Customer?> findByPhone(String phone);
   Future<List<Customer>> search(String query);
 
   /// Persists the customer locally and enqueues the remote sync.

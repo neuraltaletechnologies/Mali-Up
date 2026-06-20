@@ -209,8 +209,8 @@ class PhoneAuthService {
         ? _normalizeTanzanianPhone(phoneNumber).substring(3) // Remove 255
         : userData['phone'] ?? '';
 
-    final businessId = userData['includesBusiness'] == true 
-        ? _firestore.collection('tenants').doc(user.uid).collection('businesses').doc().id
+    final businessId = userData['includesBusiness'] == true
+        ? _firestore.collection('businesses').doc().id
         : null;
 
     final defaultContext = businessId != null
@@ -229,18 +229,6 @@ class PhoneAuthService {
       'usagePreference': userData['usagePreference'] ?? 'business',
       'defaultContext': defaultContext,
       'selectedBusinessId': businessId,
-      'businesses': userData['includesBusiness'] == true && businessId != null
-          ? [
-              {
-                'id': businessId,
-                'name': userData['businessName'] ?? '',
-                'type': userData['businessType'] ?? 'Retail',
-                'category': userData['businessCategory'] ?? 'retail',
-                'placeOfBusiness': userData['placeOfBusiness'] ?? '',
-                'createdAt': FieldValue.serverTimestamp(),
-              },
-            ]
-          : <Map<String, dynamic>>[],
       'recoveryEmail': userData['recoveryEmail']?.toLowerCase(),
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -254,30 +242,20 @@ class PhoneAuthService {
     // Create main user document
     await _firestore.collection('users').doc(user.uid).set(userProfile);
 
-    // Create business tenant if business is selected
+    // Create business document in top-level businesses collection.
     if (userData['includesBusiness'] == true && businessId != null) {
-      await _firestore
-          .collection('tenants')
-          .doc(user.uid)
-          .collection('businesses')
-          .doc(businessId)
-          .set({
-            'id': businessId,
-            'businessName': userData['businessName'] ?? '',
-            'businessType': userData['businessType'] ?? 'Retail',
-            'businessCategory': userData['businessCategory'] ?? 'retail',
-            'placeOfBusiness': userData['placeOfBusiness'] ?? '',
-            'ownerName': userData['name'] ?? '',
-            'ownerPhone': normalizedPhone,
-            'ownerUid': user.uid,
-            'accountType': 'business',
-            'ownerEmail': userData['email']?.toLowerCase(),
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-            'plan': 'Trial',
-            'isActive': true,
-            'subscriptionStatus': 'trial',
-          });
+      await _firestore.collection('businesses').doc(businessId).set({
+        'businessName': userData['businessName'] ?? '',
+        'businessCategory': userData['businessCategory'] ?? 'retail',
+        'city': userData['placeOfBusiness'] ?? '',
+        'ownerName': userData['name'] ?? '',
+        'ownerUid': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'plan': 'Trial',
+        'isActive': true,
+        'subscriptionStatus': 'trial',
+      });
     }
 
   }

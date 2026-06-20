@@ -49,14 +49,14 @@ class ContextFirestoreRepository {
   /// Used by [currentBusinessIdProvider] to avoid redundant Firestore reads.
   ResolvedFinanceContext resolveContextFromData(Map<String, dynamic>? data) {
     final defaultContext = (data?['defaultContext'] as String?)?.toLowerCase();
-    final selectedBusinessId =
-        (data?['selectedBusinessId'] as String?)?.trim();
-    final businesses = _businessListFromProfile(data);
+    final selectedBusinessId = (data?['selectedBusinessId'] as String?)?.trim();
+    // Fallback for team members: they have `businessId` but not `selectedBusinessId`.
+    final memberBusinessId = (data?['businessId'] as String?)?.trim();
 
     if (defaultContext != null && defaultContext.startsWith('business')) {
       final businessId = _businessIdFromContext(defaultContext) ??
           selectedBusinessId ??
-          businesses.firstOrNull?.id;
+          memberBusinessId;
       if (businessId != null && businessId.isNotEmpty) {
         return ResolvedFinanceContext.business(businessId);
       }
@@ -65,16 +65,15 @@ class ContextFirestoreRepository {
     final defaultAccountType =
         (data?['defaultAccountType'] as String?)?.toLowerCase();
     if (defaultAccountType == 'business') {
-      final businessId = selectedBusinessId ?? businesses.firstOrNull?.id;
+      final businessId = selectedBusinessId ?? memberBusinessId;
       if (businessId != null && businessId.isNotEmpty) {
         return ResolvedFinanceContext.business(businessId);
       }
     }
 
-    if (businesses.isNotEmpty) {
-      return ResolvedFinanceContext.business(
-        selectedBusinessId ?? businesses.first.id,
-      );
+    final businessId = selectedBusinessId ?? memberBusinessId;
+    if (businessId != null && businessId.isNotEmpty) {
+      return ResolvedFinanceContext.business(businessId);
     }
 
     return const ResolvedFinanceContext.business('');
@@ -396,32 +395,36 @@ class ContextFirestoreRepository {
     );
   }
 
-  // ── Team members ────────────────────────────────────────────────────────────
+  // ── Staff (team members) ────────────────────────────────────────────────────
 
   Stream<List<TeamMember>> watchTeamMembers({
     required String uid,
     required ResolvedFinanceContext context,
   }) {
-    return _scopeCollection(
-      uid: uid,
-      context: context,
-      childCollection: 'team_members',
-    ).orderBy('invitedAt').snapshots().map((snap) => snap.docs
-        .map((doc) => TeamMember.fromFirestore(doc.data(), doc.id))
-        .toList());
+    final bizId = context.businessId ?? '';
+    if (bizId.isEmpty) return const Stream.empty();
+    return _firestore
+        .collection('businesses')
+        .doc(bizId)
+        .collection('staff')
+        .orderBy('invitedAt')
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => TeamMember.fromFirestore(doc.data(), doc.id))
+            .toList());
   }
 
-  /// Returns the new document reference so callers can use the generated ID.
   Future<DocumentReference<Map<String, dynamic>>> addTeamMember({
     required String uid,
     required ResolvedFinanceContext context,
     required Map<String, dynamic> data,
   }) {
-    return _scopeCollection(
-      uid: uid,
-      context: context,
-      childCollection: 'team_members',
-    ).add(data);
+    final bizId = context.businessId ?? '';
+    return _firestore
+        .collection('businesses')
+        .doc(bizId)
+        .collection('staff')
+        .add(data);
   }
 
   Future<void> updateTeamMember({
@@ -430,11 +433,13 @@ class ContextFirestoreRepository {
     required String memberId,
     required Map<String, dynamic> data,
   }) {
-    return _scopeCollection(
-      uid: uid,
-      context: context,
-      childCollection: 'team_members',
-    ).doc(memberId).update(data);
+    final bizId = context.businessId ?? '';
+    return _firestore
+        .collection('businesses')
+        .doc(bizId)
+        .collection('staff')
+        .doc(memberId)
+        .update(data);
   }
 
   Future<void> deleteTeamMember({
@@ -442,29 +447,16 @@ class ContextFirestoreRepository {
     required ResolvedFinanceContext context,
     required String memberId,
   }) {
-    return _scopeCollection(
-      uid: uid,
-      context: context,
-      childCollection: 'team_members',
-    ).doc(memberId).delete();
+    final bizId = context.businessId ?? '';
+    return _firestore
+        .collection('businesses')
+        .doc(bizId)
+        .collection('staff')
+        .doc(memberId)
+        .delete();
   }
 
-  // ── Member access (Firestore-rules enforcement layer) ────────────────────────
-
-  /// Writes (or merges) a `memberAccess/{memberUid}` document under the
-  /// owner's tenant.  This is the record that Firestore security rules read
-  /// to decide whether a team member may read or write business data.
-  ///
-  /// Must be called:
-  ///   1. When a team member accepts an invite (pass their Firebase Auth UID).
-  ///   2. Whenever their role, permissions, or status changes.
-  ///
-  /// [ownerUid]   — The business owner's Firebase Auth UID (tenant root).
-  /// [businessId] — The business the member belongs to.
-  /// [memberUid]  — The team member's Firebase Auth UID (becomes the doc ID).
-  /// [permissions] — Flat list of effective AppPermission names.
-  /// [status]      — 'active' | 'suspended'.
-  /// [role]        — Role name string (for audit / display purposes).
+  /// Updates the staff doc when a worker's role or permissions change.
   Future<void> writeMemberAccess({
     required String ownerUid,
     required String businessId,
@@ -474,12 +466,11 @@ class ContextFirestoreRepository {
     required String role,
   }) {
     return _firestore
-        .collection('tenants')
-        .doc(ownerUid)
-        .collection('memberAccess')
+        .collection('businesses')
+        .doc(businessId)
+        .collection('staff')
         .doc(memberUid)
         .set({
-      'businessId': businessId,
       'permissions': permissions,
       'status': status,
       'role': role,
@@ -487,17 +478,24 @@ class ContextFirestoreRepository {
     }, SetOptions(merge: true));
   }
 
-  /// Deletes the `memberAccess` document when a team member is removed.
   Future<void> deleteMemberAccess({
     required String ownerUid,
     required String memberUid,
-  }) {
-    return _firestore
-        .collection('tenants')
-        .doc(ownerUid)
-        .collection('memberAccess')
-        .doc(memberUid)
-        .delete();
+  }) async {
+    // memberId (staffId) and workerUid differ — query by workerUid field.
+    final ownerBizSnap = await _firestore
+        .collection('businesses')
+        .where('ownerUid', isEqualTo: ownerUid)
+        .get();
+    for (final biz in ownerBizSnap.docs) {
+      final staffSnap = await biz.reference
+          .collection('staff')
+          .where('workerUid', isEqualTo: memberUid)
+          .get();
+      for (final doc in staffSnap.docs) {
+        await doc.reference.delete();
+      }
+    }
   }
 
   // ── Pending invites (top-level collection for easy phone lookup) ─────────────
@@ -521,7 +519,6 @@ class ContextFirestoreRepository {
         .update(data);
   }
 
-  /// Fetches the display name for the current business context.
   Future<String> getBusinessName({
     required String uid,
     required ResolvedFinanceContext context,
@@ -529,12 +526,7 @@ class ContextFirestoreRepository {
     final bizId = context.businessId;
     if (bizId == null || bizId.isEmpty) return '';
     try {
-      final doc = await _firestore
-          .collection('tenants')
-          .doc(uid)
-          .collection('businesses')
-          .doc(bizId)
-          .get();
+      final doc = await _firestore.collection('businesses').doc(bizId).get();
       return (doc.data()?['businessName'] as String?) ?? '';
     } catch (_) {
       return '';
@@ -546,17 +538,8 @@ class ContextFirestoreRepository {
     required ResolvedFinanceContext context,
     required String childCollection,
   }) {
-    final businessId = context.businessId;
-    if (businessId == null || businessId.isEmpty) {
-      return _firestore
-          .collection('tenants')
-          .doc(uid)
-          .collection(childCollection);
-    }
-
+    final businessId = context.businessId ?? '';
     return _firestore
-        .collection('tenants')
-        .doc(uid)
         .collection('businesses')
         .doc(businessId)
         .collection(childCollection);
@@ -567,11 +550,7 @@ class ContextFirestoreRepository {
     required ResolvedFinanceContext context,
     required String childCollection,
   }) {
-    return _scopeCollection(
-      uid: uid,
-      context: context,
-      childCollection: childCollection,
-    );
+    return _scopeCollection(uid: uid, context: context, childCollection: childCollection);
   }
 
   String? _businessIdFromContext(String contextValue) {
@@ -580,32 +559,4 @@ class ContextFirestoreRepository {
     return parts.sublist(1).join(':').trim();
   }
 
-  List<_BusinessProfileRecord> _businessListFromProfile(
-    Map<String, dynamic>? profile,
-  ) {
-    final businessesRaw = profile?['businesses'];
-    if (businessesRaw is! List) return const [];
-
-    return businessesRaw
-        .whereType<Map>()
-        .map(
-          (entry) => _BusinessProfileRecord(
-            id: (entry['id'] as String?)?.trim() ?? '',
-            name: (entry['name'] as String?)?.trim() ?? '',
-          ),
-        )
-        .where((entry) => entry.id.isNotEmpty)
-        .toList();
-  }
-}
-
-class _BusinessProfileRecord {
-  final String id;
-  final String name;
-
-  const _BusinessProfileRecord({required this.id, required this.name});
-}
-
-extension _FirstOrNull<T> on List<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }

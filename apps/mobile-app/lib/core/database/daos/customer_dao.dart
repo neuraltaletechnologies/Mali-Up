@@ -37,6 +37,15 @@ class CustomerDao extends DatabaseAccessor<AppDatabase>
         .getSingleOrNull();
   }
 
+  Future<CustomersTableData?> findByPhone(String businessId, String phone) {
+    return (select(customersTable)
+          ..where((t) =>
+              t.businessId.equals(businessId) &
+              t.isDeleted.equals(0) &
+              t.phone.equals(phone)))
+        .getSingleOrNull();
+  }
+
   Future<List<CustomersTableData>> search(
     String businessId,
     String query,

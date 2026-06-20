@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/models/team_member.dart';
 
 class RemoteTeamRepository {
-  static const _collectionName = 'team_members';
+  static const _collectionName = 'staff';
 
   final FirebaseFirestore _firestore;
   final String uid;
@@ -15,12 +15,8 @@ class RemoteTeamRepository {
     FirebaseFirestore? firestore,
   }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _collection => _firestore
-      .collection('tenants')
-      .doc(uid)
-      .collection('businesses')
-      .doc(businessId)
-      .collection(_collectionName);
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _firestore.collection('businesses').doc(businessId).collection(_collectionName);
 
   Future<int> saveAndGetTimestamp(TeamMember member) async {
     final data = {

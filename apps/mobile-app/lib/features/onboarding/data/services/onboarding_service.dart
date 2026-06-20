@@ -14,6 +14,44 @@ final onboardingServiceProvider = Provider<OnboardingService>((ref) {
   );
 });
 
+// ─── DRAFT ───────────────────────────────────────────────────────────────────
+
+/// Persisted snapshot of a new user's partially-completed registration.
+/// Restored on cold-start so the user can resume from where they left off.
+class OnboardingDraft {
+  const OnboardingDraft({
+    required this.phone,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    required this.city,
+    required this.businessName,
+    required this.businessType,
+    required this.businessCountry,
+    required this.businessRegion,
+    required this.businessDistrict,
+    required this.websiteUrl,
+    required this.hasWebsite,
+    required this.websiteInterest,
+    required this.currentStep,
+  });
+
+  final String phone;
+  final String firstName;
+  final String lastName;
+  final String email;
+  final String city;
+  final String businessName;
+  final String businessType;
+  final String businessCountry;
+  final String businessRegion;
+  final String businessDistrict;
+  final String websiteUrl;
+  final bool hasWebsite;
+  final bool websiteInterest;
+  final OnboardingStep currentStep;
+}
+
 // ─── SERVICE ──────────────────────────────────────────────────────────────────
 
 /// Orchestrates the onboarding flow.
@@ -27,6 +65,22 @@ class OnboardingService {
   final OnboardingRepository _repository;
 
   static const _completedKey = 'mali_onboarding_complete';
+
+  // Draft keys — only written for new owners between personal-info and PIN steps.
+  static const _draftPhone           = 'mali_ob_draft_phone';
+  static const _draftFirstName       = 'mali_ob_draft_first_name';
+  static const _draftLastName        = 'mali_ob_draft_last_name';
+  static const _draftEmail           = 'mali_ob_draft_email';
+  static const _draftCity            = 'mali_ob_draft_city';
+  static const _draftBizName         = 'mali_ob_draft_biz_name';
+  static const _draftBizType         = 'mali_ob_draft_biz_type';
+  static const _draftBizCountry      = 'mali_ob_draft_biz_country';
+  static const _draftBizRegion       = 'mali_ob_draft_biz_region';
+  static const _draftBizDistrict     = 'mali_ob_draft_biz_district';
+  static const _draftWebsiteUrl      = 'mali_ob_draft_website_url';
+  static const _draftHasWebsite      = 'mali_ob_draft_has_website';
+  static const _draftWebsiteInterest = 'mali_ob_draft_website_interest';
+  static const _draftStep            = 'mali_ob_draft_step';
 
   // ─── ONBOARDING STATUS ────────────────────────────────────────────────────
 
@@ -118,7 +172,7 @@ class OnboardingService {
           'skipping writes, completing onboarding. uid=$uid biz=$existingBizId',
         );
       }
-      await completeOnboarding();
+      await Future.wait([completeOnboarding(), clearDraft()]);
       return existingBizId;
     }
 
@@ -128,7 +182,7 @@ class OnboardingService {
         state: state,
       );
       await _repository.saveUser(userId: uid, state: state, businessId: bizId);
-      await completeOnboarding();
+      await Future.wait([completeOnboarding(), clearDraft()]);
       if (kDebugMode) debugPrint('[OnboardingService] new user saved uid=$uid');
       return bizId;
     } catch (e) {
@@ -138,6 +192,77 @@ class OnboardingService {
       }
       rethrow;
     }
+  }
+
+  // ─── DRAFT PERSISTENCE ───────────────────────────────────────────────────
+
+  /// Loads a previously-saved new-user draft from [prefs].
+  /// Called in main.dart before runApp so the result can be seeded into
+  /// [onboardingDraftBootstrapProvider] synchronously.
+  /// Returns null if no in-progress registration draft exists.
+  static OnboardingDraft? loadDraft(SharedPreferences prefs) {
+    final stepName = prefs.getString(_draftStep);
+    if (stepName == null) return null;
+    final step = OnboardingStep.values.where((s) => s.name == stepName).firstOrNull;
+    if (step == null) return null;
+    return OnboardingDraft(
+      phone:           prefs.getString(_draftPhone)     ?? '',
+      firstName:       prefs.getString(_draftFirstName) ?? '',
+      lastName:        prefs.getString(_draftLastName)  ?? '',
+      email:           prefs.getString(_draftEmail)     ?? '',
+      city:            prefs.getString(_draftCity)      ?? '',
+      businessName:    prefs.getString(_draftBizName)   ?? '',
+      businessType:    prefs.getString(_draftBizType)   ?? '',
+      businessCountry: prefs.getString(_draftBizCountry) ?? 'TZ',
+      businessRegion:  prefs.getString(_draftBizRegion)   ?? '',
+      businessDistrict:prefs.getString(_draftBizDistrict) ?? '',
+      websiteUrl:      prefs.getString(_draftWebsiteUrl)  ?? '',
+      hasWebsite:      prefs.getBool(_draftHasWebsite)    ?? false,
+      websiteInterest: prefs.getBool(_draftWebsiteInterest) ?? false,
+      currentStep:     step,
+    );
+  }
+
+  /// Persists the in-progress new-user draft.  Fire-and-forget from the notifier.
+  Future<void> saveDraft(OnboardingState state) async {
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.setString(_draftPhone,           state.phone),
+      prefs.setString(_draftFirstName,       state.firstName),
+      prefs.setString(_draftLastName,        state.lastName),
+      prefs.setString(_draftEmail,           state.email),
+      prefs.setString(_draftCity,            state.city),
+      prefs.setString(_draftBizName,         state.businessName),
+      prefs.setString(_draftBizType,         state.businessType),
+      prefs.setString(_draftBizCountry,      state.businessCountry),
+      prefs.setString(_draftBizRegion,       state.businessRegion),
+      prefs.setString(_draftBizDistrict,     state.businessDistrict),
+      prefs.setString(_draftWebsiteUrl,      state.websiteUrl),
+      prefs.setBool(_draftHasWebsite,        state.hasWebsite),
+      prefs.setBool(_draftWebsiteInterest,   state.websiteInterest),
+      prefs.setString(_draftStep,            state.currentStep.name),
+    ]);
+  }
+
+  /// Removes the draft — called when registration succeeds or is reset.
+  Future<void> clearDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.remove(_draftPhone),
+      prefs.remove(_draftFirstName),
+      prefs.remove(_draftLastName),
+      prefs.remove(_draftEmail),
+      prefs.remove(_draftCity),
+      prefs.remove(_draftBizName),
+      prefs.remove(_draftBizType),
+      prefs.remove(_draftBizCountry),
+      prefs.remove(_draftBizRegion),
+      prefs.remove(_draftBizDistrict),
+      prefs.remove(_draftWebsiteUrl),
+      prefs.remove(_draftHasWebsite),
+      prefs.remove(_draftWebsiteInterest),
+      prefs.remove(_draftStep),
+    ]);
   }
 
   // ─── COMPLETION ──────────────────────────────────────────────────────────
@@ -151,5 +276,6 @@ class OnboardingService {
   Future<void> resetOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_completedKey);
+    await clearDraft();
   }
 }

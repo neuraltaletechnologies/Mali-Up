@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
+import '../../../../core/services/lookup_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
@@ -56,42 +57,6 @@ const List<_BizType> _kBizTypes = [
   _BizType('other', 'Other', 'Nyingine', Icons.more_horiz_rounded),
 ];
 
-// ─── Tanzania location data ───────────────────────────────────────────────────
-
-const Map<String, List<String>> _kTzRegions = {
-  'Arusha': ['Arusha City', 'Arumeru', 'Karatu', 'Longido', 'Meru', 'Monduli', 'Ngorongoro'],
-  'Dar es Salaam': ['Ilala', 'Kinondoni', 'Kigamboni', 'Temeke', 'Ubungo'],
-  'Dodoma': ['Bahi', 'Chamwino', 'Chemba', 'Dodoma City', 'Kondoa', 'Kongwa', 'Mpwapwa'],
-  'Geita': ['Bukombe', 'Chato', 'Geita Town', 'Mbogwe', "Nyang'hwale"],
-  'Iringa': ['Iringa City', 'Kilolo', 'Mafinga', 'Mufindi'],
-  'Kagera': ['Biharamulo', 'Bukoba', 'Karagwe', 'Kyerwa', 'Missenyi', 'Muleba', 'Ngara'],
-  'Katavi': ['Mlele', 'Mpanda'],
-  'Kigoma': ['Buhigwe', 'Kakonko', 'Kasulu', 'Kibondo', 'Kigoma', 'Uvinza'],
-  'Kilimanjaro': ['Hai', 'Moshi City', 'Mwanga', 'Rombo', 'Same', 'Siha', 'Vunjo'],
-  'Lindi': ['Kilwa', 'Liwale', 'Lindi City', 'Nachingwea', 'Ruangwa'],
-  'Manyara': ['Babati', 'Hanang', 'Kiteto', 'Mbulu', 'Simanjiro'],
-  'Mara': ['Bunda', 'Butiama', 'Musoma', 'Rorya', 'Serengeti', 'Tarime'],
-  'Mbeya': ['Busokelo', 'Chunya', 'Kyela', 'Mbarali', 'Mbeya City', 'Rungwe'],
-  'Morogoro': ['Gairo', 'Kilombero', 'Kilosa', 'Malinyi', 'Morogoro City', 'Mvomero', 'Ulanga'],
-  'Mtwara': ['Masasi', 'Mtwara City', 'Nanyumbu', 'Newala', 'Tandahimba'],
-  'Mwanza': ['Ilemela', 'Kwimba', 'Magu', 'Misungwi', 'Nyamagana', 'Sengerema', 'Ukerewe'],
-  'Njombe': ['Ludewa', 'Makambako', 'Makete', 'Njombe Town', "Wanging'ombe"],
-  'Pwani': ['Bagamoyo', 'Kibaha', 'Kibiti', 'Kisarawe', 'Mafia', 'Mkuranga', 'Rufiji'],
-  'Rukwa': ['Kalambo', 'Nkasi', 'Sumbawanga'],
-  'Ruvuma': ['Madaba', 'Mbinga', 'Nyasa', 'Songea', 'Tunduru'],
-  'Shinyanga': ['Kahama', 'Kishapu', 'Shinyanga'],
-  'Simiyu': ['Bariadi', 'Busega', 'Itilima', 'Maswa', 'Meatu'],
-  'Singida': ['Ikungi', 'Iramba', 'Manyoni', 'Mkalama', 'Singida'],
-  'Songwe': ['Ileje', 'Mbozi', 'Momba', 'Songwe'],
-  'Tabora': ['Igunga', 'Kaliua', 'Nzega', 'Sikonge', 'Tabora', 'Urambo', 'Uyui'],
-  'Tanga': ['Handeni', 'Kilindi', 'Korogwe', 'Lushoto', 'Mkinga', 'Muheza', 'Pangani', 'Tanga City'],
-  'Zanzibar North': ['Kaskazini A', 'Kaskazini B'],
-  'Zanzibar South': ['Kati', 'Kusini', 'Magharibi'],
-  'Zanzibar West': ['Magharibi', 'Mjini'],
-  'Pemba North': ['Micheweni', 'Wete'],
-  'Pemba South': ['Chake Chake', 'Mkoani'],
-};
-
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 class BusinessDetailsScreen extends ConsumerStatefulWidget {
@@ -115,6 +80,8 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
   String _district = '';
   bool _websiteInterest = false;
 
+  Map<String, List<String>> _tzRegions = LookupService.defaultDistricts;
+
   late final AnimationController _animCtrl;
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
@@ -136,6 +103,10 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     _region            = s.businessRegion;
     _district          = s.businessDistrict;
     _websiteInterest   = s.websiteInterest;
+
+    LookupService.fetchDistricts().then((data) {
+      if (mounted) setState(() => _tzRegions = data);
+    });
   }
 
   @override
@@ -197,7 +168,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
       backgroundColor: Colors.transparent,
       builder: (_) => _SearchPickerSheet(
         title: 'Select Region',
-        items: _kTzRegions.keys.toList()..sort(),
+        items: _tzRegions.keys.toList()..sort(),
         selected: _region.isEmpty ? null : _region,
       ),
     );
@@ -212,7 +183,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
   Future<void> _pickDistrict() async {
     if (_region.isEmpty) return;
     HapticFeedback.selectionClick();
-    final districts = _kTzRegions[_region] ?? [];
+    final districts = _tzRegions[_region] ?? [];
     final picked = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,

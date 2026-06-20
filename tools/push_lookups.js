@@ -79,6 +79,10 @@ async function main() {
     await db.collection('lookups').doc('cities').set(json.cities);
     console.log('Wrote lookups/cities');
   }
+  if (json.districts) {
+    await db.collection('lookups').doc('districts').set(json.districts);
+    console.log('Wrote lookups/districts');
+  }
   console.log('Done.');
   process.exit(0);
 }

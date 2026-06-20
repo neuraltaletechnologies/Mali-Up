@@ -66,14 +66,27 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
 
     return businessesRaw
         .whereType<Map>()
-        .map(
-          (entry) => <String, dynamic>{
+        .map((entry) {
+          // Support both old field names and new Firestore schema field names.
+          final name = ((entry['businessName'] as String?)?.trim().isNotEmpty == true
+                  ? entry['businessName'] as String
+                  : (entry['name'] as String?)?.trim()) ??
+              '';
+          final category = ((entry['businessCategory'] as String?)?.trim().isNotEmpty == true
+                  ? entry['businessCategory'] as String
+                  : (entry['category'] as String?)?.trim()) ??
+              '';
+          final place = ((entry['city'] as String?)?.trim().isNotEmpty == true
+                  ? entry['city'] as String
+                  : (entry['placeOfBusiness'] as String?)?.trim()) ??
+              '';
+          return <String, dynamic>{
             'id': (entry['id'] as String?)?.trim() ?? '',
-            'name': (entry['name'] as String?)?.trim() ?? '',
-            'category': (entry['category'] as String?)?.trim() ?? '',
-            'placeOfBusiness': (entry['placeOfBusiness'] as String?)?.trim() ?? '',
-          },
-        )
+            'name': name,
+            'category': category,
+            'placeOfBusiness': place,
+          };
+        })
         .where((entry) => (entry['id'] as String).isNotEmpty)
         .toList();
   }
@@ -147,11 +160,33 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
 
   static Future<Map<String, dynamic>?> _fetchUserProfile(User? user) async {
     if (user == null) return null;
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get(const GetOptions());
-    return snapshot.data();
+    final fs = FirebaseFirestore.instance;
+
+    final userSnap = await fs.collection('users').doc(user.uid).get(const GetOptions());
+    final profile = userSnap.data();
+    if (profile == null) return null;
+
+    final isTeamMember = profile['isTeamMember'] == true;
+
+    if (isTeamMember) {
+      // Team members belong to one business — load it directly.
+      final bizId = (profile['businessId'] as String?)?.trim() ?? '';
+      if (bizId.isNotEmpty) {
+        final bizSnap = await fs.collection('businesses').doc(bizId).get(const GetOptions());
+        if (bizSnap.exists) {
+          profile['businesses'] = [{'id': bizId, ...?bizSnap.data()}];
+        }
+      }
+    } else {
+      // Owners — load all their businesses from the businesses collection.
+      final bizSnap = await fs
+          .collection('businesses')
+          .where('ownerUid', isEqualTo: user.uid)
+          .get(const GetOptions());
+      profile['businesses'] = bizSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    }
+
+    return profile;
   }
 
   static Future<void> _closeNavigationPanelThenNavigate(
@@ -657,7 +692,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                               businesses: businesses,
                               isOnline: isOnline,
                               onChanged: _switchFinanceContext,
-                              onManageBusinesses: () => context.go(AppRouter.businessesPath),
+                              onManageBusinesses: () async {
+                                await context.push(AppRouter.businessesPath);
+                                _refreshProfile();
+                              },
                             ),
                           ),
                         ],

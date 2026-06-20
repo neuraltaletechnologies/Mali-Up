@@ -46,6 +46,32 @@ class LookupService {
     return defaultTanzaniaCities;
   }
 
+  /// Fetches region→district map from Firestore under `lookups/districts`.
+  /// Falls back to [defaultDistricts] when remote unavailable.
+  /// Structure in Firestore: { items: { "Arusha": ["Arusha City", ...], ... } }
+  static Future<Map<String, List<String>>> fetchDistricts() async {
+    try {
+      final doc = await _firestore.collection('lookups').doc('districts').get();
+      if (doc.exists) {
+        final data = doc.data();
+        final items = data?['items'];
+        if (items is Map) {
+          return Map<String, List<String>>.fromEntries(
+            items.entries.map((e) {
+              final key = e.key.toString();
+              final val = e.value;
+              final list = val is List
+                  ? val.map((d) => d.toString()).toList()
+                  : <String>[];
+              return MapEntry(key, list);
+            }),
+          );
+        }
+      }
+    } catch (_) {}
+    return defaultDistricts;
+  }
+
   // Default fallback data (kept locally only as a safe fallback)
   static const List<Map<String, dynamic>> defaultBusinessTypes = [
     {'value': 'Retail', 'en': 'Retail', 'sw': 'Uuzaji Rejareja', 'icon': 'store'},
@@ -149,6 +175,40 @@ class LookupService {
     {'en': 'Chake Chake', 'sw': 'Chake Chake'},
     {'en': 'Other', 'sw': 'Nyingine'},
   ];
+
+  static const Map<String, List<String>> defaultDistricts = {
+    'Arusha': ['Arusha City', 'Arumeru', 'Karatu', 'Longido', 'Meru', 'Monduli', 'Ngorongoro'],
+    'Dar es Salaam': ['Ilala', 'Kinondoni', 'Kigamboni', 'Temeke', 'Ubungo'],
+    'Dodoma': ['Bahi', 'Chamwino', 'Chemba', 'Dodoma City', 'Kondoa', 'Kongwa', 'Mpwapwa'],
+    'Geita': ['Bukombe', 'Chato', 'Geita Town', 'Mbogwe', "Nyang'hwale"],
+    'Iringa': ['Iringa City', 'Kilolo', 'Mafinga', 'Mufindi'],
+    'Kagera': ['Biharamulo', 'Bukoba', 'Karagwe', 'Kyerwa', 'Missenyi', 'Muleba', 'Ngara'],
+    'Katavi': ['Mlele', 'Mpanda'],
+    'Kigoma': ['Buhigwe', 'Kakonko', 'Kasulu', 'Kibondo', 'Kigoma', 'Uvinza'],
+    'Kilimanjaro': ['Hai', 'Moshi City', 'Mwanga', 'Rombo', 'Same', 'Siha', 'Vunjo'],
+    'Lindi': ['Kilwa', 'Liwale', 'Lindi City', 'Nachingwea', 'Ruangwa'],
+    'Manyara': ['Babati', 'Hanang', 'Kiteto', 'Mbulu', 'Simanjiro'],
+    'Mara': ['Bunda', 'Butiama', 'Musoma', 'Rorya', 'Serengeti', 'Tarime'],
+    'Mbeya': ['Busokelo', 'Chunya', 'Kyela', 'Mbarali', 'Mbeya City', 'Rungwe'],
+    'Morogoro': ['Gairo', 'Kilombero', 'Kilosa', 'Malinyi', 'Morogoro City', 'Mvomero', 'Ulanga'],
+    'Mtwara': ['Masasi', 'Mtwara City', 'Nanyumbu', 'Newala', 'Tandahimba'],
+    'Mwanza': ['Ilemela', 'Kwimba', 'Magu', 'Misungwi', 'Nyamagana', 'Sengerema', 'Ukerewe'],
+    'Njombe': ['Ludewa', 'Makambako', 'Makete', 'Njombe Town', "Wanging'ombe"],
+    'Pwani': ['Bagamoyo', 'Kibaha', 'Kibiti', 'Kisarawe', 'Mafia', 'Mkuranga', 'Rufiji'],
+    'Rukwa': ['Kalambo', 'Nkasi', 'Sumbawanga'],
+    'Ruvuma': ['Madaba', 'Mbinga', 'Nyasa', 'Songea', 'Tunduru'],
+    'Shinyanga': ['Kahama', 'Kishapu', 'Shinyanga'],
+    'Simiyu': ['Bariadi', 'Busega', 'Itilima', 'Maswa', 'Meatu'],
+    'Singida': ['Ikungi', 'Iramba', 'Manyoni', 'Mkalama', 'Singida'],
+    'Songwe': ['Ileje', 'Mbozi', 'Momba', 'Songwe'],
+    'Tabora': ['Igunga', 'Kaliua', 'Nzega', 'Sikonge', 'Tabora', 'Urambo', 'Uyui'],
+    'Tanga': ['Handeni', 'Kilindi', 'Korogwe', 'Lushoto', 'Mkinga', 'Muheza', 'Pangani', 'Tanga City'],
+    'Zanzibar North': ['Kaskazini A', 'Kaskazini B'],
+    'Zanzibar South': ['Kati', 'Kusini', 'Magharibi'],
+    'Zanzibar West': ['Magharibi', 'Mjini'],
+    'Pemba North': ['Micheweni', 'Wete'],
+    'Pemba South': ['Chake Chake', 'Mkoani'],
+  };
 
   /// Map an icon string from Firestore/default to a Flutter [IconData].
   static IconData iconFromName(String? name) {

@@ -26,6 +26,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
   List<Map<String, dynamic>> _businessTypes = LookupService.defaultBusinessTypes;
   List<Map<String, String>> _tanzaniaCities = LookupService.defaultTanzaniaCities;
+  Map<String, List<String>> _districts = LookupService.defaultDistricts;
 
   @override
   void initState() {
@@ -36,12 +37,16 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
   Future<void> _loadLookups() async {
     try {
-      final types = await LookupService.fetchBusinessTypes();
-      final cities = await LookupService.fetchCities();
+      final results = await Future.wait([
+        LookupService.fetchBusinessTypes(),
+        LookupService.fetchCities(),
+        LookupService.fetchDistricts(),
+      ]);
       if (mounted) {
         setState(() {
-          _businessTypes = types;
-          _tanzaniaCities = cities;
+          _businessTypes = results[0] as List<Map<String, dynamic>>;
+          _tanzaniaCities = results[1] as List<Map<String, String>>;
+          _districts = results[2] as Map<String, List<String>>;
         });
       }
     } catch (_) {}
@@ -163,22 +168,38 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
   // ─── Data helpers ─────────────────────────────────────────────────────────────
 
+  /// Loads the user profile + all owned businesses from the `businesses` collection.
+  /// Returns a combined map with a synthetic `businesses` key for downstream helpers.
   Future<Map<String, dynamic>?> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
     try {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get(const GetOptions());
-      return snapshot.data();
+      final results = await Future.wait([
+        _firestore.collection('users').doc(user.uid).get(const GetOptions()),
+        _firestore
+            .collection('businesses')
+            .where('ownerUid', isEqualTo: user.uid)
+            .get(const GetOptions()),
+      ]);
+      final userSnap = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+      final bizSnap  = results[1] as QuerySnapshot<Map<String, dynamic>>;
+
+      final profile  = userSnap.data() ?? {};
+      profile['businesses'] = bizSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      return profile;
     } catch (_) {
       try {
-        final cached = await _firestore
+        final userSnap = await _firestore
             .collection('users')
             .doc(user.uid)
             .get(const GetOptions(source: Source.cache));
-        return cached.data();
+        final bizSnap = await _firestore
+            .collection('businesses')
+            .where('ownerUid', isEqualTo: user.uid)
+            .get(const GetOptions(source: Source.cache));
+        final profile = userSnap.data() ?? {};
+        profile['businesses'] = bizSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+        return profile;
       } catch (_) {
         return null;
       }
@@ -192,22 +213,26 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
         .whereType<Map>()
         .map((entry) => <String, dynamic>{
               'id': (entry['id'] as String?)?.trim() ?? '',
-              'name': (entry['name'] as String?)?.trim() ?? '',
-              'category': (entry['category'] as String?)?.trim() ?? '',
-              'placeOfBusiness': (entry['placeOfBusiness'] as String?)?.trim() ?? '',
+              'name': ((entry['businessName'] as String?)?.trim().isNotEmpty == true
+                  ? entry['businessName'] as String
+                  : (entry['name'] as String?)?.trim()) ?? '',
+              'category': ((entry['businessCategory'] as String?)?.trim().isNotEmpty == true
+                  ? entry['businessCategory'] as String
+                  : (entry['category'] as String?)?.trim()) ?? '',
+              'placeOfBusiness': (entry['city'] as String?)?.trim() ??
+                  (entry['placeOfBusiness'] as String?)?.trim() ?? '',
+              'district': (entry['district'] as String?)?.trim() ?? '',
               'phone': (entry['phone'] as String?)?.trim() ?? '',
               'logoUrl': (entry['logoUrl'] as String?)?.trim() ?? '',
               'workingHours': (entry['workingHours'] as String?)?.trim() ?? '',
               'facebook': (entry['facebook'] as String?)?.trim() ?? '',
               'instagram': (entry['instagram'] as String?)?.trim() ?? '',
               'tiktok': (entry['tiktok'] as String?)?.trim() ?? '',
-              // website fields — now editable
               'websiteUrl': ((entry['websiteUrl'] as String?)?.trim().isNotEmpty == true
                   ? entry['websiteUrl'] as String
                   : (entry['website'] as String?)?.trim()) ?? '',
               'hasWebsite': (entry['hasWebsite'] as bool?) ?? false,
               'websiteInterest': (entry['websiteInterest'] as bool?) ?? false,
-              // kept for data preservation
               'website': (entry['website'] as String?)?.trim() ?? '',
               'x': (entry['x'] as String?)?.trim() ?? '',
               'linkedin': (entry['linkedin'] as String?)?.trim() ?? '',
@@ -221,23 +246,16 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     return value == null || value.trim().isEmpty ? null : value.trim();
   }
 
-  Future<void> _persistBusinesses({
+  /// Updates only `selectedBusinessId` on the user profile — no more businesses array.
+  Future<void> _persistSelectedBusiness({
     required String userId,
-    required List<Map<String, dynamic>> businesses,
-    String? selectedBusinessId,
+    required String? selectedBusinessId,
   }) async {
-    final data = <String, dynamic>{
-      'businesses': businesses,
+    if (selectedBusinessId == null || selectedBusinessId.isEmpty) return;
+    await _firestore.collection('users').doc(userId).set({
+      'selectedBusinessId': selectedBusinessId,
       'updatedAt': FieldValue.serverTimestamp(),
-    };
-    if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
-      data.addAll({
-        'defaultContext': 'business:$selectedBusinessId',
-        'defaultAccountType': 'business',
-        'selectedBusinessId': selectedBusinessId,
-      });
-    }
-    await _firestore.collection('users').doc(userId).set(data, SetOptions(merge: true));
+    }, SetOptions(merge: true));
   }
 
   // ─── Delete ──────────────────────────────────────────────────────────────────
@@ -278,23 +296,14 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     final existing = _businessesFromProfile(profile);
     final remaining = existing.where((e) => e['id'] != businessId).toList();
     final activeId = _selectedBusinessId(profile);
+    final newActiveId = remaining.isNotEmpty
+        ? (activeId == businessId ? remaining.first['id'] as String : activeId)
+        : null;
 
-    await _persistBusinesses(
-      userId: user.uid,
-      businesses: remaining,
-      selectedBusinessId: remaining.isNotEmpty
-          ? (activeId == businessId
-              ? remaining.first['id'] as String
-              : activeId)
-          : null,
-    );
-
-    await _firestore
-        .collection('tenants')
-        .doc(user.uid)
-        .collection('businesses')
-        .doc(businessId)
-        .delete();
+    await Future.wait([
+      _firestore.collection('businesses').doc(businessId).delete(),
+      _persistSelectedBusiness(userId: user.uid, selectedBusinessId: newActiveId),
+    ]);
 
     if (!mounted) return;
     setState(() {
@@ -330,6 +339,10 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     String? selectedCity = (business?['placeOfBusiness'] as String?)?.trim();
     if (selectedCity != null && !_tanzaniaCities.any((c) => c['en'] == selectedCity)) {
       selectedCity = null;
+    }
+    String? selectedDistrict = (business?['district'] as String?)?.trim();
+    if (selectedDistrict != null && (selectedCity == null || !(_districts[selectedCity] ?? []).contains(selectedDistrict))) {
+      selectedDistrict = null;
     }
 
     File?  pickedLogoFile;
@@ -604,9 +617,41 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                 ),
                               );
                               if (picked != null && dlgCtx.mounted) {
-                                setS(() => selectedCity = picked);
+                                setS(() {
+                                  selectedCity = picked;
+                                  selectedDistrict = null;
+                                });
                               }
                             },
+                          ),
+                          const SizedBox(height: 12),
+                          _FormTapSelector(
+                            icon: Icons.location_city_outlined,
+                            value: selectedDistrict,
+                            placeholder: selectedCity == null
+                                ? _tr('Select city first', 'Chagua mji kwanza')
+                                : _tr('Select district (optional)', 'Chagua wilaya (hiari)'),
+                            hasValue: selectedDistrict != null,
+                            onTap: selectedCity == null
+                                ? () {}
+                                : () async {
+                                    final districts = _districts[selectedCity] ?? [];
+                                    if (districts.isEmpty) return;
+                                    final picked = await showModalBottomSheet<String>(
+                                      context: dlgCtx,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (_) => _DistrictPickerSheet(
+                                        districts: districts,
+                                        selectedValue: selectedDistrict,
+                                        tr: _tr,
+                                      ),
+                                    );
+                                    if (picked != null && dlgCtx.mounted) {
+                                      setS(() => selectedDistrict = picked);
+                                    }
+                                  },
+                            disabled: selectedCity == null,
                           ),
                           const SizedBox(height: 24),
 
@@ -768,6 +813,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                             name: nameCtrl.text.trim(),
                                             category: selectedType,
                                             place: selectedCity ?? '',
+                                            district: selectedDistrict ?? '',
                                             phone: (business?['phone'] as String?) ?? '',
                                             workingHours: (business?['workingHours'] as String?) ?? '',
                                             websiteUrl: websiteCtrl.text.trim(),
@@ -853,6 +899,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     required String name,
     required String category,
     required String place,
+    required String district,
     required String phone,
     required String workingHours,
     required String websiteUrl,
@@ -880,13 +927,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     }
 
     try {
-      final resolvedId = businessId ??
-          _firestore
-              .collection('tenants')
-              .doc(user.uid)
-              .collection('businesses')
-              .doc()
-              .id;
+      final resolvedId = businessId ?? _firestore.collection('businesses').doc().id;
 
       final phoneVal = phone.trim().isEmpty ? null : phone.trim();
       final hoursVal = workingHours.trim();
@@ -925,54 +966,14 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
         }
       }
 
-      Map<String, dynamic> buildEntry(Map<String, dynamic>? base) => {
-            ...?base,
-            'id': resolvedId,
-            'name': name,
-            'category': category,
-            'placeOfBusiness': place,
-            'phone': ?phoneVal,
-            'workingHours': hoursVal,
-            'websiteUrl': websiteUrl,
-            'hasWebsite': websiteUrl.isNotEmpty,
-            'websiteInterest': websiteInterest,
-            'website': websiteUrl.isEmpty ? null : websiteUrl,
-            'facebook': ?fbVal,
-            'instagram': ?igVal,
-            'tiktok': ?ttVal,
-            'x': ?xVal,
-            'linkedin': ?linkedinVal,
-            if (newLogoUrl != null && newLogoUrl.isNotEmpty) 'logoUrl': newLogoUrl,
-            if (businessId == null) 'createdAt': DateTime.now().toIso8601String(),
-          };
-
-      final existingList = _businessesFromProfile(profile);
-      final updated = businessId == null
-          ? [...existingList, buildEntry(null)]
-          : existingList.map((e) {
-              if (e['id'] != resolvedId) return e;
-              return buildEntry(e);
-            }).toList();
-
-      await _persistBusinesses(
-        userId: user.uid,
-        businesses: updated,
-        selectedBusinessId: _selectedBusinessId(profile) ?? resolvedId,
-      );
-
-      await _firestore
-          .collection('tenants')
-          .doc(user.uid)
-          .collection('businesses')
-          .doc(resolvedId)
-          .set({
-        'id': resolvedId,
+      // Single write — businesses collection is the source of truth.
+      await _firestore.collection('businesses').doc(resolvedId).set({
+        'ownerUid': user.uid,
+        'ownerName': profile?['displayName'] ?? profile?['name'] ?? user.displayName,
         'businessName': name,
         'businessCategory': category,
-        'placeOfBusiness': place,
-        'ownerUid': user.uid,
-        'ownerName':
-            profile?['displayName'] ?? profile?['name'] ?? user.displayName,
+        'city': place,
+        if (district.isNotEmpty) 'district': district,
         'phone': ?phoneVal,
         'workingHours': hoursVal,
         'websiteUrl': websiteUrl,
@@ -988,6 +989,15 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
         if (businessId == null) 'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // Keep selectedBusinessId current on the user profile.
+      final currentSelected = _selectedBusinessId(profile);
+      if (currentSelected == null || currentSelected.isEmpty || businessId == null) {
+        await _persistSelectedBusiness(
+          userId: user.uid,
+          selectedBusinessId: resolvedId,
+        );
+      }
 
       return true;
     } on FirebaseException catch (e) {
@@ -1573,23 +1583,25 @@ class _FormTapSelector extends StatelessWidget {
     required this.onTap,
     this.value,
     this.hasValue = false,
+    this.disabled = false,
   });
 
   final IconData  icon;
   final String    placeholder;
   final String?   value;
   final bool      hasValue;
+  final bool      disabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: disabled ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: disabled ? AppColors.surface.withValues(alpha: 0.5) : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: hasValue
@@ -1601,7 +1613,7 @@ class _FormTapSelector extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon, size: 18,
-                color: hasValue ? AppColors.navyPrimary : AppColors.textMuted),
+                color: disabled ? AppColors.textDisabled : (hasValue ? AppColors.navyPrimary : AppColors.textMuted)),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -1609,7 +1621,7 @@ class _FormTapSelector extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
-                  color: hasValue ? AppColors.navyPrimary : AppColors.textDisabled,
+                  color: disabled ? AppColors.textDisabled : (hasValue ? AppColors.navyPrimary : AppColors.textDisabled),
                 ),
               ),
             ),
@@ -1917,6 +1929,140 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
                       children: [
                         Expanded(
                           child: Text(label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                color: AppColors.navyPrimary,
+                              )),
+                        ),
+                        if (selected)
+                          const Icon(Icons.check_rounded, size: 17, color: AppColors.success),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DistrictPickerSheet extends StatefulWidget {
+  const _DistrictPickerSheet({
+    required this.districts,
+    required this.selectedValue,
+    required this.tr,
+  });
+
+  final List<String> districts;
+  final String? selectedValue;
+  final String Function(String, String) tr;
+
+  @override
+  State<_DistrictPickerSheet> createState() => _DistrictPickerSheetState();
+}
+
+class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
+  final _searchCtrl = TextEditingController();
+  late List<String> _filtered;
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = widget.districts;
+    _searchCtrl.addListener(_onSearch);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.removeListener(_onSearch);
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearch() {
+    final q = _searchCtrl.text.toLowerCase().trim();
+    setState(() {
+      _filtered = q.isEmpty
+          ? widget.districts
+          : widget.districts.where((d) => d.toLowerCase().contains(q)).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.70),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              widget.tr('District', 'Wilaya'),
+              style: const TextStyle(
+                fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navyPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                style: const TextStyle(fontSize: 14, color: AppColors.navyPrimary),
+                decoration: InputDecoration(
+                  hintText: widget.tr('Search…', 'Tafuta…'),
+                  hintStyle: const TextStyle(fontSize: 14, color: AppColors.textDisabled),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
+              itemCount: _filtered.length,
+              itemBuilder: (_, i) {
+                final district = _filtered[i];
+                final selected = district == widget.selectedValue;
+                return InkWell(
+                  onTap: () => Navigator.of(context).pop(district),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(district,
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,

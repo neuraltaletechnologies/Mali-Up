@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Persists structured audit records under the owner's tenant.
+/// Persists structured audit records under a business.
 ///
-/// Path: /tenants/{ownerUid}/businesses/{businessId}/audit_logs/{auto-id}
+/// Path: /businesses/{businessId}/audit_logs/{auto-id}
 ///
 /// Callers should await these writes but must not crash if they fail —
 /// audit logging is best-effort; the primary operation has already succeeded.
@@ -65,8 +65,6 @@ class AuditLogService {
   }) async {
     try {
       await _firestore
-          .collection('tenants')
-          .doc(ownerUid)
           .collection('businesses')
           .doc(businessId)
           .collection('audit_logs')
@@ -99,8 +97,6 @@ class AuditLogService {
   }) async {
     try {
       await _firestore
-          .collection('tenants')
-          .doc(ownerUid)
           .collection('businesses')
           .doc(businessId)
           .collection('audit_logs')
@@ -134,8 +130,6 @@ class AuditLogService {
   }) async {
     try {
       await _firestore
-          .collection('tenants')
-          .doc(ownerUid)
           .collection('businesses')
           .doc(businessId)
           .collection('audit_logs')

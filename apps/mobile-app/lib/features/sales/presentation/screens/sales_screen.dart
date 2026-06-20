@@ -421,14 +421,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         businessId != null &&
         businessId.isNotEmpty) {
       try {
-        // Business profile lives under the tenant owner's document — for
-        // team members that is the inviting owner, not their own uid.
-        final doc = await fs
-            .collection('tenants')
-            .doc(ownerUid)
-            .collection('businesses')
-            .doc(businessId)
-            .get();
+        final doc = await fs.collection('businesses').doc(businessId).get();
         final n = (doc.data()?['businessName'] as String?)?.trim();
         if (n != null && n.isNotEmpty) businessName = n;
       } catch (_) {}

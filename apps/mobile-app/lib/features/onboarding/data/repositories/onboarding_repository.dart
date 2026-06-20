@@ -68,7 +68,7 @@ class OnboardingRepository {
 
         final businessSnap = await _db
             .collection('businesses')
-            .where('ownerId', isEqualTo: userId)
+            .where('ownerUid', isEqualTo: userId)
             .limit(1)
             .get();
 
@@ -118,20 +118,30 @@ class OnboardingRepository {
       if (memberSnap != null && memberSnap.docs.isNotEmpty) {
         final memberDoc = memberSnap.docs[0];
         final memberData = memberDoc.data();
+        // Path: businesses/{bizId}/staff/{staffId}
         final pathSegments = memberDoc.reference.path.split('/');
-        final ownerUid = pathSegments.length > 1 ? pathSegments[1] : '';
-        final bizId = pathSegments.length > 3 ? pathSegments[3] : '';
+        final bizId    = pathSegments.length > 1 ? pathSegments[1] : '';
+        final ownerUid = (memberData['invitedBy'] as String?) ?? '';
 
-        String businessName = '';
-        if (ownerUid.isNotEmpty && bizId.isNotEmpty) {
-          final bizDoc = await _db
-              .collection('tenants')
-              .doc(ownerUid)
-              .collection('businesses')
-              .doc(bizId)
-              .get();
-          businessName = (bizDoc.data()?['businessName'] as String?) ?? '';
-        }
+        // Fetch business name and the matching pendingInvite in parallel.
+        final inviteFuture = _db
+            .collection('pendingInvites')
+            .where('memberId', isEqualTo: memberDoc.id)
+            .where('status', isEqualTo: 'pending')
+            .limit(1)
+            .get();
+        final bizFuture = bizId.isNotEmpty
+            ? _db.collection('businesses').doc(bizId).get()
+            : null;
+
+        final inviteSnap2 = await inviteFuture;
+        final bizDoc = bizFuture != null ? await bizFuture : null;
+
+        final businessName = (bizDoc?.data()?['businessName'] as String?) ?? '';
+        final inviteId = inviteSnap2.docs.isNotEmpty ? inviteSnap2.docs.first.id : '';
+        final email = inviteSnap2.docs.isNotEmpty
+            ? (inviteSnap2.docs.first.data()['email'] as String?) ?? ''
+            : (memberData['email'] as String?) ?? '';
 
         return TeamMemberPending(
           memberId: memberDoc.id,
@@ -140,6 +150,8 @@ class OnboardingRepository {
           businessName: businessName,
           ownerUid: ownerUid,
           businessId: bizId,
+          inviteId: inviteId,
+          email: email,
         );
       }
 
@@ -158,14 +170,35 @@ class OnboardingRepository {
 
   /// Signs in an existing user using the derived email + PIN-based password.
   ///
+  /// First tries the derived phone email. If the account was migrated to the
+  /// user's real email (see [updateAuthEmail]), falls back to the Firestore
+  /// email lookup so returning users aren't locked out after migration.
+  ///
   /// Throws [FirebaseAuthException] on wrong PIN or user not found.
   Future<void> loginWithPin({
     required String phone,
     required String pin,
   }) async {
-    final email = _emailFromPhone(phone);
+    final derivedEmail = _emailFromPhone(phone);
     final password = buildAuthPasswordFromPin(pin);
-    await _auth.signInWithEmailAndPassword(email: email, password: password);
+
+    late FirebaseAuthException notFoundError;
+    try {
+      await _auth.signInWithEmailAndPassword(
+          email: derivedEmail, password: password);
+      return;
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'user-not-found') rethrow;
+      notFoundError = e;
+    }
+
+    // Account may have been migrated to the user's real email address.
+    final realEmail = await _fetchUserEmail(phone);
+    if (realEmail == null || realEmail.isEmpty || realEmail == derivedEmail) {
+      throw notFoundError;
+    }
+    await _auth.signInWithEmailAndPassword(
+        email: realEmail, password: password);
   }
 
   // ─── AUTH — TEAM MEMBER FIRST-TIME SETUP ─────────────────────────────────
@@ -230,44 +263,34 @@ class OnboardingRepository {
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
 
-    if (ownerUid.isNotEmpty && businessId.isNotEmpty && memberId.isNotEmpty) {
-      // 2. Activate the team_member record and stamp userId.
-      // Use set with merge to handle cases where the document might not exist
-      // or be partially created due to prior network issues.
-      batch.set(
-        _db
-            .collection('tenants')
-            .doc(ownerUid)
-            .collection('businesses')
-            .doc(businessId)
-            .collection('team_members')
-            .doc(memberId),
-        {
-          'status': 'active',
-          'acceptedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-          'userId': uid,
-        },
-        SetOptions(merge: true),
-      );
+    // 2. Worker profile document.
+    batch.set(
+      _db.collection('workers').doc(uid),
+      {
+        'name': name,
+        'firstName': firstName,
+        'lastName': lastName,
+        'phone': phone,
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    );
 
-      // 3. memberAccess doc for server-side Firestore rule checks.
+    if (businessId.isNotEmpty && memberId.isNotEmpty) {
+      // 3. Activate the staff record, stamp workerUid, and merge permissions.
       final teamRole = TeamRole.fromString(role);
       final permissions =
           defaultPermissionsFor(teamRole).map((p) => p.name).toList();
       batch.set(
-        _db
-            .collection('tenants')
-            .doc(ownerUid)
-            .collection('memberAccess')
-            .doc(uid),
+        _db.collection('businesses').doc(businessId).collection('staff').doc(memberId),
         {
           'status': 'active',
-          'businessId': businessId,
-          'memberId': memberId,
+          'workerUid': uid,
+          'acceptedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
           'role': role,
           'permissions': permissions,
         },
+        SetOptions(merge: true),
       );
     }
 
@@ -300,16 +323,44 @@ class OnboardingRepository {
 
   // ─── PIN RECOVERY ─────────────────────────────────────────────────────────
 
-  /// Triggers a Firebase password reset email for the derived auth email.
-  /// Returns the email used for recovery, or null if nothing was sent.
+  /// Sends a Firebase password reset email to the user's real (Firestore) email
+  /// address if one is on file, while the actual Firebase Auth account (which
+  /// uses the derived phone email) receives the reset link.
+  ///
+  /// Returns the display email (shown to the user in the UI) on success,
+  /// or null if recovery cannot proceed.
   Future<String?> sendPinRecovery({required String phone}) async {
     try {
-      final email = _emailFromPhone(phone);
-      await _auth.sendPasswordResetEmail(email: email);
-      return email;
+      // Firebase Auth account always uses the derived phone email — that is the
+      // address Firebase recognises.  The real email is only stored in Firestore
+      // and cannot be used for password reset (the account isn't registered there).
+      final derivedEmail = _emailFromPhone(phone);
+      await _auth.sendPasswordResetEmail(email: derivedEmail);
+
+      // Return the real email so the UI can display a friendlier address,
+      // falling back to the derived one if none is on file.
+      final realEmail = await _fetchUserEmail(phone);
+      return (realEmail != null && realEmail.isNotEmpty) ? realEmail : derivedEmail;
     } catch (e) {
       if (kDebugMode) debugPrint('[sendPinRecovery] $e');
       return null;
+    }
+  }
+
+  /// Updates the current Firebase Auth user's email to [email].
+  ///
+  /// Called immediately after [createNewUserAccount] so that Firebase's
+  /// password reset emails go to an inbox the user can actually access,
+  /// rather than the derived `phone@mali.up` address. Silently ignores
+  /// errors (e.g. email already taken) — the derived email remains as a
+  /// fallback for [loginWithPin].
+  Future<void> updateAuthEmail(String email) async {
+    if (email.isEmpty) return;
+    try {
+      // ignore: deprecated_member_use
+      await _auth.currentUser?.updateEmail(email);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[OnboardingRepository.updateAuthEmail] $e');
     }
   }
 
@@ -321,33 +372,14 @@ class OnboardingRepository {
     required OnboardingState state,
     required String businessId,
   }) async {
-    final businesses = [
-      {
-        'id': businessId,
-        'name': state.businessName,
-        'category': state.businessType,
-        'placeOfBusiness': state.city,
-        'createdAt': Timestamp.now(),
-      },
-    ];
-
     await _db.collection('users').doc(userId).set({
       'phone': state.phone,
       'name': state.fullName,
       'firstName': state.firstName,
       'lastName': state.lastName,
       'email': state.email,
-      'city': state.city,
-      'role': state.role,
       'language': state.isSwahili ? 'sw' : 'en',
-      'businessName': state.businessName,
-      'businessType': state.businessType,
-      'defaultAccountType': 'business',
-      'accountTypes': ['business'],
-      'usagePreference': 'business',
-      'defaultContext': 'business:$businessId',
       'selectedBusinessId': businessId,
-      'businesses': businesses,
       'createdAt': FieldValue.serverTimestamp(),
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
@@ -363,45 +395,23 @@ class OnboardingRepository {
   }) async {
     final ref = _db.collection('businesses').doc();
     await ref.set({
-      'ownerId': userId,
+      'ownerUid': userId,
+      'ownerName': state.fullName,
       'businessName': state.businessName,
-      'businessType': state.businessType,
+      'businessCategory': state.businessType,
       'city': state.city,
-      'country': state.businessCountry,
       'region': state.businessRegion,
       'district': state.businessDistrict,
+      'country': state.businessCountry,
       'websiteUrl': state.websiteUrl,
       'hasWebsite': state.hasWebsite,
       'websiteInterest': state.websiteInterest,
+      'plan': 'Trial',
+      'isActive': true,
+      'subscriptionStatus': 'trial',
       'createdAt': FieldValue.serverTimestamp(),
-      'lastActiveAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
-
-    await _db
-        .collection('tenants')
-        .doc(userId)
-        .collection('businesses')
-        .doc(ref.id)
-        .set({
-          'id': ref.id,
-          'businessName': state.businessName,
-          'businessType': state.businessType,
-          'businessCategory': state.businessType,
-          'country': state.businessCountry,
-          'placeOfBusiness': state.city,
-          'ownerName': state.fullName,
-          'ownerUid': userId,
-          'accountType': 'business',
-          'websiteUrl': state.websiteUrl,
-          'hasWebsite': state.hasWebsite,
-          'websiteInterest': state.websiteInterest,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-          'plan': 'Trial',
-          'isActive': true,
-          'subscriptionStatus': 'trial',
-        });
-
     return ref.id;
   }
 
@@ -464,6 +474,24 @@ class OnboardingRepository {
     return '$digits@mali.up';
   }
 
+  /// Looks up a user's real email from Firestore by phone number.
+  /// Returns null if the user has no email on file or a query error occurs.
+  Future<String?> _fetchUserEmail(String phone) async {
+    try {
+      final snap = await _db
+          .collection('users')
+          .where('phone', isEqualTo: phone)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) return null;
+      final email = snap.docs.first.data()['email'] as String?;
+      return (email != null && email.isNotEmpty) ? email : null;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[OnboardingRepository._fetchUserEmail] $e');
+      return null;
+    }
+  }
+
   // ─── GUARD ────────────────────────────────────────────────────────────────
 
   /// Returns the existing `selectedBusinessId` for [uid] if the user document
@@ -489,7 +517,7 @@ class OnboardingRepository {
   ) async {
     try {
       return await _db
-          .collectionGroup('team_members')
+          .collectionGroup('staff')
           .where('phone', isEqualTo: phone)
           .limit(1)
           .get();

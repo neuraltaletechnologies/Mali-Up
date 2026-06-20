@@ -16,12 +16,7 @@ class RemoteCashRepository {
   }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> _collection(String name) =>
-      _firestore
-          .collection('tenants')
-          .doc(uid)
-          .collection('businesses')
-          .doc(businessId)
-          .collection(name);
+      _firestore.collection('businesses').doc(businessId).collection(name);
 
   CollectionReference<Map<String, dynamic>> get _accounts =>
       _collection('cash_accounts');

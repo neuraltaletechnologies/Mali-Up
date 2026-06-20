@@ -13,7 +13,9 @@ import 'package:mali_up/core/services/motion_service.dart';
 import 'package:mali_up/core/services/sentry_metrics_service.dart';
 import 'package:mali_up/core/services/security_service.dart';
 import 'package:mali_up/features/onboarding/providers/onboarding_notifier.dart'
-    show onboardingBootstrapProvider, onboardingPhoneEntryBootstrapProvider;
+    show onboardingBootstrapProvider, onboardingDraftBootstrapProvider, onboardingPhoneEntryBootstrapProvider, OnboardingDraft;
+import 'package:mali_up/features/onboarding/data/services/onboarding_service.dart'
+    show OnboardingService;
 import 'package:mali_up/features/security/presentation/screens/pin_lock_screen.dart';
 import 'firebase_options.dart';
 
@@ -64,6 +66,11 @@ Future<void> _startApp() async {
   // onboarded — instead start at phone-entry so they can sign back in.
   final hasActiveSession = FirebaseAuth.instance.currentUser != null;
   final startAtPhoneEntry = hasCompletedOnboarding && !hasActiveSession;
+  // Restore a partially-completed new-user registration so the user doesn't
+  // have to re-enter their name/business info after the app is killed mid-flow.
+  final OnboardingDraft? registrationDraft = hasCompletedOnboarding
+      ? null
+      : OnboardingService.loadDraft(prefs);
 
   runApp(
     ProviderScope(
@@ -74,6 +81,7 @@ Future<void> _startApp() async {
           hasCompletedOnboarding && hasActiveSession,
         ),
         onboardingPhoneEntryBootstrapProvider.overrideWithValue(startAtPhoneEntry),
+        onboardingDraftBootstrapProvider.overrideWithValue(registrationDraft),
       ],
       child: MaliUpApp(
         hasCompletedOnboarding: hasCompletedOnboarding,
