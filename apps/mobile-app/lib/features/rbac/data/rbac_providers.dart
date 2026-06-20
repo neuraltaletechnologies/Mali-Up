@@ -154,10 +154,11 @@ final userProfileStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) as
 // owners see data immediately; team members will briefly see empty data.
 
 final tenantOwnerUidProvider = Provider<String?>((ref) {
+  // Watch before currentUser check — same reason as permissionServiceProvider.
+  final profileAsync = ref.watch(userProfileStreamProvider);
+
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return null;
-
-  final profileAsync = ref.watch(userProfileStreamProvider);
 
   // Optimistic default: use own UID while loading (correct for owners).
   if (profileAsync.isLoading) return user.uid;
@@ -179,13 +180,14 @@ final tenantOwnerUidProvider = Provider<String?>((ref) {
 // tenant.  Emits null for business owners (they never have a member record).
 
 final currentMemberProvider = StreamProvider<TeamMember?>((ref) async* {
+  // Watch before currentUser check — same reason as permissionServiceProvider.
+  final profileAsync = ref.watch(userProfileStreamProvider);
+
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
     yield null;
     return;
   }
-
-  final profileAsync = ref.watch(userProfileStreamProvider);
   // Use valueOrNull so cached profile survives resubscription (AsyncLoading
   // with previous data). Only yield null when there is genuinely no data yet.
   final profile = profileAsync.valueOrNull;
@@ -300,13 +302,19 @@ final permissionsLoadedProvider = Provider<bool>((ref) {
 // Consumers call `ref.watch(permissionServiceProvider).canViewSales()` etc.
 
 final permissionServiceProvider = Provider<PermissionService>((ref) {
+  // Watch BEFORE the currentUser null-check so this provider is always in
+  // userProfileStreamProvider's dependency graph. Without this, returning
+  // denied() early (when signed out) leaves the provider with no tracked
+  // Riverpod dependency, so it is never invalidated on sign-in — the stale
+  // denied() survives the entire login flow.
+  final profileAsync = ref.watch(userProfileStreamProvider);
+
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
     if (kDebugMode) debugPrint('[RBAC] permissionService → denied (no auth user)');
     return PermissionService.denied();
   }
 
-  final profileAsync = ref.watch(userProfileStreamProvider);
   // Use valueOrNull so cached profile survives resubscription (AsyncLoading
   // with previous data). Avoids reverting to denied() on auth token refresh.
   final profile = profileAsync.valueOrNull;
