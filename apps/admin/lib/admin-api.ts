@@ -1,4 +1,8 @@
-import type { AdminUser, Business, AnalyticsOverview, CatalogProduct, CatalogCategory } from '@/types'
+import type {
+  AdminUser, Business, AnalyticsOverview, CatalogProduct, CatalogCategory,
+  Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
+  ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
+} from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
 
@@ -69,6 +73,116 @@ export async function fetchCatalog(businessTypeId?: string): Promise<{
 export async function postCatalogProduct(data: Record<string, unknown>): Promise<{ id: string }> {
   return apiFetch('/api/admin/catalog', { method: 'POST', body: JSON.stringify(data) })
 }
+
+// ─── Subscriptions ────────────────────────────────────────────────────────────
+
+export async function fetchSubscriptions(): Promise<{ subscriptions: Subscription[]; total: number }> {
+  return apiFetch('/api/admin/subscriptions')
+}
+
+// ─── Lifetime ─────────────────────────────────────────────────────────────────
+
+export async function fetchLifetime(): Promise<{ lifetime: LifetimeSubscription[]; total: number }> {
+  return apiFetch('/api/admin/lifetime')
+}
+
+// ─── Refunds ──────────────────────────────────────────────────────────────────
+
+export async function fetchRefunds(): Promise<{ refunds: RefundRequest[] }> {
+  return apiFetch('/api/admin/refunds')
+}
+
+export async function patchRefund(id: string, status: 'processing' | 'completed'): Promise<void> {
+  await apiFetch(`/api/admin/refunds/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+// ─── Support ──────────────────────────────────────────────────────────────────
+
+export async function fetchTickets(): Promise<{ tickets: SupportTicket[] }> {
+  return apiFetch('/api/admin/support')
+}
+
+export async function patchTicket(
+  id: string,
+  update: { status?: SupportTicket['status']; assignedAdmin?: string },
+): Promise<void> {
+  await apiFetch(`/api/admin/support/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(update),
+  })
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+export async function fetchAudit(): Promise<{ entries: AuditEntry[] }> {
+  return apiFetch('/api/admin/audit')
+}
+
+// ─── Feature Flags ────────────────────────────────────────────────────────────
+
+export async function fetchFlags(): Promise<{ flags: FeatureFlag[] }> {
+  return apiFetch('/api/admin/features')
+}
+
+export async function patchFlag(
+  id: string,
+  update: { enabled?: boolean; rolloutPercent?: number },
+): Promise<void> {
+  await apiFetch(`/api/admin/features/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(update),
+  })
+}
+
+// ─── Platform Config ──────────────────────────────────────────────────────────
+
+export async function fetchConfig(): Promise<PlatformConfig> {
+  return apiFetch('/api/admin/config')
+}
+
+export async function saveConfig(config: PlatformConfig): Promise<void> {
+  await apiFetch('/api/admin/config', {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  })
+}
+
+// ─── System Health ────────────────────────────────────────────────────────────
+
+export async function fetchSystemHealth(): Promise<{ services: ServiceHealth[]; updatedAt: string; firestoreLatencyMs: number }> {
+  return apiFetch('/api/admin/system')
+}
+
+// ─── Catalog Submissions ──────────────────────────────────────────────────────
+
+export async function fetchSubmissions(): Promise<{ submissions: CommunitySubmission[] }> {
+  return apiFetch('/api/admin/catalog/submissions')
+}
+
+export async function patchSubmission(id: string, status: 'approved' | 'rejected'): Promise<void> {
+  await apiFetch(`/api/admin/catalog/submissions/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+// ─── Catalog Product Edit / Delete ────────────────────────────────────────────
+
+export async function patchCatalogProduct(id: string, data: Partial<CatalogProduct>): Promise<void> {
+  await apiFetch(`/api/admin/catalog/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteCatalogProduct(id: string): Promise<void> {
+  await apiFetch(`/api/admin/catalog/${id}`, { method: 'DELETE' })
+}
+
+// ─── Business Notes ───────────────────────────────────────────────────────────
 
 export async function postBusinessNote(
   uid: string,

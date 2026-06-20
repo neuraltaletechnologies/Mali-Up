@@ -15,6 +15,7 @@ import '../../core/sync/sync_service.dart';
 import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/domain/permission_service.dart';
 import '../../features/team/domain/models/team_member.dart';
+import 'app_sheet.dart';
 
 class MainShellPage extends ConsumerStatefulWidget {
   final Widget child;
@@ -718,38 +719,50 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
             ),
           ),
           body: widget.child,
-          bottomNavigationBar: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  24, 0, 24,
-                  MediaQuery.of(context).padding.bottom + 16,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.navyPrimary,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.28),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: List.generate(destinations.length, (index) {
-                      final destination = destinations[index];
-                      final isSelected = index == currentIndex;
-                      return _buildBottomNavItem(context, destination, isSelected, index);
-                    }),
-                  ),
-                ),
+          bottomNavigationBar: ValueListenableBuilder<int>(
+            valueListenable: sheetOpenNotifier,
+            builder: (_, sheetCount, child) => ClipRect(
+              child: AnimatedAlign(
+                alignment: Alignment.topCenter,
+                heightFactor: sheetCount > 0 ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 280),
+                curve: sheetCount > 0 ? Curves.easeIn : Curves.easeOut,
+                child: child,
               ),
-            ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    24, 0, 24,
+                    MediaQuery.of(context).padding.bottom + 16,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.navyPrimary,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: List.generate(destinations.length, (index) {
+                        final destination = destinations[index];
+                        final isSelected = index == currentIndex;
+                        return _buildBottomNavItem(context, destination, isSelected, index);
+                      }),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

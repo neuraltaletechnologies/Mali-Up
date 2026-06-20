@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -16,7 +16,6 @@ Future<PlanTier?> showUpgradeSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    useSafeArea: true,
     builder: (_) => _UpgradeSheet(
       currentStatus: currentStatus,
       triggerReason: triggerReason,

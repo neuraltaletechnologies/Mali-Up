@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -253,7 +253,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useSafeArea: true,
       builder: (_) => AddProductChoiceSheet(
         onCreateCustom: () => _openCustomProductForm(ctx),
       ),
@@ -261,13 +260,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _openCustomProductForm(BuildContext ctx) {
-    final mq = MediaQuery.of(ctx).size;
     showModalBottomSheet<void>(
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
       builder: (_) => const _ProductFormSheet(),
     );
   }
@@ -277,7 +273,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useSafeArea: true,
       builder: (_) => _FilterSortSheet(
         currentSort: _sort,
         typeFilter: _typeFilter,
@@ -835,14 +830,11 @@ class _ProductRow extends ConsumerWidget {
     return ListSwipeCard(
       itemKey: ValueKey(item['id'] ?? name),
       onEdit: () async {
-        final mq = MediaQuery.of(context).size;
         await showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          useSafeArea: true,
-          constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
-          builder: (_) => _ProductFormSheet(
+              builder: (_) => _ProductFormSheet(
             existingItem: item,
             existingId: (item['id'] as String?) ?? '',
           ),
@@ -880,14 +872,11 @@ class _ProductRow extends ConsumerWidget {
       },
       child: GestureDetector(
         onTap: () {
-          final mq = MediaQuery.of(context).size;
           showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
-            useSafeArea: true,
-            constraints: BoxConstraints(maxWidth: mq.width, maxHeight: mq.height),
-            builder: (_) => _ProductDetailSheet(item: item),
+                  builder: (_) => _ProductDetailSheet(item: item),
           );
         },
         child: Container(

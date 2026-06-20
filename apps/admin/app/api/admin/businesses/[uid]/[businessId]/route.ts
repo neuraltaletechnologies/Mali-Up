@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { adminFirestore } from '@/lib/firebase-admin'
 import { requireAdminSession } from '@/lib/api-guard'
 import { mapBusiness } from '@/lib/firestore-mappers'
+import { writeAudit } from '@/lib/write-audit'
 import type { AdminNote } from '@/types'
 
 type Params = { uid: string; businessId: string }
@@ -47,14 +48,19 @@ export async function GET(
       createdAt: toIso(doc.data().createdAt),
     }))
 
-    // Financial aggregates from invoices and expenses sub-collections
-    const [invoiceSnap, expenseSnap] = await Promise.all([
+    const [invoiceSnap] = await Promise.all([
       bizRef.collection('invoices').count().get(),
-      bizRef.collection('expenses').count().get(),
     ])
-
     business.invoiceCount = invoiceSnap.data().count ?? 0
     business.notes = notes
+
+    // Read pre-computed financial totals from the business doc if the mobile
+    // app synced them back (field names match common Drift→Firestore sync output)
+    const raw = bizDoc.data() as Record<string, unknown>
+    if (typeof raw.totalRevenue    === 'number') business.totalRevenue = raw.totalRevenue
+    if (typeof raw.outstandingBalance === 'number') business.receivables = raw.outstandingBalance
+    else if (typeof raw.receivables === 'number') business.receivables = raw.receivables
+    if (typeof raw.totalExpenses   === 'number') business.expenseTotal = raw.totalExpenses
 
     return NextResponse.json({ business })
   } catch (err) {
@@ -79,12 +85,24 @@ export async function PATCH(
       return NextResponse.json({ error: 'isActive (boolean) required' }, { status: 400 })
     }
 
-    await adminFirestore
-      .collection('tenants')
-      .doc(uid)
-      .collection('businesses')
-      .doc(businessId)
-      .update({ isActive: body.isActive, updatedAt: new Date() })
+    const bizRef2 = adminFirestore
+      .collection('tenants').doc(uid)
+      .collection('businesses').doc(businessId)
+
+    const bizDoc2 = await bizRef2.get()
+    const bizName = (bizDoc2.data()?.businessName as string) || businessId
+
+    await bizRef2.update({ isActive: body.isActive, updatedAt: new Date() })
+
+    await writeAudit({
+      action: body.isActive ? 'unsuspend_business' : 'suspend_business',
+      resourceType: 'business',
+      resourceId: businessId,
+      resourceName: bizName,
+      isDestructive: !body.isActive,
+      before: { isActive: !body.isActive },
+      after:  { isActive:  body.isActive },
+    })
 
     return NextResponse.json({ success: true })
   } catch (err) {

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -246,7 +246,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useSafeArea: true,
       builder: (_) => const _NewSaleSheet(),
     );
   }
@@ -367,7 +366,6 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                 context: ctx,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
-                                useSafeArea: true,
                                 builder: (_) => _SaleInfoSheet(
                                   item: Map<String, dynamic>.from(item),
                                 ),
@@ -2388,7 +2386,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               context: context,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
-              useSafeArea: true,
               builder: (_) => AddCustomerDialog(
                 initialName: _customerCtrl.text.trim(),
                 onAdded: _selectCustomer,
@@ -2626,7 +2623,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
-                  useSafeArea: true,
                   builder: (_) => _AddProductSheet(
                     initialName: entry.nameCtrl.text.trim(),
                     onAdded: (item) => _selectProduct(entry, item),

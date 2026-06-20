@@ -233,6 +233,25 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
                       GlobalCupertinoLocalizations.delegate,
                     ],
                     routerConfig: router,
+                    builder: (context, child) {
+                      // Cap every modal bottom sheet at 88% of screen height so
+                      // they never cover the full screen. The constraint is applied
+                      // at the route level and works regardless of backgroundColor.
+                      final maxSheetHeight =
+                          MediaQuery.sizeOf(context).height * 0.88;
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          bottomSheetTheme: Theme.of(context)
+                              .bottomSheetTheme
+                              .copyWith(
+                                constraints: BoxConstraints(
+                                  maxHeight: maxSheetHeight,
+                                ),
+                              ),
+                        ),
+                        child: child!,
+                      );
+                    },
                   ),
                 );
               },

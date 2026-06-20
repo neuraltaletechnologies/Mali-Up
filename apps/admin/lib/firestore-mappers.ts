@@ -14,7 +14,7 @@ function toIso(value: unknown): string {
   return new Date().toISOString()
 }
 
-function normalisePlan(raw: string | undefined | null): PlanTier {
+export function normalisePlan(raw: string | undefined | null): PlanTier {
   switch ((raw ?? '').toLowerCase()) {
     case 'growth':     return 'growth'
     case 'business':   return 'business'
@@ -82,7 +82,7 @@ export function mapBusiness(
 }
 
 /** Monthly fee in TZS based on plan — matches platform config. */
-function mrrForPlan(plan: PlanTier): number {
+export function mrrForPlan(plan: PlanTier): number {
   switch (plan) {
     case 'growth':     return 49_000
     case 'business':   return 120_000

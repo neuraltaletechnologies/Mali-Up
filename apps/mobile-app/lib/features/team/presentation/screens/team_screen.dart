@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -195,7 +195,6 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useSafeArea: true,
       builder: (_) => const _InviteMemberSheet(),
     );
   }
@@ -282,7 +281,6 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useSafeArea: true,
       builder: (_) => _MemberSheet(member: member),
     );
   }
