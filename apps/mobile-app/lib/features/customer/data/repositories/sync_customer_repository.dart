@@ -39,6 +39,9 @@ class SyncCustomerRepository implements CustomerRepository {
   Future<Customer?> getById(String id) => _local.getById(id);
 
   @override
+  Future<Customer?> findByPhone(String phone) => _local.findByPhone(phone);
+
+  @override
   Future<List<Customer>> search(String query) => _local.search(query);
 
   @override

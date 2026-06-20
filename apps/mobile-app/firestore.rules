@@ -10,59 +10,44 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    function isOwner(uid) {
+      return request.auth.uid == uid;
     }
 
-    function isBusinessOwner(ownerId) {
-      return isSignedIn() && isOwner(ownerId);
-    }
-
-    // Reusable limit guard for unauthenticated phone lookups.
     // Prevents full-collection scans while allowing single-document lookups.
     function isLimitedLookup() {
       return request.query.limit != null && request.query.limit <= 1;
     }
 
-    // CMS role check: users with a custom claim `cms: true` or `admin: true`
-    // can perform content-management writes (e.g., update `lookups`).
+    // CMS/admin write access (e.g. updating lookups).
     function isCms() {
       return request.auth != null && (
         request.auth.token.cms == true || request.auth.token.admin == true
       );
     }
 
-    // Returns true when the current user is an active team member of [tenantId]
-    // holding at least one of the given [permissions].
-    // The `let`-bound path avoids redundant get() calls per rule evaluation.
-    function isMemberWithAnyPermission(tenantId, permissions) {
-      let ref = /databases/$(database)/documents/tenants/$(tenantId)/memberAccess/$(request.auth.uid);
+    // Returns true when the signed-in user is the owner of this business.
+    function isBusinessOwner(bizId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/businesses/$(bizId)).data.ownerUid == request.auth.uid;
+    }
+
+    // Returns true when the signed-in user is an active staff member of
+    // this business holding at least one of the given permissions.
+    function isStaffWithAny(bizId, permissions) {
+      let ref = /databases/$(database)/documents/businesses/$(bizId)/staff/$(request.auth.uid);
       return isSignedIn() &&
         exists(ref) &&
         get(ref).data.status == 'active' &&
         get(ref).data.permissions.hasAny(permissions);
     }
 
-    // True when the caller is the tenant owner OR an active team member with
-    // at least one of the listed permissions.
-    function isOwnerOrMemberWithAny(tenantId, permissions) {
-      return isSignedIn() && (isOwner(tenantId) || isMemberWithAnyPermission(tenantId, permissions));
+    // Owner OR active staff with any of the listed permissions.
+    function isOwnerOrStaffWithAny(bizId, permissions) {
+      return isSignedIn() && (isBusinessOwner(bizId) || isStaffWithAny(bizId, permissions));
     }
 
-    // True when the caller is an active team member of exactly this business.
-    function isActiveMemberOfBusiness(tenantId, businessId) {
-      let ref = /databases/$(database)/documents/tenants/$(tenantId)/memberAccess/$(request.auth.uid);
-      return isSignedIn() &&
-        exists(ref) &&
-        get(ref).data.status == 'active' &&
-        get(ref).data.businessId == businessId;
-    }
-
-    // Binds an invite-acceptance write to the invited phone number.
-    // Auth emails are derived client-side as '<digits>@mali.up', so only the
-    // account created for the invited number can claim the member record.
-    // Legacy records may store the phone in local format (07...), so the
-    // 255-normalised variant is accepted too.
+    // Auth email is derived from phone as '<digits>@mali.up'.
     function authEmailMatchesPhone(phone) {
       let digits = phone.replace('[^0-9]', '');
       return request.auth.token.email == digits + '@mali.up' ||
@@ -72,580 +57,305 @@ service cloud.firestore {
 
     // ── Validators ────────────────────────────────────────────────────────────
 
-    // Customer (individual or organisation)
     function isValidCustomer(data) {
       return data.keys().hasAll(['name', 'phone']) &&
-        data.name is string &&
-        data.phone is string &&
-        data.name.size() > 0 &&
-        data.name.size() <= 200 &&
-        data.phone.size() <= 32 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        data.phone is string && data.phone.size() <= 32 &&
         (!data.keys().hasAny(['email'])              || data.email is string) &&
         (!data.keys().hasAny(['balance'])             || data.balance is string || data.balance is number) &&
         (!data.keys().hasAny(['lastTransactionDate']) || data.lastTransactionDate is string || data.lastTransactionDate is timestamp) &&
         (!data.keys().hasAny(['tags'])                || data.tags is list) &&
         (!data.keys().hasAny(['isOrganisation'])      || data.isOrganisation is bool) &&
-        (!data.keys().hasAny(['tinNumber'])           || data.tinNumber is string) &&
-        (!data.keys().hasAny(['address'])             || data.address is string);
+        (!data.keys().hasAny(['tinNumber'])            || data.tinNumber is string) &&
+        (!data.keys().hasAny(['address'])              || data.address is string);
     }
 
-    function isValidImportedCustomer(data) {
-      return isValidCustomer(data);
-    }
-
-    // User profile — covers both new owner accounts and team-member first-time setup.
-    // Required: phone + name.  All other fields are optional but type-checked when present.
     function isValidUserCreate(data) {
       return data.keys().hasAll(['phone', 'name']) &&
-        data.name is string &&
-        data.phone is string &&
-        data.name.size() > 0 &&
-        data.name.size() <= 120 &&
-        data.phone.size() > 0 &&
-        data.phone.size() <= 32 &&
-        // Personal profile fields
+        data.name is string && data.name.size() > 0 && data.name.size() <= 120 &&
+        data.phone is string && data.phone.size() > 0 && data.phone.size() <= 32 &&
         (!data.keys().hasAny(['firstName'])    || data.firstName is string) &&
         (!data.keys().hasAny(['lastName'])     || data.lastName is string) &&
-        (!data.keys().hasAny(['city'])         || data.city is string) &&
-        (!data.keys().hasAny(['role'])         || data.role is string) &&
         (!data.keys().hasAny(['language'])     || data.language in ['en', 'sw']) &&
-        // Team member link fields (all required together for team members)
         (!data.keys().hasAny(['isTeamMember']) || data.isTeamMember is bool) &&
-        (!data.keys().hasAny(['ownerUid'])     || data.ownerUid is string) &&
         (!data.keys().hasAny(['businessId'])   || data.businessId is string) &&
-        // memberId links back to tenants/{ownerUid}/…/team_members/{memberId}
-        (!data.keys().hasAny(['memberId'])     || data.memberId is string) &&
-        // Legacy account preference fields
-        (!data.keys().hasAny(['defaultAccountType']) ||
-          data.defaultAccountType in ['business']) &&
-        (!data.keys().hasAny(['accountTypes'])       || data.accountTypes is list) &&
-        (!data.keys().hasAny(['usagePreference'])    ||
-          data.usagePreference in ['business']);
+        (!data.keys().hasAny(['selectedBusinessId']) || data.selectedBusinessId is string);
     }
 
-    // Top-level business profile written during owner onboarding.
-    function isValidBusinessProfile(data) {
-      return data.keys().hasAll(['ownerId', 'businessName']) &&
-        data.ownerId is string &&
-        data.ownerId == request.auth.uid &&
+    function isValidBusinessCreate(data) {
+      return data.keys().hasAll(['ownerUid', 'businessName']) &&
+        data.ownerUid == request.auth.uid &&
         data.businessName is string &&
         data.businessName.size() > 0 &&
         data.businessName.size() <= 200 &&
-        (!data.keys().hasAny(['businessType']) || data.businessType is string) &&
-        (!data.keys().hasAny(['city'])         || data.city is string) &&
-        (!data.keys().hasAny(['country'])      || data.country is string) &&
-        (!data.keys().hasAny(['region'])       || data.region is string) &&
-        (!data.keys().hasAny(['district'])     || data.district is string);
+        (!data.keys().hasAny(['businessCategory']) || data.businessCategory is string) &&
+        (!data.keys().hasAny(['city'])             || data.city is string) &&
+        (!data.keys().hasAny(['district'])         || data.district is string) &&
+        (!data.keys().hasAny(['region'])           || data.region is string) &&
+        (!data.keys().hasAny(['country'])          || data.country is string);
     }
 
-    // Business document under a tenant (tenants/{uid}/businesses/{bizId})
-    function isValidBusinessCreate(data, tenantId) {
-      return data.keys().hasAll(['id', 'businessName', 'ownerUid']) &&
-        data.ownerUid == tenantId &&
-        data.id is string &&
-        data.id.size() > 0 &&
-        data.businessName is string &&
-        data.businessName.size() > 0 &&
-        data.businessName.size() <= 200;
+    function isValidWorkerCreate(data) {
+      return data.keys().hasAll(['name', 'phone']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 120 &&
+        data.phone is string && data.phone.size() > 0 && data.phone.size() <= 32 &&
+        (!data.keys().hasAny(['language']) || data.language in ['en', 'sw']);
     }
 
-    // Sales invoice — status kept as a free string so all casing variants
-    // (Paid / paid / Completed / completed / partial / Unpaid etc.) are accepted.
     function isValidSaleInvoice(data) {
       return data.keys().hasAll(['amount', 'items', 'status']) &&
-        data.amount is number &&
-        data.amount >= 0 &&
+        data.amount is number && data.amount >= 0 &&
         data.items is list &&
-        data.status is string &&
-        data.status.size() > 0 &&
-        data.status.size() <= 50 &&
-        (!data.keys().hasAny(['totalAmount'])     || data.totalAmount is number) &&
-        (!data.keys().hasAny(['amountPaid'])      || data.amountPaid is number) &&
-        (!data.keys().hasAny(['vatAmount'])       || data.vatAmount is number) &&
-        (!data.keys().hasAny(['customerName'])    || data.customerName is string) &&
-        (!data.keys().hasAny(['customerId'])      || data.customerId is string) &&
-        (!data.keys().hasAny(['customerPhone'])   || data.customerPhone is string) &&
-        (!data.keys().hasAny(['isOrganisation'])  || data.isOrganisation is bool) &&
-        (!data.keys().hasAny(['customerTin'])     || data.customerTin is string) &&
-        (!data.keys().hasAny(['invoiceNumber'])   || data.invoiceNumber is string) &&
-        (!data.keys().hasAny(['paymentMethod'])   || data.paymentMethod is string);
+        data.status is string && data.status.size() > 0 && data.status.size() <= 50 &&
+        (!data.keys().hasAny(['totalAmount'])  || data.totalAmount is number) &&
+        (!data.keys().hasAny(['amountPaid'])   || data.amountPaid is number) &&
+        (!data.keys().hasAny(['vatAmount'])    || data.vatAmount is number) &&
+        (!data.keys().hasAny(['customerName']) || data.customerName is string) &&
+        (!data.keys().hasAny(['customerId'])   || data.customerId is string);
     }
 
-    // Inventory item
     function isValidInventoryItem(data) {
       return data.keys().hasAll(['name', 'unitPrice', 'currentStock']) &&
-        data.name is string &&
-        data.name.size() > 0 &&
-        data.name.size() <= 200 &&
-        data.unitPrice is number &&
-        data.unitPrice >= 0 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        data.unitPrice is number && data.unitPrice >= 0 &&
         data.currentStock is number &&
-        (!data.keys().hasAny(['category'])      || data.category is string) &&
-        (!data.keys().hasAny(['sku'])           || data.sku is string) &&
-        (!data.keys().hasAny(['unit'])          || data.unit is string) &&
-        (!data.keys().hasAny(['supplier'])      || data.supplier is string) &&
-        (!data.keys().hasAny(['reorderPoint'])  || data.reorderPoint is number) &&
-        (!data.keys().hasAny(['description'])   || data.description is string) &&
-        (!data.keys().hasAny(['costPrice'])     || data.costPrice is number) &&
-        (!data.keys().hasAny(['isActive'])      || data.isActive is bool);
+        (!data.keys().hasAny(['category'])     || data.category is string) &&
+        (!data.keys().hasAny(['sku'])          || data.sku is string) &&
+        (!data.keys().hasAny(['costPrice'])    || data.costPrice is number) &&
+        (!data.keys().hasAny(['isActive'])     || data.isActive is bool);
     }
 
-    // Expense — status: 'approved' | 'pending' | 'rejected'
     function isValidExpense(data) {
       return data.keys().hasAll(['category', 'amount', 'date']) &&
-        data.category is string &&
-        data.category.size() > 0 &&
-        data.category.size() <= 100 &&
+        data.category is string && data.category.size() > 0 && data.category.size() <= 100 &&
         data.amount is string &&
-        data.date is string &&
-        data.date.size() > 0 &&
-        (!data.keys().hasAny(['note'])          || data.note is string) &&
-        (!data.keys().hasAny(['recipient'])     || data.recipient is string) &&
-        (!data.keys().hasAny(['paymentMethod']) || data.paymentMethod is string) &&
-        (!data.keys().hasAny(['status'])        ||
-          data.status in ['approved', 'pending', 'rejected']) &&
-        (!data.keys().hasAny(['isRecurring'])   || data.isRecurring is bool) &&
-        (!data.keys().hasAny(['receiptUrl'])    || data.receiptUrl is string) &&
-        (!data.keys().hasAny(['createdBy'])     || data.createdBy is string) &&
-        (!data.keys().hasAny(['approvedBy'])    || data.approvedBy is string);
+        data.date is string && data.date.size() > 0 &&
+        (!data.keys().hasAny(['status']) ||
+          data.status in ['approved', 'pending', 'rejected']);
     }
 
-    // Cash account (petty cash, mobile money, bank)
     function isValidCashAccount(data) {
       return data.keys().hasAll(['name', 'type', 'balance']) &&
-        data.name is string &&
-        data.name.size() > 0 &&
-        data.name.size() <= 100 &&
-        data.type is string &&
-        data.type.size() > 0 &&
-        (data.balance is string || data.balance is number) &&
-        (!data.keys().hasAny(['lastReconciled']) || data.lastReconciled is string);
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.type is string && data.type.size() > 0 &&
+        (data.balance is string || data.balance is number);
     }
 
-    // Monthly budget entry
     function isValidBudget(data) {
       return data.keys().hasAll(['category', 'amount', 'month', 'year']) &&
-        data.category is string &&
-        data.category.size() > 0 &&
-        data.amount is number &&
-        data.amount >= 0 &&
-        data.month is int &&
-        data.month >= 1 &&
-        data.month <= 12 &&
-        data.year is int &&
-        data.year >= 2000;
+        data.category is string && data.category.size() > 0 &&
+        data.amount is number && data.amount >= 0 &&
+        data.month is int && data.month >= 1 && data.month <= 12 &&
+        data.year is int && data.year >= 2000;
     }
 
-    // Recurring expense template
-    function isValidExpenseTemplate(data) {
-      return data.keys().hasAll(['category', 'amount', 'recurrenceType']) &&
-        data.category is string &&
-        data.category.size() > 0 &&
-        data.recurrenceType in ['monthly', 'weekly', 'daily'] &&
-        (!data.keys().hasAny(['note'])          || data.note is string) &&
-        (!data.keys().hasAny(['recipient'])     || data.recipient is string) &&
-        (!data.keys().hasAny(['paymentMethod']) || data.paymentMethod is string);
-    }
-
-    // Top-level pending invite used for pre-auth phone lookup.
     function isValidPendingInviteCreate(data) {
       return data.keys().hasAll([
-          'businessId',
-          'businessName',
-          'fullName',
-          'phoneNumber',
-          'role',
-          'invitedBy',
-          'ownerUid',
-          'memberId',
-          'status',
-          'pinCreated'
+          'businessId', 'businessName', 'fullName', 'phoneNumber',
+          'role', 'invitedBy', 'ownerUid', 'memberId', 'status', 'pinCreated'
         ]) &&
-        data.businessId is string &&
-        data.businessName is string &&
-        data.fullName is string &&
-        data.phoneNumber is string &&
-        data.role is string &&
-        data.invitedBy is string &&
-        data.ownerUid is string &&
-        data.memberId is string &&
-        data.status == 'pending' &&
-        data.pinCreated == false &&
+        data.businessId is string && data.businessName is string &&
+        data.fullName is string && data.phoneNumber is string &&
+        data.role is string && data.invitedBy is string &&
+        data.ownerUid is string && data.memberId is string &&
+        data.status == 'pending' && data.pinCreated == false &&
         data.ownerUid == request.auth.uid &&
-        data.invitedBy == request.auth.uid &&
-        (!data.keys().hasAny(['email']) || data.email is string) &&
-        (!data.keys().hasAny(['createdAt']) || data.createdAt is timestamp);
+        data.invitedBy == request.auth.uid;
     }
 
     // =========================================================================
-    // USER PROFILES
+    // USER PROFILES  (business owners)
     // =========================================================================
     match /users/{userId} {
       allow read, update, delete: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) &&
-        isValidUserCreate(request.resource.data);
-      // Allow anonymous single-result phone lookups for login/onboarding.
+      allow create: if isSignedIn() && isOwner(userId) && isValidUserCreate(request.resource.data);
+      // Phone lookup (login / onboarding)
       allow list: if isSignedIn() || (!isSignedIn() && isLimitedLookup());
     }
 
     // =========================================================================
-    // BUSINESS PROFILES (top-level — written during owner onboarding)
-    // Path: businesses/{businessId}
+    // WORKER PROFILES  (employees / team members)
     // =========================================================================
-    match /businesses/{businessId} {
-      // Allow anonymous single-result owner lookups during login/onboarding.
+    match /workers/{workerUid} {
+      // Worker reads/writes their own profile.
+      allow read, write: if isSignedIn() && isOwner(workerUid);
+      // Business owner can read (to display name/phone in staff list).
+      allow read: if isSignedIn();
+      // Owner creates the worker profile when sending an invite.
+      allow create: if isSignedIn() && isValidWorkerCreate(request.resource.data);
+    }
+
+    // =========================================================================
+    // BUSINESSES  (top-level — owned by a user)
+    // Path: businesses/{bizId}
+    // =========================================================================
+    match /businesses/{bizId} {
+      // Public phone lookup: limited list allowed pre-auth.
       allow list: if isSignedIn() || (!isSignedIn() && isLimitedLookup());
 
-      // Direct document read: owner only.
-      allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      // Read: owner or any active staff member.
+      allow get: if isSignedIn() && (
+        resource.data.ownerUid == request.auth.uid ||
+        isStaffWithAny(bizId, ['viewSales', 'viewCustomers', 'viewInventory',
+          'viewCashFlow', 'viewDebt', 'createSale', 'manageCustomers',
+          'manageExpenses', 'addStock', 'editStock'])
+      );
 
-      // Create: new owner account setup — ownerId must match caller's UID.
-      allow create: if isSignedIn() &&
-        isValidBusinessProfile(request.resource.data);
+      // Create: ownerUid must be the caller.
+      allow create: if isSignedIn() && isValidBusinessCreate(request.resource.data);
 
-      // Updates/deletes: owner only.
-      allow update, delete: if isSignedIn() &&
-        resource.data.ownerId == request.auth.uid;
-    }
+      // Update / delete: owner only.
+      allow update, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
 
-    // =========================================================================
-    // TEAM MEMBERS — collection group lookup
-    // Path: tenants/{uid}/businesses/{bizId}/team_members/{memberId}
-    // =========================================================================
-    match /{path=**}/team_members/{memberId} {
-      // Require authentication for team member lookups.
-      allow list: if isSignedIn();
-    }
-
-    // =========================================================================
-    // LEGACY BUSINESS COLLECTION
-    // =========================================================================
-    match /business/{ownerId} {
-      allow read, write: if isBusinessOwner(ownerId);
-
-      match /invoices/{invoiceId} {
-        allow read, write: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId) && request.resource.data.ownerId == ownerId;
-      }
-
+      // ── Customers ──────────────────────────────────────────────────────────
       match /customers/{customerId} {
-        allow read, update, delete: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId) && isValidCustomer(request.resource.data);
-      }
-
-      match /expenses/{expenseId} {
-        allow read, update, delete: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId) && isValidExpense(request.resource.data);
-      }
-
-      match /cash_accounts/{accountId} {
-        allow read, update, delete: if isBusinessOwner(ownerId);
-        allow create: if isBusinessOwner(ownerId) && isValidCashAccount(request.resource.data);
-      }
-
-      match /inventory/{itemId} {
-        allow read, write: if isBusinessOwner(ownerId);
-      }
-
-      match /settings/{settingId} {
-        allow read, write: if isBusinessOwner(ownerId);
-      }
-
-      match /cashFlow/{cashFlowId} {
-        allow read, write: if isBusinessOwner(ownerId);
-      }
-
-      match /suppliers/{supplierId} {
-        allow read, write: if isBusinessOwner(ownerId);
-      }
-
-      match /staff/{staffId} {
-        allow read, write: if isBusinessOwner(ownerId);
-      }
-    }
-
-    // =========================================================================
-    // TENANT-SCOPED BUSINESSES (primary data path)
-    // tenants/{uid}/[businesses/{businessId}/]{collection}/{docId}
-    // =========================================================================
-    match /tenants/{tenantId} {
-      allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
-
-      // ── Direct collections (before businessId is resolved) ─────────────────
-
-      match /customers/{customerId} {
-        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        allow create: if isSignedIn() && isOwner(tenantId) &&
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewCustomers', 'manageCustomers', 'createSale']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['manageCustomers', 'createSale']) &&
           isValidCustomer(request.resource.data);
+        allow update, delete: if isOwnerOrStaffWithAny(bizId, ['manageCustomers']);
+        allow update: if isOwnerOrStaffWithAny(bizId, ['createSale', 'editSale']) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['balance', 'lastTransactionDate', 'updatedAt']);
 
         match /notes/{noteId} {
-          allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
+          allow read, create, update, delete: if isOwnerOrStaffWithAny(bizId, ['manageCustomers']);
         }
       }
 
+      // ── Sales invoices ─────────────────────────────────────────────────────
       match /sales_invoices/{invoiceId} {
-        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        allow create: if isSignedIn() && isOwner(tenantId) &&
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewSales', 'createSale']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale']) &&
           isValidSaleInvoice(request.resource.data);
+        allow update: if isOwnerOrStaffWithAny(bizId, ['editSale']);
+        allow delete: if isOwnerOrStaffWithAny(bizId, ['deleteSale']);
       }
 
+      match /invoice_payments/{paymentId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewSales', 'createSale']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'editSale']);
+        allow update, delete: if isSignedIn() && isBusinessOwner(bizId);
+      }
+
+      match /credit_notes/{creditNoteId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewSales', 'issueRefund']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['issueRefund']);
+        allow update, delete: if isSignedIn() && isBusinessOwner(bizId);
+      }
+
+      // ── Receivables & debts ────────────────────────────────────────────────
+      match /receivables/{receivableId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewSales', 'viewDebt']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'grantCredit']);
+        allow update, delete: if isOwnerOrStaffWithAny(bizId, ['manageDebt']);
+      }
+
+      match /debts/{debtId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewDebt', 'manageDebt', 'createSale']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'manageDebt', 'grantCredit']);
+        allow update: if isOwnerOrStaffWithAny(bizId, ['manageDebt']);
+        allow delete: if isOwnerOrStaffWithAny(bizId, ['writeOffDebt', 'manageDebt']);
+
+        match /payments/{paymentId} {
+          allow read, create: if isOwnerOrStaffWithAny(bizId, ['viewDebt', 'manageDebt']);
+          allow update, delete: if isOwnerOrStaffWithAny(bizId, ['manageDebt']);
+        }
+      }
+
+      // ── Inventory ──────────────────────────────────────────────────────────
       match /inventory_items/{itemId} {
-        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        allow create: if isSignedIn() && isOwner(tenantId) &&
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewInventory']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['addStock']) &&
           isValidInventoryItem(request.resource.data);
+        allow update: if isOwnerOrStaffWithAny(bizId, ['editStock', 'adjustStock']);
+        allow update: if isOwnerOrStaffWithAny(bizId, ['createSale', 'issueRefund']) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['currentStock', 'updatedAt']);
+        allow delete: if isOwnerOrStaffWithAny(bizId, ['deleteStock']);
       }
 
+      // ── Expenses ───────────────────────────────────────────────────────────
       match /expenses/{expenseId} {
-        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        allow create: if isSignedIn() && isOwner(tenantId) &&
+        allow read: if isOwnerOrStaffWithAny(bizId, ['manageExpenses']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['manageExpenses']) &&
           isValidExpense(request.resource.data);
-      }
-
-      match /cash_accounts/{accountId} {
-        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        allow create: if isSignedIn() && isOwner(tenantId) &&
-          isValidCashAccount(request.resource.data);
-      }
-
-      match /budgets/{budgetId} {
-        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        allow create: if isSignedIn() && isOwner(tenantId) &&
-          isValidBudget(request.resource.data);
+        allow update, delete: if isOwnerOrStaffWithAny(bizId, ['manageExpenses']);
       }
 
       match /expense_templates/{templateId} {
-        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        allow create: if isSignedIn() && isOwner(tenantId) &&
-          isValidExpenseTemplate(request.resource.data);
+        allow read, update, delete: if isSignedIn() && isBusinessOwner(bizId);
+        allow create: if isSignedIn() && isBusinessOwner(bizId);
       }
 
-      // memberAccess — flat permissions list created when a member accepts
-      // their invite. Doc ID equals the member's Firebase Auth UID so rules
-      // can check it via $(request.auth.uid) without an extra lookup.
-      match /memberAccess/{memberUid} {
-        allow read, write: if isSignedIn() && isOwner(tenantId);
-        // Members can read their own access doc (e.g. to show their permissions).
-        allow read: if isSignedIn() && request.auth.uid == memberUid;
-        // A member may create their own access doc while accepting an invite,
-        // but only mirroring a team_members record they have already claimed
-        // (userId stamped to their UID by the claim rule below). Permissions
-        // must be a subset of what the owner granted on that record, so a
-        // member can never self-escalate.
-        allow create: if isSignedIn() && request.auth.uid == memberUid &&
-          request.resource.data.keys().hasAll(
-            ['status', 'businessId', 'memberId', 'role', 'permissions']) &&
+      // ── Cash accounts & budgets ────────────────────────────────────────────
+      match /cash_accounts/{accountId} {
+        allow read: if isOwnerOrStaffWithAny(bizId, ['viewCashFlow']);
+        allow create: if isSignedIn() && isBusinessOwner(bizId) && isValidCashAccount(request.resource.data);
+        allow update, delete: if isSignedIn() && isBusinessOwner(bizId);
+      }
+
+      match /budgets/{budgetId} {
+        allow read, update, delete: if isSignedIn() && isBusinessOwner(bizId);
+        allow create: if isSignedIn() && isBusinessOwner(bizId) && isValidBudget(request.resource.data);
+      }
+
+      // ── Product categories ─────────────────────────────────────────────────
+      match /categories/{categoryId} {
+        allow read: if isSignedIn() && isBusinessOwner(bizId);
+        allow create: if isSignedIn() && isBusinessOwner(bizId) &&
+          request.resource.data.keys().hasAll(['name']) &&
+          request.resource.data.name is string &&
+          request.resource.data.name.size() > 0 &&
+          request.resource.data.name.size() <= 100;
+        allow update: if isSignedIn() && isBusinessOwner(bizId) &&
+          request.resource.data.name is string &&
+          request.resource.data.name.size() > 0;
+        allow delete: if isSignedIn() && isBusinessOwner(bizId);
+      }
+
+      // ── Staff  (replaces team_members + memberAccess) ──────────────────────
+      // Doc ID = auto-generated on invite. Field `workerUid` is stamped when
+      // the worker accepts (their Firebase Auth UID).
+      match /staff/{staffId} {
+        // Owner has full control.
+        allow read, create, update, delete: if isSignedIn() && isBusinessOwner(bizId);
+        // Active worker reads their own record.
+        allow read: if isSignedIn() && resource.data.workerUid == request.auth.uid;
+        // Worker accepts invite: stamps their UID + activates.
+        allow update: if isSignedIn() &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'acceptedAt', 'workerUid', 'updatedAt']) &&
+          request.resource.data.workerUid == request.auth.uid &&
           request.resource.data.status == 'active' &&
-          request.resource.data.businessId is string &&
-          request.resource.data.memberId is string &&
-          request.resource.data.role is string &&
-          request.resource.data.permissions is list &&
-          get(/databases/$(database)/documents/tenants/$(tenantId)/businesses/$(request.resource.data.businessId)/team_members/$(request.resource.data.memberId)).data.userId == request.auth.uid &&
-          get(/databases/$(database)/documents/tenants/$(tenantId)/businesses/$(request.resource.data.businessId)/team_members/$(request.resource.data.memberId)).data.role == request.resource.data.role &&
-          (
-            !('permissions' in get(/databases/$(database)/documents/tenants/$(tenantId)/businesses/$(request.resource.data.businessId)/team_members/$(request.resource.data.memberId)).data) ||
-            get(/databases/$(database)/documents/tenants/$(tenantId)/businesses/$(request.resource.data.businessId)/team_members/$(request.resource.data.memberId)).data.permissions.hasAll(request.resource.data.permissions)
-          );
+          (!('workerUid' in resource.data) || resource.data.workerUid == request.auth.uid) &&
+          authEmailMatchesPhone(resource.data.phone);
       }
 
-      // Fallback for any other direct subcollection
+      // ── Audit logs ────────────────────────────────────────────────────────
+      match /audit_logs/{logId} {
+        allow read: if isSignedIn() && isBusinessOwner(bizId);
+        allow create: if isOwnerOrStaffWithAny(bizId,
+          ['manageCustomers', 'grantCredit', 'createSale', 'editSale', 'issueRefund']);
+      }
+
+      // Fallback for any other subcollection
       match /{collection}/{docId} {
-        allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
-      }
-
-      // ── Business-scoped collections ─────────────────────────────────────────
-
-      match /businesses/{businessId} {
-        allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-        allow create: if isSignedIn() && isOwner(tenantId) &&
-          isValidBusinessCreate(request.resource.data, tenantId);
-
-        match /customers/{customerId} {
-          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewCustomers', 'manageCustomers']);
-          // createSale lets cashiers register walk-in customers during a sale.
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers', 'createSale']) &&
-            isValidCustomer(request.resource.data);
-          allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers']);
-          // POS flows may only touch the running balance + last-transaction
-          // stamp (credit sale / payment received) — nothing else.
-          allow update: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'editSale']) &&
-            request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['balance', 'lastTransactionDate', 'updatedAt']);
-
-          match /notes/{noteId} {
-            allow read, create, update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageCustomers']);
-          }
-        }
-
-        match /sales_invoices/{invoiceId} {
-          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewSales', 'createSale']);
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['createSale']) &&
-            isValidSaleInvoice(request.resource.data);
-          allow update: if isOwnerOrMemberWithAny(tenantId, ['editSale']);
-          allow delete: if isOwnerOrMemberWithAny(tenantId, ['deleteSale']);
-        }
-
-        // Payments recorded against an invoice (POS "Record Payment").
-        match /invoice_payments/{paymentId} {
-          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewSales', 'createSale']);
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'editSale']);
-          allow update, delete: if isSignedIn() && isOwner(tenantId);
-        }
-
-        // Credit notes from sales returns.
-        match /credit_notes/{creditNoteId} {
-          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewSales', 'issueRefund']);
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['issueRefund']);
-          allow update, delete: if isSignedIn() && isOwner(tenantId);
-        }
-
-        // Receivables created by on-account (credit) invoices.
-        match /receivables/{receivableId} {
-          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewSales', 'viewDebt']);
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'grantCredit']);
-          allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageDebt']);
-        }
-
-        // Debt records linked to unpaid / partially paid sales.
-        match /debts/{debtId} {
-          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewDebt', 'manageDebt', 'createSale']);
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'manageDebt', 'grantCredit']);
-          allow update: if isOwnerOrMemberWithAny(tenantId, ['manageDebt']);
-          allow delete: if isOwnerOrMemberWithAny(tenantId, ['writeOffDebt', 'manageDebt']);
-
-          match /payments/{paymentId} {
-            allow read, create: if isOwnerOrMemberWithAny(tenantId, ['viewDebt', 'manageDebt']);
-            allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageDebt']);
-          }
-        }
-
-        match /inventory_items/{itemId} {
-          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewInventory']);
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['addStock']) &&
-            isValidInventoryItem(request.resource.data);
-          allow update: if isOwnerOrMemberWithAny(tenantId, ['editStock', 'adjustStock']);
-          // POS flows may adjust stock levels only (sale deduction / return
-          // restock) without broader inventory-editing rights.
-          allow update: if isOwnerOrMemberWithAny(tenantId, ['createSale', 'issueRefund']) &&
-            request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['currentStock', 'updatedAt']);
-          allow delete: if isOwnerOrMemberWithAny(tenantId, ['deleteStock']);
-        }
-
-        match /expenses/{expenseId} {
-          allow read: if isOwnerOrMemberWithAny(tenantId, ['manageExpenses']);
-          allow create: if isOwnerOrMemberWithAny(tenantId, ['manageExpenses']) &&
-            isValidExpense(request.resource.data);
-          allow update, delete: if isOwnerOrMemberWithAny(tenantId, ['manageExpenses']);
-        }
-
-        match /cash_accounts/{accountId} {
-          allow read: if isOwnerOrMemberWithAny(tenantId, ['viewCashFlow']);
-          allow create: if isSignedIn() && isOwner(tenantId) &&
-            isValidCashAccount(request.resource.data);
-          allow update, delete: if isSignedIn() && isOwner(tenantId);
-        }
-
-        match /budgets/{budgetId} {
-          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-          allow create: if isSignedIn() && isOwner(tenantId) &&
-            isValidBudget(request.resource.data);
-        }
-
-        match /expense_templates/{templateId} {
-          allow read, update, delete: if isSignedIn() && isOwner(tenantId);
-          allow create: if isSignedIn() && isOwner(tenantId) &&
-            isValidExpenseTemplate(request.resource.data);
-        }
-
-        // Product categories — business-scoped
-        // Path: tenants/{uid}/businesses/{bizId}/categories/{categoryId}
-        match /categories/{categoryId} {
-          allow read: if isSignedIn() && isOwner(tenantId);
-          allow create: if isSignedIn() && isOwner(tenantId) &&
-            request.resource.data.keys().hasAll(['name']) &&
-            request.resource.data.name is string &&
-            request.resource.data.name.size() > 0 &&
-            request.resource.data.name.size() <= 100;
-          allow update: if isSignedIn() && isOwner(tenantId) &&
-            request.resource.data.name is string &&
-            request.resource.data.name.size() > 0 &&
-            request.resource.data.name.size() <= 100;
-          allow delete: if isSignedIn() && isOwner(tenantId);
-        }
-
-        // Explicit team_members rule (owner full access; unauthenticated lookup
-        // is handled by the wildcard /{path=**}/team_members rule above).
-        match /team_members/{memberId} {
-          allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
-          // Members can read their own record (role, status, permissions).
-          allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-          // Invite acceptance: the invited member claims this record on first
-          // login — stamping their UID and activating it. Only the activation
-          // fields may change, the record must be unclaimed (or already theirs,
-          // for retries after a partial failure), and the caller's derived auth
-          // email must match the invited phone number.
-          allow update: if isSignedIn() &&
-            request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['status', 'acceptedAt', 'userId', 'updatedAt']) &&
-            request.resource.data.userId == request.auth.uid &&
-            request.resource.data.status == 'active' &&
-            (!('userId' in resource.data) || resource.data.userId == request.auth.uid) &&
-            authEmailMatchesPhone(resource.data.phone);
-        }
-
-        // Audit logs — owner reads; owner and customer-managing members may
-        // append entries (customer + sales actions are logged from member
-        // sessions: sale created, payment received, return processed, etc.).
-        match /audit_logs/{logId} {
-          allow read: if isSignedIn() && isOwner(tenantId);
-          allow create: if isOwnerOrMemberWithAny(tenantId,
-            ['manageCustomers', 'grantCredit', 'createSale', 'editSale', 'issueRefund']);
-        }
-
-        // Fallback for any other subcollection (debts, etc.)
-        match /{collection}/{docId} {
-          allow read, create, update, delete: if isSignedIn() && isOwner(tenantId);
-        }
+        allow read, create, update, delete: if isSignedIn() && isBusinessOwner(bizId);
       }
     }
 
     // =========================================================================
-    // DEBT COLLECTIONS (standalone tracker)
-    // =========================================================================
-    match /debt_collections/{collectionId} {
-      allow read, write: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-    }
-
-    // =========================================================================
-    // PUBLIC LOOKUPS (app bootstrap / onboarding data)
-    // =========================================================================
-    match /lookups/{lookupId} {
-      // Public read for bootstrap data; writes restricted to CMS/admins.
-      allow read: if true;
-      allow write: if isCms();
-    }
-
-    // =========================================================================
-    // TOP-LEVEL PENDING INVITES (staff onboarding lookup)
+    // PENDING INVITES  (top-level for pre-auth phone lookup)
     // =========================================================================
     match /pendingInvites/{inviteId} {
-      // Owner can read own invites; unauthenticated phone lookup allowed with
-      // strict limit to prevent scans.
       allow get: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
-      allow list: if isSignedIn() ||
-        (request.auth == null && isLimitedLookup());
+      allow list: if isSignedIn() || (request.auth == null && isLimitedLookup());
 
-      // Owner creates invite.
-      allow create: if isSignedIn() &&
-        isValidPendingInviteCreate(request.resource.data);
+      allow create: if isSignedIn() && isValidPendingInviteCreate(request.resource.data);
 
-      // Owner can manage full invite lifecycle (cancel, expire, re-invite).
-      allow update: if isSignedIn() &&
-        resource.data.ownerUid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
 
-      // Invited member can only mark their own invite accepted: they attach
-      // their UID and flip status/pinCreated — nothing else may change.
+      // Worker accepts invite: stamps their UID, flips status.
       allow update: if isSignedIn() &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['status', 'pinCreated', 'acceptedAt', 'uid']) &&
@@ -657,10 +367,15 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // MASTER CATALOG (global, Mali Up managed)
-    // All signed-in users can read. CMS can write anything.
-    // Signed-in users may CREATE a community-contributed category only —
-    // updates and deletes of catalog entries remain CMS-only.
+    // PUBLIC LOOKUPS  (app bootstrap data — business types, cities, districts)
+    // =========================================================================
+    match /lookups/{lookupId} {
+      allow read: if true;
+      allow write: if isCms();
+    }
+
+    // =========================================================================
+    // MASTER CATALOG  (global, Mali Up managed)
     // =========================================================================
     match /master_categories/{categoryId} {
       allow read: if isSignedIn();

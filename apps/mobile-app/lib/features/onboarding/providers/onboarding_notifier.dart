@@ -9,6 +9,8 @@ import '../domain/models/onboarding_state.dart';
 import '../domain/models/user_lookup_result.dart';
 import '../../../core/services/localization_service.dart';
 
+export '../data/services/onboarding_service.dart' show OnboardingDraft;
+
 // ─── BOOTSTRAP PROVIDER ──────────────────────────────────────────────────────
 
 /// Seeded by [main.dart] via ProviderScope.overrides before the first frame so
@@ -30,6 +32,10 @@ final onboardingBootstrapProvider = Provider<bool>((_) => false);
 /// the notifier initialises at the phone-entry step so the router can send the
 /// user straight to /phone without replaying the language + intro screens.
 final onboardingPhoneEntryBootstrapProvider = Provider<bool>((_) => false);
+
+/// Pre-loaded new-user registration draft.  Seeded by main.dart so the notifier
+/// can restore the user's partially-completed personal/business info on cold-start.
+final onboardingDraftBootstrapProvider = Provider<OnboardingDraft?>((_) => null);
 
 // ─── PROVIDER ────────────────────────────────────────────────────────────────
 
@@ -66,6 +72,27 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     // completed onboarding — start in a done state so the router redirects
     // immediately to /dashboard without any intermediate flicker.
     final alreadyComplete = ref.read(onboardingBootstrapProvider);
+    if (!alreadyComplete) {
+      final draft = ref.read(onboardingDraftBootstrapProvider);
+      if (draft != null) {
+        return OnboardingState(
+          currentStep:     draft.currentStep,
+          phone:           draft.phone,
+          firstName:       draft.firstName,
+          lastName:        draft.lastName,
+          email:           draft.email,
+          city:            draft.city,
+          businessName:    draft.businessName,
+          businessType:    draft.businessType,
+          businessCountry: draft.businessCountry,
+          businessRegion:  draft.businessRegion,
+          businessDistrict:draft.businessDistrict,
+          websiteUrl:      draft.websiteUrl,
+          hasWebsite:      draft.hasWebsite,
+          websiteInterest: draft.websiteInterest,
+        );
+      }
+    }
     return OnboardingState(isComplete: alreadyComplete);
   }
 
@@ -352,6 +379,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       currentStep: OnboardingStep.businessDetails,
       clearError: true,
     );
+    _service.saveDraft(state);
   }
 
   // ─── SCREEN 5 — BUSINESS DETAILS ─────────────────────────────────────────
@@ -378,6 +406,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       currentStep: OnboardingStep.pinSetup,
       clearError: true,
     );
+    _service.saveDraft(state);
   }
 
   // ─── SCREEN 6 — PIN SETUP ────────────────────────────────────────────────
@@ -417,6 +446,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
 
   void reset() {
     state = const OnboardingState();
+    _service.clearDraft();
   }
 
   /// Resets session state but keeps the user at the phone-entry step so the
@@ -424,6 +454,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   /// Use this on logout / account switch rather than [reset].
   void resetToPhoneEntry() {
     state = const OnboardingState(currentStep: OnboardingStep.phoneEntry);
+    _service.clearDraft();
   }
 
   // ─── PRIVATE HELPERS ─────────────────────────────────────────────────────

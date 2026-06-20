@@ -183,10 +183,7 @@ class PlanService {
         if (selectedBusinessId.isNotEmpty) {
           final now = DateTime.now();
           final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
-          // Correct path: tenants/{uid}/businesses/{businessId}/sales_invoices
           final snap = await _db
-              .collection('tenants')
-              .doc(user.uid)
               .collection('businesses')
               .doc(selectedBusinessId)
               .collection('sales_invoices')

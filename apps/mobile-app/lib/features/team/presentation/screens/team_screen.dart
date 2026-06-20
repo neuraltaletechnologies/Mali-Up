@@ -231,20 +231,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       final ctx2 = await repo.resolveContextForUser(user.uid);
       await repo.deleteTeamMember(uid: user.uid, context: ctx2, memberId: member.id);
 
-      // Clean up memberAccess doc if the member had already signed in.
-      final memberUid = member.userId;
-      if (memberUid != null && memberUid.isNotEmpty) {
-        try {
-          await FirebaseFirestore.instance
-              .collection('tenants')
-              .doc(user.uid)
-              .collection('memberAccess')
-              .doc(memberUid)
-              .delete();
-        } catch (e) {
-          if (kDebugMode) debugPrint('[removeMember] memberAccess cleanup: $e');
-        }
-      }
+      // No memberAccess collection to clean up — permissions now live on the staff doc.
 
       // Mark the pending invite as cancelled so the phone lookup no longer
       // returns this person as a team member.
@@ -1471,47 +1458,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
           memberId: _member.id,
           data: data);
 
-      // Sync memberAccess so Firestore security rules reflect the new
-      // role/permissions/status immediately — the rules check this doc.
-      final memberUid = _member.userId;
-      if (memberUid != null && memberUid.isNotEmpty) {
-        final accessUpdate = <String, dynamic>{};
-        if (data.containsKey('role') || data.containsKey('customPermissions')) {
-          final newRole = data.containsKey('role')
-              ? TeamRole.fromString(data['role'] as String)
-              : _member.role;
-          final newCustom = data.containsKey('customPermissions')
-              ? Set<AppPermission>.of(
-                  (data['customPermissions'] as List)
-                      .whereType<String>()
-                      .map(AppPermissionX.fromString)
-                      .whereType<AppPermission>())
-              : _member.customPermissions;
-          final effective = newRole == TeamRole.custom
-              ? newCustom
-              : defaultPermissionsFor(newRole);
-          accessUpdate['role'] = newRole.name;
-          accessUpdate['permissions'] = effective.map((p) => p.name).toList();
-        }
-        if (data.containsKey('status')) {
-          accessUpdate['status'] = data['status'];
-        }
-        if (accessUpdate.isNotEmpty) {
-          accessUpdate['updatedAt'] = FieldValue.serverTimestamp();
-          try {
-            await FirebaseFirestore.instance
-                .collection('tenants')
-                .doc(user.uid)
-                .collection('memberAccess')
-                .doc(memberUid)
-                .update(accessUpdate);
-          } catch (e) {
-            if (kDebugMode) {
-              debugPrint('[TeamScreen] memberAccess sync failed: $e');
-            }
-          }
-        }
-      }
+      // Permissions are now part of the staff doc — updateTeamMember already wrote them.
 
       // Audit log — best-effort, do not await
       final bizId = ctx.businessId ?? '';

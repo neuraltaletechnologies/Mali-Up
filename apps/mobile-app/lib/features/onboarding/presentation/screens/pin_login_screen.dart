@@ -510,11 +510,28 @@ class _ForgotPinSheet extends ConsumerStatefulWidget {
 class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
   bool _isSending = false;
   bool _sent = false;
+  bool _noEmail = false;
+  String? _sentTo;
 
   Future<void> _sendRecovery() async {
-    setState(() => _isSending = true);
-    await ref.read(onboardingNotifierProvider.notifier).sendPinRecovery();
-    if (mounted) setState(() { _isSending = false; _sent = true; });
+    setState(() { _isSending = true; _noEmail = false; });
+    final email =
+        await ref.read(onboardingNotifierProvider.notifier).sendPinRecovery();
+    if (!mounted) return;
+    if (email != null) {
+      setState(() { _isSending = false; _sent = true; _sentTo = email; });
+    } else {
+      setState(() { _isSending = false; _noEmail = true; });
+    }
+  }
+
+  String _maskEmail(String email) {
+    if (!email.contains('@')) return email;
+    final parts = email.split('@');
+    final user = parts[0];
+    final domain = parts[1];
+    if (user.length <= 2) return '${'*' * user.length}@$domain';
+    return '${user[0]}${'*' * (user.length - 2)}${user[user.length - 1]}@$domain';
   }
 
   @override
@@ -566,13 +583,13 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
           ),
           const SizedBox(height: 10),
 
-          if (!_sent) ...[
+          if (!_sent && !_noEmail) ...[
             Text(
               sw
-                  ? 'Tutakutumia maelekezo ya kurejesha PIN yako. '
-                    'Hakikisha unaweza kufikia barua pepe au simu yako.'
-                  : 'We\'ll send recovery instructions so you can reset your PIN. '
-                    'Make sure you have access to your registered contact.',
+                  ? 'Tutakutumia maelekezo ya kurejesha PIN yako '
+                    'kwenye barua pepe uliyosajili.'
+                  : 'We\'ll send recovery instructions to your registered email '
+                    'so you can reset your PIN.',
               style: const TextStyle(
                 fontSize: 14, color: AppColors.textMuted, height: 1.55,
               ),
@@ -594,10 +611,10 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                   Expanded(
                     child: Text(
                       sw
-                          ? 'Baada ya kupokea ujumbe, fuata maelekezo '
-                            'kurejesha ufikiaji wako salama.'
-                          : 'After receiving the message, follow the link '
-                            'to securely restore your account access.',
+                          ? 'Baada ya kupokea barua pepe, fuata kiungo '
+                            'kuweka nenosiri jipya na PIN yako mpya.'
+                          : 'After receiving the email, follow the link '
+                            'to set a new password and restore your access.',
                       style: const TextStyle(
                         fontSize: 12, color: AppColors.tealAccent, height: 1.4,
                       ),
@@ -633,6 +650,57 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                       ),
               ),
             ),
+          ] else if (_noEmail) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3CD),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: const Color(0xFFFFD60A).withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.email_outlined,
+                      color: Color(0xFF856404), size: 40),
+                  const SizedBox(height: 12),
+                  Text(
+                    sw ? 'Barua pepe haijapatikana' : 'No email on file',
+                    style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w800,
+                      color: Color(0xFF856404),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    sw
+                        ? 'Hakuna barua pepe iliyosajiliwa kwa akaunti hii. '
+                          'Tafadhali wasiliana na msaada wa Mali Up kupitia WhatsApp.'
+                        : 'No email address is registered for this account. '
+                          'Please contact Mali Up support via WhatsApp for help.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13, color: Color(0xFF856404), height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  sw ? 'Funga' : 'Close',
+                  style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              ),
+            ),
           ] else ...[
             Container(
               width: double.infinity,
@@ -658,9 +726,9 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                   const SizedBox(height: 8),
                   Text(
                     sw
-                        ? 'Maelekezo ya kurejesha PIN yametumwa. '
+                        ? 'Maelekezo yametumwa kwenda ${_maskEmail(_sentTo!)}. '
                           'Angalia barua pepe yako na ufuate hatua zilizotolewa.'
-                        : 'Recovery instructions have been sent. '
+                        : 'Recovery instructions sent to ${_maskEmail(_sentTo!)}. '
                           'Check your email and follow the steps provided.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(

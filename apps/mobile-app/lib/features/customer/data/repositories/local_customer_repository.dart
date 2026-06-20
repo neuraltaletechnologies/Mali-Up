@@ -20,6 +20,11 @@ class LocalCustomerRepository {
 
   Future<CustomersTableData?> getRawById(String id) => _dao.getById(id);
 
+  Future<Customer?> findByPhone(String phone) async {
+    final row = await _dao.findByPhone(businessId, phone);
+    return row != null ? CustomerMapper.fromRow(row) : null;
+  }
+
   Future<List<Customer>> search(String query) async {
     final rows = await _dao.search(businessId, query);
     return rows.map(CustomerMapper.fromRow).toList();

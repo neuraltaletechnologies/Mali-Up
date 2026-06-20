@@ -16,12 +16,8 @@ class RemoteCustomerRepository {
     FirebaseFirestore? firestore,
   }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _collection => _firestore
-      .collection('tenants')
-      .doc(uid)
-      .collection('businesses')
-      .doc(businessId)
-      .collection(_collectionName);
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _firestore.collection('businesses').doc(businessId).collection(_collectionName);
 
   Future<int> saveAndGetTimestamp(Customer customer) async {
     final data = {

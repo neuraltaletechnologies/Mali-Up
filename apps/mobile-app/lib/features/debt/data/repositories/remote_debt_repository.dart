@@ -15,12 +15,8 @@ class RemoteDebtRepository {
     FirebaseFirestore? firestore,
   }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _collection => _firestore
-      .collection('tenants')
-      .doc(uid)
-      .collection('businesses')
-      .doc(businessId)
-      .collection(_collectionName);
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _firestore.collection('businesses').doc(businessId).collection(_collectionName);
 
   // ─── Debt operations ───────────────────────────────────────────────────────
 
