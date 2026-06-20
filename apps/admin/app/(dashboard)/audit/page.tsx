@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { DetailDrawer } from '@/components/ui/detail-drawer'
-import { mockAuditLog } from '@/lib/mock-data'
+import { Skeleton } from '@/components/ui/skeleton'
+import { fetchAudit } from '@/lib/admin-api'
+import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatDateTime } from '@/lib/format'
 import type { AuditEntry } from '@/types'
 import { cn } from '@/lib/utils'
-import { Search } from 'lucide-react'
+import { Search, AlertCircle } from 'lucide-react'
 
 function JsonDiff({ before, after }: { before?: Record<string, unknown>; after?: Record<string, unknown> }) {
   return (
@@ -32,9 +34,38 @@ export default function AuditPage() {
   const [selected, setSelected] = useState<AuditEntry | null>(null)
   const [search, setSearch] = useState('')
 
-  const filtered = mockAuditLog.filter((e) =>
-    !search || e.action.includes(search.toLowerCase()) || e.adminName.toLowerCase().includes(search.toLowerCase()) || e.resourceName.toLowerCase().includes(search.toLowerCase())
+  const { data, loading, error } = useAdminFetch(useCallback(() => fetchAudit(), []))
+
+  const entries = data?.entries ?? []
+  const filtered = entries.filter((e) =>
+    !search ||
+    e.action.includes(search.toLowerCase()) ||
+    e.adminName.toLowerCase().includes(search.toLowerCase()) ||
+    e.resourceName.toLowerCase().includes(search.toLowerCase())
   )
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title="Audit Log" description="Loading…" />
+        <div className="space-y-2 mt-4">
+          {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Audit Log" description="Failed to load" />
+        <div className="mt-8 flex items-center gap-3 rounded-lg border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-4 text-[var(--status-bad)]">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="text-[13px]">{error}</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -43,7 +74,6 @@ export default function AuditPage() {
         description="Immutable record of all admin actions"
       />
 
-      {/* Filter bar */}
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--ink-faint)]" />
@@ -54,52 +84,58 @@ export default function AuditPage() {
             className="w-full rounded-md border border-[var(--line)] bg-[var(--surface)] pl-8 pr-3 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
           />
         </div>
+        <span className="text-[12px] text-[var(--ink-faint)]">{filtered.length} entries</span>
       </div>
 
-      {/* Log table */}
       <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] overflow-hidden">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-[var(--line)] bg-[var(--canvas)]">
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">Timestamp</th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">Admin</th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">Action</th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">Resource</th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">IP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((entry) => (
-              <tr
-                key={entry.id}
-                onClick={() => setSelected(entry)}
-                className={cn(
-                  'border-b border-[var(--line)] last:border-0 cursor-pointer transition-colors hover:bg-[var(--canvas)]',
-                  entry.isDestructive && 'bg-[#FFF8F8]'
-                )}
-              >
-                <td className="px-4 py-3 font-mono text-[12px] text-[var(--ink-faint)] whitespace-nowrap">
-                  {formatDateTime(entry.createdAt)}
-                </td>
-                <td className="px-4 py-3 text-[13px] text-[var(--ink)]">{entry.adminName}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5">
-                    {entry.isDestructive && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-bad)] shrink-0" />
-                    )}
-                    <span className="font-mono text-[12px] text-[var(--ink)]">{entry.action}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-[13px] text-[var(--ink-muted)]">
-                  <span className="text-[var(--ink-faint)] font-mono text-[11px]">{entry.resourceType}</span>
-                  {' · '}
-                  {entry.resourceName}
-                </td>
-                <td className="px-4 py-3 font-mono text-[11px] text-[var(--ink-faint)]">{entry.ip ?? '—'}</td>
+        {filtered.length === 0 ? (
+          <div className="text-center py-12 text-[var(--ink-faint)] text-[13px]">
+            {entries.length === 0 ? 'No audit entries yet — admin actions will appear here.' : 'No entries match your search.'}
+          </div>
+        ) : (
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-[var(--line)] bg-[var(--canvas)]">
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">Timestamp</th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">Admin</th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">Action</th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">Resource</th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">IP</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((entry) => (
+                <tr
+                  key={entry.id}
+                  onClick={() => setSelected(entry)}
+                  className={cn(
+                    'border-b border-[var(--line)] last:border-0 cursor-pointer transition-colors hover:bg-[var(--canvas)]',
+                    entry.isDestructive && 'bg-[#FFF8F8]'
+                  )}
+                >
+                  <td className="px-4 py-3 font-mono text-[12px] text-[var(--ink-faint)] whitespace-nowrap">
+                    {formatDateTime(entry.createdAt)}
+                  </td>
+                  <td className="px-4 py-3 text-[13px] text-[var(--ink)]">{entry.adminName}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      {entry.isDestructive && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-bad)] shrink-0" />
+                      )}
+                      <span className="font-mono text-[12px] text-[var(--ink)]">{entry.action}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-[13px] text-[var(--ink-muted)]">
+                    <span className="text-[var(--ink-faint)] font-mono text-[11px]">{entry.resourceType}</span>
+                    {' · '}
+                    {entry.resourceName}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-[11px] text-[var(--ink-faint)]">{entry.ip ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <DetailDrawer
@@ -124,7 +160,6 @@ export default function AuditPage() {
                 </div>
               ))}
             </div>
-
             {(selected.before || selected.after) && (
               <div>
                 <div className="text-[12px] font-semibold text-[var(--ink-muted)] uppercase tracking-wide mb-3">Change</div>

@@ -1,14 +1,18 @@
 'use client'
 
+import { useCallback } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { DataTable } from '@/components/ui/data-table'
 import { KPICard } from '@/components/ui/kpi-card'
 import { StatusDot } from '@/components/ui/status-dot'
 import { PlanBadge } from '@/components/ui/plan-badge'
-import { mockSubscriptions, mockDashboardKPIs } from '@/lib/mock-data'
+import { Skeleton } from '@/components/ui/skeleton'
+import { fetchSubscriptions } from '@/lib/admin-api'
+import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatTZSCompact, formatDate } from '@/lib/format'
 import type { Subscription } from '@/types'
 import type { ColumnDef } from '@tanstack/react-table'
+import { AlertCircle } from 'lucide-react'
 
 const statusMap: Record<Subscription['status'], { status: 'good' | 'warn' | 'bad' | 'neutral'; label: string }> = {
   active:    { status: 'good',    label: 'Active' },
@@ -60,12 +64,41 @@ const columns: ColumnDef<Subscription, unknown>[] = [
   },
 ]
 
-const mrr = mockDashboardKPIs.mrr
-const mrrGrowth = ((mrr - 13_700_000) / 13_700_000) * 100
-
 export default function SubscriptionsPage() {
-  const active = mockSubscriptions.filter((s) => s.status === 'active').length
-  const pastDue = mockSubscriptions.filter((s) => s.status === 'past_due').length
+  const { data, loading, error } = useAdminFetch(useCallback(() => fetchSubscriptions(), []))
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title="Monthly Subscriptions" description="Loading…" />
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Monthly Subscriptions" description="Failed to load" />
+        <div className="mt-8 flex items-center gap-3 rounded-lg border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-4 text-[var(--status-bad)]">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="text-[13px]">{error}</span>
+        </div>
+      </div>
+    )
+  }
+
+  const subs = data?.subscriptions ?? []
+  const active  = subs.filter((s) => s.status === 'active').length
+  const pastDue = subs.filter((s) => s.status === 'past_due').length
+  const mrr = subs
+    .filter((s) => s.status === 'active')
+    .reduce((sum, s) => sum + s.amount, 0)
 
   return (
     <div>
@@ -75,18 +108,18 @@ export default function SubscriptionsPage() {
       />
 
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <KPICard label="Monthly Recurring Revenue" value={`TZS ${formatTZSCompact(mrr)}`} delta={mrrGrowth} deltaLabel="vs last month" />
+        <KPICard label="Monthly Recurring Revenue" value={`TZS ${formatTZSCompact(mrr)}`} />
         <KPICard label="Active Subscriptions" value={active.toString()} mono={false} />
         <KPICard label="Past Due" value={pastDue.toString()} mono={false} />
-        <KPICard label="Total Subscribers" value={mockSubscriptions.length.toString()} mono={false} />
+        <KPICard label="Total Subscribers" value={subs.length.toString()} mono={false} />
       </div>
 
       <DataTable
-        data={mockSubscriptions}
+        data={subs}
         columns={columns}
         searchPlaceholder="Search subscriptions…"
         exportFilename="subscriptions"
-        emptyState={<p className="text-[var(--ink-faint)] text-[13px]">No subscriptions found</p>}
+        emptyState={<p className="text-[var(--ink-faint)] text-[13px]">No paid subscriptions found</p>}
       />
     </div>
   )

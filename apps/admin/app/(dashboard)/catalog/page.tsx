@@ -4,86 +4,16 @@ import { useState, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { DataTable } from '@/components/ui/data-table'
 import { DetailDrawer } from '@/components/ui/detail-drawer'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { fetchCatalog, postCatalogProduct } from '@/lib/admin-api'
+import {
+  fetchCatalog, postCatalogProduct, patchCatalogProduct, deleteCatalogProduct,
+} from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import type { CatalogProduct } from '@/types'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, Upload, Pencil, Trash2, AlertCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, AlertCircle } from 'lucide-react'
 import { formatTZS } from '@/lib/format'
-
-const columns: ColumnDef<CatalogProduct, unknown>[] = [
-  {
-    accessorKey: 'productName',
-    header: 'Product Name',
-    cell: ({ row }) => (
-      <div>
-        <div className="font-medium text-[var(--ink)]">{row.original.productName}</div>
-        {row.original.skuTemplate && (
-          <div className="text-[11px] text-[var(--ink-faint)] font-mono">{row.original.skuTemplate}</div>
-        )}
-      </div>
-    ),
-  },
-  {
-    accessorKey: 'categoryName',
-    header: 'Category',
-    cell: ({ row }) => <span className="text-[var(--ink-muted)]">{row.original.categoryName || '—'}</span>,
-  },
-  {
-    accessorKey: 'defaultUnit',
-    header: 'Unit',
-    cell: ({ row }) => <span className="font-mono text-[var(--ink-muted)]">{row.original.defaultUnit}</span>,
-  },
-  {
-    accessorKey: 'barcode',
-    header: 'Barcode',
-    cell: ({ row }) => (
-      <span className="font-mono text-[var(--ink-faint)] text-[11px]">
-        {row.original.barcode || '—'}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'suggestedSellingPrice',
-    header: 'Selling Price',
-    cell: ({ row }) => (
-      <span className="font-mono text-[var(--ink)] tabular-nums">
-        {row.original.suggestedSellingPrice > 0
-          ? formatTZS(row.original.suggestedSellingPrice)
-          : <span className="text-[var(--ink-faint)]">—</span>
-        }
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'source',
-    header: 'Source',
-    cell: ({ row }) => (
-      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-        row.original.source === 'community'
-          ? 'bg-[var(--status-warn-bg)] text-[var(--status-warn)]'
-          : 'bg-[var(--line)] text-[var(--ink-muted)]'
-      }`}>
-        {row.original.source === 'community' ? 'Community' : 'Admin'}
-      </span>
-    ),
-  },
-  {
-    id: 'actions',
-    header: '',
-    cell: () => (
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button className="p-1 rounded hover:bg-[var(--canvas)] text-[var(--ink-faint)] hover:text-[var(--ink)]">
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-        <button className="p-1 rounded hover:bg-[var(--status-bad-bg)] text-[var(--ink-faint)] hover:text-[var(--status-bad)]">
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-    ),
-  },
-]
 
 const EMPTY_FORM = {
   productName: '',
@@ -98,39 +28,170 @@ const EMPTY_FORM = {
   searchableKeywords: '',
 }
 
+type FormState = typeof EMPTY_FORM
+
+const FORM_FIELDS: { label: string; key: keyof FormState; required?: boolean; placeholder: string }[] = [
+  { label: 'Product Name *',             key: 'productName',           required: true,  placeholder: 'e.g. Paracetamol 500mg' },
+  { label: 'Business Type ID *',          key: 'businessTypeId',        required: true,  placeholder: 'e.g. pharmacy, supermarket' },
+  { label: 'Category ID',                 key: 'categoryId',            required: false, placeholder: 'e.g. cat_analgesics' },
+  { label: 'Category Name',               key: 'categoryName',          required: false, placeholder: 'e.g. Analgesics' },
+  { label: 'Default Unit *',              key: 'defaultUnit',           required: true,  placeholder: 'e.g. tablet, pack, kg' },
+  { label: 'SKU Template',                key: 'skuTemplate',           required: false, placeholder: 'e.g. PARA-500-{n}' },
+  { label: 'Barcode',                     key: 'barcode',               required: false, placeholder: 'e.g. 5010119013458' },
+  { label: 'Suggested Cost Price (TZS)',  key: 'suggestedCostPrice',    required: false, placeholder: '0' },
+  { label: 'Suggested Selling Price',     key: 'suggestedSellingPrice', required: false, placeholder: '0' },
+  { label: 'Keywords (comma-separated)', key: 'searchableKeywords',    required: false, placeholder: 'e.g. panadol, pain relief' },
+]
+
+function productToForm(p: CatalogProduct): FormState {
+  return {
+    productName:           p.productName,
+    businessTypeId:        p.businessTypeId,
+    categoryId:            p.categoryId,
+    categoryName:          p.categoryName,
+    defaultUnit:           p.defaultUnit,
+    skuTemplate:           p.skuTemplate ?? '',
+    barcode:               p.barcode ?? '',
+    suggestedCostPrice:    String(p.suggestedCostPrice ?? ''),
+    suggestedSellingPrice: String(p.suggestedSellingPrice ?? ''),
+    searchableKeywords:    (p.searchableKeywords ?? []).join(', '),
+  }
+}
+
+function formToPayload(form: FormState) {
+  return {
+    ...form,
+    suggestedCostPrice:    Number(form.suggestedCostPrice) || 0,
+    suggestedSellingPrice: Number(form.suggestedSellingPrice) || 0,
+    searchableKeywords:    form.searchableKeywords.split(',').map((k) => k.trim()).filter(Boolean),
+  }
+}
+
 export default function CatalogPage() {
   const [selectedTypeId, setSelectedTypeId] = useState<string>('')
-  const [showAddProduct, setShowAddProduct] = useState(false)
+  const [showAdd, setShowAdd]         = useState(false)
+  const [editProduct, setEditProduct] = useState<CatalogProduct | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CatalogProduct | null>(null)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [form, setForm] = useState<FormState>(EMPTY_FORM)
 
   const { data, loading, error, refetch } = useAdminFetch(
     useCallback(() => fetchCatalog(selectedTypeId || undefined), [selectedTypeId])
   )
 
   const businessTypeIds = data?.businessTypeIds ?? []
-  const products = data?.products ?? []
-  const categories = data?.categories ?? []
+  const products        = data?.products        ?? []
+  const categories      = data?.categories      ?? []
 
-  async function handleAddProduct(e: React.FormEvent) {
+  const columns: ColumnDef<CatalogProduct, unknown>[] = [
+    {
+      accessorKey: 'productName',
+      header: 'Product Name',
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium text-[var(--ink)]">{row.original.productName}</div>
+          {row.original.skuTemplate && (
+            <div className="text-[11px] text-[var(--ink-faint)] font-mono">{row.original.skuTemplate}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'categoryName',
+      header: 'Category',
+      cell: ({ row }) => <span className="text-[var(--ink-muted)]">{row.original.categoryName || '—'}</span>,
+    },
+    {
+      accessorKey: 'defaultUnit',
+      header: 'Unit',
+      cell: ({ row }) => <span className="font-mono text-[var(--ink-muted)]">{row.original.defaultUnit}</span>,
+    },
+    {
+      accessorKey: 'barcode',
+      header: 'Barcode',
+      cell: ({ row }) => (
+        <span className="font-mono text-[var(--ink-faint)] text-[11px]">{row.original.barcode || '—'}</span>
+      ),
+    },
+    {
+      accessorKey: 'suggestedSellingPrice',
+      header: 'Selling Price',
+      cell: ({ row }) => (
+        <span className="font-mono text-[var(--ink)] tabular-nums">
+          {row.original.suggestedSellingPrice > 0
+            ? formatTZS(row.original.suggestedSellingPrice)
+            : <span className="text-[var(--ink-faint)]">—</span>
+          }
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'source',
+      header: 'Source',
+      cell: ({ row }) => (
+        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+          row.original.source === 'community'
+            ? 'bg-[var(--status-warn-bg)] text-[var(--status-warn)]'
+            : 'bg-[var(--line)] text-[var(--ink-muted)]'
+        }`}>
+          {row.original.source === 'community' ? 'Community' : 'Admin'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => (
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => { e.stopPropagation(); setForm(productToForm(row.original)); setEditProduct(row.original) }}
+            className="p-1 rounded hover:bg-[var(--canvas)] text-[var(--ink-faint)] hover:text-[var(--ink)]"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setDeleteTarget(row.original) }}
+            className="p-1 rounded hover:bg-[var(--status-bad-bg)] text-[var(--ink-faint)] hover:text-[var(--status-bad)]"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ),
+    },
+  ]
+
+  async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     try {
-      await postCatalogProduct({
-        ...form,
-        suggestedCostPrice: Number(form.suggestedCostPrice) || 0,
-        suggestedSellingPrice: Number(form.suggestedSellingPrice) || 0,
-        searchableKeywords: form.searchableKeywords
-          .split(',')
-          .map((k) => k.trim())
-          .filter(Boolean),
-      })
-      setShowAddProduct(false)
+      await postCatalogProduct(formToPayload(form))
+      setShowAdd(false)
       setForm(EMPTY_FORM)
       refetch()
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editProduct) return
+    setSaving(true)
+    try {
+      await patchCatalogProduct(editProduct.id, formToPayload(form))
+      setEditProduct(null)
+      setForm(EMPTY_FORM)
+      refetch()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    await deleteCatalogProduct(deleteTarget.id)
+    setDeleteTarget(null)
+    refetch()
   }
 
   if (loading) {
@@ -166,7 +227,7 @@ export default function CatalogPage() {
         description={`${data?.total ?? 0} products across ${businessTypeIds.length} business types`}
       >
         <button
-          onClick={() => setShowAddProduct(true)}
+          onClick={() => { setForm(EMPTY_FORM); setShowAdd(true) }}
           className="inline-flex items-center gap-1.5 rounded-md bg-[var(--navy)] px-3 py-1.5 text-[12px] font-medium text-white hover:bg-[var(--navy-soft)] transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -209,16 +270,12 @@ export default function CatalogPage() {
             })}
           </div>
 
-          {/* Category breakdown */}
           {categories.length > 0 && (
             <div className="mt-5">
               <div className="text-[11px] uppercase tracking-wide text-[var(--ink-faint)] mb-2 px-1">Categories</div>
               <div className="flex flex-col gap-0.5">
                 {categories.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="flex items-center justify-between rounded-md px-3 py-1.5 text-[11.5px] text-[var(--ink-muted)]"
-                  >
+                  <div key={cat.id} className="flex items-center justify-between rounded-md px-3 py-1.5 text-[11.5px] text-[var(--ink-muted)]">
                     <span className="truncate">{cat.categoryName}</span>
                     <span className="shrink-0 text-[var(--ink-faint)] font-mono ml-1">{cat.productCount}</span>
                   </div>
@@ -235,10 +292,7 @@ export default function CatalogPage() {
               {businessTypeIds.length === 0
                 ? 'No products in the catalog yet.'
                 : `No products for "${selectedTypeId || 'this type'}".`}
-              <button
-                onClick={() => setShowAddProduct(true)}
-                className="ml-1 text-[var(--accent)] hover:underline"
-              >
+              <button onClick={() => { setForm(EMPTY_FORM); setShowAdd(true) }} className="ml-1 text-[var(--accent)] hover:underline">
                 Add the first one →
               </button>
             </div>
@@ -256,25 +310,14 @@ export default function CatalogPage() {
 
       {/* Add product drawer */}
       <DetailDrawer
-        open={showAddProduct}
-        onClose={() => { setShowAddProduct(false); setForm(EMPTY_FORM) }}
+        open={showAdd}
+        onClose={() => { setShowAdd(false); setForm(EMPTY_FORM) }}
         title="Add Product"
         description="Add a product to the master catalog"
         width="w-[520px]"
       >
-        <form onSubmit={handleAddProduct} className="flex flex-col gap-4">
-          {([
-            { label: 'Product Name *',            key: 'productName',          required: true,  placeholder: 'e.g. Paracetamol 500mg' },
-            { label: 'Business Type ID *',         key: 'businessTypeId',       required: true,  placeholder: 'e.g. pharmacy, supermarket' },
-            { label: 'Category Name',              key: 'categoryName',         required: false, placeholder: 'e.g. Analgesics' },
-            { label: 'Default Unit *',             key: 'defaultUnit',          required: true,  placeholder: 'e.g. tablet, pack, kg' },
-            { label: 'SKU Template',               key: 'skuTemplate',          required: false, placeholder: 'e.g. PARA-500-{n}' },
-            { label: 'Barcode',                    key: 'barcode',              required: false, placeholder: 'e.g. 5010119013458' },
-            { label: 'Suggested Cost Price (TZS)', key: 'suggestedCostPrice',   required: false, placeholder: '0' },
-            { label: 'Suggested Selling Price',    key: 'suggestedSellingPrice',required: false, placeholder: '0' },
-            { label: 'Keywords (comma-separated)', key: 'searchableKeywords',   required: false, placeholder: 'e.g. panadol, pain relief' },
-          ] as { label: string; key: keyof typeof form; required: boolean; placeholder: string }[])
-            .map(({ label, key, required, placeholder }) => (
+        <form onSubmit={handleAdd} className="flex flex-col gap-4">
+          {FORM_FIELDS.map(({ label, key, required, placeholder }) => (
             <div key={key} className="flex flex-col gap-1.5">
               <label className="text-[12px] font-medium text-[var(--ink-muted)]">{label}</label>
               <input
@@ -286,25 +329,63 @@ export default function CatalogPage() {
               />
             </div>
           ))}
-
           <div className="mt-2 flex gap-2 justify-end">
-            <button
-              type="button"
-              onClick={() => { setShowAddProduct(false); setForm(EMPTY_FORM) }}
-              className="rounded-md border border-[var(--line)] px-4 py-2 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
-            >
+            <button type="button" onClick={() => { setShowAdd(false); setForm(EMPTY_FORM) }}
+              className="rounded-md border border-[var(--line)] px-4 py-2 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-md bg-[var(--navy)] px-4 py-2 text-[12px] font-medium text-white hover:bg-[var(--navy-soft)] transition-colors disabled:opacity-50"
-            >
+            <button type="submit" disabled={saving}
+              className="rounded-md bg-[var(--navy)] px-4 py-2 text-[12px] font-medium text-white hover:bg-[var(--navy-soft)] transition-colors disabled:opacity-50">
               {saving ? 'Saving…' : 'Add to catalog'}
             </button>
           </div>
         </form>
       </DetailDrawer>
+
+      {/* Edit product drawer */}
+      <DetailDrawer
+        open={!!editProduct}
+        onClose={() => { setEditProduct(null); setForm(EMPTY_FORM) }}
+        title="Edit Product"
+        description={editProduct?.productName ?? ''}
+        width="w-[520px]"
+      >
+        <form onSubmit={handleEdit} className="flex flex-col gap-4">
+          {FORM_FIELDS.map(({ label, key, required, placeholder }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-[var(--ink-muted)]">{label}</label>
+              <input
+                value={form[key]}
+                onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                required={required}
+                placeholder={placeholder}
+                className="w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              />
+            </div>
+          ))}
+          <div className="mt-2 flex gap-2 justify-end">
+            <button type="button" onClick={() => { setEditProduct(null); setForm(EMPTY_FORM) }}
+              className="rounded-md border border-[var(--line)] px-4 py-2 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              className="rounded-md bg-[var(--navy)] px-4 py-2 text-[12px] font-medium text-white hover:bg-[var(--navy-soft)] transition-colors disabled:opacity-50">
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </form>
+      </DetailDrawer>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete product"
+        description={`Remove "${deleteTarget?.productName}" from the master catalog? This cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+      />
     </div>
   )
 }

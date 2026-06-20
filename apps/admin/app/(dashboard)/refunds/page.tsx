@@ -1,21 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatusDot } from '@/components/ui/status-dot'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { mockRefunds } from '@/lib/mock-data'
+import { Skeleton } from '@/components/ui/skeleton'
+import { fetchRefunds, patchRefund } from '@/lib/admin-api'
+import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatDate, calculateRefund } from '@/lib/format'
 import type { RefundRequest } from '@/types'
-import { ChevronDown, ChevronUp, DollarSign } from 'lucide-react'
+import { ChevronDown, ChevronUp, DollarSign, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const COLUMNS: RefundRequest['status'][][] = [
-  ['requested'],
-  ['processing'],
-  ['completed'],
-]
-
+const COLUMNS: RefundRequest['status'][][] = [['requested'], ['processing'], ['completed']]
 const COLUMN_LABELS = ['Requested', 'Processing (UTT AMIS)', 'Completed']
 
 function RefundCalculatorModal({
@@ -25,14 +21,20 @@ function RefundCalculatorModal({
 }: {
   refund: RefundRequest
   onClose: () => void
-  onAction: (action: string) => void
+  onAction: (action: 'processing' | 'completed') => Promise<void>
 }) {
+  const [acting, setActing] = useState(false)
   const breakdown = calculateRefund(refund.principal, refund.monthlyFee, refund.monthsHeld, refund.tier)
 
+  const nextStatus: 'processing' | 'completed' | null =
+    refund.status === 'requested'  ? 'processing' :
+    refund.status === 'processing' ? 'completed'  :
+    null
+
   const actionLabel =
-    refund.status === 'requested' ? 'Initiate UTT AMIS Withdrawal' :
+    refund.status === 'requested'  ? 'Initiate UTT AMIS Withdrawal' :
     refund.status === 'processing' ? 'Mark Refund Sent' :
-    'Close & Notify User'
+    'View Only'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -44,12 +46,12 @@ function RefundCalculatorModal({
 
         <div className="rounded-lg border border-[var(--line)] overflow-hidden mb-5">
           {[
-            { label: 'Original Principal', value: refund.principal, bold: false, color: '' },
-            { label: `Fees Used (${refund.monthsHeld} × ${formatTZS(refund.monthlyFee)})`, value: -breakdown.feesUsed, bold: false, color: 'text-[var(--status-bad)]' },
-            { label: 'Cancellation Fee', value: -breakdown.cancellationFee, bold: false, color: 'text-[var(--status-bad)]' },
-          ].map(({ label, value, bold, color }) => (
+            { label: 'Original Principal', value: refund.principal, color: '' },
+            { label: `Fees Used (${refund.monthsHeld} × ${formatTZS(refund.monthlyFee)})`, value: -breakdown.feesUsed, color: 'text-[var(--status-bad)]' },
+            { label: 'Cancellation Fee', value: -breakdown.cancellationFee, color: 'text-[var(--status-bad)]' },
+          ].map(({ label, value, color }) => (
             <div key={label} className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--line)] last:border-0">
-              <span className={cn('text-[13px]', bold ? 'font-semibold text-[var(--ink)]' : 'text-[var(--ink-muted)]')}>{label}</span>
+              <span className="text-[13px] text-[var(--ink-muted)]">{label}</span>
               <span className={cn('font-mono text-[13px]', color || 'text-[var(--ink)]')}>
                 {value < 0 ? `−${formatTZS(Math.abs(value))}` : formatTZS(value)}
               </span>
@@ -64,23 +66,37 @@ function RefundCalculatorModal({
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={onClose}
+            disabled={acting}
             className="rounded-md border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
           >
             Cancel
           </button>
-          <button
-            onClick={() => { onAction(actionLabel); onClose() }}
-            className="rounded-md bg-[var(--navy)] px-4 py-1.5 text-[12px] font-medium text-white hover:bg-[var(--navy-soft)] transition-colors"
-          >
-            {actionLabel}
-          </button>
+          {nextStatus && (
+            <button
+              onClick={async () => {
+                setActing(true)
+                try { await onAction(nextStatus) } finally { setActing(false) }
+                onClose()
+              }}
+              disabled={acting}
+              className="rounded-md bg-[var(--navy)] px-4 py-1.5 text-[12px] font-medium text-white hover:bg-[var(--navy-soft)] transition-colors disabled:opacity-50"
+            >
+              {acting ? 'Saving…' : actionLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-function RefundCard({ refund }: { refund: RefundRequest }) {
+function RefundCard({
+  refund,
+  onStatusChange,
+}: {
+  refund: RefundRequest
+  onStatusChange: (id: string, status: 'processing' | 'completed') => Promise<void>
+}) {
   const [expanded, setExpanded] = useState(false)
   const [showCalc, setShowCalc] = useState(false)
   const breakdown = calculateRefund(refund.principal, refund.monthlyFee, refund.monthsHeld, refund.tier)
@@ -118,7 +134,7 @@ function RefundCard({ refund }: { refund: RefundRequest }) {
             className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
           >
             <DollarSign className="h-3 w-3" />
-            View calculation
+            {refund.status !== 'completed' ? 'View & action' : 'View calculation'}
           </button>
           <button
             onClick={() => setExpanded(!expanded)}
@@ -142,7 +158,7 @@ function RefundCard({ refund }: { refund: RefundRequest }) {
         <RefundCalculatorModal
           refund={refund}
           onClose={() => setShowCalc(false)}
-          onAction={(action) => console.log('Action:', action, refund.id)}
+          onAction={(status) => onStatusChange(refund.id, status)}
         />
       )}
     </>
@@ -150,17 +166,51 @@ function RefundCard({ refund }: { refund: RefundRequest }) {
 }
 
 export default function RefundsPage() {
+  const { data, loading, error, refetch } = useAdminFetch(useCallback(() => fetchRefunds(), []))
+
+  async function handleStatusChange(id: string, status: 'processing' | 'completed') {
+    await patchRefund(id, status)
+    refetch()
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title="Refunds" description="Loading…" />
+        <div className="grid grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="space-y-3">
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-32 w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Refunds" description="Failed to load" />
+        <div className="mt-8 flex items-center gap-3 rounded-lg border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-4 text-[var(--status-bad)]">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="text-[13px]">{error}</span>
+        </div>
+      </div>
+    )
+  }
+
+  const refunds = data?.refunds ?? []
+
   return (
     <div>
-      <PageHeader
-        title="Refunds"
-        description="Lifetime subscription refund queue"
-      />
+      <PageHeader title="Refunds" description="Lifetime subscription refund queue" />
 
       <div className="grid grid-cols-3 gap-4">
         {COLUMN_LABELS.map((label, ci) => {
           const statuses = COLUMNS[ci]
-          const cards = mockRefunds.filter((r) => statuses.includes(r.status))
+          const cards = refunds.filter((r) => statuses.includes(r.status))
           return (
             <div key={label}>
               <div className="flex items-center justify-between mb-3">
@@ -171,7 +221,9 @@ export default function RefundsPage() {
                 {cards.length === 0 ? (
                   <div className="text-center py-6 text-[12px] text-[var(--ink-faint)]">No refunds here</div>
                 ) : (
-                  cards.map((r) => <RefundCard key={r.id} refund={r} />)
+                  cards.map((r) => (
+                    <RefundCard key={r.id} refund={r} onStatusChange={handleStatusChange} />
+                  ))
                 )}
               </div>
             </div>

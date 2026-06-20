@@ -59,9 +59,20 @@ export async function PATCH(
       return NextResponse.json({ error: 'isActive (boolean) required' }, { status: 400 })
     }
 
-    await adminFirestore.collection('users').doc(uid).update({
-      isActive: body.isActive,
-      updatedAt: new Date(),
+    const userRef = adminFirestore.collection('users').doc(uid)
+    const userDoc = await userRef.get()
+    const userName = (userDoc.data()?.displayName as string) || (userDoc.data()?.name as string) || uid
+
+    await userRef.update({ isActive: body.isActive, updatedAt: new Date() })
+
+    await writeAudit({
+      action: body.isActive ? 'unsuspend_user' : 'suspend_user',
+      resourceType: 'user',
+      resourceId: uid,
+      resourceName: userName,
+      isDestructive: !body.isActive,
+      before: { isActive: !body.isActive },
+      after:  { isActive:  body.isActive },
     })
 
     return NextResponse.json({ success: true })

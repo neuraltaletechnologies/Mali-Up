@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { KPICard } from '@/components/ui/kpi-card'
 import { DataTable } from '@/components/ui/data-table'
@@ -8,11 +8,13 @@ import { StatusDot } from '@/components/ui/status-dot'
 import { DetailDrawer } from '@/components/ui/detail-drawer'
 import { GrowthChart } from '@/components/charts/growth-chart'
 import { PlanBadge } from '@/components/ui/plan-badge'
-import { mockLifetime, mockConfig } from '@/lib/mock-data'
+import { Skeleton } from '@/components/ui/skeleton'
+import { fetchLifetime, fetchConfig } from '@/lib/admin-api'
+import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatTZSCompact, formatDate } from '@/lib/format'
 import type { LifetimeSubscription } from '@/types'
 import type { ColumnDef } from '@tanstack/react-table'
-import { RefreshCw, AlertTriangle } from 'lucide-react'
+import { RefreshCw, AlertTriangle, AlertCircle } from 'lucide-react'
 
 const statusMap: Record<LifetimeSubscription['status'], { status: 'good' | 'warn' | 'bad' | 'neutral'; label: string }> = {
   active:             { status: 'good',    label: 'Active' },
@@ -83,11 +85,45 @@ export default function LifetimePage() {
   const [reconcileMode, setReconcileMode] = useState(false)
   const [reconcileValue, setReconcileValue] = useState('')
 
-  const totalPrincipal = mockLifetime.reduce((s, l) => s + l.principal, 0)
-  const totalBalance = mockLifetime.reduce((s, l) => s + l.uttAMISBalance, 0)
-  const thisMonthReturn = mockLifetime.reduce((s, l) => s + l.thisMonthReturn, 0)
-  const avgMonths = Math.round(mockLifetime.reduce((s, l) => s + l.monthsActive, 0) / mockLifetime.length)
-  const monthlyRate = mockConfig.lifetimeProgram.uttAMISMonthlyRate
+  const { data: lifetimeData, loading: lifetimeLoading, error: lifetimeError } =
+    useAdminFetch(useCallback(() => fetchLifetime(), []))
+  const { data: configData } =
+    useAdminFetch(useCallback(() => fetchConfig(), []))
+
+  if (lifetimeLoading) {
+    return (
+      <div>
+        <PageHeader title="Lifetime Subscriptions" description="Loading…" />
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (lifetimeError) {
+    return (
+      <div>
+        <PageHeader title="Lifetime Subscriptions" description="Failed to load" />
+        <div className="mt-8 flex items-center gap-3 rounded-lg border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-4 text-[var(--status-bad)]">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="text-[13px]">{lifetimeError}</span>
+        </div>
+      </div>
+    )
+  }
+
+  const lifetime = lifetimeData?.lifetime ?? []
+  const monthlyRate = configData?.lifetimeProgram?.uttAMISMonthlyRate ?? 1
+  const totalPrincipal  = lifetime.reduce((s, l) => s + l.principal, 0)
+  const totalBalance    = lifetime.reduce((s, l) => s + l.uttAMISBalance, 0)
+  const thisMonthReturn = lifetime.reduce((s, l) => s + l.thisMonthReturn, 0)
+  const avgMonths = lifetime.length > 0
+    ? Math.round(lifetime.reduce((s, l) => s + l.monthsActive, 0) / lifetime.length)
+    : 0
 
   return (
     <div>
@@ -104,19 +140,17 @@ export default function LifetimePage() {
         </button>
       </PageHeader>
 
-      {/* KPIs */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <KPICard label="Total Lifetime Users" value={mockLifetime.length.toString()} mono={false} />
+        <KPICard label="Total Lifetime Users" value={lifetime.length.toString()} mono={false} />
         <KPICard label="Total Principal in UTT AMIS" value={`TZS ${formatTZSCompact(totalPrincipal)}`} />
         <KPICard label="This Month's Interest" value={`TZS ${formatTZSCompact(thisMonthReturn)}`} />
         <KPICard label="Avg. Months Held" value={`${avgMonths} months`} mono={false} />
       </div>
 
-      {/* Reconcile input */}
       {reconcileMode && (
         <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--status-warn)] bg-[var(--status-warn-bg)] px-4 py-3">
           <AlertTriangle className="h-4 w-4 text-[var(--status-warn)] shrink-0" />
-          <span className="text-[12px] text-[var(--status-warn)] font-medium">Enter the actual UTT AMIS total balance from your statement:</span>
+          <span className="text-[12px] text-[var(--status-warn)] font-medium">Enter actual UTT AMIS total balance from your statement:</span>
           <input
             value={reconcileValue}
             onChange={(e) => setReconcileValue(e.target.value)}
@@ -126,7 +160,7 @@ export default function LifetimePage() {
           <button
             onClick={() => {
               const actual = parseInt(reconcileValue.replace(/,/g, ''))
-              const diff = actual - totalBalance
+              const diff   = actual - totalBalance
               alert(diff === 0 ? 'Balances match ✓' : `Mismatch: ${diff > 0 ? '+' : ''}TZS ${diff.toLocaleString()}`)
               setReconcileMode(false)
               setReconcileValue('')
@@ -140,15 +174,18 @@ export default function LifetimePage() {
       )}
 
       <DataTable
-        data={mockLifetime}
+        data={lifetime}
         columns={columns}
         searchPlaceholder="Search lifetime subscribers…"
         onRowClick={setSelected}
         exportFilename="lifetime-subscriptions"
-        emptyState={<p className="text-[var(--ink-faint)] text-[13px]">No lifetime subscribers found</p>}
+        emptyState={
+          <p className="text-[var(--ink-faint)] text-[13px]">
+            No lifetime subscribers yet. Add records to the <span className="font-mono">platform_lifetime</span> Firestore collection.
+          </p>
+        }
       />
 
-      {/* Detail drawer */}
       <DetailDrawer
         open={!!selected}
         onClose={() => setSelected(null)}
@@ -183,12 +220,10 @@ export default function LifetimePage() {
               <p className="text-[11px] text-[var(--ink-faint)] mt-1">Dashed = projected, solid = actual</p>
             </div>
 
-            <div>
-              <StatusDot
-                status={statusMap[selected.status].status}
-                label={statusMap[selected.status].label}
-              />
-            </div>
+            <StatusDot
+              status={statusMap[selected.status].status}
+              label={statusMap[selected.status].label}
+            />
 
             {(selected.status === 'active' || selected.status === 'refund_requested') && (
               <a
