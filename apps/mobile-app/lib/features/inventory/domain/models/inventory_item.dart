@@ -26,6 +26,56 @@ class SellingUnit {
   );
 }
 
+/// One raw-material line in a Bill of Materials.
+class BomIngredient {
+  final String materialName;
+  final String materialId;  // ID of the linked InventoryItem; empty if unlinked
+  final double quantity;    // Per batch
+  final String unit;
+  final double costPerUnit;
+
+  const BomIngredient({
+    required this.materialName,
+    this.materialId = '',
+    required this.quantity,
+    this.unit = 'pcs',
+    required this.costPerUnit,
+  });
+
+  double get totalCost => quantity * costPerUnit;
+
+  Map<String, dynamic> toJson() => {
+    'name': materialName,
+    'matId': materialId,
+    'qty': quantity,
+    'unit': unit,
+    'costPer': costPerUnit,
+  };
+
+  factory BomIngredient.fromJson(Map<String, dynamic> j) => BomIngredient(
+    materialName: (j['name'] as String?) ?? '',
+    materialId: (j['matId'] as String?) ?? '',
+    quantity: (j['qty'] as num?)?.toDouble() ?? 0,
+    unit: (j['unit'] as String?) ?? 'pcs',
+    costPerUnit: (j['costPer'] as num?)?.toDouble() ?? 0,
+  );
+}
+
+/// A fixed overhead cost per batch (electricity, labour, gas, etc.)
+class BomOverheadCost {
+  final String description;
+  final double amount;
+
+  const BomOverheadCost({required this.description, required this.amount});
+
+  Map<String, dynamic> toJson() => {'desc': description, 'amount': amount};
+
+  factory BomOverheadCost.fromJson(Map<String, dynamic> j) => BomOverheadCost(
+    description: (j['desc'] as String?) ?? '',
+    amount: (j['amount'] as num?)?.toDouble() ?? 0,
+  );
+}
+
 class InventoryItem {
   final String id;
   final String name;
@@ -37,8 +87,8 @@ class InventoryItem {
   final double currentStock;
   final double reorderPoint;
   final double unitPrice;     // Selling price
-  final double costPrice;     // Buying / cost price
-  final String productType;   // 'stock' | 'perishable' | 'service'
+  final double costPrice;     // Buying / cost price (auto-calculated for 'manufactured')
+  final String productType;   // 'stock' | 'perishable' | 'service' | 'manufactured'
   final String unit; // 'pcs', 'kg', 'liters', etc.
   final String supplier;
   final String lastRestocked;
@@ -56,6 +106,10 @@ class InventoryItem {
   final List<SellingUnit> sellingUnits;
   // Customer return metadata
   final String returnReason;
+  // Bill of Materials (manufactured products only)
+  final List<BomIngredient> bomIngredients;
+  final List<BomOverheadCost> bomOverheads;
+  final double bomBatchYield;  // How many finished units one batch produces
 
   InventoryItem({
     required this.id,
@@ -82,6 +136,9 @@ class InventoryItem {
     this.brand = '',
     this.sellingUnits = const [],
     this.returnReason = '',
+    this.bomIngredients = const [],
+    this.bomOverheads = const [],
+    this.bomBatchYield = 1,
   });
 
   factory InventoryItem.fromFirestore(Map<String, dynamic> data, String id) {
@@ -119,6 +176,9 @@ class InventoryItem {
       brand: data['brand'] as String? ?? '',
       sellingUnits: _parseSellingUnits(data['sellingUnits']),
       returnReason: data['returnReason'] as String? ?? '',
+      bomIngredients: _parseBomIngredients(data['bomIngredients']),
+      bomOverheads: _parseBomOverheads(data['bomOverheads']),
+      bomBatchYield: (data['bomBatchYield'] as num?)?.toDouble() ?? 1,
     );
   }
 
@@ -127,6 +187,22 @@ class InventoryItem {
     return raw
         .whereType<Map<String, dynamic>>()
         .map(SellingUnit.fromJson)
+        .toList();
+  }
+
+  static List<BomIngredient> _parseBomIngredients(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(BomIngredient.fromJson)
+        .toList();
+  }
+
+  static List<BomOverheadCost> _parseBomOverheads(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(BomOverheadCost.fromJson)
         .toList();
   }
 
@@ -158,6 +234,9 @@ class InventoryItem {
       'brand': brand,
       'sellingUnits': sellingUnits.map((u) => u.toJson()).toList(),
       'returnReason': returnReason,
+      'bomIngredients': bomIngredients.map((i) => i.toJson()).toList(),
+      'bomOverheads': bomOverheads.map((o) => o.toJson()).toList(),
+      'bomBatchYield': bomBatchYield,
     };
   }
 
@@ -186,6 +265,9 @@ class InventoryItem {
     String? brand,
     List<SellingUnit>? sellingUnits,
     String? returnReason,
+    List<BomIngredient>? bomIngredients,
+    List<BomOverheadCost>? bomOverheads,
+    double? bomBatchYield,
   }) {
     return InventoryItem(
       id: id ?? this.id,
@@ -212,6 +294,9 @@ class InventoryItem {
       brand: brand ?? this.brand,
       sellingUnits: sellingUnits ?? this.sellingUnits,
       returnReason: returnReason ?? this.returnReason,
+      bomIngredients: bomIngredients ?? this.bomIngredients,
+      bomOverheads: bomOverheads ?? this.bomOverheads,
+      bomBatchYield: bomBatchYield ?? this.bomBatchYield,
     );
   }
 
@@ -220,6 +305,7 @@ class InventoryItem {
   bool get isLowStock => currentStock > 0 && currentStock <= reorderPoint;
   bool get isOutOfStock => currentStock <= 0;
   bool get isService => productType == 'service';
+  bool get isManufactured => productType == 'manufactured';
 
   double get stockValue    => currentStock * unitPrice;
   double get costValue     => currentStock * costPrice;
@@ -227,6 +313,16 @@ class InventoryItem {
   double get profitPerUnit => unitPrice > 0 ? unitPrice - costPrice : 0;
   double get marginPercent =>
       unitPrice > 0 ? ((unitPrice - costPrice) / unitPrice) * 100 : 0;
+
+  // ── BOM computed properties ──────────────────────────────────────────────────
+
+  double get bomTotalMaterialCost =>
+      bomIngredients.fold(0, (s, i) => s + i.totalCost);
+  double get bomTotalOverheadCost =>
+      bomOverheads.fold(0, (s, o) => s + o.amount);
+  double get bomTotalBatchCost => bomTotalMaterialCost + bomTotalOverheadCost;
+  double get bomCostPerUnit =>
+      bomBatchYield > 0 ? bomTotalBatchCost / bomBatchYield : 0;
 
   // ── Expiry computed properties ───────────────────────────────────────────────
 

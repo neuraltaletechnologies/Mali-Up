@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -34,7 +35,7 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
-enum ProductType { stock, perishable, service, customerReturn }
+enum ProductType { stock, perishable, service, customerReturn, manufactured }
 
 enum SortOption { nameAz, nameZa, stockLow, stockHigh, priceLow, priceHigh, marginHigh }
 
@@ -46,6 +47,7 @@ ProductType _readType(Map<String, dynamic> item) {
     case 'service':        return ProductType.service;
     case 'return':
     case 'customerReturn': return ProductType.customerReturn;
+    case 'manufactured':   return ProductType.manufactured;
     default:               return ProductType.stock;
   }
 }
@@ -86,6 +88,7 @@ String _typeName(ProductType t) {
     case ProductType.perishable:     return _tr('Perishable', 'Inayoharibika');
     case ProductType.service:        return _tr('Service', 'Huduma');
     case ProductType.customerReturn: return _tr('Return', 'Urejesho');
+    case ProductType.manufactured:   return _tr('Made', 'Ninatengeneza');
   }
 }
 
@@ -95,6 +98,7 @@ IconData _typeIcon(ProductType t) {
     case ProductType.perishable:     return Icons.eco_outlined;
     case ProductType.service:        return Icons.handyman_outlined;
     case ProductType.customerReturn: return Icons.assignment_return_outlined;
+    case ProductType.manufactured:   return Icons.precision_manufacturing_outlined;
   }
 }
 
@@ -107,6 +111,9 @@ int _healthLevel(Map<String, dynamic> item) {
   if (s <= _reorder(item)) return 2;
   return 1;
 }
+
+bool _isManufacturedItem(Map<String, dynamic> item) =>
+    (item['productType'] as String?) == 'manufactured';
 
 String _healthLabel(int level) {
   switch (level) {
@@ -147,6 +154,7 @@ int _daysUntilExpiry(Map<String, dynamic> item) {
 int _fullStatusLevel(Map<String, dynamic> item) {
   final t = _readType(item);
   if (t == ProductType.service || t == ProductType.customerReturn) return 0;
+  // manufactured items have stock like regular items; fall through to stock checks
   if (_isExpiredItem(item)) return 5;
   if (_isExpiringSoonItem(item)) return 4;
   final s = _stock(item);
@@ -903,15 +911,25 @@ class _ProductRow extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          name,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navyPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navyPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (_isManufacturedItem(item)) ...[
+                              const SizedBox(width: 6),
+                              const _ManufacturedBadge(),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -979,6 +997,43 @@ class _ProductRow extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Manufactured badge ────────────────────────────────────────────────────────
+
+class _ManufacturedBadge extends StatelessWidget {
+  const _ManufacturedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.precision_manufacturing_outlined,
+            size: 9,
+            color: Color(0xFF7C3AED),
+          ),
+          const SizedBox(width: 2),
+          Text(
+            _tr('MADE', 'MADE'),
+            style: GoogleFonts.dmSans(
+              fontSize: 8,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF7C3AED),
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1585,9 +1640,87 @@ class _ProductDetailSheet extends ConsumerStatefulWidget {
 
 class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
   bool _editMode = false;
+  bool _recording = false;
+  bool _productionDone = false;
+  double _lastBatchYield = 0;
+
+  Future<void> _handleRecordProduction() async {
+    final item = widget.item;
+    final name = (item['name'] ?? '').toString();
+    final unit = (item['unit'] ?? 'pcs').toString();
+    final batchYield = (item['bomBatchYield'] as num?)?.toDouble() ?? 1;
+
+    final rawIngredients = item['bomIngredients'];
+    final ingredients = (rawIngredients is List)
+        ? rawIngredients.whereType<Map<String, dynamic>>().toList()
+        : <Map<String, dynamic>>[];
+
+    final rawOverheads = item['bomOverheads'];
+    final overheads = (rawOverheads is List)
+        ? rawOverheads.whereType<Map<String, dynamic>>().toList()
+        : <Map<String, dynamic>>[];
+
+    // Show confirmation bottom sheet
+    if (!mounted) return;
+    final confirmed = await showAppSheet<bool>(
+      context,
+      builder: (_) => _RecordProductionConfirmSheet(
+        productName: name,
+        batchYield: batchYield,
+        unit: unit,
+        ingredients: ingredients,
+        overheads: overheads,
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _recording = true);
+    try {
+      final repo = ref.read(inventoryRepositoryProvider);
+
+      // Deduct each ingredient that has a materialId
+      for (final ing in ingredients) {
+        final matId = (ing['matId'] as String?) ?? '';
+        final qty = (ing['qty'] as num?)?.toDouble() ?? 0;
+        if (matId.isNotEmpty && qty > 0) {
+          await repo.adjustQuantity(matId, -qty);
+        }
+      }
+
+      // Add finished units to the manufactured product
+      final productId = (item['id'] as String?) ?? '';
+      if (productId.isNotEmpty) {
+        await repo.adjustQuantity(productId, batchYield);
+      }
+
+      _lastBatchYield = batchYield;
+      if (mounted) setState(() { _recording = false; _productionDone = true; });
+
+      // Auto-close after 2.5 s
+      await Future.delayed(const Duration(milliseconds: 2500));
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _recording = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.')),
+        backgroundColor: AppColors.error,
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_productionDone) {
+      final item = widget.item;
+      final name = (item['name'] ?? '').toString();
+      final unit = (item['unit'] ?? 'pcs').toString();
+      return _ProductionSuccessView(
+        productName: name,
+        batchYield: _lastBatchYield,
+        unit: unit,
+      );
+    }
     if (_editMode) {
       return _ProductFormSheet(
         existingItem: widget.item,
@@ -1598,6 +1731,8 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     return _DetailView(
       item: widget.item,
       onEdit: () => setState(() => _editMode = true),
+      onRecordProduction: _recording ? null : _handleRecordProduction,
+      recordingProduction: _recording,
     );
   }
 }
@@ -1605,7 +1740,14 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
 class _DetailView extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback onEdit;
-  const _DetailView({required this.item, required this.onEdit});
+  final VoidCallback? onRecordProduction;
+  final bool recordingProduction;
+  const _DetailView({
+    required this.item,
+    required this.onEdit,
+    this.onRecordProduction,
+    this.recordingProduction = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1878,7 +2020,46 @@ class _DetailView extends StatelessWidget {
                     ],
                   ],
 
+                  // ── Bill of Materials (manufactured only) ───────────
+                  if (type == ProductType.manufactured) ...[
+                    const SizedBox(height: 24),
+                    _Divider(),
+                    const SizedBox(height: 20),
+                    _DetailSectionLabel(_tr('Bill of Materials', 'Orodha ya Malighafi')),
+                    const SizedBox(height: 14),
+                    ..._buildBomSection(item, unit),
+                  ],
+
                   const SizedBox(height: 28),
+
+                  // ── Record Production button (manufactured only) ─────
+                  if (type == ProductType.manufactured) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: onRecordProduction,
+                        icon: recordingProduction
+                            ? const SizedBox(
+                                width: 16, height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.factory_rounded, size: 18),
+                        label: Text(
+                          _tr('Record Production', 'Rekodi Uzalishaji'),
+                          style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C3AED),
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.5),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
 
                   // ── Edit button ──────────────────────────────────────
                   SizedBox(
@@ -1888,7 +2069,7 @@ class _DetailView extends StatelessWidget {
                       onPressed: onEdit,
                       icon: const Icon(Icons.edit_rounded, size: 17),
                       label: Text(
-                        _tr('Edit Product', 'Hariri Bidhaaa'),
+                        _tr('Edit Product', 'Hariri Bidhaa'),
                         style: GoogleFonts.dmSans(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -1908,6 +2089,348 @@ class _DetailView extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+List<Widget> _buildBomSection(Map<String, dynamic> item, String finishedUnit) {
+  final rawIng = item['bomIngredients'];
+  final ingredients = (rawIng is List)
+      ? rawIng.whereType<Map<String, dynamic>>().toList()
+      : <Map<String, dynamic>>[];
+
+  final rawOv = item['bomOverheads'];
+  final overheads = (rawOv is List)
+      ? rawOv.whereType<Map<String, dynamic>>().toList()
+      : <Map<String, dynamic>>[];
+
+  final batchYield = (item['bomBatchYield'] as num?)?.toDouble() ?? 1;
+
+  double totalMat = 0;
+  for (final i in ingredients) {
+    final qty = (i['qty'] as num?)?.toDouble() ?? 0;
+    final cost = (i['costPer'] as num?)?.toDouble() ?? 0;
+    totalMat += qty * cost;
+  }
+  double totalOv = 0;
+  for (final o in overheads) {
+    totalOv += (o['amount'] as num?)?.toDouble() ?? 0;
+  }
+  final totalBatch = totalMat + totalOv;
+  final costPerUnit = batchYield > 0 ? totalBatch / batchYield : 0;
+
+  return [
+    if (ingredients.isNotEmpty) ...[
+      Text(
+        _tr('Ingredients (per batch)', 'Malighafi (kwa kundi)'),
+        style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 8),
+      ...ingredients.map((i) {
+        final name = (i['name'] as String?) ?? '';
+        final qty = (i['qty'] as num?)?.toDouble() ?? 0;
+        final unit = (i['unit'] as String?) ?? 'pcs';
+        final cost = (i['costPer'] as num?)?.toDouble() ?? 0;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            children: [
+              const Icon(Icons.circle, size: 5, color: AppColors.textMuted),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '$name  ×  ${qty % 1 == 0 ? qty.toStringAsFixed(0) : qty.toStringAsFixed(2)} $unit',
+                  style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textPrimary),
+                ),
+              ),
+              if (cost > 0)
+                Text(
+                  _fmtAmount(qty * cost),
+                  style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
+                ),
+            ],
+          ),
+        );
+      }),
+      const SizedBox(height: 10),
+    ],
+    if (overheads.isNotEmpty) ...[
+      Text(
+        _tr('Other Costs (per batch)', 'Gharama Nyingine (kwa kundi)'),
+        style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 8),
+      ...overheads.map((o) {
+        final desc = (o['desc'] as String?) ?? '';
+        final amt = (o['amount'] as num?)?.toDouble() ?? 0;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            children: [
+              const Icon(Icons.circle, size: 5, color: AppColors.textMuted),
+              const SizedBox(width: 8),
+              Expanded(child: Text(desc, style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textPrimary))),
+              Text(_fmtAmount(amt), style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted)),
+            ],
+          ),
+        );
+      }),
+      const SizedBox(height: 10),
+    ],
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Batch yield', 'Matokeo ya kundi'),
+                  style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                ),
+                Text(
+                  '${batchYield % 1 == 0 ? batchYield.toStringAsFixed(0) : batchYield.toStringAsFixed(2)} $finishedUnit',
+                  style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.navyPrimary),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _tr('Cost per unit', 'Gharama kwa kipande'),
+                  style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                ),
+                Text(
+                  _fmtAmount(costPerUnit.toDouble()),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF7C3AED),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  ];
+}
+
+// ── Record Production confirm sheet ──────────────────────────────────────────
+
+class _RecordProductionConfirmSheet extends StatelessWidget {
+  final String productName;
+  final double batchYield;
+  final String unit;
+  final List<Map<String, dynamic>> ingredients;
+  final List<Map<String, dynamic>> overheads;
+
+  const _RecordProductionConfirmSheet({
+    required this.productName,
+    required this.batchYield,
+    required this.unit,
+    required this.ingredients,
+    required this.overheads,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final linkedCount = ingredients.where((i) => ((i['matId'] as String?) ?? '').isNotEmpty).length;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SheetHandle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Record Production', 'Rekodi Uzalishaji'),
+                  style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.navyPrimary),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _tr(
+                    'This will add ${batchYield % 1 == 0 ? batchYield.toStringAsFixed(0) : batchYield.toStringAsFixed(2)} $unit of $productName to your stock.',
+                    'Hii itaongeza ${batchYield % 1 == 0 ? batchYield.toStringAsFixed(0) : batchYield.toStringAsFixed(2)} $unit ya $productName kwenye stoo yako.',
+                  ),
+                  style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                if (ingredients.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          linkedCount > 0
+                              ? _tr('Ingredients to deduct:', 'Malighafi yatakayokatwa:')
+                              : _tr('Ingredients (for reference):', 'Malighafi (kwa kumbukumbu):'),
+                          style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 8),
+                        ...ingredients.map((i) {
+                          final iName = (i['name'] as String?) ?? '';
+                          final qty = (i['qty'] as num?)?.toDouble() ?? 0;
+                          final iUnit = (i['unit'] as String?) ?? 'pcs';
+                          final hasLink = ((i['matId'] as String?) ?? '').isNotEmpty;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  hasLink ? Icons.remove_circle_outline_rounded : Icons.radio_button_unchecked_rounded,
+                                  size: 13,
+                                  color: hasLink ? AppColors.error : AppColors.textMuted,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    '$iName  −  ${qty % 1 == 0 ? qty.toStringAsFixed(0) : qty.toStringAsFixed(2)} $iUnit',
+                                    style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textPrimary),
+                                  ),
+                                ),
+                                if (!hasLink)
+                                  Text(
+                                    _tr('manual', 'mwongozo'),
+                                    style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
+                                  ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textMuted,
+                          side: const BorderSide(color: AppColors.border),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: Text(_tr('Cancel', 'Ghairi'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        icon: const Icon(Icons.factory_rounded, size: 17),
+                        label: Text(_tr('Confirm', 'Thibitisha'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C3AED),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Production success view ───────────────────────────────────────────────────
+
+class _ProductionSuccessView extends StatelessWidget {
+  final String productName;
+  final double batchYield;
+  final String unit;
+
+  const _ProductionSuccessView({
+    required this.productName,
+    required this.batchYield,
+    required this.unit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final yieldStr = batchYield % 1 == 0
+        ? batchYield.toStringAsFixed(0)
+        : batchYield.toStringAsFixed(2);
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: 340,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 140,
+              height: 140,
+              child: Lottie.asset('assets/lottie/DATA.json', repeat: false),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _tr('Production recorded!', 'Uzalishaji umerekodiwa!'),
+              style: GoogleFonts.dmSans(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _tr(
+                '$yieldStr $unit of $productName added to stock',
+                '$yieldStr $unit ya $productName imeongezwa kwenye stoo',
+              ),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _tr('Materials deducted automatically', 'Malighafi yamekatwa kiotomatiki'),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                color: AppColors.success,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2119,6 +2642,39 @@ class _UnitEntry {
   );
 }
 
+// ── BOM entry helpers ─────────────────────────────────────────────────────────
+
+class _BomIngredientEntry {
+  final nameCtrl = TextEditingController();
+  final qtyCtrl  = TextEditingController(text: '1');
+  final costCtrl = TextEditingController();
+  String unit = 'pcs';
+  String materialId = '';
+
+  double get qty  => double.tryParse(qtyCtrl.text) ?? 0;
+  double get cost => double.tryParse(costCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+  double get totalCost => qty * cost;
+
+  void dispose() {
+    nameCtrl.dispose();
+    qtyCtrl.dispose();
+    costCtrl.dispose();
+  }
+}
+
+class _BomOverheadEntry {
+  final descCtrl   = TextEditingController();
+  final amountCtrl = TextEditingController();
+
+  double get amount =>
+      double.tryParse(amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+
+  void dispose() {
+    descCtrl.dispose();
+    amountCtrl.dispose();
+  }
+}
+
 // ── Product Form Sheet (Add / Edit) ───────────────────────────────────────────
 
 class _ProductFormSheet extends ConsumerStatefulWidget {
@@ -2164,14 +2720,32 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   // Selling units (optional multi-tier pricing)
   final List<_UnitEntry> _sellingUnits = [];
 
+  // BOM state (manufactured type only)
+  final List<_BomIngredientEntry> _bomIngredients = [];
+  final List<_BomOverheadEntry>   _bomOverheads   = [];
+  final _batchYieldCtrl = TextEditingController(text: '1');
+
+  // Success state (manufactured save)
+  bool _savedSuccess = false;
+
   static const _units = [
     'pcs','kg','liters','boxes','bottles','bags','meters','sets','dozen','packets',
   ];
 
   bool get _isEdit => widget.existingItem != null;
 
-  double get _buyVal =>
-      double.tryParse(_buyCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+  // For manufactured: cost is auto-derived from BOM
+  double get _bomMaterialCost => _bomIngredients.fold(0.0, (s, i) => s + i.totalCost);
+  double get _bomOverheadCost => _bomOverheads.fold(0.0, (s, o) => s + o.amount);
+  double get _bomTotalBatchCost => _bomMaterialCost + _bomOverheadCost;
+  double get _bomBatchYield => (double.tryParse(_batchYieldCtrl.text) ?? 0).clamp(0.01, double.infinity);
+  double get _bomCostPerUnit => _bomTotalBatchCost / _bomBatchYield;
+
+  double get _buyVal {
+    if (_type == ProductType.manufactured) return _bomCostPerUnit;
+    return double.tryParse(_buyCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+  }
+
   double get _sellVal =>
       double.tryParse(_sellCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
 
@@ -2217,6 +2791,34 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           }
         }
       }
+
+      // Restore BOM data for manufactured items
+      if (_type == ProductType.manufactured) {
+        final rawBomIng = item['bomIngredients'];
+        if (rawBomIng is List) {
+          for (final ing in rawBomIng.whereType<Map<String, dynamic>>()) {
+            final e = _BomIngredientEntry();
+            e.nameCtrl.text  = (ing['name'] as String?) ?? '';
+            e.qtyCtrl.text   = ((ing['qty'] as num?)?.toDouble() ?? 1).toStringAsFixed(
+                ((ing['qty'] as num?)?.toDouble() ?? 1) % 1 == 0 ? 0 : 2);
+            e.costCtrl.text  = ((ing['costPer'] as num?)?.toDouble() ?? 0).toStringAsFixed(0);
+            e.unit       = (ing['unit'] as String?) ?? 'pcs';
+            e.materialId = (ing['matId'] as String?) ?? '';
+            _bomIngredients.add(e);
+          }
+        }
+        final rawBomOv = item['bomOverheads'];
+        if (rawBomOv is List) {
+          for (final ov in rawBomOv.whereType<Map<String, dynamic>>()) {
+            final e = _BomOverheadEntry();
+            e.descCtrl.text   = (ov['desc'] as String?) ?? '';
+            e.amountCtrl.text = ((ov['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(0);
+            _bomOverheads.add(e);
+          }
+        }
+        final yield_ = (item['bomBatchYield'] as num?)?.toDouble() ?? 1;
+        _batchYieldCtrl.text = yield_ % 1 == 0 ? yield_.toStringAsFixed(0) : yield_.toStringAsFixed(2);
+      }
     } else {
       _type = ProductType.stock;
     }
@@ -2231,7 +2833,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     _stockCtrl.dispose();  _reorderCtrl.dispose();
     _batchCtrl.dispose();  _brandCtrl.dispose();
     _warrantyCtrl.dispose(); _returnReasonCtrl.dispose();
+    _batchYieldCtrl.dispose();
     for (final u in _sellingUnits) { u.dispose(); }
+    for (final i in _bomIngredients) { i.dispose(); }
+    for (final o in _bomOverheads) { o.dispose(); }
     super.dispose();
   }
 
@@ -2241,15 +2846,35 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       _snack(_tr('Enter product name', 'Ingiza jina la bidhaa'));
       return;
     }
-    final isReturn = _type == ProductType.customerReturn;
+    final isReturn       = _type == ProductType.customerReturn;
+    final isManufactured = _type == ProductType.manufactured;
+
     if (!isReturn && _sellVal <= 0) {
       _snack(_tr('Enter a selling price', 'Ingiza bei ya kuuza'));
       return;
     }
 
+    // BOM validation
+    if (isManufactured) {
+      if (_bomIngredients.isEmpty) {
+        _snack(_tr('Add at least one ingredient', 'Ongeza kiungo kimoja angalau'));
+        return;
+      }
+      for (final i in _bomIngredients) {
+        if (i.nameCtrl.text.trim().isEmpty) {
+          _snack(_tr('Each ingredient needs a name', 'Kila kiungo kinahitaji jina'));
+          return;
+        }
+      }
+      if (_bomBatchYield <= 0) {
+        _snack(_tr('Enter a batch yield greater than 0', 'Ingiza matokeo ya kundi zaidi ya 0'));
+        return;
+      }
+    }
+
     final bizType = ref.read(currentBusinessTypeProvider).valueOrNull ?? '';
     final config  = BusinessProductConfig.forBusinessType(bizType);
-    if (config.isExpiryRequired && _expiryDate == null && !isReturn) {
+    if (config.isExpiryRequired && _expiryDate == null && !isReturn && !isManufactured) {
       _snack(_tr('Expiry date is required', 'Tarehe ya mwisho inahitajika'));
       return;
     }
@@ -2284,12 +2909,33 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
               '${_expiryDate!.day.toString().padLeft(2, '0')}'
           : '';
 
-      // productType stored as string: 'stock', 'perishable', 'service', 'customerReturn'
-      final ptName = _type == ProductType.customerReturn ? 'customerReturn' : _type.name;
+      final ptName = switch (_type) {
+        ProductType.customerReturn => 'customerReturn',
+        _                          => _type.name,
+      };
 
       final units = _sellingUnits
           .map((u) => u.toModel(_unit))
           .where((u) => u.name.isNotEmpty && u.price > 0)
+          .toList();
+
+      // Build BOM models
+      final bomIngredients = _bomIngredients
+          .where((i) => i.nameCtrl.text.trim().isNotEmpty)
+          .map((i) => BomIngredient(
+                materialName: i.nameCtrl.text.trim(),
+                materialId: i.materialId,
+                quantity: i.qty,
+                unit: i.unit,
+                costPerUnit: i.cost,
+              ))
+          .toList();
+      final bomOverheads = _bomOverheads
+          .where((o) => o.descCtrl.text.trim().isNotEmpty)
+          .map((o) => BomOverheadCost(
+                description: o.descCtrl.text.trim(),
+                amount: o.amount,
+              ))
           .toList();
 
       final item = InventoryItem(
@@ -2303,11 +2949,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         currentStock: _type != ProductType.service
             ? (double.tryParse(_stockCtrl.text) ?? 0)
             : 0,
-        reorderPoint: (_type == ProductType.stock || _type == ProductType.perishable)
+        reorderPoint: (_type == ProductType.stock ||
+                _type == ProductType.perishable ||
+                _type == ProductType.manufactured)
             ? (double.tryParse(_reorderCtrl.text) ?? 5)
             : 0,
         unitPrice: _sellVal,
-        costPrice: _buyVal,
+        costPrice: isManufactured ? _bomCostPerUnit : _buyVal,
         unit: _unit,
         expiryDate: expiryStr,
         batchNumber: _batchCtrl.text.trim(),
@@ -2319,12 +2967,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         lastRestocked: (existing?['lastRestocked'] as String?) ?? '',
         createdAt: (existing?['createdAt'] as String?) ?? now,
         updatedAt: now,
+        bomIngredients: bomIngredients,
+        bomOverheads: bomOverheads,
+        bomBatchYield: isManufactured ? _bomBatchYield : 1,
       );
 
       await ref.read(inventoryRepositoryProvider).save(item);
 
-      // Auto-deduct cash when this is declared as a new purchase
-      if (_stockEntryType == 'purchase' &&
+      // Auto-deduct cash when this is declared as a new purchase (non-manufactured only)
+      if (!isManufactured &&
+          _stockEntryType == 'purchase' &&
           _selectedAccountId.isNotEmpty &&
           _buyVal > 0 &&
           !isReturn) {
@@ -2344,10 +2996,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                   type: 'withdrawal',
                   amount: total,
                   fromAccountId: _selectedAccountId,
-                  description: _tr(
-                    'Purchase: $name',
-                    'Ununuzi: $name',
-                  ),
+                  description: _tr('Purchase: $name', 'Ununuzi: $name'),
                   date: dateStr,
                 ),
               );
@@ -2355,6 +3004,15 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       }
 
       if (!mounted) return;
+
+      if (isManufactured && !_isEdit) {
+        // Show Lottie success overlay, then auto-close
+        setState(() { _saving = false; _savedSuccess = true; });
+        await Future.delayed(const Duration(milliseconds: 2000));
+        if (mounted) { widget.onDone != null ? widget.onDone!() : nav.pop(); }
+        return;
+      }
+
       msg.showSnackBar(SnackBar(
         content: Text(_isEdit
             ? _tr('Product updated', 'Bidhaa imesasishwa')
@@ -2428,12 +3086,69 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // Manufactured product saved — show celebration overlay
+    if (_savedSuccess) {
+      final yieldStr = _bomBatchYield % 1 == 0
+          ? _bomBatchYield.toStringAsFixed(0)
+          : _bomBatchYield.toStringAsFixed(2);
+      return Align(
+        alignment: Alignment.bottomCenter,
+        child: Material(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            height: 340,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 130,
+                  height: 130,
+                  child: Lottie.asset('assets/lottie/DATA.json', repeat: false),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _tr('Production recorded!', 'Uzalishaji umerekodiwa!'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _tr(
+                    '$yieldStr $_unit of ${_nameCtrl.text.trim()} added to stock',
+                    '$yieldStr $_unit ya ${_nameCtrl.text.trim()} imeongezwa kwenye stoo',
+                  ),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _tr('Materials deducted automatically', 'Malighafi yamekatwa kiotomatiki'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.success,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final categoriesAsync = ref.watch(masterCategoriesProvider);
     final bizTypeAsync    = ref.watch(currentBusinessTypeProvider);
     final bizType = bizTypeAsync.valueOrNull ?? '';
     final config  = BusinessProductConfig.forBusinessType(bizType);
 
-    final isReturn   = _type == ProductType.customerReturn;
+    final isReturn       = _type == ProductType.customerReturn;
+    final isManufactured = _type == ProductType.manufactured;
+    // Manufactured items show a simplified stock section (no purchase toggle)
     final showStock  = !isReturn && _type != ProductType.service && config.showStock;
     final showProfit = !isReturn && _buyVal > 0 && _sellVal > 0;
     final profitAmt  = _profit(_buyVal, _sellVal);
@@ -2466,13 +3181,17 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 ? _tr('Edit Product', 'Hariri Bidhaa')
                                 : _type == ProductType.customerReturn
                                     ? _tr('Record Return', 'Rekodi Urejesho')
-                                    : _tr('Add Product', 'Ongeza Bidhaa'),
+                                    : _type == ProductType.manufactured
+                                        ? _tr('Add Manufactured Product', 'Ongeza Bidhaa ya Uzalishaji')
+                                        : _tr('Add Product', 'Ongeza Bidhaa'),
                             style: GoogleFonts.dmSans(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: _type == ProductType.customerReturn
                                   ? AppColors.tealAccent
-                                  : AppColors.navyPrimary,
+                                  : _type == ProductType.manufactured
+                                      ? const Color(0xFF7C3AED)
+                                      : AppColors.navyPrimary,
                             ),
                           ),
                         ),
@@ -2499,6 +3218,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             if (t == ProductType.customerReturn) {
                               tileColor   = AppColors.tealAccent;
                               borderColor = AppColors.tealAccent;
+                            } else if (t == ProductType.manufactured) {
+                              tileColor   = const Color(0xFF7C3AED);
+                              borderColor = const Color(0xFF7C3AED);
                             } else {
                               tileColor   = AppColors.navyPrimary;
                               borderColor = AppColors.navyPrimary;
@@ -2722,6 +3444,169 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         const SizedBox(height: 14),
                       ],
 
+                      // ── Bill of Materials (manufactured only) ─────────────
+                      if (isManufactured) ...[
+                        const SizedBox(height: 20),
+                        Container(height: 1, color: AppColors.border),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            const Icon(Icons.precision_manufacturing_outlined, size: 16, color: Color(0xFF7C3AED)),
+                            const SizedBox(width: 8),
+                            _FormSectionLabel(_tr('Bill of Materials', 'Orodha ya Malighafi')),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _tr(
+                            'What goes into making one batch?',
+                            'Ni nini kinachohitajika kutengeneza kundi moja?',
+                          ),
+                          style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // ── Ingredients ──────────────────────────────
+                        Text(
+                          _tr('Raw Materials / Ingredients', 'Malighafi / Viungo'),
+                          style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._bomIngredients.asMap().entries.map((e) {
+                          final idx = e.key;
+                          final ing = e.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _BomIngredientCard(
+                              entry: ing,
+                              index: idx + 1,
+                              units: _units,
+                              onRemove: () => setState(() {
+                                ing.dispose();
+                                _bomIngredients.removeAt(idx);
+                              }),
+                              onChanged: () => setState(() {}),
+                            ),
+                          );
+                        }),
+                        _AddRowButton(
+                          label: _tr('Add ingredient', 'Ongeza kiungo'),
+                          onTap: () => setState(() => _bomIngredients.add(_BomIngredientEntry())),
+                        ),
+
+                        // ── Overhead costs ───────────────────────────
+                        const SizedBox(height: 16),
+                        Text(
+                          _tr('Other Costs per Batch', 'Gharama Nyingine kwa Kundi'),
+                          style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _tr('e.g. electricity, labour, gas', 'k.m. umeme, kazi, gesi'),
+                          style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._bomOverheads.asMap().entries.map((e) {
+                          final idx = e.key;
+                          final ov = e.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _BomOverheadCard(
+                              entry: ov,
+                              index: idx + 1,
+                              onRemove: () => setState(() {
+                                ov.dispose();
+                                _bomOverheads.removeAt(idx);
+                              }),
+                              onChanged: () => setState(() {}),
+                            ),
+                          );
+                        }),
+                        _AddRowButton(
+                          label: _tr('Add cost', 'Ongeza gharama'),
+                          onTap: () => setState(() => _bomOverheads.add(_BomOverheadEntry())),
+                        ),
+
+                        // ── Batch yield ──────────────────────────────
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Batch yield *', 'Matokeo ya kundi *')),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _tr('Units produced per batch', 'Vipande vinavyotengenezwa kwa kundi'),
+                                    style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  _FormField(
+                                    ctrl: _batchYieldCtrl,
+                                    hint: '100',
+                                    keyboard: const TextInputType.numberWithOptions(decimal: true),
+                                    formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Unit', 'Kitengo')),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _tr('Finished product unit', 'Kitengo cha bidhaa iliyotengenezwa'),
+                                    style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  _UnitDropdown(
+                                    value: _unit,
+                                    units: _units,
+                                    onChanged: (v) => setState(() => _unit = v),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        if (_bomCostPerUnit > 0) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7C3AED).withValues(alpha: 0.07),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.25)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calculate_outlined, size: 15, color: Color(0xFF7C3AED)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _tr(
+                                      'Total batch cost: ${_fmtAmount(_bomTotalBatchCost)}  ÷  ${_bomBatchYield.toStringAsFixed(0)} units  =  ${_fmtAmount(_bomCostPerUnit)} / unit',
+                                      'Gharama ya kundi: ${_fmtAmount(_bomTotalBatchCost)}  ÷  ${_bomBatchYield.toStringAsFixed(0)} vipande  =  ${_fmtAmount(_bomCostPerUnit)} / kipande',
+                                    ),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF7C3AED),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+
                       Container(height: 1, color: AppColors.border),
                       const SizedBox(height: 20),
 
@@ -2742,6 +3627,64 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                           onChanged: (_) => setState(() {}),
                         ),
+                      ] else if (isManufactured) ...[
+                        // For manufactured: show auto-calculated cost (read-only) + selling price
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Cost per unit (auto)', 'Gharama kwa kipande (otomatiki)')),
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    height: 48,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
+                                    ),
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      _bomCostPerUnit > 0
+                                          ? 'TSh ${_bomCostPerUnit.toStringAsFixed(0)}'
+                                          : '—',
+                                      style: GoogleFonts.dmSans(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF7C3AED),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FormLabel(_tr('Selling price *', 'Bei ya kuuza *')),
+                                  const SizedBox(height: 6),
+                                  _FormField(
+                                    ctrl: _sellCtrl,
+                                    hint: '0',
+                                    prefix: 'TSh',
+                                    keyboard: const TextInputType.numberWithOptions(decimal: true),
+                                    formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (showProfit) ...[
+                          const SizedBox(height: 10),
+                          _ProfitStrip(profit: profitAmt, margin: marginAmt),
+                        ],
                       ] else ...[
                         Row(
                           children: [
@@ -2918,7 +3861,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
                         ),
 
-                        // ── Stock entry type ───────────────────────────────
+                        // ── Stock entry type (not shown for manufactured) ──
+                        if (!isManufactured) ...[
                         const SizedBox(height: 20),
                         Container(height: 1, color: AppColors.border),
                         const SizedBox(height: 20),
@@ -3004,6 +3948,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             );
                           }),
                         ],
+                        ], // end if (!isManufactured)
                       ],
 
                       // Return: qty returned field
@@ -3031,11 +3976,15 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isReturn
                                 ? AppColors.tealAccent
-                                : AppColors.navyPrimary,
+                                : isManufactured
+                                    ? const Color(0xFF7C3AED)
+                                    : AppColors.navyPrimary,
                             foregroundColor: Colors.white,
                             disabledBackgroundColor: (isReturn
                                 ? AppColors.tealAccent
-                                : AppColors.navyPrimary).withValues(alpha: 0.4),
+                                : isManufactured
+                                    ? const Color(0xFF7C3AED)
+                                    : AppColors.navyPrimary).withValues(alpha: 0.4),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
@@ -3052,7 +4001,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                       ? _tr('Save changes', 'Hifadhi mabadiliko')
                                       : isReturn
                                           ? _tr('Record Return', 'Rekodi Urejesho')
-                                          : _tr('Add to inventory', 'Ongeza kwenye bidhaa'),
+                                          : isManufactured
+                                              ? _tr('Save product', 'Hifadhi bidhaa')
+                                              : _tr('Add to inventory', 'Ongeza kwenye bidhaa'),
                                   style: GoogleFonts.dmSans(
                                     fontSize: 15, fontWeight: FontWeight.w700,
                                   ),
@@ -3233,6 +4184,271 @@ class _SellingUnitCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── BOM ingredient card ───────────────────────────────────────────────────────
+
+class _BomIngredientCard extends StatelessWidget {
+  final _BomIngredientEntry entry;
+  final int index;
+  final List<String> units;
+  final VoidCallback onRemove;
+  final VoidCallback onChanged;
+
+  const _BomIngredientCard({
+    required this.entry,
+    required this.index,
+    required this.units,
+    required this.onRemove,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                _tr('Ingredient $index', 'Kiungo $index'),
+                style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textMuted, letterSpacing: 0.4),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onRemove,
+                child: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: entry.nameCtrl,
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: (_) => onChanged(),
+            style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navyPrimary),
+            decoration: InputDecoration(
+              hintText: _tr('e.g. Flour, Cement, Milk', 'k.m. Unga, Saruji, Maziwa'),
+              hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+              filled: true, fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              SizedBox(
+                width: 80,
+                child: TextField(
+                  controller: entry.qtyCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                  onChanged: (_) => onChanged(),
+                  style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navyPrimary),
+                  decoration: InputDecoration(
+                    hintText: '1',
+                    hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+                    labelText: _tr('Qty', 'Idadi'),
+                    labelStyle: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                    filled: true, fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: StatefulBuilder(
+                  builder: (ctx, setSt) => DropdownButtonFormField<String>(
+                    initialValue: entry.unit,
+                    onChanged: (v) { if (v != null) { entry.unit = v; onChanged(); } },
+                    style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.navyPrimary),
+                    decoration: InputDecoration(
+                      filled: true, fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                    ),
+                    items: units.map((u) => DropdownMenuItem(value: u, child: Text(u, style: GoogleFonts.dmSans(fontSize: 13)))).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: entry.costCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                  onChanged: (_) => onChanged(),
+                  style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navyPrimary),
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+                    prefixText: 'TSh ',
+                    prefixStyle: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
+                    labelText: _tr('Cost/unit', 'Gharama/kitengo'),
+                    labelStyle: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                    filled: true, fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (entry.totalCost > 0) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '= ${_fmtAmount(entry.totalCost)}',
+                style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── BOM overhead card ─────────────────────────────────────────────────────────
+
+class _BomOverheadCard extends StatelessWidget {
+  final _BomOverheadEntry entry;
+  final int index;
+  final VoidCallback onRemove;
+  final VoidCallback onChanged;
+
+  const _BomOverheadCard({
+    required this.entry,
+    required this.index,
+    required this.onRemove,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                _tr('Cost $index', 'Gharama $index'),
+                style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textMuted, letterSpacing: 0.4),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onRemove,
+                child: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: entry.descCtrl,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (_) => onChanged(),
+                  style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navyPrimary),
+                  decoration: InputDecoration(
+                    hintText: _tr('e.g. Electricity, Labour', 'k.m. Umeme, Kazi'),
+                    hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+                    filled: true, fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: entry.amountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                  onChanged: (_) => onChanged(),
+                  style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navyPrimary),
+                  decoration: InputDecoration(
+                    hintText: '0',
+                    hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+                    prefixText: 'TSh ',
+                    prefixStyle: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
+                    filled: true, fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Add row button (shared) ───────────────────────────────────────────────────
+
+class _AddRowButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _AddRowButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add_rounded, size: 16, color: AppColors.tealAccent),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.tealAccent),
+            ),
+          ],
+        ),
       ),
     );
   }
