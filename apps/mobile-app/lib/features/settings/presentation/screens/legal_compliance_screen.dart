@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -311,9 +312,8 @@ class LegalComplianceScreen extends StatelessWidget {
     required String title,
     required String content,
   }) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
+    showAppSheet<void>(
+      context,
       backgroundColor: AppColors.background,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
@@ -322,7 +322,7 @@ class LegalComplianceScreen extends StatelessWidget {
       builder: (_) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.75,
-        maxChildSize: 0.95,
+        maxChildSize: 0.8,
         builder: (_, controller) => ListView(
           controller: controller,
           padding: const EdgeInsets.fromLTRB(24, 4, 24, 40),

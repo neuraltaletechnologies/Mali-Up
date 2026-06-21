@@ -7,6 +7,7 @@ import '../../domain/models/invoice.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 
 // Global invoice provider instance
@@ -272,9 +273,8 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
   }
 
   void _showInvoiceDetails(Invoice invoice) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
+    showAppSheet(
+      context,
       builder: (context) => _buildInvoiceDetailsSheet(invoice),
     );
   }
@@ -291,16 +291,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
         ),
         child: Column(
           children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+            const SheetHandle(),
             
             // Header
             Padding(

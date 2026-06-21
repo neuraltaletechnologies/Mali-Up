@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
@@ -128,10 +129,8 @@ class _CashFlowDarkHeader extends ConsumerWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () => showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
+                onTap: () => showAppSheet(
+                  context,
                   builder: (_) => const AddAccountDialog(),
                 ),
                 child: Container(
@@ -292,10 +291,8 @@ class _CashFlowFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
-      onPressed: () => showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
+      onPressed: () => showAppSheet(
+        context,
         builder: (_) => const AddTransactionDialog(),
       ),
       backgroundColor: AppColors.yellowBrand,

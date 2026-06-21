@@ -1534,3 +1534,26 @@ class AppSectionHeader extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SheetHandle — standard drag indicator for bottom sheets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class SheetHandle extends StatelessWidget {
+  const SheetHandle({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(top: 12, bottom: 4),
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: const Color(0xFFCBD5E0),
+          borderRadius: BorderRadius.circular(99),
+        ),
+      ),
+    );
+  }
+}

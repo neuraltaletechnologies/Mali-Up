@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../catalog/domain/models/master_category.dart';
 import '../../../catalog/providers/master_catalog_providers.dart';
 import '../../../product/data/category_providers.dart';
@@ -113,18 +114,8 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
         ),
         child: Column(
           children: [
-            // Handle
-            const SizedBox(height: 12),
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+            const SheetHandle(),
+            const SizedBox(height: 4),
 
             // Header
             Padding(

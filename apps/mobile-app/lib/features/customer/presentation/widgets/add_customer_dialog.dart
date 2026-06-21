@@ -14,6 +14,8 @@ import '../../../rbac/data/audit_log_service.dart';
 import '../../data/customer_providers.dart';
 import '../../data/repositories/customer_repository.dart';
 import '../../domain/models/customer.dart';
+import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/mali_components.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -115,17 +117,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
-          const SizedBox(height: 14),
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
+          const SheetHandle(),
           Flexible(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
@@ -655,9 +647,8 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
       List<Contact> contacts) async {
     final searchController = TextEditingController();
 
-    final result = await showModalBottomSheet<List<Contact>>(
-      context: context,
-      isScrollControlled: true,
+    final result = await showAppSheet<List<Contact>>(
+      context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),

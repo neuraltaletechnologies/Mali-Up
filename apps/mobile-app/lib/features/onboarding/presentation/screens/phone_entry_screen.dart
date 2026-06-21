@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -196,10 +197,8 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
   Future<void> _pickCountry() async {
     HapticFeedback.selectionClick();
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
-    final picked = await showModalBottomSheet<_Country>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final picked = await showAppSheet<_Country>(
+      context,
       builder: (_) => _CountryPickerSheet(countries: _kCountries, isSwahili: sw),
     );
     if (picked != null && mounted) {

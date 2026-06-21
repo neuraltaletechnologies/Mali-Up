@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 
 /// Bottom sheet that displays a product's barcode/QR code for scanning or printing.
 class BarcodeViewSheet extends StatelessWidget {
@@ -47,17 +48,8 @@ class BarcodeViewSheet extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.black12,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              const SheetHandle(),
+              const SizedBox(height: 8),
               Text(
                 productName,
                 style: Theme.of(context)

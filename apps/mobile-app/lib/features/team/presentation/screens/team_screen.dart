@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/services/localization_service.dart';
@@ -144,10 +145,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                   if (!_searchExpanded) _query = '';
                 }),
                 onSearchChanged: (v) => setState(() => _query = v.trim()),
-                onFilterTap: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
+                onFilterTap: () => showAppSheet<void>(
+                  context,
                   builder: (_) => _TeamFilterSheet(
                     selected: _filter,
                     onApply: (f) => setState(() => _filter = f),
@@ -191,10 +190,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   }
 
   void _showInviteSheet(BuildContext ctx) {
-    showModalBottomSheet<void>(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet<void>(
+      ctx,
       builder: (_) => const _InviteMemberSheet(),
     );
   }
@@ -277,10 +274,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   }
 
   void _showMemberSheet(BuildContext ctx, TeamMember member) {
-    showModalBottomSheet<void>(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet<void>(
+      ctx,
       builder: (_) => _MemberSheet(member: member),
     );
   }
@@ -1205,7 +1200,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
               key: _formKey,
               child: Column(
                 children: [
-                  _handle(),
+                  const SheetHandle(),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
@@ -1551,7 +1546,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
         clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
-            _handle(),
+            const SheetHandle(),
             // ── Member hero ──────────────────────────────────────────────
             Padding(
               padding:
@@ -2174,18 +2169,6 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-// ── Shared helpers ─────────────────────────────────────────────────────────────
-
-Widget _handle() => Center(
-      child: Container(
-        margin: const EdgeInsets.only(top: 12, bottom: 12),
-        width: 40,
-        height: 4,
-        decoration: BoxDecoration(
-            color: AppColors.border,
-            borderRadius: BorderRadius.circular(99)),
-      ),
-    );
 
 
 Widget _sectionLabel(String label) => Text(

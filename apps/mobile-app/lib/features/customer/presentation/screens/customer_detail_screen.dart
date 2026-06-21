@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
@@ -348,10 +349,8 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
   }
 
   void _openEdit() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet(
+      context,
       builder: (_) => _EditCustomerFullSheet(
         customer: _customer,
         onSaved: (updated) => setState(() => _customer = updated),
@@ -652,9 +651,8 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
   }
 
   void _showAddNoteSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
+    showAppSheet(
+      context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),

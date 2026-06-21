@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/services/plan_service.dart';
 import '../../core/theme/app_colors.dart';
+import 'app_sheet.dart';
+import 'mali_components.dart';
 
 /// Shows the upgrade/paywall bottom sheet comparing paid tiers.
 /// Returns the selected [PlanTier] if the user taps a tier CTA, or null.
@@ -12,10 +14,8 @@ Future<PlanTier?> showUpgradeSheet(
   PlanStatus? currentStatus,
   String? triggerReason,
 }) {
-  return showModalBottomSheet<PlanTier>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  return showAppSheet<PlanTier>(
+    context,
     builder: (_) => _UpgradeSheet(
       currentStatus: currentStatus,
       triggerReason: triggerReason,
@@ -58,18 +58,8 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.black12,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              const SheetHandle(),
+              const SizedBox(height: 12),
 
               // Header
               if (widget.triggerReason != null) ...[
