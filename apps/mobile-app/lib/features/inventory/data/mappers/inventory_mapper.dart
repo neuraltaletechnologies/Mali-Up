@@ -11,6 +11,16 @@ List<SellingUnit> _decodeSellingUnits(dynamic raw) {
   return raw.whereType<Map<String, dynamic>>().map(SellingUnit.fromJson).toList();
 }
 
+List<BomIngredient> _decodeBomIngredients(dynamic raw) {
+  if (raw is! List) return const [];
+  return raw.whereType<Map<String, dynamic>>().map(BomIngredient.fromJson).toList();
+}
+
+List<BomOverheadCost> _decodeBomOverheads(dynamic raw) {
+  if (raw is! List) return const [];
+  return raw.whereType<Map<String, dynamic>>().map(BomOverheadCost.fromJson).toList();
+}
+
 abstract final class InventoryMapper {
   // ─── Drift row → domain ────────────────────────────────────────────────────
 
@@ -43,6 +53,9 @@ abstract final class InventoryMapper {
       brand: meta['brand'] as String? ?? '',
       sellingUnits: _decodeSellingUnits(meta['sellingUnits']),
       returnReason: meta['returnReason'] as String? ?? '',
+      bomIngredients: _decodeBomIngredients(meta['bomIngredients']),
+      bomOverheads: _decodeBomOverheads(meta['bomOverheads']),
+      bomBatchYield: (meta['bomBatchYield'] as num?)?.toDouble() ?? 1,
     );
   }
 
@@ -71,6 +84,9 @@ abstract final class InventoryMapper {
       'brand': item.brand,
       'sellingUnits': item.sellingUnits.map((u) => u.toJson()).toList(),
       'returnReason': item.returnReason,
+      'bomIngredients': item.bomIngredients.map((i) => i.toJson()).toList(),
+      'bomOverheads': item.bomOverheads.map((o) => o.toJson()).toList(),
+      'bomBatchYield': item.bomBatchYield,
     });
     return InventoryTableCompanion(
       id: Value(id),
