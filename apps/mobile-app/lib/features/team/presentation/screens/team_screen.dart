@@ -1396,7 +1396,8 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
           uid: user.uid,
           context: ctx,
           memberId: _member.id,
-          data: data);
+          data: data,
+          workerUid: _member.userId);
 
       // Permissions are now part of the staff doc — updateTeamMember already wrote them.
 
@@ -1508,7 +1509,10 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
       await repo.deleteTeamMember(
-          uid: user.uid, context: ctx, memberId: _member.id);
+          uid: user.uid,
+          context: ctx,
+          memberId: _member.id,
+          workerUid: _member.userId);
       unawaited(AuditLogService().log(
         ownerUid: user.uid,
         businessId: ctx.businessId ?? '',

@@ -859,7 +859,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
               ),
             );
           },
-        ),
         );
       },
     );

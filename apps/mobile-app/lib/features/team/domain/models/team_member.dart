@@ -322,7 +322,7 @@ class TeamMember {
           : null,
       invitedBy: (data['invitedBy'] as String?) ?? '',
       notes: data['notes'] as String?,
-      userId: data['userId'] as String?,
+      userId: (data['workerUid'] ?? data['userId']) as String?,
     );
   }
 

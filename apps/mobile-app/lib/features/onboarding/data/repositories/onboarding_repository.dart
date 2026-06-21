@@ -292,6 +292,23 @@ class OnboardingRepository {
         },
         SetOptions(merge: true),
       );
+
+      // 3a. Create the UID-keyed pointer doc at staff/{uid}.
+      // isStaffWithAny() in Firestore rules looks up businesses/{bizId}/staff/{auth.uid}
+      // directly. Permissions are mirrored here from the owner-controlled doc; the
+      // Firestore rule enforces equality so the worker cannot self-elevate.
+      batch.set(
+        _db.collection('businesses').doc(businessId).collection('staff').doc(uid),
+        {
+          'workerUid': uid,
+          'memberId': memberId,
+          'permissions': permissions,
+          'phone': phone,
+          'status': 'active',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+      );
     }
 
     // 4. Mark pendingInvite as accepted.

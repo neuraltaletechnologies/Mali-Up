@@ -3,15 +3,14 @@ import 'package:flutter/services.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/security_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 
 /// Shows as a modal bottom sheet.
 /// Returns `true` if the PIN was set and App Lock was enabled.
 Future<bool> showPinSetupSheet(BuildContext context) async {
-  final result = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  final result = await showAppSheet<bool>(
+    context,
     builder: (_) => const _PinSetupSheet(),
   );
   return result == true;
@@ -259,10 +258,8 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
 /// Shows as a modal bottom sheet.
 /// Returns `true` if the PIN was changed successfully.
 Future<bool> showPinChangeSheet(BuildContext context) async {
-  final result = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  final result = await showAppSheet<bool>(
+    context,
     builder: (_) => const _PinChangeSheet(),
   );
   return result == true;

@@ -35,6 +35,10 @@ service cloud.firestore {
     // Returns true when the signed-in user is an active staff member of
     // this business holding at least one of the given permissions.
     function isStaffWithAny(bizId, permissions) {
+      // Staff docs have auto-generated IDs, so they can't be looked up by auth UID.
+      // During invite acceptance the app creates a UID-keyed pointer doc at
+      // staff/{auth.uid} that mirrors the permissions from the owner-controlled doc.
+      // The CREATE rule below ensures permissions can't be self-elevated.
       let ref = /databases/$(database)/documents/businesses/$(bizId)/staff/$(request.auth.uid);
       return isSignedIn() &&
         exists(ref) &&
@@ -324,7 +328,7 @@ service cloud.firestore {
         // Phone lookup during login: collectionGroup query needs an explicit list
         // rule because Firestore can't evaluate resource.data in query context.
         allow list: if isSignedIn() && isLimitedLookup();
-        // Worker accepts invite: stamps their UID + activates.
+        // Worker accepts invite: stamps their UID + activates (updates the auto-gen-ID doc).
         allow update: if isSignedIn() &&
           request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['status', 'acceptedAt', 'workerUid', 'updatedAt']) &&
@@ -332,6 +336,23 @@ service cloud.firestore {
           request.resource.data.status == 'active' &&
           (!('workerUid' in resource.data) || resource.data.workerUid == request.auth.uid) &&
           authEmailMatchesPhone(resource.data.phone);
+        // Worker creates/updates the UID-keyed pointer doc at staff/{auth.uid}.
+        // Permissions are mirrored from the owner-controlled auto-gen doc and the
+        // rule enforces equality, so a worker cannot self-elevate their permissions.
+        allow create, update: if isSignedIn() &&
+          staffId == request.auth.uid &&
+          request.resource.data.workerUid == request.auth.uid &&
+          request.resource.data.status == 'active' &&
+          request.resource.data.memberId is string &&
+          request.resource.data.memberId.size() > 0 &&
+          authEmailMatchesPhone(request.resource.data.phone) &&
+          exists(/databases/$(database)/documents/businesses/$(bizId)/staff/$(request.resource.data.memberId)) &&
+          request.resource.data.permissions is list &&
+          request.resource.data.permissions == get(
+            /databases/$(database)/documents/businesses/$(bizId)/staff/$(request.resource.data.memberId)
+          ).data.permissions &&
+          request.resource.data.keys().hasOnly(
+            ['workerUid', 'memberId', 'permissions', 'phone', 'status', 'createdAt', 'updatedAt']);
       }
 
       // ── Audit logs ────────────────────────────────────────────────────────

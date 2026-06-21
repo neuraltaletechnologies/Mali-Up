@@ -432,28 +432,43 @@ class ContextFirestoreRepository {
     required ResolvedFinanceContext context,
     required String memberId,
     required Map<String, dynamic> data,
-  }) {
+    String? workerUid,
+  }) async {
     final bizId = context.businessId ?? '';
-    return _firestore
+    final staffRef = _firestore
         .collection('businesses')
         .doc(bizId)
-        .collection('staff')
-        .doc(memberId)
-        .update(data);
+        .collection('staff');
+    await staffRef.doc(memberId).update(data);
+    // Mirror permission/status changes to the pointer doc so isStaffWithAny()
+    // reflects the new permissions immediately.
+    if (workerUid != null && workerUid.isNotEmpty) {
+      final ptrUpdate = <String, dynamic>{'updatedAt': FieldValue.serverTimestamp()};
+      if (data.containsKey('permissions')) ptrUpdate['permissions'] = data['permissions'];
+      if (data.containsKey('status')) ptrUpdate['status'] = data['status'];
+      if (ptrUpdate.length > 1) {
+        await staffRef.doc(workerUid).update(ptrUpdate);
+      }
+    }
   }
 
   Future<void> deleteTeamMember({
     required String uid,
     required ResolvedFinanceContext context,
     required String memberId,
-  }) {
+    String? workerUid,
+  }) async {
     final bizId = context.businessId ?? '';
-    return _firestore
+    final staffRef = _firestore
         .collection('businesses')
         .doc(bizId)
-        .collection('staff')
-        .doc(memberId)
-        .delete();
+        .collection('staff');
+    await staffRef.doc(memberId).delete();
+    // Also delete the UID-keyed pointer doc if we know the worker's Firebase UID,
+    // so isStaffWithAny() stops granting access immediately.
+    if (workerUid != null && workerUid.isNotEmpty) {
+      await staffRef.doc(workerUid).delete();
+    }
   }
 
   /// Updates the staff doc when a worker's role or permissions change.
