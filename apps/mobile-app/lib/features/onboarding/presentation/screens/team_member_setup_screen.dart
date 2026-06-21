@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/connectivity_provider.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -71,10 +72,8 @@ class _TeamMemberSetupScreenState
     final sw = state.isSwahili;
     final businessName = state.businessName;
 
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final confirmed = await showAppSheet<bool>(
+      context,
       builder: (_) => _StartFreshWarningSheet(
         sw: sw,
         businessName: businessName,

@@ -12,6 +12,8 @@ import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/mali_components.dart';
 
 class ManageBusinessesScreen extends StatefulWidget {
   const ManageBusinessesScreen({super.key});
@@ -348,19 +350,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     File?  pickedLogoFile;
     final  existingLogoUrl = (business?['logoUrl'] as String?)?.trim();
 
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final result = await showAppSheet<bool>(
+      context,
       builder: (sheetCtx) {
         bool   localSaving     = false;
         bool   websiteInterest = (business?['websiteInterest'] as bool?) ?? false;
 
-        return ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(sheetCtx).height * 0.90,
-          ),
-          child: StatefulBuilder(
+        return StatefulBuilder(
           builder: (dlgCtx, setS) {
             final currentName = nameCtrl.text.trim();
             final initial     = currentName.isNotEmpty ? currentName[0].toUpperCase() : 'B';
@@ -565,10 +561,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             placeholder: _tr('Select business type', 'Chagua aina ya biashara'),
                             hasValue: true,
                             onTap: () async {
-                              final picked = await showModalBottomSheet<String>(
-                                context: dlgCtx,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
+                              final picked = await showAppSheet<String>(
+                                dlgCtx,
                                 builder: (_) => _BizTypePickerSheet(
                                   types: _businessTypes,
                                   selectedValue: selectedType,
@@ -605,10 +599,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             placeholder: _tr('Select city / region *', 'Chagua mji / mkoa *'),
                             hasValue: selectedCity != null,
                             onTap: () async {
-                              final picked = await showModalBottomSheet<String>(
-                                context: dlgCtx,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
+                              final picked = await showAppSheet<String>(
+                                dlgCtx,
                                 builder: (_) => _CityPickerSheet(
                                   cities: _tanzaniaCities,
                                   selectedValue: selectedCity,
@@ -636,10 +628,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                 : () async {
                                     final districts = _districts[selectedCity] ?? [];
                                     if (districts.isEmpty) return;
-                                    final picked = await showModalBottomSheet<String>(
-                                      context: dlgCtx,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
+                                    final picked = await showAppSheet<String>(
+                                      dlgCtx,
                                       builder: (_) => _DistrictPickerSheet(
                                         districts: districts,
                                         selectedValue: selectedDistrict,
@@ -1038,8 +1028,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     final logoUrl = (business['logoUrl'] as String?)?.trim();
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'B';
 
-    await showModalBottomSheet<void>(
-      context: context,
+    await showAppSheet<void>(
+      context,
       backgroundColor: Colors.white,
       showDragHandle: true,
       builder: (sheetContext) {
@@ -1694,7 +1684,6 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.88),
       decoration: const BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1703,17 +1692,8 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 12),
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SheetHandle(),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -1862,7 +1842,6 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.82),
       decoration: const BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1871,17 +1850,8 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 12),
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SheetHandle(),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -2008,17 +1978,8 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 12),
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SheetHandle(),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(

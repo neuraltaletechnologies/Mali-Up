@@ -5,7 +5,9 @@
       "Bash(xargs grep -l \"card\\\\|Card\\\\|stat\\\\|Stat\")",
       "Bash(mkdir -p \"c:/SIDE/GIT/Maliapp/apps/admin/app/api/admin/analytics\")",
       "Bash(mkdir -p \"c:/SIDE/GIT/Maliapp/apps/admin/app/api/admin/catalog\")",
-      "Bash(firebase deploy *)"
+      "Bash(firebase deploy *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\SIDE\\\\GIT\\\\Maliapp\\\\apps\\\\mobile-app\\\\lib\\\\features\" -Directory)",
+      "Bash(Select-Object Name)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

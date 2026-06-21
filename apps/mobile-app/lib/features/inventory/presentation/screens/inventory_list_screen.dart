@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../catalog/domain/models/master_category.dart';
@@ -223,10 +224,8 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
   }
 
   void _showAddItemDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet(
+      context,
       builder: (context) => const AddItemDialog(),
     );
   }
@@ -487,18 +486,8 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
           top: false,
           child: Column(
             children: [
-              // ── Handle ─────────────────────────────────────────────────────
-              const SizedBox(height: 12),
-              Center(
-                child: Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SheetHandle(),
+              const SizedBox(height: 4),
 
               // ── Header ──────────────────────────────────────────────────────
               Padding(

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
@@ -73,10 +74,8 @@ class AccountDetailScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
+        onPressed: () => showAppSheet(
+          context,
           builder: (_) => AddTransactionDialog(defaultAccount: account),
         ),
         backgroundColor: AppColors.primary,

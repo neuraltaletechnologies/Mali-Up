@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/onboarding_strings.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/validators/onboarding_validator.dart';
@@ -142,10 +143,8 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
 
   Future<void> _pickType(bool sw) async {
     HapticFeedback.selectionClick();
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final picked = await showAppSheet<String>(
+      context,
       builder: (_) => _BizTypePickerSheet(
         types: _kBizTypes,
         selectedKey: _selectedTypeKey,
@@ -162,10 +161,8 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
 
   Future<void> _pickRegion() async {
     HapticFeedback.selectionClick();
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final picked = await showAppSheet<String>(
+      context,
       builder: (_) => _SearchPickerSheet(
         title: 'Select Region',
         items: _tzRegions.keys.toList()..sort(),
@@ -184,10 +181,8 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
     if (_region.isEmpty) return;
     HapticFeedback.selectionClick();
     final districts = _tzRegions[_region] ?? [];
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final picked = await showAppSheet<String>(
+      context,
       builder: (_) => _SearchPickerSheet(
         title: 'Select District',
         items: districts,

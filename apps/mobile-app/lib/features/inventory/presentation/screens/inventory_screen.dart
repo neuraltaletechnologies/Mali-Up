@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -249,10 +250,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _openAdd(BuildContext ctx) {
-    showModalBottomSheet<void>(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet<void>(
+      ctx,
       builder: (_) => AddProductChoiceSheet(
         onCreateCustom: () => _openCustomProductForm(ctx),
       ),
@@ -260,19 +259,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _openCustomProductForm(BuildContext ctx) {
-    showModalBottomSheet<void>(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet<void>(
+      ctx,
       builder: (_) => const _ProductFormSheet(),
     );
   }
 
   void _openFilterSort(BuildContext ctx, List<Map<String, dynamic>> allItems) {
-    showModalBottomSheet<void>(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet<void>(
+      ctx,
       builder: (_) => _FilterSortSheet(
         currentSort: _sort,
         typeFilter: _typeFilter,
@@ -830,11 +825,9 @@ class _ProductRow extends ConsumerWidget {
     return ListSwipeCard(
       itemKey: ValueKey(item['id'] ?? name),
       onEdit: () async {
-        await showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-              builder: (_) => _ProductFormSheet(
+        await showAppSheet<void>(
+          context,
+          builder: (_) => _ProductFormSheet(
             existingItem: item,
             existingId: (item['id'] as String?) ?? '',
           ),
@@ -872,11 +865,9 @@ class _ProductRow extends ConsumerWidget {
       },
       child: GestureDetector(
         onTap: () {
-          showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-                  builder: (_) => _ProductDetailSheet(item: item),
+          showAppSheet<void>(
+            context,
+            builder: (_) => _ProductDetailSheet(item: item),
           );
         },
         child: Container(
@@ -1073,17 +1064,7 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Handle
-                    Center(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        width: 36, height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.border,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                    ),
+                    const SheetHandle(),
                     Row(
                       children: [
                         Expanded(
@@ -1657,18 +1638,7 @@ class _DetailView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Handle ──────────────────────────────────────────────────
-          Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-
+          const SheetHandle(),
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
@@ -2438,10 +2408,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   }
 
   Future<void> _openCategoryPicker(List<MasterCategory> categories) async {
-    final result = await showModalBottomSheet<MasterCategory?>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final result = await showAppSheet<MasterCategory?>(
+      context,
       builder: (_) => _CategoryPickerSheet(
         categories: categories,
         selectedId: _selectedCategoryId,
@@ -2485,20 +2453,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           child: Column(
             children: [
               // Handle + Header ──────────────────────────────────────────────
+              const SheetHandle(),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
                 child: Column(
                   children: [
-                    Center(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        width: 36, height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.border,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                    ),
                     Row(
                       children: [
                         Expanded(
@@ -3417,17 +3376,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
       ),
       child: Column(
         children: [
-          // Handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
+          const SheetHandle(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 4, 0),
             child: Row(

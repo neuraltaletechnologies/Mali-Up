@@ -5,6 +5,29 @@ import 'package:flutter/material.dart';
 /// The shell's bottom nav bar collapses to zero height while this is > 0.
 final sheetOpenNotifier = ValueNotifier<int>(0);
 
+/// Shows a bottom sheet capped at 80 % of the screen height.
+/// Use this everywhere instead of [showModalBottomSheet] directly.
+Future<T?> showAppSheet<T>(
+  BuildContext context, {
+  required WidgetBuilder builder,
+  bool isScrollControlled = true,
+  Color backgroundColor = Colors.transparent,
+  bool showDragHandle = false,
+  ShapeBorder? shape,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: isScrollControlled,
+    backgroundColor: backgroundColor,
+    showDragHandle: showDragHandle,
+    shape: shape,
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+    ),
+    builder: builder,
+  );
+}
+
 /// Register this on the GoRouter (via [GoRouter.observers]) so that every
 /// [ModalBottomSheetRoute] push/pop automatically updates [sheetOpenNotifier].
 class AppSheetObserver extends NavigatorObserver {

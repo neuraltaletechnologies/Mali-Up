@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../screens/catalog_search_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -27,16 +28,8 @@ class AddProductChoiceSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE2E8F0),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 20),
+          const SheetHandle(),
+          const SizedBox(height: 8),
 
           // Title
           Text(

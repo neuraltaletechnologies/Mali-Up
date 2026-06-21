@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/debt_providers.dart';
@@ -104,10 +105,8 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
   // ── Record partial payment ────────────────────────────────────────────────
 
   Future<void> _recordPayment() async {
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final result = await showAppSheet<bool>(
+      context,
       builder: (ctx) =>
           _RecordPaymentSheet(debt: _debt, onSaved: _refreshDebt),
     );
@@ -1217,18 +1216,8 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+            const SheetHandle(),
+            const SizedBox(height: 4),
             Text(
               _tr('Record Payment', 'Rekodi Malipo'),
               style: GoogleFonts.dmSans(

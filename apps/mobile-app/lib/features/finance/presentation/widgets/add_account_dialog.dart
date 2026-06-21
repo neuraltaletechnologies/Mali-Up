@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
 
@@ -73,17 +74,8 @@ class _AddAccountDialogState extends ConsumerState<AddAccountDialog> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.black12,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  const SheetHandle(),
+                  const SizedBox(height: 4),
                   Text(
                     _isEditing
                         ? _t('Edit Account', 'Hariri Akaunti')

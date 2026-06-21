@@ -7,6 +7,8 @@ import '../../core/theme/app_colors.dart';
 import '../../features/customer/data/customer_providers.dart';
 import '../../features/customer/domain/models/customer.dart';
 import '../../features/customer/presentation/widgets/add_customer_dialog.dart';
+import 'app_sheet.dart';
+import 'mali_components.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -51,10 +53,8 @@ class _CustomerPickerFieldState extends ConsumerState<CustomerPickerField> {
 
     if (!mounted) return;
 
-    final picked = await showModalBottomSheet<Customer>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final picked = await showAppSheet<Customer>(
+      context,
       builder: (_) => CustomerPickerSheet(
         customers: customers,
         selected: widget.selected,
@@ -252,15 +252,7 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
         minChildSize: 0.4,
         builder: (_, ctrl) => Column(
           children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+            const SheetHandle(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
               child: Row(

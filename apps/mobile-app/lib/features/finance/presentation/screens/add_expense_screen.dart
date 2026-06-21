@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../domain/models/expense.dart';
@@ -194,8 +195,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
   }
 
   void _showReceiptOptions() {
-    showModalBottomSheet(
-      context: context,
+    showAppSheet(
+      context,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => SafeArea(

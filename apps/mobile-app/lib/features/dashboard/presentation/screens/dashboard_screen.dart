@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/routing.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/emotional_design.dart';
@@ -91,10 +92,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await prefs.remove('pending_website_interest');
     await Future.delayed(const Duration(milliseconds: 2200));
     if (!mounted) return;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet<void>(
+      context,
       builder: (_) => const _WebsiteInterestSheet(),
     );
   }
@@ -535,18 +534,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _openDebtPanel(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const FractionallySizedBox(
-        heightFactor: 0.92,
-        child: ClipRRect(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          child: Material(
-            color: AppColors.background,
-            child: DebtTrackingScreen(),
-          ),
+    showAppSheet(
+      context,
+      builder: (_) => const ClipRRect(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        child: Material(
+          color: AppColors.background,
+          child: DebtTrackingScreen(),
         ),
       ),
     );
@@ -1835,18 +1829,13 @@ class _ModuleGrid extends StatelessWidget {
   }
 
   void _openDebtPanelFromModule(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const FractionallySizedBox(
-        heightFactor: 0.92,
-        child: ClipRRect(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          child: Material(
-            color: AppColors.background,
-            child: DebtTrackingScreen(),
-          ),
+    showAppSheet(
+      context,
+      builder: (_) => const ClipRRect(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        child: Material(
+          color: AppColors.background,
+          child: DebtTrackingScreen(),
         ),
       ),
     );

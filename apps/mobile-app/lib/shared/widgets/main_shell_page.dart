@@ -866,8 +866,8 @@ class _FinanceContextSwitcher extends StatelessWidget {
   ) async {
     if (!canSwitch || businesses.isEmpty) return;
 
-    await showModalBottomSheet<void>(
-      context: context,
+    await showAppSheet<void>(
+      context,
       backgroundColor: Colors.white,
       showDragHandle: true,
       builder: (sheetContext) {

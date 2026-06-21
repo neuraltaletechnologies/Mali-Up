@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../shared/widgets/app_sheet.dart';
 import 'audit_log_screen.dart';
 import 'data_export_screen.dart';
 import 'delete_account_screen.dart';
@@ -298,8 +299,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _openLanguagePicker() async {
-    await showModalBottomSheet<void>(
-      context: context,
+    await showAppSheet<void>(
+      context,
       backgroundColor: Colors.white,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(

@@ -14,6 +14,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -242,10 +243,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       return;
     }
     if (!ctx.mounted) return;
-    await showModalBottomSheet<void>(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    await showAppSheet<void>(
+      ctx,
       builder: (_) => const _NewSaleSheet(),
     );
   }
@@ -323,10 +322,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   if (!_searchExpanded) _query = '';
                 }),
                 onSearchChanged: (v) => setState(() => _query = v.trim()),
-                onFilterTap: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
+                onFilterTap: () => showAppSheet<void>(
+                  context,
                   builder: (_) => _SalesFilterSheet(
                     selected: _filter,
                     onApply: (f) => setState(() => _filter = f),
@@ -362,10 +359,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             child: _InvoiceCard(
                               item: item,
                               isLast: i == filtered.length - 1,
-                              onTap: () => showModalBottomSheet<void>(
-                                context: ctx,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
+                              onTap: () => showAppSheet<void>(
+                                ctx,
                                 builder: (_) => _SaleInfoSheet(
                                   item: Map<String, dynamic>.from(item),
                                 ),
@@ -553,8 +548,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     SentryMetricsService.invoicePrinted(surface: 'receipt_sheet');
     if (!context.mounted) return;
 
-    await showModalBottomSheet<void>(
-      context: context,
+    await showAppSheet<void>(
+      context,
       backgroundColor: AppColors.background,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
@@ -967,16 +962,7 @@ class _SalesFilterSheetState extends State<_SalesFilterSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            const SheetHandle(),
             const SizedBox(height: 16),
             _SheetSectionLabel(_tr('Status', 'Hali')),
             const SizedBox(height: 10),
@@ -2136,10 +2122,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       };
 
       if (!mounted) return;
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
+      await showAppSheet<void>(
+        context,
         builder: (_) =>
             _SaleSuccessSheet(saleData: saleReceipt, ref: ref),
       );
@@ -2206,16 +2190,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     );
   }
 
-  Widget _buildHandle() => Center(
-        child: Container(
-          margin: const EdgeInsets.only(top: 12, bottom: 8),
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-              color: AppColors.border,
-              borderRadius: BorderRadius.circular(99)),
-        ),
-      );
+  Widget _buildHandle() => const SheetHandle();
 
   Widget _buildHeader() {
     final Color sc;
@@ -2382,10 +2357,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 ],
               )),
           InkWell(
-            onTap: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
+            onTap: () => showAppSheet<void>(
+              context,
               builder: (_) => AddCustomerDialog(
                 initialName: _customerCtrl.text.trim(),
                 onAdded: _selectCustomer,
@@ -2619,10 +2592,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: InkWell(
-                onTap: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
+                onTap: () => showAppSheet<void>(
+                  context,
                   builder: (_) => _AddProductSheet(
                     initialName: entry.nameCtrl.text.trim(),
                     onAdded: (item) => _selectProduct(entry, item),
@@ -3506,16 +3477,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 20),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(99)),
-                ),
-              ),
+              const SheetHandle(),
               Text(
                 _tr('Add New Product', 'Ongeza Bidhaaa Mpya'),
                 style: const TextStyle(
@@ -3915,18 +3877,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Drag handle ──────────────────────────────────────────────────
-            Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
+            const SheetHandle(),
 
             Flexible(
               child: SingleChildScrollView(
@@ -4575,18 +4526,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 4),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
+                const SheetHandle(),
 
                 const SizedBox(height: 24),
 

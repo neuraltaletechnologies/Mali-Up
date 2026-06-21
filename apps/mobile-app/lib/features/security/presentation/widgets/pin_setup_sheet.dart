@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/security_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 
 /// Shows as a modal bottom sheet.
 /// Returns `true` if the PIN was set and App Lock was enabled.
@@ -115,19 +116,8 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
       ),
       child: Column(
         children: [
-          // Handle
-          const SizedBox(height: 12),
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
+          const SheetHandle(),
+          const SizedBox(height: 8),
 
           // Header
           Padding(

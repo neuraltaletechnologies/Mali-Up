@@ -10,6 +10,8 @@ import '../../../../core/constants/onboarding_strings.dart';
 import '../../domain/validators/onboarding_validator.dart';
 import '../../providers/onboarding_notifier.dart';
 import '../../../../config/routing.dart';
+import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../rbac/data/rbac_providers.dart' show permissionsLoadedProvider;
 import '_onboarding_scaffold.dart';
 
@@ -51,10 +53,8 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
   }
 
   void _showForgotPin(BuildContext ctx, bool sw) {
-    showModalBottomSheet<void>(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet<void>(
+      ctx,
       builder: (_) => _ForgotPinSheet(sw: sw),
     );
   }
@@ -550,17 +550,8 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
+          const SheetHandle(),
+          const SizedBox(height: 12),
 
           // Icon
           Container(

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../rbac/data/audit_log_service.dart';
@@ -107,10 +108,8 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   }
 
   void _openFilterSheet(BuildContext ctx) {
-    showModalBottomSheet<void>(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet<void>(
+      ctx,
       builder: (_) => _CustomerFilterSheet(
         currentSort: _sort,
         currentSegment: _segment,
@@ -198,10 +197,8 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
   }
 
   void _showAddDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    showAppSheet(
+      context,
       builder: (_) => const AddCustomerDialog(),
     );
   }
@@ -626,17 +623,7 @@ class _CustomerFilterSheetState extends State<_CustomerFilterSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
+              const SheetHandle(),
               Row(
                 children: [
                   Expanded(
@@ -868,10 +855,8 @@ class _CustomerCard extends ConsumerWidget {
       itemKey: ValueKey(customer.id),
       onEdit: canManage
           ? () async {
-              await showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
+              await showAppSheet<void>(
+                context,
                 builder: (_) => _EditCustomerSheet(customer: customer),
               );
             }
@@ -919,10 +904,8 @@ class _CustomerCard extends ConsumerWidget {
           : null,
       child: GestureDetector(
         onTap: () {
-          showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
+          showAppSheet<void>(
+            context,
             builder: (_) => _CustomerInfoSheet(
               customer: customer,
               showFinancials: showFinancials,
@@ -1325,15 +1308,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: Colors.black12,
-                          borderRadius: BorderRadius.circular(999)),
-                    ),
-                  ),
+                  const SheetHandle(),
                   const SizedBox(height: 16),
                   Text(
                     _tr('Edit Customer', 'Hariri Mteja'),
@@ -1669,18 +1644,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
-          Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
+          const SheetHandle(),
           Flexible(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
@@ -1771,10 +1735,8 @@ class _CustomerInfoSheet extends ConsumerWidget {
                       if (canManage)
                         GestureDetector(
                           onTap: () async {
-                            await showModalBottomSheet<void>(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
+                            await showAppSheet<void>(
+                              context,
                               builder: (_) =>
                                   _EditCustomerSheet(customer: live),
                             );
