@@ -283,7 +283,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
       minChildSize: 0.5,
-      maxChildSize: 0.9,
+      maxChildSize: 0.8,
       builder: (context, scrollController) => Container(
         decoration: const BoxDecoration(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),

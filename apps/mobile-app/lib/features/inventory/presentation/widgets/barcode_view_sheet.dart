@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 
 /// Bottom sheet that displays a product's barcode/QR code for scanning or printing.
@@ -24,10 +25,8 @@ class BarcodeViewSheet extends StatelessWidget {
     required String sku,
     required double price,
   }) {
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    return showAppSheet<void>(
+      context,
       builder: (_) => BarcodeViewSheet(
         productName: productName,
         sku: sku,

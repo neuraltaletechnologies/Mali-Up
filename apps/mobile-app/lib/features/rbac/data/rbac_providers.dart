@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -235,14 +237,69 @@ final currentMemberProvider = StreamProvider<TeamMember?>((ref) async* {
       .collection('staff')
       .doc(memberId)
       .snapshots()
-      .map((snap) {
+      .asyncMap((snap) async {
     if (kDebugMode) {
       debugPrint('[RBAC] currentMember: snap exists=${snap.exists} '
           'status=${snap.data()?['status']} role=${snap.data()?['role']}');
     }
-    return snap.exists ? TeamMember.fromFirestore(snap.data()!, snap.id) : null;
+    if (!snap.exists) return null;
+    final data = snap.data()!;
+    // Repair: create the UID-keyed pointer doc for members who accepted the invite
+    // before this fix was deployed. Safe to call repeatedly — skips if doc exists.
+    final workerUid = (data['workerUid'] as String?)?.trim() ?? '';
+    if (workerUid.isNotEmpty && workerUid == user.uid) {
+      final perms = (data['permissions'] as List?)
+              ?.whereType<String>()
+              .toList() ??
+          [];
+      unawaited(_ensureStaffPointerDoc(
+        businessId: businessId,
+        memberId: memberId,
+        workerUid: workerUid,
+        phone: (data['phone'] as String?)?.trim() ?? '',
+        permissions: perms,
+      ));
+    }
+    return TeamMember.fromFirestore(data, snap.id);
   });
 });
+
+/// Creates the UID-keyed staff pointer doc if it does not already exist.
+/// Required for [isStaffWithAny] in Firestore security rules to locate
+/// this member's permissions without a collection-group query.
+Future<void> _ensureStaffPointerDoc({
+  required String businessId,
+  required String memberId,
+  required String workerUid,
+  required String phone,
+  required List<String> permissions,
+}) async {
+  if (phone.isEmpty || permissions.isEmpty) return;
+  try {
+    final ptrRef = FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(businessId)
+        .collection('staff')
+        .doc(workerUid);
+    final snap = await ptrRef.get();
+    if (!snap.exists) {
+      await ptrRef.set({
+        'workerUid': workerUid,
+        'memberId': memberId,
+        'permissions': permissions,
+        'phone': phone,
+        'status': 'active',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (kDebugMode) {
+        debugPrint('[RBAC] repaired staff pointer doc for workerUid=$workerUid');
+      }
+    }
+  } catch (_) {
+    // Best-effort — will retry on next app session.
+  }
+}
 
 // ── Permissions loaded flag ───────────────────────────────────────────────────
 //

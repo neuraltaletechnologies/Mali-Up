@@ -248,7 +248,7 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
       child: DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.65,
-        maxChildSize: 0.92,
+        maxChildSize: 0.8,
         minChildSize: 0.4,
         builder: (_, ctrl) => Column(
           children: [

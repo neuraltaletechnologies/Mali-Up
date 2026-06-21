@@ -306,7 +306,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           DraggableScrollableSheet(
             initialChildSize: 0.72,
             minChildSize: 0.72,
-            maxChildSize: 0.96,
+            maxChildSize: 0.8,
             builder: (context, scrollController) {
               return Container(
                 decoration: const BoxDecoration(
