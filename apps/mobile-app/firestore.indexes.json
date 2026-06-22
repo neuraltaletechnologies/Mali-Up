@@ -74,13 +74,6 @@
       ]
     },
     {
-      "collectionGroup": "categories",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "name", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "inventory_items",
       "queryScope": "COLLECTION",
       "fields": [
@@ -107,5 +100,14 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "staff",
+      "fieldPath": "phone",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    }
+  ]
 }

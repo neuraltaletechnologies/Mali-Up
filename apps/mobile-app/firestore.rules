@@ -342,7 +342,9 @@ service cloud.firestore {
         allow read: if isSignedIn() && resource.data.workerUid == request.auth.uid;
         // Phone lookup during login: collectionGroup query needs an explicit list
         // rule because Firestore can't evaluate resource.data in query context.
-        allow list: if isSignedIn() && isLimitedLookup();
+        // Pre-auth lookup (team member phone entry) runs before sign-in, so
+        // unauthenticated limited queries must be allowed — same as users/businesses.
+        allow list: if isLimitedLookup();
         // Worker accepts invite: stamps their UID + activates (updates the auto-gen-ID doc).
         allow update: if isSignedIn() &&
           request.resource.data.diff(resource.data).affectedKeys()
