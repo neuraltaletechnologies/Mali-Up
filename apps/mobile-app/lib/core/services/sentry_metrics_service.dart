@@ -107,4 +107,68 @@ class SentryMetricsService {
       unit: SentryMetricUnit.millisecond,
     );
   }
+
+  static void authSuccess(String method) {
+    count(
+      'auth_success',
+      1,
+      attributes: {'method': SentryAttribute.string(method)},
+    );
+  }
+
+  static void authFailure(String method, String reason) {
+    count(
+      'auth_failure',
+      1,
+      attributes: {
+        'method': SentryAttribute.string(method),
+        'reason': SentryAttribute.string(reason),
+      },
+    );
+  }
+
+  static void syncCycleCompleted({required bool success, required int queueSize}) {
+    count(
+      'sync_cycle',
+      1,
+      attributes: {
+        'result': SentryAttribute.string(success ? 'success' : 'error'),
+      },
+    );
+    if (queueSize > 0) {
+      gauge('sync_queue_size', queueSize);
+    }
+  }
+
+  static void syncConflict(String entityType) {
+    count(
+      'sync_conflict',
+      1,
+      attributes: {'entity_type': SentryAttribute.string(entityType)},
+    );
+  }
+
+  static void expenseAdded() {
+    count('expense_added', 1);
+  }
+
+  static void debtAdded() {
+    count('debt_added', 1);
+  }
+
+  static void reportGenerated(String reportType) {
+    count(
+      'report_generated',
+      1,
+      attributes: {'report_type': SentryAttribute.string(reportType)},
+    );
+  }
+
+  static void inventoryUpdated(String action) {
+    count(
+      'inventory_updated',
+      1,
+      attributes: {'action': SentryAttribute.string(action)},
+    );
+  }
 }
