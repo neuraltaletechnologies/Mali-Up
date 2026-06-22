@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
@@ -220,7 +221,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         invoiceNumber: saleNo,
       ));
       unawaited(ref.read(syncServiceProvider).syncNow());
-    } catch (_) {
+    } catch (e, st) {
+      unawaited(Sentry.captureException(e, stackTrace: st));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           backgroundColor: AppColors.error,
@@ -2085,8 +2087,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           invoiceId,
           InvoiceMapper.toItemCompanions(invoiceItems, invoiceId),
         );
-      } catch (_) {
+      } catch (e, st) {
         // Drift write is best-effort — syncNow() below is the fallback
+        unawaited(Sentry.captureException(e, stackTrace: st));
       }
 
       SentryMetricsService.salesCreated(
@@ -2134,7 +2137,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       );
       if (!mounted) return;
       navigator.pop();
-    } catch (e) {
+    } catch (e, st) {
+      unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() => _isSaving = false);
       messenger.showSnackBar(SnackBar(
@@ -3457,7 +3461,8 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
         'currentStock': stock,
         'unit': _selectedUnit,
       });
-    } catch (e) {
+    } catch (e, st) {
+      unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -3833,7 +3838,8 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
         _updating = false;
       });
       _showSnack(_tr('Invoice marked as paid!', 'Ankara imewekwa kama imelipwa!'));
-    } catch (_) {
+    } catch (e, st) {
+      unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() => _updating = false);
       _showSnack(_tr('Update failed. Try again.', 'Imeshindwa. Jaribu tena.'));

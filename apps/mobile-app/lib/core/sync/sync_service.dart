@@ -3,6 +3,9 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+import '../services/sentry_metrics_service.dart';
 
 import '../../features/customer/data/repositories/local_customer_repository.dart';
 import '../../features/customer/data/repositories/remote_customer_repository.dart';
@@ -165,9 +168,16 @@ class SyncService extends ChangeNotifier {
       _lastSyncAt = DateTime.fromMillisecondsSinceEpoch(nowMs);
       _lastError = null;
       _setState(SyncState.idle);
-    } catch (e) {
+      final pending = await _queue.fetchPending(limit: 999);
+      SentryMetricsService.syncCycleCompleted(
+        success: true,
+        queueSize: pending.length,
+      );
+    } catch (e, st) {
       _lastError = e.toString();
       _setState(SyncState.error);
+      unawaited(Sentry.captureException(e, stackTrace: st));
+      SentryMetricsService.syncCycleCompleted(success: false, queueSize: 0);
     } finally {
       _isSyncing = false;
     }
@@ -230,10 +240,15 @@ class SyncService extends ChangeNotifier {
           await _queue.markFailed(
               entry.id, 'Unknown entityType: ${entry.entityType}');
       }
-    } catch (e) {
+    } catch (e, st) {
       final attempts = entry.attempts + 1;
       if (attempts >= _maxRetries) {
         await _queue.markFailed(entry.id, e.toString());
+        unawaited(Sentry.captureException(
+          e,
+          stackTrace: st,
+          withScope: (scope) => scope.setTag('entity_type', entry.entityType),
+        ));
       } else {
         final backoff = _backoffDuration(attempts);
         await _queue.scheduleRetry(entry.id, attempts, backoff);

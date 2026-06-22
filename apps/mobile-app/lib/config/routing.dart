@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../core/providers/auth_provider.dart' show authStateProvider;
 import '../features/auth/presentation/screens/login_screen.dart';
@@ -149,7 +150,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     initialLocation: AppRoutes.splash,
     redirect: notifier._redirect,
-    observers: [AppSheetObserver()],
+    observers: [AppSheetObserver(), SentryNavigatorObserver()],
     routes: _buildRoutes(),
   );
 });

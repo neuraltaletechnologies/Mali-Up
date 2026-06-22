@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -120,6 +122,23 @@ Future<void> main() async {
         }
       },
       appRunner: () async {
+        // Chain Flutter framework error handler so layout/widget exceptions
+        // are captured in addition to what SentryFlutter sets up internally.
+        final originalOnError = FlutterError.onError;
+        FlutterError.onError = (FlutterErrorDetails details) {
+          originalOnError?.call(details);
+          Sentry.captureException(
+            details.exception,
+            stackTrace: details.stack,
+          );
+        };
+
+        // Catch unhandled async/isolate errors from the platform layer.
+        PlatformDispatcher.instance.onError = (error, stack) {
+          Sentry.captureException(error, stackTrace: stack);
+          return true;
+        };
+
         await _startApp();
         SentryMetricsService.appLaunched(sentryEnabled: true);
         if (_sentryTestEvent) {

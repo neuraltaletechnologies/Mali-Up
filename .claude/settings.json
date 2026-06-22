@@ -11,7 +11,11 @@
       "Bash(Read \"C:\\\\Users\\\\NTALE\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--SIDE-GIT-Maliapp\\\\823400e6-421e-413f-88a2-f723f72ab501\\\\tasks\\\\bay6y4uku.output\")",
       "Bash(grep -Ev \"^$|Analyzing|info\")",
       "Bash(grep -v \"^$\\\\|Analyzing\\\\|info\")",
-      "Bash(grep -v \"test\\\\\\\\|info\")"
+      "Bash(grep -v \"test\\\\\\\\|info\")",
+      "Bash(cd /c/SIDE/GIT/Maliapp/apps/mobile-app && find lib -name \"*.dart\" -type f | wc -l)",
+      "Read(//c/c/SIDE/GIT/Maliapp/apps/mobile-app/**)",
+      "PowerShell(netstat -ano)",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
