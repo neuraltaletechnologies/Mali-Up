@@ -33,6 +33,8 @@ const bool _sentryTestEvent = bool.fromEnvironment(
 );
 
 Future<void> _startApp() async {
+  // SharedPreferences and Firebase init are independent — kick both off now.
+  final prefsFuture = SharedPreferences.getInstance();
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -50,7 +52,7 @@ Future<void> _startApp() async {
     persistenceEnabled: false,
   );
 
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = await prefsFuture;
   await Future.wait([
     LocalizationService.initializeWithPrefs(prefs),
     MotionService.initializeWithPrefs(prefs),
@@ -59,8 +61,8 @@ Future<void> _startApp() async {
 
   final hasCompletedOnboarding =
       prefs.getBool(_onboardingCompletedKey) ?? false;
-  final hasSelectedLanguage =
-      await LocalizationService.hasLanguageBeenSelected();
+  // initializeWithPrefs already loaded this value into languageSelectedNotifier.
+  final hasSelectedLanguage = LocalizationService.languageSelectedNotifier.value;
   // If onboarding was completed before but there is no active Firebase session
   // (user logged out then killed the app), we must NOT treat them as fully
   // onboarded — instead start at phone-entry so they can sign back in.

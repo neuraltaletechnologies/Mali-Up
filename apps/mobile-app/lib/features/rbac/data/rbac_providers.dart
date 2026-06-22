@@ -40,8 +40,13 @@ final sessionStateProvider = Provider<SessionState>((ref) {
   final profile = profileAsync.valueOrNull;
   if (profile == null) {
     if (kDebugMode) {
-      debugPrint('[RBAC] session → loading '
-          '(isLoading=${profileAsync.isLoading} hasValue=${profileAsync.hasValue})');
+      // Distinguish genuine loading from a settled stream that yielded null (signed out).
+      if (!profileAsync.isLoading && profileAsync.hasValue) {
+        debugPrint('[RBAC] session → signedOut (stream settled, no profile)');
+      } else {
+        debugPrint('[RBAC] session → loading '
+            '(isLoading=${profileAsync.isLoading} hasValue=${profileAsync.hasValue})');
+      }
     }
     return SessionState.loading;
   }
