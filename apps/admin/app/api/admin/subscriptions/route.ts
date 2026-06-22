@@ -19,13 +19,17 @@ export async function GET() {
   if (denied) return denied
 
   try {
+    // Fetch all businesses and filter in-memory to avoid needing a
+    // COLLECTION_GROUP index on the 'plan' field.
     const snap = await adminFirestore
       .collectionGroup('businesses')
-      .where('plan', 'in', ['growth', 'business', 'enterprise'])
-      .limit(500)
+      .limit(1000)
       .get()
 
-    const subscriptions: Subscription[] = snap.docs.map((doc) => {
+    const paidPlans = new Set(['growth', 'business', 'enterprise'])
+    const subscriptions: Subscription[] = snap.docs
+      .filter((doc) => paidPlans.has((doc.data().plan as string | undefined)?.toLowerCase() ?? ''))
+      .map((doc) => {
       const d  = doc.data()
       const uid = doc.ref.parent.parent?.id ?? ''
       const plan = normalisePlan(d.plan as string)
