@@ -730,25 +730,27 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
                     GestureDetector(
                       onTap: widget.onSearchToggle,
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 140),
-                        width: 36,
-                        height: 36,
+                        duration: const Duration(milliseconds: 200),
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           color: widget.searchExpanded
-                              ? Colors.white.withValues(alpha: 0.20)
-                              : Colors.white.withValues(alpha: 0.10),
+                              ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                              : Colors.white12,
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: widget.searchExpanded ? AppColors.yellowBrand : Colors.transparent,
+                            width: 1.5,
+                          ),
                         ),
                         child: Icon(
-                          widget.searchExpanded
-                              ? Icons.close_rounded
-                              : Icons.search_rounded,
-                          color: Colors.white,
-                          size: 18,
+                          widget.searchExpanded ? Icons.close_rounded : Icons.search_rounded,
+                          color: widget.searchExpanded ? AppColors.yellowBrand : Colors.white,
+                          size: 20,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     // Filter icon
                     GestureDetector(
                       onTap: widget.onFilterTap,
@@ -756,19 +758,23 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
                         clipBehavior: Clip.none,
                         children: [
                           AnimatedContainer(
-                            duration: const Duration(milliseconds: 140),
-                            width: 36,
-                            height: 36,
+                            duration: const Duration(milliseconds: 200),
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
                               color: widget.activeFilters > 0
-                                  ? Colors.white.withValues(alpha: 0.20)
-                                  : Colors.white.withValues(alpha: 0.10),
+                                  ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                                  : Colors.white12,
                               shape: BoxShape.circle,
+                              border: Border.all(
+                                color: widget.activeFilters > 0 ? AppColors.yellowBrand : Colors.transparent,
+                                width: 1.5,
+                              ),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.tune_rounded,
-                              color: Colors.white,
-                              size: 18,
+                              color: widget.activeFilters > 0 ? AppColors.yellowBrand : Colors.white,
+                              size: 20,
                             ),
                           ),
                           if (_alertDotColor != Colors.transparent)
@@ -776,13 +782,12 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
                               right: 0,
                               top: 0,
                               child: Container(
-                                width: 8,
-                                height: 8,
+                                width: 7,
+                                height: 7,
                                 decoration: BoxDecoration(
                                   color: _alertDotColor,
                                   shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: AppColors.navyPrimary, width: 1.5),
+                                  border: Border.all(color: AppColors.navyPrimary, width: 1.5),
                                 ),
                               ),
                             ),

@@ -262,6 +262,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ctx,
       builder: (_) => AddProductChoiceSheet(
         onCreateCustom: () => _openCustomProductForm(ctx),
+        onCreateReturn: () => _openProductFormWithType(ctx, ProductType.customerReturn),
+        onCreateManufactured: () => _openProductFormWithType(ctx, ProductType.manufactured),
       ),
     );
   }
@@ -270,6 +272,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     showAppSheet<void>(
       ctx,
       builder: (_) => const _ProductFormSheet(),
+    );
+  }
+
+  void _openProductFormWithType(BuildContext ctx, ProductType type) {
+    showAppSheet<void>(
+      ctx,
+      builder: (_) => _ProductFormSheet(initialType: type),
     );
   }
 
@@ -490,56 +499,13 @@ class _InventoryDarkHeader extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Filter button
-                  GestureDetector(
-                    onTap: onFilterTap,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: activeFilters > 0
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: activeFilters > 0 ? AppColors.yellowBrand : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(
-                            Icons.tune_rounded,
-                            color: activeFilters > 0 ? AppColors.yellowBrand : Colors.white,
-                            size: 20,
-                          ),
-                          if (showDot)
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: Container(
-                                width: 7,
-                                height: 7,
-                                decoration: BoxDecoration(
-                                  color: dotColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   // Search button
                   GestureDetector(
                     onTap: onToggleSearch,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 42,
-                      height: 42,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: searchExpanded
                             ? AppColors.yellowBrand.withValues(alpha: 0.18)
@@ -555,6 +521,50 @@ class _InventoryDarkHeader extends StatelessWidget {
                         color: searchExpanded ? AppColors.yellowBrand : Colors.white,
                         size: 20,
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Filter button
+                  GestureDetector(
+                    onTap: onFilterTap,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: activeFilters > 0
+                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                                : Colors.white12,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: activeFilters > 0 ? AppColors.yellowBrand : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            color: activeFilters > 0 ? AppColors.yellowBrand : Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        if (showDot)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: dotColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.navyPrimary, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -2681,8 +2691,9 @@ class _ProductFormSheet extends ConsumerStatefulWidget {
   final Map<String, dynamic>? existingItem;
   final String? existingId;
   final VoidCallback? onDone;
+  final ProductType? initialType;
 
-  const _ProductFormSheet({this.existingItem, this.existingId, this.onDone});
+  const _ProductFormSheet({this.existingItem, this.existingId, this.onDone, this.initialType});
 
   @override
   ConsumerState<_ProductFormSheet> createState() => _ProductFormSheetState();
@@ -2727,6 +2738,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   // Success state (manufactured save)
   bool _savedSuccess = false;
+
+  // Name-field focus node (drives the live suggestions list)
+  final _nameFocus = FocusNode();
 
   static const _units = [
     'pcs','kg','liters','boxes','bottles','bags','meters','sets','dozen','packets',
@@ -2820,10 +2834,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         _batchYieldCtrl.text = yield_ % 1 == 0 ? yield_.toStringAsFixed(0) : yield_.toStringAsFixed(2);
       }
     } else {
-      _type = ProductType.stock;
+      _type = widget.initialType ?? ProductType.stock;
     }
     // Store original stock so edit flow can compute the delta for purchase deduction
     _originalStock = double.tryParse(_stockCtrl.text) ?? 0.0;
+
+    // Rebuild when name field gains/loses focus so suggestions appear/disappear
+    _nameFocus.addListener(() => setState(() {}));
   }
 
   @override
@@ -2834,6 +2851,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     _batchCtrl.dispose();  _brandCtrl.dispose();
     _warrantyCtrl.dispose(); _returnReasonCtrl.dispose();
     _batchYieldCtrl.dispose();
+    _nameFocus.dispose();
     for (final u in _sellingUnits) { u.dispose(); }
     for (final i in _bomIngredients) { i.dispose(); }
     for (final o in _bomOverheads) { o.dispose(); }
@@ -2892,9 +2910,79 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       }
     }
 
-    setState(() => _saving = true);
+    // Capture context-bound refs before any async gap.
     final nav = Navigator.of(context);
     final msg = ScaffoldMessenger.of(context);
+
+    // ── Duplicate-name check (new products only) ─────────────────────────────
+    if (!_isEdit && !isReturn) {
+      final allItems = ref.read(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
+      final nameLower = name.toLowerCase();
+      final existing = allItems.firstWhere(
+        (i) => i.name.toLowerCase() == nameLower,
+        orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
+      );
+      if (existing.id.isNotEmpty) {
+        final qty = double.tryParse(_stockCtrl.text) ?? 0;
+        if (!mounted) return;
+        final addToExisting = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(
+              _tr('Product already exists', 'Bidhaa tayari ipo'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w800, color: AppColors.navyPrimary),
+            ),
+            content: Text(
+              _tr(
+                '"$name" is already in your inventory. Add $qty ${existing.unit} to existing stock instead?',
+                '"$name" tayari ipo kwenye bidhaa zako. Ongeza $qty ${existing.unit} kwenye stoo iliyopo badala yake?',
+              ),
+              style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(_tr('Create new', 'Unda mpya'), style: GoogleFonts.dmSans(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: TextButton.styleFrom(foregroundColor: AppColors.tealAccent),
+                child: Text(_tr('Add to existing', 'Ongeza kwenye iliyopo'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        );
+        if (addToExisting == true) {
+          if (qty > 0) {
+            setState(() => _saving = true);
+            try {
+              await ref.read(inventoryRepositoryProvider).adjustQuantity(existing.id, qty);
+              if (!mounted) return;
+              msg.showSnackBar(SnackBar(
+                content: Text(_tr('Added $qty ${existing.unit} to $name', 'Imeongeza $qty ${existing.unit} kwenye $name')),
+                backgroundColor: AppColors.success,
+                behavior: SnackBarBehavior.floating,
+              ));
+              widget.onDone != null ? widget.onDone!() : nav.pop();
+            } catch (_) {
+              if (!mounted) return;
+              setState(() => _saving = false);
+              msg.showSnackBar(SnackBar(
+                content: Text(_tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.')),
+                backgroundColor: AppColors.error,
+              ));
+            }
+          } else {
+            widget.onDone != null ? widget.onDone!() : nav.pop();
+          }
+          return;
+        }
+        // fall through → create new product with a distinct name
+      }
+    }
+
+    setState(() => _saving = true);
 
     try {
       final resolvedCatName = _selectedCategoryName.isNotEmpty
@@ -3035,6 +3123,65 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     }
   }
 
+  /// Pre-fills every form field from an existing inventory item.
+  /// Stock quantity is intentionally not copied — the user enters how much
+  /// they are adding now, not the current on-hand count.
+  void _applyFromExisting(InventoryItem src) {
+    setState(() {
+      _nameCtrl.text = src.name;
+      _skuCtrl.text  = src.sku;
+      _unit = src.unit;
+
+      _selectedCategoryId   = src.categoryId;
+      _selectedCategoryName = src.categoryName.isNotEmpty ? src.categoryName : src.category;
+
+      if (src.costPrice > 0) _buyCtrl.text  = src.costPrice.toStringAsFixed(0);
+      if (src.unitPrice > 0) _sellCtrl.text = src.unitPrice.toStringAsFixed(0);
+      if (src.reorderPoint > 0) _reorderCtrl.text = src.reorderPoint.toStringAsFixed(0);
+
+      _batchCtrl.text    = src.batchNumber;
+      _brandCtrl.text    = src.brand;
+      _warrantyCtrl.text = src.warrantyPeriod;
+      _expiryDate        = src.expiryDate.isNotEmpty ? DateTime.tryParse(src.expiryDate) : null;
+
+      // Restore selling units
+      for (final u in _sellingUnits) { u.dispose(); }
+      _sellingUnits.clear();
+      for (final u in src.sellingUnits) {
+        _sellingUnits.add(_UnitEntry(name: u.name, qty: u.qty, price: u.price));
+      }
+
+      // Restore BOM data if manufactured
+      if (src.isManufactured) {
+        _type = ProductType.manufactured;
+        for (final i in _bomIngredients) { i.dispose(); }
+        _bomIngredients.clear();
+        for (final ing in src.bomIngredients) {
+          final e = _BomIngredientEntry();
+          e.nameCtrl.text  = ing.materialName;
+          e.qtyCtrl.text   = ing.quantity % 1 == 0 ? ing.quantity.toStringAsFixed(0) : ing.quantity.toStringAsFixed(2);
+          e.costCtrl.text  = ing.costPerUnit.toStringAsFixed(0);
+          e.unit       = _units.contains(ing.unit) ? ing.unit : _units.first;
+          e.materialId = ing.materialId;
+          _bomIngredients.add(e);
+        }
+        for (final o in _bomOverheads) { o.dispose(); }
+        _bomOverheads.clear();
+        for (final ov in src.bomOverheads) {
+          final e = _BomOverheadEntry();
+          e.descCtrl.text   = ov.description;
+          e.amountCtrl.text = ov.amount.toStringAsFixed(0);
+          _bomOverheads.add(e);
+        }
+        _batchYieldCtrl.text = src.bomBatchYield % 1 == 0
+            ? src.bomBatchYield.toStringAsFixed(0)
+            : src.bomBatchYield.toStringAsFixed(2);
+      }
+
+      _nameFocus.unfocus();
+    });
+  }
+
   Future<void> _scanSku() async {
     final scanned = await BarcodeScannerScreen.show(
       context,
@@ -3145,6 +3292,16 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final bizTypeAsync    = ref.watch(currentBusinessTypeProvider);
     final bizType = bizTypeAsync.valueOrNull ?? '';
     final config  = BusinessProductConfig.forBusinessType(bizType);
+    final allInventory = ref.watch(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
+
+    // Live name suggestions: match any existing item whose name contains the typed text
+    final query = _nameCtrl.text.trim().toLowerCase();
+    final nameSuggestions = (!_isEdit && query.isNotEmpty && _nameFocus.hasFocus)
+        ? allInventory
+            .where((i) => i.name.toLowerCase().contains(query))
+            .take(5)
+            .toList()
+        : const <InventoryItem>[];
 
     final isReturn       = _type == ProductType.customerReturn;
     final isManufactured = _type == ProductType.manufactured;
@@ -3206,10 +3363,15 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // ── Type pills (single row) ───────────────────────────
+                    // ── Type pills (single row — stock / perishable / service only) ──
+                    // Return and Manufactured are entered via the choice sheet,
+                    // so once you're inside the form with those types the pills
+                    // are hidden and the type is fixed.
+                    if (!isReturn && !isManufactured)
                     Row(
                       children: () {
-                        final tiles = ProductType.values.map((t) {
+                        const corePills = [ProductType.stock, ProductType.perishable, ProductType.service];
+                        final tiles = corePills.map((t) {
                           final sel = t == _type;
                           Color tileColor;
                           Color borderColor;
@@ -3303,7 +3465,80 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             ? _tr('e.g. Book, T-Shirt …', 'k.m. Kitabu, Shati …')
                             : _tr('e.g. Unga wa mahindi 2kg', 'k.m. Unga wa mahindi 2kg'),
                         caps: TextCapitalization.words,
+                        focusNode: _nameFocus,
+                        onChanged: (_) => setState(() {}),
                       ),
+                      // ── Existing-product suggestions ──────────────────
+                      if (nameSuggestions.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.06),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: nameSuggestions.asMap().entries.map((e) {
+                              final idx  = e.key;
+                              final item = e.value;
+                              return InkWell(
+                                onTap: () => _applyFromExisting(item),
+                                borderRadius: BorderRadius.vertical(
+                                  top: idx == 0 ? const Radius.circular(12) : Radius.zero,
+                                  bottom: idx == nameSuggestions.length - 1 ? const Radius.circular(12) : Radius.zero,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surface,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.textMuted),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.name,
+                                              style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.navyPrimary),
+                                            ),
+                                            Text(
+                                              [
+                                                if (item.categoryName.isNotEmpty) item.categoryName,
+                                                if (item.unitPrice > 0) _fmtAmount(item.unitPrice),
+                                                '${item.currentStock.toStringAsFixed(0)} ${item.unit}',
+                                              ].join(' · '),
+                                              style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        _tr('Fill form', 'Jaza'),
+                                        style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.tealAccent),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 14),
 
                       // Category dropdown + Unit
@@ -3481,6 +3716,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                               entry: ing,
                               index: idx + 1,
                               units: _units,
+                              inventory: allInventory,
                               onRemove: () => setState(() {
                                 ing.dispose();
                                 _bomIngredients.removeAt(idx);
@@ -4191,10 +4427,11 @@ class _SellingUnitCard extends StatelessWidget {
 
 // ── BOM ingredient card ───────────────────────────────────────────────────────
 
-class _BomIngredientCard extends StatelessWidget {
+class _BomIngredientCard extends StatefulWidget {
   final _BomIngredientEntry entry;
   final int index;
   final List<String> units;
+  final List<InventoryItem> inventory;
   final VoidCallback onRemove;
   final VoidCallback onChanged;
 
@@ -4202,12 +4439,55 @@ class _BomIngredientCard extends StatelessWidget {
     required this.entry,
     required this.index,
     required this.units,
+    required this.inventory,
     required this.onRemove,
     required this.onChanged,
   });
 
   @override
+  State<_BomIngredientCard> createState() => _BomIngredientCardState();
+}
+
+class _BomIngredientCardState extends State<_BomIngredientCard> {
+  final _ingNameFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _ingNameFocus.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _ingNameFocus.dispose();
+    super.dispose();
+  }
+
+  void _applyInventoryItem(InventoryItem item) {
+    setState(() {
+      widget.entry.nameCtrl.text = item.name;
+      // Only apply the unit if it's a valid dropdown option; keep existing if not.
+      if (widget.units.contains(item.unit)) {
+        widget.entry.unit = item.unit;
+      }
+      if (item.costPrice > 0) widget.entry.costCtrl.text = item.costPrice.toStringAsFixed(0);
+      widget.entry.materialId = item.id;
+      _ingNameFocus.unfocus();
+    });
+    widget.onChanged();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final q = widget.entry.nameCtrl.text.trim().toLowerCase();
+    final suggestions = (q.isNotEmpty && _ingNameFocus.hasFocus)
+        ? widget.inventory.where((i) => i.name.toLowerCase().contains(q)).take(4).toList()
+        : const <InventoryItem>[];
+    final entry     = widget.entry;
+    final units     = widget.units;
+    final index     = widget.index;
+    final onRemove  = widget.onRemove;
+    final onChanged = widget.onChanged;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       decoration: BoxDecoration(
@@ -4234,8 +4514,9 @@ class _BomIngredientCard extends StatelessWidget {
           const SizedBox(height: 8),
           TextField(
             controller: entry.nameCtrl,
+            focusNode: _ingNameFocus,
             textCapitalization: TextCapitalization.sentences,
-            onChanged: (_) => onChanged(),
+            onChanged: (_) { setState(() {}); widget.onChanged(); },
             style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navyPrimary),
             decoration: InputDecoration(
               hintText: _tr('e.g. Flour, Cement, Milk', 'k.m. Unga, Saruji, Maziwa'),
@@ -4247,6 +4528,51 @@ class _BomIngredientCard extends StatelessWidget {
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5)),
             ),
           ),
+          // Ingredient autocomplete suggestions
+          if (suggestions.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
+              ),
+              child: Column(
+                children: suggestions.asMap().entries.map((e) {
+                  final idx  = e.key;
+                  final item = e.value;
+                  return InkWell(
+                    onTap: () => _applyInventoryItem(item),
+                    borderRadius: BorderRadius.vertical(
+                      top: idx == 0 ? const Radius.circular(10) : Radius.zero,
+                      bottom: idx == suggestions.length - 1 ? const Radius.circular(10) : Radius.zero,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.inventory_2_outlined, size: 15, color: AppColors.textMuted),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              item.name,
+                              style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.navyPrimary),
+                            ),
+                          ),
+                          if (item.costPrice > 0)
+                            Text(
+                              '${_fmtAmount(item.costPrice)}/${item.unit}',
+                              style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             children: [
@@ -4932,6 +5258,7 @@ class _FormField extends StatelessWidget {
   final List<TextInputFormatter>? formatters;
   final TextCapitalization caps;
   final ValueChanged<String>? onChanged;
+  final FocusNode? focusNode;
 
   const _FormField({
     required this.ctrl,
@@ -4941,6 +5268,7 @@ class _FormField extends StatelessWidget {
     this.formatters,
     this.caps = TextCapitalization.none,
     this.onChanged,
+    this.focusNode,
   });
 
   @override
@@ -4951,6 +5279,7 @@ class _FormField extends StatelessWidget {
       inputFormatters: formatters,
       textCapitalization: caps,
       onChanged: onChanged,
+      focusNode: focusNode,
       style: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w600,

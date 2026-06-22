@@ -316,81 +316,72 @@ class _CustomerDarkHeader extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Filter button
-                  GestureDetector(
-                    onTap: onFilterTap,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: activeFilters > 0
-                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                            : Colors.white12,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: activeFilters > 0
-                              ? AppColors.yellowBrand
-                              : Colors.transparent,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(
-                            Icons.tune_rounded,
-                            color: activeFilters > 0
-                                ? AppColors.yellowBrand
-                                : Colors.white,
-                            size: 20,
-                          ),
-                          if (showDot)
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: Container(
-                                width: 7,
-                                height: 7,
-                                decoration: BoxDecoration(
-                                  color: dotColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   // Search button
                   GestureDetector(
                     onTap: onToggleSearch,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 42,
-                      height: 42,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: searchExpanded
                             ? AppColors.yellowBrand.withValues(alpha: 0.18)
                             : Colors.white12,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: searchExpanded
-                              ? AppColors.yellowBrand
-                              : Colors.transparent,
+                          color: searchExpanded ? AppColors.yellowBrand : Colors.transparent,
                           width: 1.5,
                         ),
                       ),
                       child: Icon(
-                        searchExpanded
-                            ? Icons.close_rounded
-                            : Icons.search_rounded,
-                        color: searchExpanded
-                            ? AppColors.yellowBrand
-                            : Colors.white,
+                        searchExpanded ? Icons.close_rounded : Icons.search_rounded,
+                        color: searchExpanded ? AppColors.yellowBrand : Colors.white,
                         size: 20,
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Filter button
+                  GestureDetector(
+                    onTap: onFilterTap,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: activeFilters > 0
+                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                                : Colors.white12,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: activeFilters > 0 ? AppColors.yellowBrand : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            color: activeFilters > 0 ? AppColors.yellowBrand : Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        if (showDot)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: dotColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.navyPrimary, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
