@@ -139,6 +139,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return (business['logoUrl'] as String?)?.trim();
   }
 
+  String? _getBusinessPlan(Map<String, dynamic>? profile) {
+    final businesses = profile?['businesses'];
+    if (businesses is! List || businesses.isEmpty) return null;
+    final selectedId = profile?['selectedBusinessId'] as String?;
+    final business = selectedId != null
+        ? businesses.whereType<Map>().cast<Map<String, dynamic>>().firstWhere(
+            (b) => b['id'] == selectedId,
+            orElse: () => businesses.first as Map<String, dynamic>,
+          )
+        : businesses.first as Map<String, dynamic>;
+    return (business['plan'] as String?)?.trim();
+  }
+
   @override
   Widget build(BuildContext context) {
     // ── Data ────────────────────────────────────────────────────────────────
@@ -362,6 +375,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         customerCount: customerCount,
                         businessName: _getBusinessName(snapshot.data),
                         logoUrl: _getBusinessLogoUrl(snapshot.data),
+                        plan: _getBusinessPlan(snapshot.data),
                       )
                     else
                       const _DashboardHeroSkeleton(),
@@ -1294,6 +1308,7 @@ class _UnifiedHeroCard extends StatefulWidget {
   final int customerCount;
   final String? businessName;
   final String? logoUrl;
+  final String? plan;
 
   const _UnifiedHeroCard({
     required this.totalCash,
@@ -1301,6 +1316,7 @@ class _UnifiedHeroCard extends StatefulWidget {
     required this.customerCount,
     this.businessName,
     this.logoUrl,
+    this.plan,
   });
 
   @override
@@ -1404,36 +1420,37 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           const _CardChip(),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'MALI UP',
-                                  style: TextStyle(
+                                Text(
+                                  (widget.businessName ?? 'MY BUSINESS')
+                                      .toUpperCase(),
+                                  style: const TextStyle(
                                     color: AppColors.yellowBrand,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w900,
-                                    letterSpacing: 2.8,
+                                    letterSpacing: 1.8,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  _tr(
-                                    'Business Account',
-                                    'Akaunti ya Biashara',
-                                  ),
+                                  (widget.plan ?? 'Trial').toUpperCase(),
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.48),
-                                    fontSize: 8.5,
-                                    letterSpacing: 0.6,
+                                    color: Colors.white.withValues(alpha: 0.52),
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1.4,
                                   ),
                                 ),
                               ],
@@ -1533,21 +1550,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        name.toUpperCase(),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.78),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.8,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.only(top: 7),
                         decoration: BoxDecoration(
                           border: Border(
                             top: BorderSide(
@@ -2731,32 +2736,38 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.navyPrimary,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.language_rounded,
-              color: AppColors.yellowBrand,
-              size: 26,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _tr(
-              "Let's build you a website for your business?",
-              'Tujenge tovuti ya biashara yako?',
-            ),
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navyPrimary,
-              height: 1.25,
-              letterSpacing: -0.3,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.navyPrimary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.language_rounded,
+                  color: AppColors.yellowBrand,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _tr(
+                    "Let's build you a website for your business?",
+                    'Tujenge tovuti ya biashara yako?',
+                  ),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                    height: 1.25,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           Text(
