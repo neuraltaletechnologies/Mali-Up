@@ -34,8 +34,7 @@ class AddDebtScreen extends ConsumerStatefulWidget {
   ConsumerState<AddDebtScreen> createState() => _AddDebtScreenState();
 }
 
-class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
-    with TickerProviderStateMixin {
+class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
   late bool _isReceivable;
   late DateTime _dueDate;
   bool _saving = false;
@@ -48,19 +47,11 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
   final _noteCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  late AnimationController _fadeCtrl;
-  late Animation<double> _fadeAnim;
-
   @override
   void initState() {
     super.initState();
     _isReceivable = widget.initialIsReceivable;
     _dueDate = DateTime.now().add(const Duration(days: 30));
-
-    _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 280));
-    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _fadeCtrl.forward();
 
     final e = widget.debtToEdit;
     if (e != null) {
@@ -76,7 +67,6 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
 
   @override
   void dispose() {
-    _fadeCtrl.dispose();
     _amountCtrl.dispose();
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
@@ -164,199 +154,232 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen>
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.debtToEdit != null;
-    final accentColor =
-        _isReceivable ? AppColors.success : AppColors.error;
+    final accentColor = _isReceivable ? AppColors.success : AppColors.error;
+    final bottomPad = MediaQuery.of(context).viewInsets.bottom +
+        MediaQuery.of(context).padding.bottom;
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        backgroundColor: AppColors.navyPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          isEdit
-              ? _tr('Edit Entry', 'Hariri Rekodi')
-              : _isReceivable
-                  ? _tr('Add Receivable', 'Ongeza Dai')
-                  : _tr('Add Payable', 'Ongeza Deni'),
-          style: GoogleFonts.dmSans(
-              color: Colors.white, fontWeight: FontWeight.w700),
-        ),
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-            children: [
-              // Type toggle (only when adding new)
-              if (!isEdit) ...[
-                _TypeToggle(
-                  isReceivable: _isReceivable,
-                  onChanged: (v) => setState(() => _isReceivable = v),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Amount card
-              _AmountCard(
-                controller: _amountCtrl,
-                accentColor: accentColor,
-                isReceivable: _isReceivable,
-              ),
-              const SizedBox(height: 14),
-
-              // Customer link (receivables only — suppliers aren't in customer DB)
-              if (_isReceivable) ...[
-                CustomerPickerField(
-                  selected: _linkedCustomer,
-                  onSelected: _selectCustomer,
-                  labelEn: 'Link to Customer (optional)',
-                  labelSw: 'Unganisha na Mteja (si lazima)',
-                ),
-                const SizedBox(height: 14),
-              ],
-
-              // Party details
-              _FieldCard(
-                children: [
-                  _LabeledField(
-                    label: _isReceivable
-                        ? _tr('Customer Name', 'Jina la Mteja')
-                        : _tr('Supplier Name', 'Jina la Muuzaji'),
-                    child: TextFormField(
-                      controller: _nameCtrl,
-                      decoration: _fieldDecoration(
-                        hint: _isReceivable
-                            ? _tr('e.g. John Mwangi', 'mfano: John Mwangi')
-                            : _tr('e.g. ABC Suppliers', 'mfano: ABC Suppliers'),
-                      ),
-                      textCapitalization: TextCapitalization.words,
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? _tr('Name is required', 'Jina linahitajika')
-                          : null,
-                    ),
-                  ),
-                  const Divider(height: 1, color: AppColors.border),
-                  _LabeledField(
-                    label: _tr('Phone Number', 'Namba ya Simu'),
-                    child: TextFormField(
-                      controller: _phoneCtrl,
-                      decoration: _fieldDecoration(
-                          hint: _tr('+255 7XX XXX XXX', '+255 7XX XXX XXX')),
-                      keyboardType: TextInputType.phone,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // Due date
-              _FieldCard(
-                children: [
-                  _LabeledField(
-                    label: _tr('Due Date', 'Tarehe ya Mwisho'),
-                    child: GestureDetector(
-                      onTap: _pickDate,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.border),
-                          borderRadius: BorderRadius.circular(10),
-                          color: Colors.white,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.calendar_today_outlined,
-                                size: 16, color: accentColor),
-                            const SizedBox(width: 10),
-                            Text(
-                              _fmtDate(_dueDate),
-                              style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary),
-                            ),
-                            const Spacer(),
-                            Text(
-                              _daysLabel(),
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 12, color: AppColors.textMuted),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // Invoice ref & note
-              _FieldCard(
-                children: [
-                  _LabeledField(
-                    label: _tr('Invoice / Ref # (optional)',
-                        'Nambari ya Ankara (hiari)'),
-                    child: TextFormField(
-                      controller: _invoiceCtrl,
-                      decoration: _fieldDecoration(hint: 'INV-001'),
-                    ),
-                  ),
-                  const Divider(height: 1, color: AppColors.border),
-                  _LabeledField(
-                    label: _tr('Note (optional)', 'Maelezo (hiari)'),
-                    child: TextFormField(
-                      controller: _noteCtrl,
-                      decoration: _fieldDecoration(
-                          hint: _tr('Any additional details…',
-                              'Maelezo zaidi…')),
-                      maxLines: 3,
-                      minLines: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            margin: const EdgeInsets.only(top: 12, bottom: 4),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.fromLTRB(
-            16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: FilledButton(
-          onPressed: _saving ? null : _save,
-          style: FilledButton.styleFrom(
-            backgroundColor: _saving ? AppColors.border : accentColor,
-            minimumSize: const Size(double.infinity, 52),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
-          ),
-          child: _saving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2),
-                )
-              : Text(
+          // Header row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Row(
+              children: [
+                Text(
                   isEdit
-                      ? _tr('Save Changes', 'Hifadhi Mabadiliko')
+                      ? _tr('Edit Entry', 'Hariri Rekodi')
                       : _isReceivable
                           ? _tr('Add Receivable', 'Ongeza Dai')
                           : _tr('Add Payable', 'Ongeza Deni'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
                 ),
-        ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.border.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close_rounded,
+                        size: 18, color: AppColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          // Scrollable form
+          Flexible(
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                shrinkWrap: true,
+                children: [
+                  if (!isEdit) ...[
+                    _TypeToggle(
+                      isReceivable: _isReceivable,
+                      onChanged: (v) => setState(() => _isReceivable = v),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  _AmountCard(
+                    controller: _amountCtrl,
+                    accentColor: accentColor,
+                    isReceivable: _isReceivable,
+                  ),
+                  const SizedBox(height: 14),
+                  if (_isReceivable) ...[
+                    CustomerPickerField(
+                      selected: _linkedCustomer,
+                      onSelected: _selectCustomer,
+                      labelEn: 'Link to Customer (optional)',
+                      labelSw: 'Unganisha na Mteja (si lazima)',
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  _FieldCard(
+                    children: [
+                      _LabeledField(
+                        label: _isReceivable
+                            ? _tr('Customer Name', 'Jina la Mteja')
+                            : _tr('Supplier Name', 'Jina la Muuzaji'),
+                        child: TextFormField(
+                          controller: _nameCtrl,
+                          decoration: _fieldDecoration(
+                            hint: _isReceivable
+                                ? _tr('e.g. John Mwangi', 'mfano: John Mwangi')
+                                : _tr('e.g. ABC Suppliers',
+                                    'mfano: ABC Suppliers'),
+                          ),
+                          textCapitalization: TextCapitalization.words,
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? _tr('Name is required', 'Jina linahitajika')
+                              : null,
+                        ),
+                      ),
+                      const Divider(height: 1, color: AppColors.border),
+                      _LabeledField(
+                        label: _tr('Phone Number', 'Namba ya Simu'),
+                        child: TextFormField(
+                          controller: _phoneCtrl,
+                          decoration: _fieldDecoration(
+                              hint:
+                                  _tr('+255 7XX XXX XXX', '+255 7XX XXX XXX')),
+                          keyboardType: TextInputType.phone,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _FieldCard(
+                    children: [
+                      _LabeledField(
+                        label: _tr('Due Date', 'Tarehe ya Mwisho'),
+                        child: GestureDetector(
+                          onTap: _pickDate,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.border),
+                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.white,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.calendar_today_outlined,
+                                    size: 16, color: accentColor),
+                                const SizedBox(width: 10),
+                                Text(
+                                  _fmtDate(_dueDate),
+                                  style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  _daysLabel(),
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 12,
+                                      color: AppColors.textMuted),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _FieldCard(
+                    children: [
+                      _LabeledField(
+                        label: _tr('Invoice / Ref # (optional)',
+                            'Nambari ya Ankara (hiari)'),
+                        child: TextFormField(
+                          controller: _invoiceCtrl,
+                          decoration: _fieldDecoration(hint: 'INV-001'),
+                        ),
+                      ),
+                      const Divider(height: 1, color: AppColors.border),
+                      _LabeledField(
+                        label: _tr('Note (optional)', 'Maelezo (hiari)'),
+                        child: TextFormField(
+                          controller: _noteCtrl,
+                          decoration: _fieldDecoration(
+                              hint: _tr('Any additional details…',
+                                  'Maelezo zaidi…')),
+                          maxLines: 3,
+                          minLines: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Save button
+          Container(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPad + 12),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: AppColors.border)),
+            ),
+            child: FilledButton(
+              onPressed: _saving ? null : _save,
+              style: FilledButton.styleFrom(
+                backgroundColor: _saving ? AppColors.border : accentColor,
+                minimumSize: const Size(double.infinity, 52),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: _saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2),
+                    )
+                  : Text(
+                      isEdit
+                          ? _tr('Save Changes', 'Hifadhi Mabadiliko')
+                          : _isReceivable
+                              ? _tr('Add Receivable', 'Ongeza Dai')
+                              : _tr('Add Payable', 'Ongeza Deni'),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
