@@ -12,6 +12,8 @@ import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
+import '../../../sales/presentation/screens/sales_return_screen.dart';
+import '../../../invoice/presentation/providers/invoice_providers.dart';
 import '../../../catalog/domain/models/master_category.dart';
 import '../../../catalog/providers/master_catalog_providers.dart';
 import '../../../product/data/category_providers.dart';
@@ -262,7 +264,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       ctx,
       builder: (_) => AddProductChoiceSheet(
         onCreateCustom: () => _openCustomProductForm(ctx),
-        onCreateReturn: () => _openProductFormWithType(ctx, ProductType.customerReturn),
+        onCreateReturn: () => _openSelectSaleForReturn(ctx),
         onCreateManufactured: () => _openProductFormWithType(ctx, ProductType.manufactured),
       ),
     );
@@ -272,6 +274,22 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     showAppSheet<void>(
       ctx,
       builder: (_) => const _ProductFormSheet(),
+    );
+  }
+
+  void _openSelectSaleForReturn(BuildContext ctx) {
+    showAppSheet<void>(
+      ctx,
+      builder: (_) => _SelectSaleForReturnSheet(
+        onSaleSelected: (invoice) {
+          Navigator.of(ctx, rootNavigator: true).push(
+            MaterialPageRoute<void>(
+              builder: (_) => SalesReturnScreen(originalInvoice: invoice),
+              fullscreenDialog: true,
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -5249,6 +5267,240 @@ class _FormLabel extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Select Sale → Customer Return sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SelectSaleForReturnSheet extends ConsumerStatefulWidget {
+  final void Function(Map<String, dynamic> invoice) onSaleSelected;
+
+  const _SelectSaleForReturnSheet({required this.onSaleSelected});
+
+  @override
+  ConsumerState<_SelectSaleForReturnSheet> createState() =>
+      _SelectSaleForReturnSheetState();
+}
+
+class _SelectSaleForReturnSheetState
+    extends ConsumerState<_SelectSaleForReturnSheet> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  static String _fmtDate(String raw) {
+    final dt = DateTime.tryParse(raw);
+    if (dt == null) return raw;
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    final invoicesAsync = ref.watch(invoicesProvider);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.fromLTRB(0, 12, 0, bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SheetHandle(),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Select Sale to Return', 'Chagua Mauzo ya Kurudisha'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _tr(
+                    'Only products that were sold can be returned.',
+                    'Ni bidhaa zilizouzwa tu zinazoweza kurudishwa.',
+                  ),
+                  style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 12),
+                // Search bar
+                TextField(
+                  controller: _searchCtrl,
+                  onChanged: (v) => setState(() => _query = v.toLowerCase().trim()),
+                  style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.navyPrimary),
+                  decoration: InputDecoration(
+                    hintText: _tr('Search by customer or invoice #', 'Tafuta mteja au nambari ya ankara'),
+                    hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Sales list
+          SizedBox(
+            height: 340,
+            child: invoicesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Text(
+                  _tr('Could not load sales', 'Imeshindwa kupakia mauzo'),
+                  style: GoogleFonts.dmSans(color: AppColors.textMuted),
+                ),
+              ),
+              data: (invoices) {
+                // Filter: only posted/paid invoices, exclude quotations
+                final sales = invoices
+                    .where((inv) =>
+                        inv.type != 'quotation' &&
+                        inv.items.isNotEmpty &&
+                        inv.status != 'cancelled' &&
+                        inv.status != 'draft')
+                    .where((inv) {
+                      if (_query.isEmpty) return true;
+                      return inv.customerName.toLowerCase().contains(_query) ||
+                          inv.invoiceNumber.toLowerCase().contains(_query);
+                    })
+                    .toList()
+                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+                if (sales.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.receipt_long_outlined, size: 40, color: AppColors.textDisabled),
+                        const SizedBox(height: 8),
+                        Text(
+                          _query.isNotEmpty
+                              ? _tr('No matching sales', 'Hakuna mauzo yanayolingana')
+                              : _tr('No sales recorded yet', 'Hakuna mauzo yaliyorekodiwa bado'),
+                          style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  itemCount: sales.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 6),
+                  itemBuilder: (ctx, i) {
+                    final inv = sales[i];
+                    final itemCount = inv.items.length;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        // Convert Invoice domain to the raw map SalesReturnScreen expects
+                        final map = <String, dynamic>{
+                          'id': inv.id,
+                          'invoiceNumber': inv.invoiceNumber,
+                          'customerName': inv.customerName.isNotEmpty
+                              ? inv.customerName
+                              : _tr('Walk-in', 'Mteja wa Njiani'),
+                          'customerId': inv.customerId,
+                          'totalAmount': inv.total,
+                          'total': inv.total,
+                          'status': inv.status,
+                          'createdAt': inv.createdAt,
+                          'invoiceDate': inv.date,
+                          'items': inv.items
+                              .map((it) => it.toFirestore())
+                              .toList(),
+                          'lineItems': inv.items
+                              .map((it) => it.toFirestore())
+                              .toList(),
+                        };
+                        widget.onSaleSelected(map);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE6F4F6),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.receipt_outlined, size: 20, color: AppColors.tealAccent),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    inv.customerName.isNotEmpty
+                                        ? inv.customerName
+                                        : _tr('Walk-in Customer', 'Mteja wa Njiani'),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.navyPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${inv.invoiceNumber} · $itemCount ${_tr('items', 'bidhaa')} · ${_fmtDate(inv.createdAt)}',
+                                    style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              _fmtAmount(inv.total),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navyPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _FormField extends StatelessWidget {
   final TextEditingController ctrl;

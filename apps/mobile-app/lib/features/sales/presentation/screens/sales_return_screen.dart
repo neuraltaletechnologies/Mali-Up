@@ -10,8 +10,11 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../inventory/presentation/providers/inventory_providers.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../data/sales_providers.dart';
+
+enum _ResolutionType { refundCash, exchangeProduct }
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -34,8 +37,13 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
   String _reason = '';
   bool _restockAll = true;
   bool _saving = false;
+  _ResolutionType _resolution = _ResolutionType.refundCash;
+  // Exchange: product picked from inventory search
+  String _exchangeProductId   = '';
+  String _exchangeProductName = '';
 
-  final _reasonCtrl = TextEditingController();
+  final _reasonCtrl   = TextEditingController();
+  final _exchangeCtrl = TextEditingController();
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
@@ -67,6 +75,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
   @override
   void dispose() {
     _reasonCtrl.dispose();
+    _exchangeCtrl.dispose();
     _fadeCtrl.dispose();
     super.dispose();
   }
@@ -86,6 +95,12 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
       _showSnack(_tr(
           'Select at least one item to return',
           'Chagua bidhaaa angalau moja ya kurudisha'));
+      return;
+    }
+    if (_resolution == _ResolutionType.exchangeProduct && _exchangeProductId.isEmpty) {
+      _showSnack(_tr(
+          'Select a replacement product for the exchange',
+          'Chagua bidhaa ya kubadilishana'));
       return;
     }
     setState(() => _saving = true);
@@ -134,14 +149,17 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
         'originalInvoiceNumber': invoiceNumber,
         'businessId': scope.businessId,
         'customerId': widget.originalInvoice['customerId'] ?? '',
-        'customerName':
-            widget.originalInvoice['customerName'] ?? '',
+        'customerName': widget.originalInvoice['customerName'] ?? '',
         'returnItems': returnItemsData,
         'creditAmount': _creditAmount,
         'reason': _reason,
         'restockItems': _restockAll,
+        'resolutionType': _resolution.name,
+        if (_resolution == _ResolutionType.exchangeProduct) ...{
+          'exchangeProductId': _exchangeProductId,
+          'exchangeProductName': _exchangeProductName,
+        },
         'status': 'issued',
-        // Audit: the owner can see who processed the return, when and why.
         'processedBy': scope.userUid,
         'processedByRole': role,
         'createdAt': FieldValue.serverTimestamp(),
@@ -166,6 +184,22 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                 SetOptions(merge: true));
           }
         }
+      }
+
+      // Exchange: deduct one unit of the replacement product
+      if (_resolution == _ResolutionType.exchangeProduct &&
+          _exchangeProductId.isNotEmpty) {
+        final invCol = repo.scopeCollection(
+            uid: scope.ownerUid,
+            context: scope.context,
+            childCollection: 'inventory_items');
+        batch.set(
+            invCol.doc(_exchangeProductId),
+            {
+              'currentStock': FieldValue.increment(-1),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
       }
 
       // Flag the original invoice
@@ -273,6 +307,24 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
                     value: _restockAll,
                     onChanged: (v) => setState(() => _restockAll = v),
                   ),
+                  const SizedBox(height: 16),
+                  _ResolutionPicker(
+                    value: _resolution,
+                    onChanged: (v) => setState(() => _resolution = v),
+                  ),
+                  if (_resolution == _ResolutionType.exchangeProduct) ...[
+                    const SizedBox(height: 10),
+                    _ExchangeProductPicker(
+                      controller: _exchangeCtrl,
+                      selectedId: _exchangeProductId,
+                      selectedName: _exchangeProductName,
+                      onSelected: (id, name) => setState(() {
+                        _exchangeProductId   = id;
+                        _exchangeProductName = name;
+                        _exchangeCtrl.text   = name;
+                      }),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   _ReasonField(
                     controller: _reasonCtrl,
@@ -1052,4 +1104,228 @@ String _fmt(DateTime date) {
   final m = date.month.toString().padLeft(2, '0');
   final y = date.year.toString();
   return '$d/$m/$y';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resolution type picker (Refund Cash | Exchange Product)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ResolutionPicker extends StatelessWidget {
+  final _ResolutionType value;
+  final ValueChanged<_ResolutionType> onChanged;
+
+  const _ResolutionPicker({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _tr('Resolution', 'Suluhisho'),
+          style: GoogleFonts.dmSans(
+            fontSize: 12, fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary, letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _ResolutionOption(
+              icon: Icons.payments_outlined,
+              label: _tr('Refund Cash', 'Rejesha Pesa'),
+              selected: value == _ResolutionType.refundCash,
+              onTap: () => onChanged(_ResolutionType.refundCash),
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: _ResolutionOption(
+              icon: Icons.swap_horiz_rounded,
+              label: _tr('Exchange Product', 'Badilisha Bidhaa'),
+              selected: value == _ResolutionType.exchangeProduct,
+              onTap: () => onChanged(_ResolutionType.exchangeProduct),
+            )),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ResolutionOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ResolutionOption({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.tealAccent : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppColors.tealAccent : AppColors.border,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: selected ? Colors.white : AppColors.textMuted),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : AppColors.navyPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exchange product picker — live search from inventory
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ExchangeProductPicker extends ConsumerStatefulWidget {
+  final TextEditingController controller;
+  final String selectedId;
+  final String selectedName;
+  final void Function(String id, String name) onSelected;
+
+  const _ExchangeProductPicker({
+    required this.controller,
+    required this.selectedId,
+    required this.selectedName,
+    required this.onSelected,
+  });
+
+  @override
+  ConsumerState<_ExchangeProductPicker> createState() =>
+      _ExchangeProductPickerState();
+}
+
+class _ExchangeProductPickerState
+    extends ConsumerState<_ExchangeProductPicker> {
+  final _focus = FocusNode();
+  bool _showList = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() => setState(() => _showList = _focus.hasFocus));
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = widget.controller.text.trim().toLowerCase();
+    final allItems = ref.watch(inventoryProvider).valueOrNull ?? [];
+    final suggestions = (_showList && q.isNotEmpty)
+        ? allItems
+            .where((i) => i.name.toLowerCase().contains(q) && !i.isService)
+            .take(5)
+            .toList()
+        : [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _tr('Replacement Product *', 'Bidhaa ya Kubadilisha *'),
+          style: GoogleFonts.dmSans(
+            fontSize: 12, fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary, letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: widget.controller,
+          focusNode: _focus,
+          onChanged: (_) => setState(() {}),
+          style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.navyPrimary, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            hintText: _tr('Search product to give instead…', 'Tafuta bidhaa ya kutoa badala yake…'),
+            hintStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textDisabled),
+            prefixIcon: widget.selectedId.isNotEmpty
+                ? const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18)
+                : const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
+            filled: true,
+            fillColor: AppColors.surface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5)),
+          ),
+        ),
+        if (suggestions.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
+            ),
+            child: Column(
+              children: suggestions.asMap().entries.map((e) {
+                final idx  = e.key;
+                final item = e.value;
+                return InkWell(
+                  onTap: () {
+                    widget.onSelected(item.id, item.name);
+                    _focus.unfocus();
+                  },
+                  borderRadius: BorderRadius.vertical(
+                    top: idx == 0 ? const Radius.circular(10) : Radius.zero,
+                    bottom: idx == suggestions.length - 1 ? const Radius.circular(10) : Radius.zero,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.textMuted),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            item.name,
+                            style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.navyPrimary),
+                          ),
+                        ),
+                        Text(
+                          '${item.currentStock.toStringAsFixed(0)} ${item.unit}',
+                          style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }

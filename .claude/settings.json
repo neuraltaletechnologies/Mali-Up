@@ -10,7 +10,8 @@
       "Bash(Select-Object Name)",
       "Bash(Read \"C:\\\\Users\\\\NTALE\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--SIDE-GIT-Maliapp\\\\823400e6-421e-413f-88a2-f723f72ab501\\\\tasks\\\\bay6y4uku.output\")",
       "Bash(grep -Ev \"^$|Analyzing|info\")",
-      "Bash(grep -v \"^$\\\\|Analyzing\\\\|info\")"
+      "Bash(grep -v \"^$\\\\|Analyzing\\\\|info\")",
+      "Bash(grep -v \"test\\\\\\\\|info\")"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
