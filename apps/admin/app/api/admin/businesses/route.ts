@@ -12,9 +12,9 @@ export async function GET(request: Request) {
     const limitParam = Math.min(Number(searchParams.get('limit') ?? '300'), 1000)
 
     // collectionGroup query — hits every `businesses` sub-collection across all tenants
+    // orderBy is done in-memory to avoid requiring a collection group index
     const snapshot = await adminFirestore
       .collectionGroup('businesses')
-      .orderBy('createdAt', 'desc')
       .limit(limitParam)
       .get()
 
@@ -34,6 +34,8 @@ export async function GET(request: Request) {
         return mapBusiness(uid, doc.id, data, staffCount)
       })
     )
+
+    businesses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
     return NextResponse.json({ businesses, total: businesses.length })
   } catch (err) {

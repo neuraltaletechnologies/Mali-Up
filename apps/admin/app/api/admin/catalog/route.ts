@@ -10,71 +10,60 @@ export async function GET(request: Request) {
   const businessTypeId = searchParams.get('businessTypeId') // null = all types
 
   try {
-    // ── Categories ──────────────────────────────────────────────────────────
-    let catQuery = adminFirestore
-      .collection('master_categories')
-      .where('isActive', '==', true)
-      .orderBy('categoryName')
-
-    if (businessTypeId) {
-      catQuery = adminFirestore
-        .collection('master_categories')
-        .where('isActive', '==', true)
-        .where('businessTypeId', '==', businessTypeId)
-        .orderBy('categoryName')
-    }
-
-    // ── Products ────────────────────────────────────────────────────────────
-    let prodQuery = adminFirestore
-      .collection('master_products')
-      .where('isActive', '==', true)
-      .orderBy('productName')
-      .limit(500)
-
-    if (businessTypeId) {
-      prodQuery = adminFirestore
-        .collection('master_products')
-        .where('isActive', '==', true)
-        .where('businessTypeId', '==', businessTypeId)
-        .orderBy('productName')
-        .limit(500)
-    }
-
-    const [catSnap, prodSnap] = await Promise.all([catQuery.get(), prodQuery.get()])
+    // Fetch all active docs and filter/sort in-memory to avoid needing
+    // composite indexes on (isActive + categoryName) and (isActive + productName).
+    const [catSnap, prodSnap] = await Promise.all([
+      adminFirestore.collection('master_categories').get(),
+      adminFirestore.collection('master_products').limit(1000).get(),
+    ])
 
     // ── Map categories ──────────────────────────────────────────────────────
-    const categories = catSnap.docs.map((doc) => {
-      const d = doc.data()
-      return {
-        id: doc.id,
-        businessTypeId: (d.businessTypeId as string) ?? '',
-        categoryName: (d.categoryName as string) ?? '',
-        description: (d.description as string) ?? '',
-        icon: (d.icon as string) ?? '',
-        source: (d.source as string) ?? 'admin',
-        productCount: 0, // filled below
-      }
-    })
+    let categories = catSnap.docs
+      .filter((doc) => doc.data().isActive !== false)
+      .map((doc) => {
+        const d = doc.data()
+        return {
+          id: doc.id,
+          businessTypeId: (d.businessTypeId as string) ?? '',
+          categoryName: (d.categoryName as string) ?? '',
+          description: (d.description as string) ?? '',
+          icon: (d.icon as string) ?? '',
+          source: (d.source as string) ?? 'admin',
+          productCount: 0, // filled below
+        }
+      })
+
+    if (businessTypeId) {
+      categories = categories.filter((c) => c.businessTypeId === businessTypeId)
+    }
+    categories.sort((a, b) => a.categoryName.localeCompare(b.categoryName))
 
     // ── Map products ────────────────────────────────────────────────────────
-    const products = prodSnap.docs.map((doc) => {
-      const d = doc.data()
-      const kw = Array.isArray(d.searchableKeywords) ? d.searchableKeywords as string[] : []
-      return {
-        id: doc.id,
-        businessTypeId: (d.businessTypeId as string) ?? '',
-        categoryId: (d.categoryId as string) ?? '',
-        categoryName: (d.categoryName as string) ?? '',
-        productName: (d.productName as string) ?? '',
-        skuTemplate: (d.skuTemplate as string) ?? '',
-        barcode: (d.barcode as string) ?? '',
-        defaultUnit: (d.defaultUnit as string) ?? 'pcs',
-        suggestedCostPrice: (d.suggestedCostPrice as number) ?? 0,
-        suggestedSellingPrice: (d.suggestedSellingPrice as number) ?? 0,
-        searchableKeywords: kw,
-        source: (d.source as string) ?? 'admin',
-      }
-    })
+    let products = prodSnap.docs
+      .filter((doc) => doc.data().isActive !== false)
+      .map((doc) => {
+        const d = doc.data()
+        const kw = Array.isArray(d.searchableKeywords) ? d.searchableKeywords as string[] : []
+        return {
+          id: doc.id,
+          businessTypeId: (d.businessTypeId as string) ?? '',
+          categoryId: (d.categoryId as string) ?? '',
+          categoryName: (d.categoryName as string) ?? '',
+          productName: (d.productName as string) ?? '',
+          skuTemplate: (d.skuTemplate as string) ?? '',
+          barcode: (d.barcode as string) ?? '',
+          defaultUnit: (d.defaultUnit as string) ?? 'pcs',
+          suggestedCostPrice: (d.suggestedCostPrice as number) ?? 0,
+          suggestedSellingPrice: (d.suggestedSellingPrice as number) ?? 0,
+          searchableKeywords: kw,
+          source: (d.source as string) ?? 'admin',
+        }
+      })
+
+    if (businessTypeId) {
+      products = products.filter((p) => p.businessTypeId === businessTypeId)
+    }
+    products.sort((a, b) => a.productName.localeCompare(b.productName))
 
     // ── Fill productCount per category ──────────────────────────────────────
     const countByCategoryId: Record<string, number> = {}
