@@ -1473,7 +1473,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                           ),
                         ],
                       ),
-                      const Spacer(),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
@@ -1746,19 +1746,19 @@ class _ModuleGrid extends StatelessWidget {
     final itemCount = showHeavyContent ? _modules.length : 6;
 
     return SizedBox(
-      height: 108,
+      height: 84,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: itemCount,
-        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           if (!showHeavyContent) return const _HorizontalModuleSkeleton();
 
           final module = _modules[index];
           final label = _tr(module.labelEn, module.labelSw);
           return SizedBox(
-            width: 106,
+            width: 96,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
@@ -1769,51 +1769,46 @@ class _ModuleGrid extends StatelessWidget {
                   }
                   context.go(module.route);
                 },
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 child: Ink(
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: AppColors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: module.color.withValues(alpha: 0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Container(
-                          width: 36,
-                          height: 36,
+                          width: 28,
+                          height: 28,
                           decoration: BoxDecoration(
                             color: module.color.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: module.color.withValues(alpha: 0.15),
-                            ),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
                             module.icon,
-                            size: 18,
+                            size: 15,
                             color: module.color,
                           ),
                         ),
-                        Text(
-                          label,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: AppColors.secondary.withValues(alpha: 0.85),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            height: 1.2,
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            label,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: AppColors.secondary.withValues(alpha: 0.85),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              height: 1.25,
+                            ),
                           ),
                         ),
                       ],
@@ -1847,7 +1842,7 @@ class _HorizontalModuleSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(width: 106, child: ShimmerBox(height: 108));
+    return const SizedBox(width: 96, child: ShimmerBox(height: 84));
   }
 }
 
