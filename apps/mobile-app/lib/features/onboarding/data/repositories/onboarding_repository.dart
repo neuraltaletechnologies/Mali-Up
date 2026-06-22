@@ -396,6 +396,7 @@ class OnboardingRepository {
       'lastName': state.lastName,
       'email': state.email,
       'language': state.isSwahili ? 'sw' : 'en',
+      'isTeamMember': false,
       'selectedBusinessId': businessId,
       'createdAt': FieldValue.serverTimestamp(),
       'lastActiveAt': FieldValue.serverTimestamp(),

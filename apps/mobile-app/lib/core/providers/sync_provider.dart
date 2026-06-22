@@ -49,8 +49,11 @@ final offlinePolicyProvider = ChangeNotifierProvider<OfflinePolicyNotifier>((ref
 /// Current [SyncState] — rebuilds the UI whenever it changes.
 final syncStateProvider = Provider<SyncState>((ref) {
   final service = ref.watch(syncServiceProvider);
-  // Re-read when the service notifies (ChangeNotifier → Provider bridge).
-  service.addListener(() => ref.invalidateSelf());
+  // Bridge ChangeNotifier → Riverpod. The listener is removed on dispose so
+  // re-evaluations don't accumulate duplicate listeners causing N×M rebuilds.
+  void notify() => ref.invalidateSelf();
+  service.addListener(notify);
+  ref.onDispose(() => service.removeListener(notify));
   return service.state;
 });
 

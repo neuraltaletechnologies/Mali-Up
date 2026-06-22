@@ -632,8 +632,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     final location = GoRouterState.of(context).uri.toString();
     final currentUser = _currentUser;
     ref.watch(syncServiceProvider); // starts SyncService (local→Firestore push) when uid + bizId are ready
-    final syncState = ref.watch(syncStateProvider);
-    final isOnline = syncState == SyncState.idle || syncState == SyncState.syncing;
+    // Select only the bool we need so the shell doesn't rebuild on every
+    // intermediate SyncState transition (e.g. idle→syncing→idle).
+    final isOnline = ref.watch(syncStateProvider.select(
+        (s) => s == SyncState.idle || s == SyncState.syncing));
     final permissionsLoaded = ref.watch(permissionsLoadedProvider);
     // Use owner-equivalent permissions while loading to avoid a flash of the
     // one-icon nav bar on first login (no role cache yet on the device).
@@ -648,8 +650,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
           'canSales=${ps.canViewSales} '
           'canInventory=${ps.canViewInventory}');
     }
-    final memberAsync = ref.watch(currentMemberProvider);
-    final member = memberAsync.valueOrNull;
+    // Select valueOrNull so the shell only rebuilds when the member record
+    // itself changes, not on every AsyncValue wrapper transition.
+    final member = ref.watch(currentMemberProvider.select((a) => a.valueOrNull));
 
     return FutureBuilder<Map<String, dynamic>?>(
       future: _profileFuture,
