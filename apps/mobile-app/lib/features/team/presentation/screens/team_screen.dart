@@ -1033,6 +1033,14 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     });
   }
 
+  Future<void> _pickRole(BuildContext context) async {
+    final picked = await showAppSheet<TeamRole>(
+      context,
+      builder: (_) => _RolePickerSheet(current: _selectedRole),
+    );
+    if (picked != null) _onRoleChanged(picked);
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final name = _nameCtrl.text.trim();
@@ -1067,6 +1075,8 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
       final storedPhone =
           normalizedPhone.isNotEmpty ? normalizedPhone : rawPhone;
 
+      final permNames = permsToStore.map((p) => p.name).toList();
+
       // Write team_member record (for team management UI)
       final memberRef = await repo.addTeamMember(
         uid: user.uid,
@@ -1076,7 +1086,9 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
           'email': _emailCtrl.text.trim(),
           'phone': storedPhone,
           'role': _selectedRole.name,
-          'customPermissions': permsToStore.map((p) => p.name).toList(),
+          'customPermissions': permNames,
+          // Flat list read by isStaffWithAny() security rules and pointer-doc rule.
+          'permissions': permNames,
           'status': 'pending',
           'invitedAt': FieldValue.serverTimestamp(),
           'invitedBy': user.uid,
@@ -1278,14 +1290,61 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                           // ── Role ─────────────────────────────────────
                           _sectionLabel(_tr('Role', 'Jukumu')),
                           const SizedBox(height: 10),
-                          ...TeamRole.values.map((r) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: _RoleCard(
-                                  role: r,
-                                  selected: _selectedRole == r,
-                                  onTap: () => _onRoleChanged(r),
-                                ),
-                              )),
+                          GestureDetector(
+                            onTap: () => _pickRole(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: _roleColor(_selectedRole)
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(_roleIcon(_selectedRole),
+                                        size: 18,
+                                        color: _roleColor(_selectedRole)),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _tr(_selectedRole.label,
+                                              _selectedRole.labelSw),
+                                          style: GoogleFonts.dmSans(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: _roleColor(_selectedRole),
+                                          ),
+                                        ),
+                                        Text(
+                                          _tr(_selectedRole.description,
+                                              _selectedRole.descriptionSw),
+                                          style: GoogleFonts.dmSans(
+                                              fontSize: 11,
+                                              color: AppColors.textMuted),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right_rounded,
+                                      color: AppColors.textMuted, size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 16),
 
                           // ── Permissions ───────────────────────────────
@@ -1665,13 +1724,18 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                           child: ElevatedButton(
                             onPressed: _isSaving
                                 ? null
-                                : () => _updateMember({
+                                : () {
+                                    final effectivePerms = _pendingRole == TeamRole.custom
+                                        ? _pendingPerms
+                                        : defaultPermissionsFor(_pendingRole);
+                                    final permNames = effectivePerms.map((p) => p.name).toList();
+                                    _updateMember({
                                       'role': _pendingRole.name,
-                                      if (_pendingRole == TeamRole.custom)
-                                        'customPermissions': _pendingPerms
-                                            .map((p) => p.name)
-                                            .toList(),
-                                    }),
+                                      'customPermissions': permNames,
+                                      // Keep flat list in sync for isStaffWithAny() rules.
+                                      'permissions': permNames,
+                                    });
+                                  },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: AppColors.navyPrimary,
@@ -1763,6 +1827,57 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
 }
 
 // ── Role card ──────────────────────────────────────────────────────────────────
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ROLE PICKER SHEET
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _RolePickerSheet extends StatelessWidget {
+  final TeamRole current;
+
+  const _RolePickerSheet({required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, bottom + 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SheetHandle(),
+              const SizedBox(height: 12),
+              Text(
+                _tr('Select Role', 'Chagua Jukumu'),
+                style: GoogleFonts.dmSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...TeamRole.values.map((r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _RoleCard(
+                      role: r,
+                      selected: current == r,
+                      onTap: () => Navigator.of(context).pop(r),
+                    ),
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _RoleCard extends StatelessWidget {
   final TeamRole role;

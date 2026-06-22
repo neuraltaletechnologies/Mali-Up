@@ -46,8 +46,6 @@ class AddProductChoiceSheet extends StatelessWidget {
 
           _Tile(
             icon: Icons.search_rounded,
-            iconColor: AppColors.tealAccent,
-            iconBg: const Color(0xFFE0F2F7),
             label: _tr('Search Catalog', 'Chagua kwenye Katalogi'),
             badge: _tr('Best', 'Bora'),
             onTap: () {
@@ -63,8 +61,6 @@ class AddProductChoiceSheet extends StatelessWidget {
 
           _Tile(
             icon: Icons.add_circle_outline_rounded,
-            iconColor: AppColors.navyPrimary,
-            iconBg: const Color(0xFFEFF3FB),
             label: _tr('Create Custom', 'Unda Mwenyewe'),
             onTap: () {
               Navigator.of(context).pop();
@@ -75,8 +71,6 @@ class AddProductChoiceSheet extends StatelessWidget {
 
           _Tile(
             icon: Icons.precision_manufacturing_outlined,
-            iconColor: const Color(0xFF7C3AED),
-            iconBg: const Color(0xFFF3EFFE),
             label: _tr('I Manufacture It', 'Ninatengeneza'),
             onTap: () {
               Navigator.of(context).pop();
@@ -87,8 +81,6 @@ class AddProductChoiceSheet extends StatelessWidget {
 
           _Tile(
             icon: Icons.assignment_return_outlined,
-            iconColor: AppColors.tealAccent,
-            iconBg: const Color(0xFFE0F7F4),
             label: _tr('Customer Return', 'Bidhaa Iliyorudishwa'),
             onTap: () {
               Navigator.of(context).pop();
@@ -103,16 +95,12 @@ class AddProductChoiceSheet extends StatelessWidget {
 
 class _Tile extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
   final String label;
   final String? badge;
   final VoidCallback onTap;
 
   const _Tile({
     required this.icon,
-    required this.iconColor,
-    required this.iconBg,
     required this.label,
     this.badge,
     required this.onTap,
@@ -134,8 +122,11 @@ class _Tile extends StatelessWidget {
             Container(
               width: 38,
               height: 38,
-              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
-              child: Icon(icon, color: iconColor, size: 20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE6F4F6),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.tealAccent, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(

@@ -269,12 +269,27 @@ service cloud.firestore {
       // ── Inventory ──────────────────────────────────────────────────────────
       match /inventory_items/{itemId} {
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewInventory']);
+
+        // Full product creation (from the add-product form).
         allow create: if isOwnerOrStaffWithAny(bizId, ['addStock']) &&
           isValidInventoryItem(request.resource.data);
+
+        // Sale / return batch writes a merge-stub {currentStock, updatedAt} when
+        // the item does not yet exist in Firestore (offline-first race condition).
+        // Allow this minimal create so the sale can complete; SyncService fills
+        // in the remaining fields on the next successful push.
+        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'issueRefund']) &&
+          request.resource.data.keys().hasOnly(['currentStock', 'updatedAt']);
+
+        // Full document updates (SyncService, stock editor).
         allow update: if isOwnerOrStaffWithAny(bizId, ['editStock', 'adjustStock']);
+
+        // Sale / return stock deduction — only stock fields may change.
+        // 'stock' is a legacy alias for 'currentStock' written by some older code paths.
         allow update: if isOwnerOrStaffWithAny(bizId, ['createSale', 'issueRefund']) &&
           request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['currentStock', 'updatedAt']);
+            .hasOnly(['currentStock', 'stock', 'updatedAt']);
+
         allow delete: if isOwnerOrStaffWithAny(bizId, ['deleteStock']);
       }
 
