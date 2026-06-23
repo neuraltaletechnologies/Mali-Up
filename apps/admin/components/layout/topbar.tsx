@@ -24,21 +24,22 @@ const routeLabels: Record<string, string> = {
 
 function Breadcrumbs() {
   const pathname = usePathname()
-  const segments = pathname.split('/').filter(Boolean)
+  // Strip the leading /admin segment for display purposes
+  const adminSegments = pathname.split('/').filter(Boolean).slice(1) // remove 'admin'
 
-  if (segments.length === 0) {
+  if (adminSegments.length === 0) {
     return <span className="text-[13px] font-medium text-[var(--ink)]">Dashboard</span>
   }
 
   return (
     <div className="flex items-center gap-1 text-[13px]">
-      <Link href="/" className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors">
+      <Link href="/admin" className="text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors">
         Dashboard
       </Link>
-      {segments.map((seg, i) => {
-        const href = '/' + segments.slice(0, i + 1).join('/')
+      {adminSegments.map((seg, i) => {
+        const href = '/admin/' + adminSegments.slice(0, i + 1).join('/')
         const label = routeLabels[seg] ?? seg
-        const isLast = i === segments.length - 1
+        const isLast = i === adminSegments.length - 1
         return (
           <span key={seg} className="flex items-center gap-1">
             <ChevronRight className="h-3 w-3 text-[var(--ink-faint)]" />

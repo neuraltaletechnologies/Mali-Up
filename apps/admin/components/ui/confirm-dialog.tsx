@@ -6,12 +6,14 @@ import { cn } from '@/lib/utils'
 interface ConfirmDialogProps {
   open: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: () => void | Promise<void>
   title: string
-  consequence: string
+  consequence?: string
+  description?: string
   confirmLabel?: string
   cancelLabel?: string
   variant?: 'destructive' | 'warning'
+  destructive?: boolean
   loading?: boolean
 }
 
@@ -21,11 +23,15 @@ export function ConfirmDialog({
   onConfirm,
   title,
   consequence,
+  description,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
-  variant = 'destructive',
+  variant,
+  destructive,
   loading = false,
 }: ConfirmDialogProps) {
+  const resolvedVariant = variant ?? (destructive ? 'destructive' : 'destructive')
+  const body = description ?? consequence ?? ''
   if (!open) return null
 
   return (
@@ -38,13 +44,13 @@ export function ConfirmDialog({
         <div className="flex gap-4">
           <div className={cn(
             'shrink-0 rounded-full p-2 h-9 w-9 flex items-center justify-center',
-            variant === 'destructive' ? 'bg-[var(--status-bad-bg)] text-[var(--status-bad)]' : 'bg-[var(--status-warn-bg)] text-[var(--status-warn)]'
+            resolvedVariant === 'destructive' ? 'bg-[var(--status-bad-bg)] text-[var(--status-bad)]' : 'bg-[var(--status-warn-bg)] text-[var(--status-warn)]'
           )}>
             <AlertTriangle className="h-4 w-4" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-[15px] font-semibold text-[var(--ink)]">{title}</h3>
-            <p className="mt-1.5 text-[13px] text-[var(--ink-muted)] leading-relaxed">{consequence}</p>
+            <p className="mt-1.5 text-[13px] text-[var(--ink-muted)] leading-relaxed">{body}</p>
           </div>
         </div>
 
@@ -61,7 +67,7 @@ export function ConfirmDialog({
             disabled={loading}
             className={cn(
               'rounded-md px-4 py-1.5 text-[13px] font-medium text-white transition-colors disabled:opacity-50',
-              variant === 'destructive'
+              resolvedVariant === 'destructive'
                 ? 'bg-[var(--status-bad)] hover:bg-[#b91c1c]'
                 : 'bg-[var(--status-warn)] hover:bg-[#b45309]'
             )}
