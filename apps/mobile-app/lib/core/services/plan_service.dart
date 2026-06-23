@@ -6,14 +6,40 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tiers & limits
+// Tiers
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum PlanTier { starter, growth, business, enterprise }
 
+extension PlanTierX on PlanTier {
+  String get name {
+    switch (this) {
+      case PlanTier.starter:    return 'starter';
+      case PlanTier.growth:     return 'growth';
+      case PlanTier.business:   return 'business';
+      case PlanTier.enterprise: return 'enterprise';
+    }
+  }
+
+  static PlanTier fromString(String? raw) {
+    switch ((raw ?? '').toLowerCase()) {
+      case 'growth':     return PlanTier.growth;
+      case 'business':   return PlanTier.business;
+      case 'enterprise': return PlanTier.enterprise;
+      default:           return PlanTier.starter;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PlanLimits — runtime limits for a tier, sourced from Firestore or hardcoded
+// ─────────────────────────────────────────────────────────────────────────────
+
 class PlanLimits {
   final int monthlyInvoices; // -1 = unlimited
-  final int maxUsers;
+  final int maxUsers;        // -1 = unlimited
+  final int pricePerCycle;   // TZS total for the billing cycle
+  final int cycleMonths;
   final bool fullReports;
   final bool mpesaImport;
   final bool smsReminders;
@@ -21,10 +47,15 @@ class PlanLimits {
   final bool apiAccess;
   final bool allExports;
   final bool prioritySupport;
+  final bool customIntegrations;
+  final bool whiteLabel;
+  final bool dedicatedOnboarding;
 
   const PlanLimits({
     required this.monthlyInvoices,
     required this.maxUsers,
+    this.pricePerCycle = 0,
+    this.cycleMonths = 6,
     required this.fullReports,
     required this.mpesaImport,
     required this.smsReminders,
@@ -32,10 +63,49 @@ class PlanLimits {
     required this.apiAccess,
     required this.allExports,
     required this.prioritySupport,
+    this.customIntegrations = false,
+    this.whiteLabel = false,
+    this.dedicatedOnboarding = false,
   });
+
+  factory PlanLimits.fromFirestore(Map<String, dynamic> data, PlanLimits fallback) {
+    int asInt(String k, int def) {
+      final v = data[k];
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return def;
+    }
+    bool asBool(String k, bool def) {
+      final v = data[k];
+      if (v is bool) return v;
+      return def;
+    }
+    return PlanLimits(
+      monthlyInvoices:     asInt('monthlyInvoices',    fallback.monthlyInvoices),
+      maxUsers:            asInt('maxUsers',            fallback.maxUsers),
+      pricePerCycle:       asInt('pricePerCycle',       fallback.pricePerCycle),
+      cycleMonths:         asInt('cycleMonths',         fallback.cycleMonths),
+      fullReports:         asBool('fullReports',        fallback.fullReports),
+      mpesaImport:         asBool('mpesaImport',        fallback.mpesaImport),
+      smsReminders:        asBool('smsReminders',       fallback.smsReminders),
+      multiLocation:       asBool('multiLocation',      fallback.multiLocation),
+      apiAccess:           asBool('apiAccess',          fallback.apiAccess),
+      allExports:          asBool('allExports',         fallback.allExports),
+      prioritySupport:     asBool('prioritySupport',    fallback.prioritySupport),
+      customIntegrations:  asBool('customIntegrations', fallback.customIntegrations),
+      whiteLabel:          asBool('whiteLabel',         fallback.whiteLabel),
+      dedicatedOnboarding: asBool('dedicatedOnboarding', fallback.dedicatedOnboarding),
+    );
+  }
+
+  int get pricePerMonth =>
+      pricePerCycle > 0 && cycleMonths > 0
+          ? (pricePerCycle / cycleMonths).round()
+          : 0;
 }
 
-const _limits = <PlanTier, PlanLimits>{
+// Hardcoded fallbacks — used when Firestore is unreachable
+const _fallbackLimits = <PlanTier, PlanLimits>{
   PlanTier.starter: PlanLimits(
     monthlyInvoices: 50,
     maxUsers: 1,
@@ -50,6 +120,7 @@ const _limits = <PlanTier, PlanLimits>{
   PlanTier.growth: PlanLimits(
     monthlyInvoices: -1,
     maxUsers: 3,
+    pricePerCycle: 30000,
     fullReports: true,
     mpesaImport: true,
     smsReminders: true,
@@ -61,6 +132,7 @@ const _limits = <PlanTier, PlanLimits>{
   PlanTier.business: PlanLimits(
     monthlyInvoices: -1,
     maxUsers: 10,
+    pricePerCycle: 40000,
     fullReports: true,
     mpesaImport: true,
     smsReminders: true,
@@ -79,30 +151,73 @@ const _limits = <PlanTier, PlanLimits>{
     apiAccess: true,
     allExports: true,
     prioritySupport: true,
+    customIntegrations: true,
+    whiteLabel: true,
+    dedicatedOnboarding: true,
   ),
 };
 
-PlanLimits limitsFor(PlanTier tier) => _limits[tier]!;
+// ─────────────────────────────────────────────────────────────────────────────
+// Dynamic plan definitions — loaded from Firestore /platform_config/plans
+// ─────────────────────────────────────────────────────────────────────────────
+
+typedef PlanDefinitions = Map<PlanTier, PlanLimits>;
+
+final _db = FirebaseFirestore.instance;
+
+Future<PlanDefinitions> _fetchPlanDefinitions() async {
+  try {
+    final snap = await _db
+        .collection('platform_config')
+        .doc('plans')
+        .get();
+
+    if (!snap.exists) return Map.from(_fallbackLimits);
+
+    final data = snap.data() ?? {};
+    final result = Map<PlanTier, PlanLimits>.from(_fallbackLimits);
+    for (final tier in PlanTier.values) {
+      final raw = data[tier.name];
+      if (raw is Map<String, dynamic>) {
+        result[tier] = PlanLimits.fromFirestore(raw, _fallbackLimits[tier]!);
+      }
+    }
+    return result;
+  } catch (_) {
+    return Map.from(_fallbackLimits);
+  }
+}
+
+/// Cached plan definitions provider — auto-refreshed per session.
+final planDefinitionsProvider = FutureProvider.autoDispose<PlanDefinitions>((ref) {
+  return _fetchPlanDefinitions();
+});
+
+/// Convenience: get limits for a specific tier (synchronous, uses fallbacks).
+PlanLimits limitsFor(PlanTier tier, [PlanDefinitions? defs]) =>
+    defs?[tier] ?? _fallbackLimits[tier]!;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PlanStatus — runtime snapshot
+// PlanStatus — runtime snapshot for the current user
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PlanStatus {
   final PlanTier tier;
   final int invoicesUsedThisMonth;
   final DateTime? expiresAt;
+  final PlanDefinitions? definitions;
 
   const PlanStatus({
     required this.tier,
     required this.invoicesUsedThisMonth,
     this.expiresAt,
+    this.definitions,
   });
 
-  PlanLimits get limits => limitsFor(tier);
+  PlanLimits get limits => limitsFor(tier, definitions);
 
   bool get isStarter => tier == PlanTier.starter;
-  bool get isPaid => tier != PlanTier.starter;
+  bool get isPaid    => tier != PlanTier.starter;
 
   bool get canCreateInvoice {
     final limit = limits.monthlyInvoices;
@@ -146,26 +261,18 @@ class PlanStatus {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PlanService {
-  static final _db = FirebaseFirestore.instance;
-
-  static Future<PlanStatus> fetchStatus() async {
+  static Future<PlanStatus> fetchStatus({PlanDefinitions? defs}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const PlanStatus(tier: PlanTier.starter, invoicesUsedThisMonth: 0);
+      return PlanStatus(
+          tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
     }
 
     try {
       final doc = await _db.collection('users').doc(user.uid).get();
       final data = doc.data() ?? {};
 
-      final tierRaw = (data['plan'] as String?)?.toLowerCase();
-      final PlanTier tier;
-      switch (tierRaw) {
-        case 'growth':     tier = PlanTier.growth;     break;
-        case 'business':   tier = PlanTier.business;   break;
-        case 'enterprise': tier = PlanTier.enterprise; break;
-        default:           tier = PlanTier.starter;
-      }
+      final tier = PlanTierX.fromString(data['plan'] as String?);
 
       final expiresRaw = data['planExpiresAt'] ?? data['premiumExpiresAt'];
       DateTime? expiresAt;
@@ -179,7 +286,8 @@ class PlanService {
 
       int invoiceCount = 0;
       if (effectiveTier == PlanTier.starter) {
-        final selectedBusinessId = (data['selectedBusinessId'] as String?)?.trim() ?? '';
+        final selectedBusinessId =
+            (data['selectedBusinessId'] as String?)?.trim() ?? '';
         if (selectedBusinessId.isNotEmpty) {
           final now = DateTime.now();
           final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
@@ -198,13 +306,15 @@ class PlanService {
         tier: effectiveTier,
         invoicesUsedThisMonth: invoiceCount,
         expiresAt: expiresAt,
+        definitions: defs,
       );
     } catch (_) {
-      return const PlanStatus(tier: PlanTier.starter, invoicesUsedThisMonth: 0);
+      return PlanStatus(
+          tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
     }
   }
 
-  /// Activate a paid tier for [months] months.
+  /// Activate a paid tier for [months] months (admin-side only, kept for completeness).
   static Future<void> activatePlan({
     required String uid,
     required PlanTier tier,
@@ -220,11 +330,13 @@ class PlanService {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Riverpod provider
+// Riverpod providers
 // ─────────────────────────────────────────────────────────────────────────────
 
-final planStatusProvider = FutureProvider.autoDispose<PlanStatus>((ref) {
-  return PlanService.fetchStatus();
+/// Full plan status with dynamic limits baked in.
+final planStatusProvider = FutureProvider.autoDispose<PlanStatus>((ref) async {
+  final defs = await ref.watch(planDefinitionsProvider.future);
+  return PlanService.fetchStatus(defs: defs);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -241,11 +353,11 @@ class PlanUpgradeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!status.isStarter) return const SizedBox.shrink();
 
-    final atLimit  = !status.canCreateInvoice;
+    final atLimit   = !status.canCreateInvoice;
     final nearLimit = status.usagePercent >= 0.8;
     if (!nearLimit && !atLimit) return const SizedBox.shrink();
 
-    final limitLabel = limitsFor(PlanTier.starter).monthlyInvoices;
+    final limitLabel = status.limits.monthlyInvoices;
     final accent = atLimit ? AppColors.error : AppColors.warning;
 
     return Container(
@@ -291,7 +403,7 @@ class PlanUpgradeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Growth: TZS 5,000/mwezi — ankara zisizo na kikomo',
+                  'Growth: ${_fmtPrice(status.definitions?[PlanTier.growth]?.pricePerMonth ?? 5000)}/mwezi — ankara zisizo na kikomo',
                   style: GoogleFonts.dmSans(
                     fontSize: 11,
                     color: AppColors.textMuted,
@@ -338,8 +450,9 @@ class PlanInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPaid = status.isPaid;
-    final limit = limitsFor(PlanTier.starter).monthlyInvoices;
+    final isPaid  = status.isPaid;
+    final limit   = status.limits.monthlyInvoices;
+    final growthPrice = status.definitions?[PlanTier.growth]?.pricePerMonth ?? 5000;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -423,9 +536,8 @@ class PlanInfoCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text(
-                  'Angalia Mipango ya Malipo',
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w700),
+                  'Angalia Mipango ya Malipo — ${_fmtPrice(growthPrice)}/mwezi',
+                  style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -433,7 +545,7 @@ class PlanInfoCard extends StatelessWidget {
             const _FeatureRow(text: 'Ankara zisizo na kikomo', ok: true, light: true),
             const _FeatureRow(text: 'Ripoti kamili', ok: true, light: true),
             const _FeatureRow(text: 'Kuingiza data ya M-Pesa', ok: true, light: true),
-            if (status.tier == PlanTier.business || status == status)
+            if (status.tier == PlanTier.business || status.tier == PlanTier.enterprise)
               const _FeatureRow(text: 'Stoo nyingi', ok: true, light: true),
           ],
         ],
@@ -444,6 +556,13 @@ class PlanInfoCard extends StatelessWidget {
   static String _fmt(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+String _fmtPrice(int v) =>
+    'TZS ${v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}';
 
 class _UsageBar extends StatelessWidget {
   final PlanStatus status;

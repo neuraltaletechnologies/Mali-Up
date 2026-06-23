@@ -7,6 +7,11 @@ import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 
+String _fmtPrice(int v) =>
+    'TZS ${v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}';
+
+String _fmtPriceCompact(int v) => v == 0 ? 'Bure' : _fmtPrice(v);
+
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class SubscriptionScreen extends ConsumerWidget {
@@ -53,44 +58,48 @@ class SubscriptionScreen extends ConsumerWidget {
             ],
           ),
         ),
-        data: (status) => ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-          children: [
-            // ── Current plan card ──────────────────────────────
-            PlanInfoCard(
-              status: status,
-              onUpgradeTap: () => _openUpgrade(context, ref, status),
-            ),
-            const SizedBox(height: 28),
-
-            // ── Usage meters (Starter only) ────────────────────
-            if (status.isStarter) ...[
-              _SectionHeader(_t('Usage this month', 'Matumizi mwezi huu')),
-              const SizedBox(height: 12),
-              _UsageMeter(
-                label: _t('Invoices', 'Ankara'),
-                used: status.invoicesUsedThisMonth,
-                limit: limitsFor(PlanTier.starter).monthlyInvoices,
+        data: (status) {
+          final defs = status.definitions;
+          final growthLimits   = limitsFor(PlanTier.growth,   defs);
+          final businessLimits = limitsFor(PlanTier.business, defs);
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            children: [
+              // ── Current plan card ──────────────────────────────
+              PlanInfoCard(
+                status: status,
+                onUpgradeTap: () => _openUpgrade(context, ref, status),
               ),
               const SizedBox(height: 28),
-            ],
 
-            // ── All tiers comparison ───────────────────────────
-            _SectionHeader(_t('Compare plans', 'Linganisha mipango')),
-            const SizedBox(height: 12),
-            _ComparisonTable(currentTier: status.tier),
-            const SizedBox(height: 28),
+              // ── Usage meters (Starter only) ────────────────────
+              if (status.isStarter) ...[
+                _SectionHeader(_t('Usage this month', 'Matumizi mwezi huu')),
+                const SizedBox(height: 12),
+                _UsageMeter(
+                  label: _t('Invoices', 'Ankara'),
+                  used: status.invoicesUsedThisMonth,
+                  limit: status.limits.monthlyInvoices,
+                ),
+                const SizedBox(height: 28),
+              ],
 
-            // ── FAQ ────────────────────────────────────────────
-            _SectionHeader(_t('Common questions', 'Maswali ya kawaida')),
-            const SizedBox(height: 12),
-            _Faq(
-              q: _t('How do I pay?', 'Ninalipaje?'),
-              a: _t(
-                'Send TZS 30,000 (6 months × Growth) or TZS 60,000 (6 months × Business) via M-Pesa to our business number. Our team activates your plan within 24 hours.',
-                'Tuma TZS 30,000 (miezi 6 × Growth) au TZS 60,000 (miezi 6 × Business) kwa M-Pesa kwenye namba yetu ya biashara. Timu yetu itawasha mpango wako ndani ya masaa 24.',
+              // ── All tiers comparison ───────────────────────────
+              _SectionHeader(_t('Compare plans', 'Linganisha mipango')),
+              const SizedBox(height: 12),
+              _ComparisonTable(currentTier: status.tier, defs: defs),
+              const SizedBox(height: 28),
+
+              // ── FAQ ────────────────────────────────────────────
+              _SectionHeader(_t('Common questions', 'Maswali ya kawaida')),
+              const SizedBox(height: 12),
+              _Faq(
+                q: _t('How do I pay?', 'Ninalipaje?'),
+                a: _t(
+                  'Send ${_fmtPrice(growthLimits.pricePerCycle)} (${growthLimits.cycleMonths} months × Growth) or ${_fmtPrice(businessLimits.pricePerCycle)} (${businessLimits.cycleMonths} months × Business) via M-Pesa to our business number. Our team activates your plan within 24 hours.',
+                  'Tuma ${_fmtPrice(growthLimits.pricePerCycle)} (miezi ${growthLimits.cycleMonths} × Growth) au ${_fmtPrice(businessLimits.pricePerCycle)} (miezi ${businessLimits.cycleMonths} × Business) kwa M-Pesa kwenye namba yetu ya biashara. Timu yetu itawasha mpango wako ndani ya masaa 24.',
+                ),
               ),
-            ),
             _Faq(
               q: _t('Can I cancel?', 'Ninaweza kughairi?'),
               a: _t(
@@ -130,7 +139,8 @@ class SubscriptionScreen extends ConsumerWidget {
                 ),
               ),
           ],
-        ),
+        );
+        },
       ),
     );
   }
@@ -234,28 +244,53 @@ class _UsageMeter extends StatelessWidget {
 
 class _ComparisonTable extends StatelessWidget {
   final PlanTier currentTier;
-  const _ComparisonTable({required this.currentTier});
+  final PlanDefinitions? defs;
+  const _ComparisonTable({required this.currentTier, this.defs});
 
   @override
   Widget build(BuildContext context) {
     final tiers = [PlanTier.starter, PlanTier.growth, PlanTier.business];
     final tierNames = ['Starter', 'Growth', 'Business'];
-    final prices = ['Bure', '5,000/mwezi', '10,000/mwezi'];
 
-    final features = <(String, List<bool>)>[
-      (_t('Monthly invoices', 'Ankara / mwezi'),
-          [false, true, true]), // false = limited
-      (_t('Users', 'Watumiaji'), [false, false, true]),
-      (_t('Full reports', 'Ripoti kamili'), [false, true, true]),
-      (_t('M-Pesa import', 'Kuingiza M-Pesa'), [false, true, true]),
-      (_t('SMS reminders', 'Ukumbusho wa SMS'), [false, true, true]),
-      (_t('Multi-location stock', 'Stoo nyingi'), [false, false, true]),
-      (_t('API access', 'Ufikiaji wa API'), [false, false, true]),
-      (_t('Priority support', 'Msaada wa kipaumbele'), [false, false, true]),
+    final starterL  = limitsFor(PlanTier.starter,  defs);
+    final growthL   = limitsFor(PlanTier.growth,   defs);
+    final businessL = limitsFor(PlanTier.business, defs);
+
+    String priceLabel(PlanLimits l) =>
+        l.pricePerMonth > 0 ? '${_fmtPriceCompact(l.pricePerMonth)}/mwezi' : 'Bure';
+
+    final prices = [
+      priceLabel(starterL),
+      priceLabel(growthL),
+      priceLabel(businessL),
     ];
 
-    final limitLabels = ['50/mwezi', '∞', '∞'];
-    final userLabels = ['1', '3', '10'];
+    final allLimits = [starterL, growthL, businessL];
+
+    final features = <(String, List<bool>)>[
+      (_t('Monthly invoices', 'Ankara / mwezi'), [false, true, true]),
+      (_t('Users', 'Watumiaji'), [false, false, true]),
+      (_t('Full reports', 'Ripoti kamili'),
+          allLimits.map((l) => l.fullReports).toList()),
+      (_t('M-Pesa import', 'Kuingiza M-Pesa'),
+          allLimits.map((l) => l.mpesaImport).toList()),
+      (_t('SMS reminders', 'Ukumbusho wa SMS'),
+          allLimits.map((l) => l.smsReminders).toList()),
+      (_t('Multi-location stock', 'Stoo nyingi'),
+          allLimits.map((l) => l.multiLocation).toList()),
+      (_t('API access', 'Ufikiaji wa API'),
+          allLimits.map((l) => l.apiAccess).toList()),
+      (_t('Priority support', 'Msaada wa kipaumbele'),
+          allLimits.map((l) => l.prioritySupport).toList()),
+    ];
+
+    String invoiceLabel(PlanLimits l) =>
+        l.monthlyInvoices == -1 ? '∞' : '${l.monthlyInvoices}/mwezi';
+    String userLabel(PlanLimits l) =>
+        l.maxUsers == -1 ? '∞' : '${l.maxUsers}';
+
+    final limitLabels = allLimits.map(invoiceLabel).toList();
+    final userLabels  = allLimits.map(userLabel).toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -297,7 +332,7 @@ class _ComparisonTable extends StatelessWidget {
                             textAlign: TextAlign.center,
                           ),
                           Text(
-                            'TZS ${prices[i]}',
+                            prices[i],
                             style: GoogleFonts.dmSans(
                               fontSize: 9,
                               color: tiers[i] == currentTier

@@ -1326,9 +1326,9 @@ class _UnifiedHeroCard extends StatefulWidget {
 class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
   bool _detailsVisible = false;
 
-  static const _cardGrad1 = Color(0xFF003153);
-  static const _cardGrad2 = Color(0xFF102450);
-  static const _cardGrad3 = Color(0xFF003153);
+  static const _gradA = Color(0xFF0A1628);
+  static const _gradB = Color(0xFF0D2A4A);
+  static const _gradC = Color(0xFF091520);
 
   @override
   Widget build(BuildContext context) {
@@ -1336,7 +1336,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
         ? _fmtCompactAmount(widget.totalCash)
-        : '••••••••';
+        : '••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
     final expText = _detailsVisible
         ? _fmtCompactAmount(widget.totalExpenses)
@@ -1349,136 +1349,144 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
+        constraints: const BoxConstraints(maxWidth: 440),
         child: AspectRatio(
-          aspectRatio: 1.586,
+          aspectRatio: 1.65,
           child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(24),
               gradient: const LinearGradient(
-                colors: [_cardGrad1, _cardGrad2, _cardGrad3],
+                colors: [_gradA, _gradB, _gradC],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                stops: [0.0, 0.48, 1.0],
+                stops: [0.0, 0.5, 1.0],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: _cardGrad1.withValues(alpha: 0.50),
-                  blurRadius: 32,
-                  offset: const Offset(0, 14),
-                  spreadRadius: -4,
+                  color: const Color(0xFF0D1B3E).withValues(alpha: 0.65),
+                  blurRadius: 36,
+                  offset: const Offset(0, 18),
+                  spreadRadius: -6,
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 12,
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Stack(
               children: [
+                // Decorative arc — top-right
                 Positioned(
-                  right: -60,
-                  top: -60,
+                  right: -70,
+                  top: -70,
                   child: Container(
-                    width: 220,
-                    height: 220,
+                    width: 240,
+                    height: 240,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.035),
+                      color: Colors.white.withValues(alpha: 0.04),
                     ),
                   ),
                 ),
+                // Decorative arc — bottom-left (teal tint)
                 Positioned(
-                  left: -35,
-                  bottom: -35,
+                  left: -55,
+                  bottom: -55,
                   child: Container(
-                    width: 160,
-                    height: 160,
+                    width: 190,
+                    height: 190,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.yellowBrand.withValues(alpha: 0.07),
+                      color: AppColors.tealAccent.withValues(alpha: 0.09),
                     ),
                   ),
                 ),
+                // Top shimmer line
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
                   child: Container(
-                    height: 1.5,
+                    height: 1,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
                           Colors.transparent,
-                          AppColors.yellowBrand.withValues(alpha: 0.45),
+                          Colors.white.withValues(alpha: 0.28),
                           Colors.transparent,
                         ],
                       ),
                     ),
                   ),
                 ),
+                // Card content
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ── Top row: chip | name + plan | logo ──────────────
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           const _CardChip(),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  (widget.businessName ?? 'MY BUSINESS')
-                                      .toUpperCase(),
+                                  name.toUpperCase(),
                                   style: const TextStyle(
                                     color: AppColors.yellowBrand,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.8,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.6,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
+                                const SizedBox(height: 2),
                                 Text(
                                   (widget.plan ?? 'Trial').toUpperCase(),
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.52),
+                                    color: Colors.white.withValues(alpha: 0.42),
                                     fontSize: 8,
                                     fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.4,
+                                    letterSpacing: 1.3,
                                   ),
                                 ),
                               ],
                             ),
                           ),
+                          const SizedBox(width: 10),
+                          // Business logo avatar
                           Container(
-                            width: 42,
-                            height: 42,
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: AppColors.yellowBrand,
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.22),
+                                color: Colors.white.withValues(alpha: 0.28),
                                 width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
                                   color: AppColors.yellowBrand.withValues(
-                                    alpha: 0.35,
+                                    alpha: 0.40,
                                   ),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
                             clipBehavior: Clip.antiAlias,
-                            child:
-                                widget.logoUrl != null &&
+                            child: widget.logoUrl != null &&
                                     widget.logoUrl!.isNotEmpty
                                 ? Image.network(
                                     widget.logoUrl!,
@@ -1490,23 +1498,29 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+
+                      // Flexible space pushes balance down to vertical centre
+                      const Spacer(),
+
+                      // ── Balance section ──────────────────────────────────
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
                                   _tr('TOTAL BALANCE', 'JUMLA YA FEDHA'),
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.44),
-                                    fontSize: 8.5,
+                                    color: Colors.white.withValues(alpha: 0.48),
+                                    fontSize: 9,
                                     fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.2,
+                                    letterSpacing: 1.4,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 260),
                                   transitionBuilder: (child, anim) =>
@@ -1519,9 +1533,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                     key: ValueKey(_detailsVisible),
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 24,
+                                      fontSize: 28,
                                       fontWeight: FontWeight.w900,
-                                      letterSpacing: -0.5,
+                                      letterSpacing: -0.8,
                                       height: 1.0,
                                     ),
                                   ),
@@ -1529,39 +1543,48 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                               ],
                             ),
                           ),
+                          // Eye toggle — framed button
                           GestureDetector(
                             onTap: () => setState(
                               () => _detailsVisible = !_detailsVisible,
                             ),
                             child: Container(
-                              padding: const EdgeInsets.all(7),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(9),
+                                color: Colors.white.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.14),
+                                ),
                               ),
                               child: Icon(
                                 _detailsVisible
                                     ? Icons.visibility_rounded
                                     : Icons.visibility_off_rounded,
-                                size: 15,
-                                color: Colors.white.withValues(alpha: 0.7),
+                                size: 16,
+                                color: Colors.white.withValues(alpha: 0.75),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+
+                      const SizedBox(height: 14),
+
+                      // ── Stats pill ───────────────────────────────────────
                       Container(
-                        padding: const EdgeInsets.only(top: 7),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 4,
+                        ),
                         decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.12),
-                            ),
+                          color: Colors.white.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.11),
                           ),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             _CardStatItem(
                               label: _tr('Clients', 'Wateja'),
@@ -1569,8 +1592,8 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                             ),
                             Container(
                               width: 1,
-                              height: 22,
-                              color: Colors.white.withValues(alpha: 0.12),
+                              height: 26,
+                              color: Colors.white.withValues(alpha: 0.15),
                             ),
                             _CardStatItem(
                               label: _tr('Expenses', 'Gharama'),
@@ -1581,8 +1604,8 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                             ),
                             Container(
                               width: 1,
-                              height: 22,
-                              color: Colors.white.withValues(alpha: 0.12),
+                              height: 26,
+                              color: Colors.white.withValues(alpha: 0.15),
                             ),
                             _CardStatItem(
                               label: _tr('Net', 'Faida'),
