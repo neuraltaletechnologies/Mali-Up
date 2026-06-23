@@ -214,6 +214,32 @@ export interface CommunitySubmission {
   status: 'pending' | 'approved' | 'rejected'
 }
 
+export interface PlanDefinition {
+  pricePerCycle: number
+  cycleMonths: number
+  maxUsers: number       // -1 = unlimited
+  monthlyInvoices: number // -1 = unlimited
+  fullReports: boolean
+  mpesaImport: boolean
+  smsReminders: boolean
+  multiLocation: boolean
+  apiAccess: boolean
+  allExports: boolean
+  prioritySupport: boolean
+  customIntegrations: boolean
+  whiteLabel: boolean
+  dedicatedOnboarding: boolean
+}
+
+export type PlanDefinitions = Record<PlanTier, PlanDefinition>
+
+export interface PlanAssignment {
+  uid: string
+  businessId: string
+  tier: PlanTier
+  cycleMonths: number
+}
+
 export interface PlatformConfig {
   pricing: {
     starter: number

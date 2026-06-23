@@ -1,5 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/services/plan_service.dart';
@@ -16,18 +17,47 @@ Future<PlanTier?> showUpgradeSheet(
 }) {
   return showAppSheet<PlanTier>(
     context,
-    builder: (_) => _UpgradeSheet(
+    builder: (_) => _UpgradeSheetWrapper(
       currentStatus: currentStatus,
       triggerReason: triggerReason,
     ),
   );
 }
 
-class _UpgradeSheet extends StatefulWidget {
+// Wraps with Riverpod so the sheet can read planDefinitionsProvider.
+class _UpgradeSheetWrapper extends ConsumerWidget {
   final PlanStatus? currentStatus;
   final String? triggerReason;
 
-  const _UpgradeSheet({this.currentStatus, this.triggerReason});
+  const _UpgradeSheetWrapper({this.currentStatus, this.triggerReason});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final defsAsync = ref.watch(planDefinitionsProvider);
+    return defsAsync.when(
+      loading: () => const SizedBox(
+        height: 300,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => _UpgradeSheet(
+        currentStatus: currentStatus,
+        triggerReason: triggerReason,
+      ),
+      data: (defs) => _UpgradeSheet(
+        currentStatus: currentStatus,
+        triggerReason: triggerReason,
+        defs: defs,
+      ),
+    );
+  }
+}
+
+class _UpgradeSheet extends StatefulWidget {
+  final PlanStatus? currentStatus;
+  final String? triggerReason;
+  final PlanDefinitions? defs;
+
+  const _UpgradeSheet({this.currentStatus, this.triggerReason, this.defs});
 
   @override
   State<_UpgradeSheet> createState() => _UpgradeSheetState();
@@ -39,10 +69,10 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
 
   static const _mpesaNumber = '+255 XXX XXX XXX'; // Replace with actual M-Pesa number
 
-  int get _selectedPriceMonthly =>
-      _selected == PlanTier.growth ? 5000 : 10000;
+  PlanLimits get _selectedLimits => limitsFor(_selected, widget.defs);
 
-  int get _selectedPriceSixMonths => _selectedPriceMonthly * 6;
+  int get _selectedPriceSixMonths => _selectedLimits.pricePerCycle;
+  int get _selectedPriceMonthly   => _selectedLimits.pricePerMonth;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +91,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               const SheetHandle(),
               const SizedBox(height: 12),
 
-              // Header
+              // Trigger reason banner
               if (widget.triggerReason != null) ...[
                 Container(
                   padding:
@@ -114,19 +144,27 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               // Tier cards
               _TierCard(
                 tier: PlanTier.growth,
+                limits: limitsFor(PlanTier.growth, widget.defs),
                 isSelected: _selected == PlanTier.growth,
-                onTap: () => setState(() => _selected = PlanTier.growth),
+                onTap: () => setState(() {
+                  _selected = PlanTier.growth;
+                  _showPaymentInstructions = false;
+                }),
               ),
               const SizedBox(height: 12),
               _TierCard(
                 tier: PlanTier.business,
+                limits: limitsFor(PlanTier.business, widget.defs),
                 isSelected: _selected == PlanTier.business,
-                onTap: () => setState(() => _selected = PlanTier.business),
+                onTap: () => setState(() {
+                  _selected = PlanTier.business;
+                  _showPaymentInstructions = false;
+                }),
               ),
               const SizedBox(height: 12),
 
               // Enterprise
-              _EnterpriseCard(),
+              const _EnterpriseCard(),
 
               const SizedBox(height: 24),
 
@@ -147,7 +185,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                     ),
                     child: Text(
                       'Panda ${_selected == PlanTier.growth ? "Growth" : "Business"}'
-                      ' — TZS ${_fmt(_selectedPriceMonthly)}/mwezi',
+                      ' — ${_fmtPrice(_selectedPriceMonthly)}/mwezi',
                       style: GoogleFonts.dmSans(
                           fontSize: 15, fontWeight: FontWeight.w800),
                     ),
@@ -156,7 +194,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    'TZS ${_fmt(_selectedPriceSixMonths)} ulipwa kwa miezi 6 mbele',
+                    '${_fmtPrice(_selectedPriceSixMonths)} ulipwa kwa miezi ${_selectedLimits.cycleMonths} mbele',
                     style: GoogleFonts.dmSans(
                         fontSize: 11, color: AppColors.textMuted),
                   ),
@@ -165,7 +203,8 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 _PaymentInstructions(
                   tier: _selected,
                   priceMonthly: _selectedPriceMonthly,
-                  priceSixMonths: _selectedPriceSixMonths,
+                  priceCycle: _selectedPriceSixMonths,
+                  cycleMonths: _selectedLimits.cycleMonths,
                   mpesaNumber: _mpesaNumber,
                   onDone: () => Navigator.pop(context, _selected),
                 ),
@@ -176,20 +215,19 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
       ),
     );
   }
-
-  static String _fmt(int v) =>
-      v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TierCard extends StatelessWidget {
   final PlanTier tier;
+  final PlanLimits limits;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _TierCard({
     required this.tier,
+    required this.limits,
     required this.isSelected,
     required this.onTap,
   });
@@ -197,8 +235,6 @@ class _TierCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isGrowth = tier == PlanTier.growth;
-    final limits = limitsFor(tier);
-    final priceMonthly = isGrowth ? 5000 : 10000;
 
     return GestureDetector(
       onTap: onTap,
@@ -276,9 +312,7 @@ class _TierCard extends StatelessWidget {
                             style: GoogleFonts.dmSans(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: isSelected
-                                  ? AppColors.tealAccent
-                                  : AppColors.tealAccent,
+                              color: AppColors.tealAccent,
                             ),
                           ),
                         ),
@@ -286,7 +320,7 @@ class _TierCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'TZS ${_fmt(priceMonthly)} / mwezi',
+                    '${_fmtPrice(limits.pricePerMonth)} / mwezi',
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
                       color: isSelected
@@ -294,12 +328,24 @@ class _TierCard extends StatelessWidget {
                           : AppColors.textSecondary,
                     ),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${_fmtPrice(limits.pricePerCycle)} kwa miezi ${limits.cycleMonths}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.5)
+                          : AppColors.textMuted,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   _Feature(
                       text: 'Ankara zisizo na kikomo', ok: true, sel: isSelected),
                   _Feature(
-                      text: '${limits.maxUsers} watumiaji', ok: true, sel: isSelected),
-                  _Feature(text: 'Ripoti kamili', ok: true, sel: isSelected),
+                      text: '${limits.maxUsers == -1 ? "Wasio na kikomo" : limits.maxUsers} watumiaji',
+                      ok: true,
+                      sel: isSelected),
+                  _Feature(text: 'Ripoti kamili', ok: limits.fullReports, sel: isSelected),
                   _Feature(
                       text: 'Kuingiza data ya M-Pesa',
                       ok: limits.mpesaImport,
@@ -310,9 +356,13 @@ class _TierCard extends StatelessWidget {
                       sel: isSelected),
                   if (!isGrowth) ...[
                     _Feature(
-                        text: 'Stoo nyingi', ok: limits.multiLocation, sel: isSelected),
+                        text: 'Stoo nyingi',
+                        ok: limits.multiLocation,
+                        sel: isSelected),
                     _Feature(
-                        text: 'Ufikiaji wa API', ok: limits.apiAccess, sel: isSelected),
+                        text: 'Ufikiaji wa API',
+                        ok: limits.apiAccess,
+                        sel: isSelected),
                     _Feature(
                         text: 'Msaada wa kipaumbele',
                         ok: limits.prioritySupport,
@@ -326,9 +376,6 @@ class _TierCard extends StatelessWidget {
       ),
     );
   }
-
-  static String _fmt(int v) =>
-      v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
 }
 
 class _Feature extends StatelessWidget {
@@ -372,6 +419,8 @@ class _Feature extends StatelessWidget {
 }
 
 class _EnterpriseCard extends StatelessWidget {
+  const _EnterpriseCard();
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -439,14 +488,16 @@ class _EnterpriseCard extends StatelessWidget {
 class _PaymentInstructions extends StatelessWidget {
   final PlanTier tier;
   final int priceMonthly;
-  final int priceSixMonths;
+  final int priceCycle;
+  final int cycleMonths;
   final String mpesaNumber;
   final VoidCallback onDone;
 
   const _PaymentInstructions({
     required this.tier,
     required this.priceMonthly,
-    required this.priceSixMonths,
+    required this.priceCycle,
+    required this.cycleMonths,
     required this.mpesaNumber,
     required this.onDone,
   });
@@ -454,7 +505,8 @@ class _PaymentInstructions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
-    final ref = 'MALIUP-${tierName.toUpperCase()}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+    final ref =
+        'MALIUP-${tierName.toUpperCase()}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -481,35 +533,25 @@ class _PaymentInstructions extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const _Step(
-            number: '1',
-            text: 'Fungua M-Pesa kwenye simu yako',
-          ),
-          const _Step(
-            number: '2',
-            text: 'Chagua "Lipa Biashara" (Lipa Number)',
-          ),
+          const _Step(number: '1', text: 'Fungua M-Pesa kwenye simu yako'),
+          const _Step(number: '2', text: 'Chagua "Lipa Biashara" (Lipa Number)'),
           _Step(
             number: '3',
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    'Namba: $mpesaNumber',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
+                  child: Text('Namba: $mpesaNumber',
+                      style: GoogleFonts.dmSans(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
                 GestureDetector(
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: mpesaNumber));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Namba imenakiliwa'),
-                        duration: Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Namba imenakiliwa'),
+                      duration: Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ));
                   },
                   child: const Icon(Icons.copy_rounded,
                       size: 16, color: AppColors.tealAccent),
@@ -523,12 +565,12 @@ class _PaymentInstructions extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Kiasi: TZS ${_fmt(priceSixMonths)} (miezi 6)',
+                  'Kiasi: ${_fmtPrice(priceCycle)} (miezi $cycleMonths)',
                   style: GoogleFonts.dmSans(
                       fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  '(TZS ${_fmt(priceMonthly)}/mwezi × 6)',
+                  '(${_fmtPrice(priceMonthly)}/mwezi × $cycleMonths)',
                   style: GoogleFonts.dmSans(
                       fontSize: 11, color: AppColors.textMuted),
                 ),
@@ -543,32 +585,26 @@ class _PaymentInstructions extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Maelezo / Kumbukumbu:',
-                        style: GoogleFonts.dmSans(fontSize: 12,
-                            color: AppColors.textSecondary),
-                      ),
-                      Text(
-                        ref,
-                        style: GoogleFonts.dmSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                            color: AppColors.navyPrimary),
-                      ),
+                      Text('Maelezo / Kumbukumbu:',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12, color: AppColors.textSecondary)),
+                      Text(ref,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                              color: AppColors.navyPrimary)),
                     ],
                   ),
                 ),
                 GestureDetector(
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: ref));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Kumbukumbu imenakiliwa'),
-                        duration: Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Kumbukumbu imenakiliwa'),
+                      duration: Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ));
                   },
                   child: const Icon(Icons.copy_rounded,
                       size: 16, color: AppColors.tealAccent),
@@ -603,9 +639,6 @@ class _PaymentInstructions extends StatelessWidget {
       ),
     );
   }
-
-  static String _fmt(int v) =>
-      v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
 }
 
 class _Step extends StatelessWidget {
@@ -631,23 +664,17 @@ class _Step extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: Text(
-                number,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+              child: Text(number,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800)),
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: text != null
-                ? Text(
-                    text!,
-                    style: GoogleFonts.dmSans(fontSize: 13),
-                  )
+                ? Text(text!, style: GoogleFonts.dmSans(fontSize: 13))
                 : child!,
           ),
         ],
@@ -655,3 +682,8 @@ class _Step extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+String _fmtPrice(int v) =>
+    'TZS ${v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}';

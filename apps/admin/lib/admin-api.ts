@@ -2,6 +2,7 @@ import type {
   AdminUser, Business, AnalyticsOverview, CatalogProduct, CatalogCategory,
   Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
+  PlanDefinition, PlanDefinitions, PlanTier,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -180,6 +181,48 @@ export async function patchCatalogProduct(id: string, data: Partial<CatalogProdu
 
 export async function deleteCatalogProduct(id: string): Promise<void> {
   await apiFetch(`/api/admin/catalog/${id}`, { method: 'DELETE' })
+}
+
+// ─── Catalog Categories ───────────────────────────────────────────────────────
+
+export async function postCatalogCategory(data: Record<string, unknown>): Promise<{ id: string }> {
+  return apiFetch('/api/admin/catalog/categories', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function patchCatalogCategory(id: string, data: Record<string, unknown>): Promise<void> {
+  await apiFetch(`/api/admin/catalog/categories/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteCatalogCategory(id: string): Promise<void> {
+  await apiFetch(`/api/admin/catalog/categories/${id}`, { method: 'DELETE' })
+}
+
+// ─── Plans ────────────────────────────────────────────────────────────────────
+
+export async function fetchPlans(): Promise<{ plans: PlanDefinitions }> {
+  return apiFetch('/api/admin/plans')
+}
+
+export async function patchPlan(tier: PlanTier, data: Partial<PlanDefinition>): Promise<void> {
+  await apiFetch(`/api/admin/plans/${tier}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function assignPlan(
+  uid: string,
+  businessId: string,
+  tier: PlanTier,
+  cycleMonths: number,
+): Promise<{ tier: PlanTier; expiresAt: string | null }> {
+  return apiFetch('/api/admin/plans/assign', {
+    method: 'POST',
+    body: JSON.stringify({ uid, businessId, tier, cycleMonths }),
+  })
 }
 
 // ─── Business Notes ───────────────────────────────────────────────────────────
