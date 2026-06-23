@@ -2,13 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { signOut, useSession } from 'next-auth/react'
 import {
   LayoutDashboard, Users, Building2, CreditCard, Star, RefreshCcw, DollarSign,
   Package, LifeBuoy, ClipboardList, Activity, ToggleLeft, Settings, UserCircle,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, LogOut
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
+import { clearAdminCache } from '@/hooks/use-admin-fetch'
 
 interface NavItem {
   label: string
@@ -18,47 +20,47 @@ interface NavItem {
 }
 
 const nav: NavItem[] = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   {
     label: 'People', icon: Users,
     children: [
-      { label: 'Users', href: '/users' },
-      { label: 'Businesses', href: '/businesses' },
+      { label: 'Users', href: '/admin/users' },
+      { label: 'Businesses', href: '/admin/businesses' },
     ]
   },
   {
     label: 'Revenue', icon: DollarSign,
     children: [
-      { label: 'Plans',              href: '/plans' },
-      { label: 'Subscriptions',      href: '/subscriptions' },
-      { label: 'Lifetime',           href: '/lifetime' },
-      { label: 'Revenue Analytics',  href: '/revenue' },
-      { label: 'Refunds',            href: '/refunds' },
+      { label: 'Plans',              href: '/admin/plans' },
+      { label: 'Subscriptions',      href: '/admin/subscriptions' },
+      { label: 'Lifetime',           href: '/admin/lifetime' },
+      { label: 'Revenue Analytics',  href: '/admin/revenue' },
+      { label: 'Refunds',            href: '/admin/refunds' },
     ]
   },
   {
     label: 'Catalog', icon: Package,
     children: [
-      { label: 'Master Catalog', href: '/catalog' },
-      { label: 'Submissions', href: '/catalog/submissions' },
+      { label: 'Master Catalog', href: '/admin/catalog' },
+      { label: 'Submissions', href: '/admin/catalog/submissions' },
     ]
   },
   {
     label: 'Operations', icon: ClipboardList,
     children: [
-      { label: 'Support', href: '/support' },
-      { label: 'Audit Log', href: '/audit' },
+      { label: 'Support', href: '/admin/support' },
+      { label: 'Audit Log', href: '/admin/audit' },
     ]
   },
   {
     label: 'Platform', icon: Activity,
     children: [
-      { label: 'System Health', href: '/system' },
-      { label: 'Feature Flags', href: '/features' },
-      { label: 'Config', href: '/config' },
+      { label: 'System Health', href: '/admin/system' },
+      { label: 'Feature Flags', href: '/admin/features' },
+      { label: 'Config', href: '/admin/config' },
     ]
   },
-  { label: 'My Profile', href: '/profile', icon: UserCircle },
+  { label: 'My Profile', href: '/admin/profile', icon: UserCircle },
 ]
 
 interface SidebarGroupProps {
@@ -72,7 +74,7 @@ function SidebarGroup({ item, pathname }: SidebarGroupProps) {
   const Icon = item.icon
 
   if (!item.children) {
-    const active = pathname === item.href
+    const active = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href!)
     return (
       <Link
         href={item.href!}
@@ -126,6 +128,14 @@ function SidebarGroup({ item, pathname }: SidebarGroupProps) {
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    clearAdminCache()
+    await signOut({ callbackUrl: '/admin/login' })
+  }
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-[240px] bg-[var(--navy)] flex flex-col z-30">
@@ -149,12 +159,27 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-white/10">
-        <div className="text-[10px] text-slate-500 leading-relaxed">
-          Neuraltale Technology<br />
-          Internal operations tool
+      {/* Footer — user + logout */}
+      <div className="px-3 py-3 border-t border-white/10">
+        <div className="flex items-center gap-2.5 px-2 mb-2">
+          <div className="h-6 w-6 rounded-full bg-gradient-to-br from-[#1A6E8A] to-[#0D1B3E] flex items-center justify-center shrink-0">
+            <span className="text-white text-[10px] font-semibold">
+              {(session?.user?.name ?? 'A').charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-medium text-slate-300 truncate">{session?.user?.name ?? 'Admin'}</div>
+            <div className="text-[10px] text-slate-500 truncate">{session?.user?.email ?? ''}</div>
+          </div>
         </div>
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="w-full flex items-center gap-2 rounded-md px-3 py-1.5 text-[12px] text-slate-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
+        >
+          <LogOut className="h-3.5 w-3.5 shrink-0" />
+          {loggingOut ? 'Signing out…' : 'Sign out'}
+        </button>
       </div>
     </aside>
   )
