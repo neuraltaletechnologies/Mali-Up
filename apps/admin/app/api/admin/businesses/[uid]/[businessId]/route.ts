@@ -7,6 +7,9 @@ import type { AdminNote } from '@/types'
 
 type Params = { uid: string; businessId: string }
 
+// Mobile app stores businesses in the top-level `businesses/{businessId}` collection.
+// The `uid` URL segment is the ownerUid for navigation context only.
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<Params> },
@@ -17,29 +20,32 @@ export async function GET(
   const { uid, businessId } = await params
 
   try {
-    const bizRef = adminFirestore
-      .collection('tenants')
-      .doc(uid)
-      .collection('businesses')
-      .doc(businessId)
+    const bizRef = adminFirestore.collection('businesses').doc(businessId)
 
-    const [bizDoc, staffSnap, notesSnap] = await Promise.all([
+    const [bizDoc, staffSnap, notesSnap, invoiceSnap, customerSnap] = await Promise.all([
       bizRef.get(),
-      bizRef.collection('team_members').count().get(),
+      bizRef.collection('staff').get(),
       bizRef.collection('admin_notes').orderBy('createdAt', 'desc').get(),
+      bizRef.collection('invoices').count().get(),
+      bizRef.collection('customers').count().get(),
     ])
 
     if (!bizDoc.exists) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 })
     }
 
-    const staffCount = staffSnap.data().count ?? 0
-    const business = mapBusiness(
-      uid,
-      businessId,
-      bizDoc.data() as Record<string, unknown>,
-      staffCount,
-    )
+    const raw = bizDoc.data() as Record<string, unknown>
+    const staffMembers = staffSnap.docs.map((doc) => ({
+      id:          doc.id,
+      name:        (doc.data().name as string) || (doc.data().displayName as string) || 'Unknown',
+      phone:       (doc.data().phone as string) || '',
+      role:        (doc.data().role as string) || (doc.data().permissions as string) || 'staff',
+      status:      (doc.data().status as string) || 'active',
+      invitedAt:   toIso(doc.data().invitedAt),
+    }))
+
+    const staffCount = staffMembers.length
+    const business = mapBusiness(uid || (raw.ownerUid as string) || '', businessId, raw, staffCount)
 
     const notes: AdminNote[] = notesSnap.docs.map((doc) => ({
       id:        doc.id,
@@ -48,19 +54,15 @@ export async function GET(
       createdAt: toIso(doc.data().createdAt),
     }))
 
-    const [invoiceSnap] = await Promise.all([
-      bizRef.collection('invoices').count().get(),
-    ])
     business.invoiceCount = invoiceSnap.data().count ?? 0
+    business.customerCount = customerSnap.data().count ?? 0
     business.notes = notes
+    business.staffMembers = staffMembers
 
-    // Read pre-computed financial totals from the business doc if the mobile
-    // app synced them back (field names match common Drift→Firestore sync output)
-    const raw = bizDoc.data() as Record<string, unknown>
-    if (typeof raw.totalRevenue    === 'number') business.totalRevenue = raw.totalRevenue
+    if (typeof raw.totalRevenue      === 'number') business.totalRevenue = raw.totalRevenue
     if (typeof raw.outstandingBalance === 'number') business.receivables = raw.outstandingBalance
-    else if (typeof raw.receivables === 'number') business.receivables = raw.receivables
-    if (typeof raw.totalExpenses   === 'number') business.expenseTotal = raw.totalExpenses
+    else if (typeof raw.receivables  === 'number') business.receivables = raw.receivables
+    if (typeof raw.totalExpenses     === 'number') business.expenseTotal = raw.totalExpenses
 
     return NextResponse.json({ business })
   } catch (err) {
@@ -85,14 +87,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'isActive (boolean) required' }, { status: 400 })
     }
 
-    const bizRef2 = adminFirestore
-      .collection('tenants').doc(uid)
-      .collection('businesses').doc(businessId)
+    const bizRef = adminFirestore.collection('businesses').doc(businessId)
+    const bizDoc = await bizRef.get()
+    const bizName = (bizDoc.data()?.businessName as string) || businessId
 
-    const bizDoc2 = await bizRef2.get()
-    const bizName = (bizDoc2.data()?.businessName as string) || businessId
-
-    await bizRef2.update({ isActive: body.isActive, updatedAt: new Date() })
+    await bizRef.update({ isActive: body.isActive, updatedAt: new Date() })
 
     await writeAudit({
       action: body.isActive ? 'unsuspend_business' : 'suspend_business',
@@ -128,8 +127,6 @@ export async function POST(
     }
 
     const ref = await adminFirestore
-      .collection('tenants')
-      .doc(uid)
       .collection('businesses')
       .doc(businessId)
       .collection('admin_notes')

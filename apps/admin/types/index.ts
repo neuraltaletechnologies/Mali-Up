@@ -18,6 +18,15 @@ export interface AdminUser {
   joinedAt: string
 }
 
+export interface StaffMember {
+  id: string
+  name: string
+  phone: string
+  role: string
+  status: string
+  invitedAt: string
+}
+
 export interface Business {
   id: string
   name: string
@@ -33,10 +42,12 @@ export interface Business {
   industry: string
   location?: string
   invoiceCount?: number
+  customerCount?: number
   totalRevenue?: number
   receivables?: number
   expenseTotal?: number
   notes?: AdminNote[]
+  staffMembers?: StaffMember[]
 }
 
 export interface AdminNote {

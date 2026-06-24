@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../inventory/domain/models/inventory_item.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
+import '../../../debt/data/debt_providers.dart';
+import '../../../debt/domain/models/debt.dart';
 import '../../domain/models/master_product.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -35,6 +38,9 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
   late final TextEditingController _skuCtrl;
 
   bool _saving = false;
+  bool _isPurchaseOnCredit = false;
+  final _supplierNameCtrl = TextEditingController();
+  final _supplierPhoneCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -62,6 +68,8 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
     _sellCtrl.dispose();
     _stockCtrl.dispose();
     _skuCtrl.dispose();
+    _supplierNameCtrl.dispose();
+    _supplierPhoneCtrl.dispose();
     super.dispose();
   }
 
@@ -107,12 +115,39 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
 
       await ref.read(inventoryRepositoryProvider).save(item);
 
+      // Auto-create payable debt when product is purchased on credit
+      if (_isPurchaseOnCredit && _costVal > 0 && _stockVal > 0) {
+        final total = _costVal * _stockVal;
+        final dueDate = DateTime.now().add(const Duration(days: 30));
+        final dueDateStr =
+            '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
+        await ref.read(debtRepositoryProvider).save(Debt(
+          id: '',
+          partyName: _supplierNameCtrl.text.trim(),
+          partyPhone: _supplierPhoneCtrl.text.trim(),
+          type: 'payable',
+          originalAmount: total,
+          dueDate: dueDateStr,
+          note: _tr(
+              'Purchase: ${_nameCtrl.text.trim()}',
+              'Ununuzi: ${_nameCtrl.text.trim()}'),
+          createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
+          createdAt: DateTime.now().toIso8601String(),
+        ));
+      }
+
       if (!mounted) return;
       msg.showSnackBar(SnackBar(
         content: Text(
-          _tr('Product imported successfully!', 'Bidhaa imeingizwa kwa mafanikio!'),
+          _isPurchaseOnCredit
+              ? _tr(
+                  'Product imported – debt recorded in Payables',
+                  'Bidhaa imeingizwa – deni limerekodiwa kwenye Madeni',
+                )
+              : _tr('Product imported successfully!', 'Bidhaa imeingizwa kwa mafanikio!'),
         ),
-        backgroundColor: AppColors.success,
+        backgroundColor:
+            _isPurchaseOnCredit ? AppColors.warning : AppColors.success,
         behavior: SnackBarBehavior.floating,
       ));
       // Pop back to catalog, then pop catalog to return to inventory
@@ -312,7 +347,113 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // ── Section: Credit Purchase ──────────────────────────────────
+            Container(
+              decoration: BoxDecoration(
+                color: _isPurchaseOnCredit
+                    ? AppColors.error.withValues(alpha: 0.05)
+                    : const Color(0xFFF8F9FC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _isPurchaseOnCredit
+                      ? AppColors.error.withValues(alpha: 0.3)
+                      : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    value: _isPurchaseOnCredit,
+                    onChanged: (v) =>
+                        setState(() => _isPurchaseOnCredit = v),
+                    activeThumbColor: AppColors.error,
+                    title: Text(
+                      _tr('Purchased on Credit', 'Umenunua kwa Mkopo'),
+                      style: GoogleFonts.inter(
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      _tr(
+                        'Not fully paid – record as payable debt',
+                        'Haujalipia kikamilifu – rekodi kama deni',
+                      ),
+                      style: GoogleFonts.inter(fontSize: 12),
+                    ),
+                  ),
+                  if (_isPurchaseOnCredit) ...[
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _supplierNameCtrl,
+                            style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: AppColors.navyPrimary),
+                            decoration: InputDecoration(
+                              labelText: _tr(
+                                  'Supplier Name (Optional)',
+                                  'Jina la Muuzaji (Hiari)'),
+                              prefixIcon: const Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 20),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextFormField(
+                            controller: _supplierPhoneCtrl,
+                            keyboardType: TextInputType.phone,
+                            style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: AppColors.navyPrimary),
+                            decoration: InputDecoration(
+                              labelText: _tr(
+                                  'Supplier Phone (Optional)',
+                                  'Simu ya Muuzaji (Hiari)'),
+                              prefixIcon: const Icon(
+                                  Icons.phone_outlined, size: 20),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                          if (_costVal > 0 && _stockVal > 0) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.error
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _tr(
+                                  'Debt amount: TZS ${(_costVal * _stockVal).toStringAsFixed(0)}',
+                                  'Kiasi cha deni: TZS ${(_costVal * _stockVal).toStringAsFixed(0)}',
+                                ),
+                                style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.error),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
 
             // ── Import button ─────────────────────────────────────────────
             SizedBox(
