@@ -13,15 +13,35 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { fetchBusiness, patchBusiness, postBusinessNote } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatDate, timeAgo } from '@/lib/format'
-import { ArrowLeft, Ban, RotateCcw, MessageSquarePlus, AlertCircle } from 'lucide-react'
+import {
+  ArrowLeft, Ban, RotateCcw, MessageSquarePlus, AlertCircle,
+  Users, Receipt, ShoppingBag, UserCheck,
+} from 'lucide-react'
+import type { StaffMember } from '@/types'
 
 const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'subscription', label: 'Subscription' },
-  { id: 'staff', label: 'Staff' },
-  { id: 'financial', label: 'Financial' },
-  { id: 'notes', label: 'Notes' },
+  { id: 'overview',      label: 'Overview' },
+  { id: 'team',          label: 'Team' },
+  { id: 'financial',     label: 'Financial' },
+  { id: 'subscription',  label: 'Subscription' },
+  { id: 'notes',         label: 'Notes' },
 ]
+
+function RoleBadge({ role }: { role: string }) {
+  const colours: Record<string, string> = {
+    owner:   'bg-amber-500/20 text-amber-300',
+    admin:   'bg-blue-500/20 text-blue-300',
+    manager: 'bg-teal-500/20 text-teal-300',
+    cashier: 'bg-slate-500/20 text-slate-300',
+    staff:   'bg-slate-500/20 text-slate-300',
+  }
+  const cls = colours[role.toLowerCase()] ?? colours.staff
+  return (
+    <span className={`inline-flex rounded px-1.5 py-0.5 text-[11px] font-medium ${cls}`}>
+      {role.charAt(0).toUpperCase() + role.slice(1)}
+    </span>
+  )
+}
 
 export default function BusinessDetailPage() {
   const { uid, bizId } = useParams<{ uid: string; bizId: string }>()
@@ -95,6 +115,8 @@ export default function BusinessDetailPage() {
     )
   }
 
+  const staff: StaffMember[] = business.staffMembers ?? []
+
   return (
     <div>
       <button
@@ -128,8 +150,8 @@ export default function BusinessDetailPage() {
         )}
       </PageHeader>
 
-      {/* header strip */}
-      <div className="flex items-center gap-6 mb-5 p-4 rounded-lg border border-[var(--line)] bg-[var(--surface)]">
+      {/* Header strip */}
+      <div className="flex flex-wrap items-center gap-6 mb-5 p-4 rounded-lg border border-[var(--line)] bg-[var(--surface)]">
         <div className="flex items-center gap-2">
           <PlanBadge tier={business.plan} />
           <StatusDot
@@ -139,13 +161,48 @@ export default function BusinessDetailPage() {
           />
         </div>
         <div className="text-[12px] text-[var(--ink-muted)]">
-          Owner: <span className="text-[var(--ink)] font-medium">{business.ownerName}</span>
+          Owner: <span className="text-[var(--ink)] font-medium">{business.ownerName || '—'}</span>
           {business.ownerPhone && (
-            <span className="ml-1 font-mono text-[var(--ink-faint)]">{business.ownerPhone}</span>
+            <span className="ml-2 font-mono text-[var(--ink-faint)]">{business.ownerPhone}</span>
           )}
+        </div>
+        <div className="text-[12px] text-[var(--ink-muted)] font-mono">
+          ID: <span className="text-[var(--ink-faint)]">{business.id}</span>
         </div>
         <div className="text-[12px] text-[var(--ink-muted)] ml-auto">
           Joined {formatDate(business.createdAt)}
+        </div>
+      </div>
+
+      {/* Quick stat pills */}
+      <div className="grid grid-cols-4 gap-3 mb-5">
+        <div className="flex items-center gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+          <Users className="h-4 w-4 text-[var(--accent)]" />
+          <div>
+            <div className="text-[18px] font-semibold font-mono text-[var(--ink)]">{business.staffCount}</div>
+            <div className="text-[11px] text-[var(--ink-faint)]">Team members</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+          <Receipt className="h-4 w-4 text-[var(--accent)]" />
+          <div>
+            <div className="text-[18px] font-semibold font-mono text-[var(--ink)]">{business.invoiceCount ?? 0}</div>
+            <div className="text-[11px] text-[var(--ink-faint)]">Invoices</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+          <ShoppingBag className="h-4 w-4 text-[var(--accent)]" />
+          <div>
+            <div className="text-[18px] font-semibold font-mono text-[var(--ink)]">{business.customerCount ?? 0}</div>
+            <div className="text-[11px] text-[var(--ink-faint)]">Customers</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+          <UserCheck className="h-4 w-4 text-[var(--accent)]" />
+          <div>
+            <div className="text-[12px] font-semibold text-[var(--ink)]">{timeAgo(business.lastActive)}</div>
+            <div className="text-[11px] text-[var(--ink-faint)]">Last active</div>
+          </div>
         </div>
       </div>
 
@@ -154,12 +211,83 @@ export default function BusinessDetailPage() {
       {/* Overview */}
       {tab === 'overview' && (
         <div className="grid grid-cols-3 gap-4">
-          <KPICard label="Staff Members" value={business.staffCount.toString()} mono={false} />
-          <KPICard label="Last Active" value={timeAgo(business.lastActive)} mono={false} />
-          <KPICard label="Joined" value={formatDate(business.createdAt)} mono={false} />
-          <KPICard label="Total Invoices" value={(business.invoiceCount ?? 0).toString()} mono={false} />
+          <KPICard label="Plan" value={business.plan.charAt(0).toUpperCase() + business.plan.slice(1)} mono={false} />
+          <KPICard label="Status" value={business.status.charAt(0).toUpperCase() + business.status.slice(1)} mono={false} />
           <KPICard label="Industry" value={business.industry} mono={false} />
           {business.location && <KPICard label="Location" value={business.location} mono={false} />}
+          <KPICard label="Joined" value={formatDate(business.createdAt)} mono={false} />
+          <KPICard label="Last Active" value={timeAgo(business.lastActive)} mono={false} />
+          {business.totalRevenue != null && (
+            <KPICard label="Total Revenue" value={formatTZS(business.totalRevenue)} />
+          )}
+          {business.receivables != null && (
+            <KPICard label="Outstanding Receivables" value={formatTZS(business.receivables)} />
+          )}
+        </div>
+      )}
+
+      {/* Team */}
+      {tab === 'team' && (
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] overflow-hidden">
+          {staff.length === 0 ? (
+            <div className="p-8 text-center">
+              <Users className="h-8 w-8 text-[var(--ink-faint)] mx-auto mb-2" />
+              <p className="text-[13px] text-[var(--ink-muted)]">No team members found.</p>
+              <p className="text-[12px] text-[var(--ink-faint)] mt-1">The business may not have invited any staff yet.</p>
+            </div>
+          ) : (
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-[var(--line)] bg-[var(--canvas)]">
+                  <th className="px-4 py-2.5 text-left text-[11px] font-medium text-[var(--ink-faint)] uppercase tracking-wide">Member</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-medium text-[var(--ink-faint)] uppercase tracking-wide">Role</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-medium text-[var(--ink-faint)] uppercase tracking-wide">Status</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-medium text-[var(--ink-faint)] uppercase tracking-wide">Joined</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staff.map((m, i) => (
+                  <tr key={m.id} className={`border-b border-[var(--line)] last:border-0 ${i % 2 === 1 ? 'bg-[var(--canvas)]' : ''}`}>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-[var(--ink)]">{m.name}</div>
+                      {m.phone && <div className="text-[11px] text-[var(--ink-faint)] font-mono">{m.phone}</div>}
+                    </td>
+                    <td className="px-4 py-3"><RoleBadge role={m.role} /></td>
+                    <td className="px-4 py-3">
+                      <StatusDot
+                        status={m.status === 'active' ? 'good' : m.status === 'suspended' ? 'bad' : 'warn'}
+                        label={m.status.charAt(0).toUpperCase() + m.status.slice(1)}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-[var(--ink-muted)]">{formatDate(m.invitedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Financial */}
+      {tab === 'financial' && (
+        <div className="grid grid-cols-2 gap-4">
+          <KPICard label="Total Invoices" value={(business.invoiceCount ?? 0).toString()} mono={false} />
+          <KPICard label="Total Customers" value={(business.customerCount ?? 0).toString()} mono={false} />
+          <KPICard
+            label="Total Revenue"
+            value={business.totalRevenue != null ? formatTZS(business.totalRevenue) : '—'}
+          />
+          <KPICard
+            label="Outstanding Receivables"
+            value={business.receivables != null ? formatTZS(business.receivables) : '—'}
+          />
+          <KPICard
+            label="Total Expenses"
+            value={business.expenseTotal != null ? formatTZS(business.expenseTotal) : '—'}
+          />
+          {business.mrr > 0 && (
+            <KPICard label="Monthly Revenue (plan)" value={formatTZS(business.mrr)} />
+          )}
         </div>
       )}
 
@@ -184,32 +312,9 @@ export default function BusinessDetailPage() {
           {business.plan === 'lifetime' && (
             <div className="mt-2 text-[13px] text-[var(--ink-muted)]">
               View full UTT AMIS details on the{' '}
-              <a href="/lifetime" className="text-[var(--accent)] hover:underline">Lifetime page</a>.
+              <a href="/admin/lifetime" className="text-[var(--accent)] hover:underline">Lifetime page</a>.
             </div>
           )}
-        </div>
-      )}
-
-      {/* Staff */}
-      {tab === 'staff' && (
-        <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6">
-          <p className="text-[13px] text-[var(--ink)]">
-            <span className="font-semibold">{business.staffCount}</span>{' '}
-            team member{business.staffCount !== 1 ? 's' : ''} on this business.
-          </p>
-          <p className="mt-2 text-[12px] text-[var(--ink-faint)]">
-            Individual roster view coming in a future release.
-          </p>
-        </div>
-      )}
-
-      {/* Financial */}
-      {tab === 'financial' && (
-        <div className="grid grid-cols-2 gap-4">
-          <KPICard label="Total Invoices" value={(business.invoiceCount ?? 0).toString()} mono={false} />
-          <KPICard label="Total Revenue" value={business.totalRevenue ? formatTZS(business.totalRevenue) : '—'} />
-          <KPICard label="Receivables" value={business.receivables ? formatTZS(business.receivables) : '—'} />
-          <KPICard label="Total Expenses" value={business.expenseTotal ? formatTZS(business.expenseTotal) : '—'} />
         </div>
       )}
 

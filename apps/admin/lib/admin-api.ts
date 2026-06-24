@@ -252,6 +252,32 @@ export async function saveLookupDistricts(items: AppLookups['districts']): Promi
   })
 }
 
+// ─── AI Catalog Generation ────────────────────────────────────────────────────
+
+export async function generateCatalogForIndustry(
+  businessTypeId: string,
+  businessTypeEn: string,
+  businessTypeSw: string,
+): Promise<{ categoriesAdded: number; productsAdded: number }> {
+  return apiFetch('/api/admin/catalog/generate', {
+    method: 'POST',
+    body: JSON.stringify({ businessTypeId, businessTypeEn, businessTypeSw }),
+  })
+}
+
+// ─── Create User + Business ───────────────────────────────────────────────────
+
+export async function createUser(data: {
+  name: string
+  phone: string
+  email?: string
+  businessName?: string
+  businessCategory?: string
+  placeOfBusiness?: string
+}): Promise<{ uid: string; businessId: string | null }> {
+  return apiFetch('/api/admin/users', { method: 'POST', body: JSON.stringify(data) })
+}
+
 // ─── Business Notes ───────────────────────────────────────────────────────────
 
 export async function postBusinessNote(

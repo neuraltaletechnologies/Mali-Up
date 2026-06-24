@@ -15,6 +15,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../domain/models/expense.dart';
 import '../../domain/models/recurring_expense_template.dart';
+import '../../../debt/data/debt_providers.dart';
+import '../../../debt/domain/models/debt.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -116,10 +118,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
   bool _submitForApproval = false;
   bool _saving = false;
   bool _uploadingReceipt = false;
+  bool _isCreditPurchase = false;
 
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   final _recipientCtrl = TextEditingController();
+  final _supplierPhoneCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
   late AnimationController _fadeCtrl;
@@ -158,6 +162,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
     _amountCtrl.dispose();
     _noteCtrl.dispose();
     _recipientCtrl.dispose();
+    _supplierPhoneCtrl.dispose();
     _scrollCtrl.dispose();
     _fadeCtrl.dispose();
     super.dispose();
@@ -314,7 +319,41 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
         }
       }
 
-      if (mounted) Navigator.of(context).pop({'saved': true});
+      // Auto-create payable debt when expense is not fully paid to supplier
+      if (!_isEditing && _isCreditPurchase) {
+        final amount = double.tryParse(amountStr) ?? 0;
+        if (amount > 0) {
+          final dueDate = DateTime.now().add(const Duration(days: 30));
+          final dueDateStr =
+              '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
+          await ref.read(debtRepositoryProvider).save(Debt(
+            id: '',
+            partyName: _recipientCtrl.text.trim(),
+            partyPhone: _supplierPhoneCtrl.text.trim(),
+            type: 'payable',
+            originalAmount: amount,
+            dueDate: dueDateStr,
+            note: _tr(
+                'Expense: ${_cat.label}', 'Matumizi: ${_cat.label}'),
+            createdBy: user.uid,
+            createdAt: DateTime.now().toIso8601String(),
+          ));
+        }
+      }
+
+      if (mounted) {
+        if (!_isEditing && _isCreditPurchase) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_tr(
+              'Expense saved – debt recorded in Payables',
+              'Gharama imehifadhiwa – deni limerekodiwa kwenye Madeni',
+            )),
+            backgroundColor: AppColors.warning,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+        Navigator.of(context).pop({'saved': true});
+      }
     } catch (e) {
       _showSnack(_tr('Failed to save: $e', 'Imeshindwa kuhifadhi: $e'));
       setState(() => _saving = false);
@@ -434,6 +473,58 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
                               'Imelipwa kwa (mlipwaji)'),
                           icon: Icons.person_outline_rounded,
                         ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Credit purchase toggle
+                  _FieldCard(
+                    child: Column(
+                      children: [
+                        _ToggleRow(
+                          icon: Icons.credit_score_rounded,
+                          label: _tr('Bought on Credit', 'Umenunua kwa Mkopo'),
+                          subtitle: _tr(
+                            'Not fully paid – record as payable debt',
+                            'Haujalipia kikamilifu – rekodi kama deni',
+                          ),
+                          value: _isCreditPurchase,
+                          color: AppColors.error,
+                          onChanged: (v) =>
+                              setState(() => _isCreditPurchase = v),
+                        ),
+                        if (_isCreditPurchase) ...[
+                          const Divider(height: 1, color: AppColors.border),
+                          _InlineField(
+                            controller: _supplierPhoneCtrl,
+                            hint: _tr(
+                                'Supplier Phone (Optional)',
+                                'Simu ya Muuzaji (Hiari)'),
+                            icon: Icons.phone_outlined,
+                          ),
+                          const Divider(height: 1, color: AppColors.border),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded,
+                                    color: AppColors.error, size: 15),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _tr(
+                                      'A payable debt will be recorded for this supplier',
+                                      'Deni la kulipa litarekodiwa kwa muuzaji huyu',
+                                    ),
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 12, color: AppColors.error),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

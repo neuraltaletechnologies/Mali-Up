@@ -42,7 +42,8 @@ const nav: NavItem[] = [
     label: 'Catalog', icon: Package,
     children: [
       { label: 'Master Catalog', href: '/admin/catalog' },
-      { label: 'Submissions', href: '/admin/catalog/submissions' },
+      { label: 'Seed with AI',   href: '/admin/catalog/seed' },
+      { label: 'Submissions',    href: '/admin/catalog/submissions' },
     ]
   },
   {

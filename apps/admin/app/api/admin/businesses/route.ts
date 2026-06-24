@@ -11,25 +11,25 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const limitParam = Math.min(Number(searchParams.get('limit') ?? '300'), 1000)
 
-    // collectionGroup query — hits every `businesses` sub-collection across all tenants
-    // orderBy is done in-memory to avoid requiring a collection group index
+    // Mobile app stores businesses in the top-level `businesses` collection.
     const snapshot = await adminFirestore
-      .collectionGroup('businesses')
+      .collection('businesses')
       .limit(limitParam)
       .get()
 
     const businesses = await Promise.all(
       snapshot.docs.map(async (doc) => {
-        // Parent path: tenants/{uid}/businesses/{bizId}
-        const uid = doc.ref.parent.parent?.id ?? ''
         const data = doc.data() as Record<string, unknown>
-        // Staff count via sub-collection count (cheap aggregate)
+        // ownerUid is stored as a field in the business document
+        const uid = (data.ownerUid as string) || ''
+
+        // Staff are stored in the `staff` sub-collection (not team_members)
         let staffCount = 0
         try {
-          const countSnap = await doc.ref.collection('team_members').count().get()
+          const countSnap = await doc.ref.collection('staff').count().get()
           staffCount = countSnap.data().count ?? 0
         } catch {
-          // team_members may not exist yet
+          // staff sub-collection may not exist yet
         }
         return mapBusiness(uid, doc.id, data, staffCount)
       })
