@@ -57,7 +57,8 @@ const nav: NavItem[] = [
     children: [
       { label: 'System Health', href: '/admin/system' },
       { label: 'Feature Flags', href: '/admin/features' },
-      { label: 'Config', href: '/admin/config' },
+      { label: 'Config',        href: '/admin/config' },
+      { label: 'Lookups',       href: '/admin/lookups' },
     ]
   },
   { label: 'My Profile', href: '/admin/profile', icon: UserCircle },
