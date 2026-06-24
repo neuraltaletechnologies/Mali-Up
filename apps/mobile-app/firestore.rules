@@ -256,7 +256,12 @@ service cloud.firestore {
 
       match /debts/{debtId} {
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewDebt', 'manageDebt', 'createSale']);
-        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'manageDebt', 'grantCredit']);
+        // createSale  → credit invoices (receivables)
+        // manageExpenses → expenses bought on credit (payables)
+        // addStock       → inventory purchased on credit (payables)
+        // manageDebt / grantCredit → manual debt entry
+        allow create: if isOwnerOrStaffWithAny(bizId,
+          ['createSale', 'manageDebt', 'grantCredit', 'manageExpenses', 'addStock']);
         allow update: if isOwnerOrStaffWithAny(bizId, ['manageDebt']);
         allow delete: if isOwnerOrStaffWithAny(bizId, ['writeOffDebt', 'manageDebt']);
 
