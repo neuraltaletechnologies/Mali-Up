@@ -7,7 +7,7 @@ import { DetailDrawer } from '@/components/ui/detail-drawer'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton, SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import {
-  fetchCatalog,
+  fetchCatalog, fetchLookups,
   postCatalogProduct, patchCatalogProduct, deleteCatalogProduct,
   postCatalogCategory, patchCatalogCategory, deleteCatalogCategory,
 } from '@/lib/admin-api'
@@ -110,7 +110,17 @@ export default function CatalogPage() {
     { key: `catalog-${selectedTypeId ?? 'all'}` },
   )
 
-  const businessTypeIds = data?.businessTypeIds ?? []
+  const { data: lookups } = useAdminFetch(
+    useCallback(() => fetchLookups(), []),
+    { key: 'lookups' },
+  )
+
+  // All 45 business types from lookup service; fall back to types already in catalog
+  const allBusinessTypes = lookups?.businessTypes ?? []
+  const businessTypeIds = allBusinessTypes.length > 0
+    ? allBusinessTypes.map((bt) => bt.value)
+    : (data?.businessTypeIds ?? [])
+
   const products        = data?.products        ?? []
   const categories      = data?.categories      ?? []
 

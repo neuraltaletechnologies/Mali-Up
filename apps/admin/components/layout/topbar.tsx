@@ -20,6 +20,7 @@ const routeLabels: Record<string, string> = {
   system: 'System Health',
   features: 'Feature Flags',
   config: 'Config',
+  lookups: 'Lookup Data',
   profile: 'Profile',
 }
 
