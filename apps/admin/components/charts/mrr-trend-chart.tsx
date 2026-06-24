@@ -46,7 +46,7 @@ export function MRRTrendChart({ data }: MRRTrendChartProps) {
         <Line
           type="monotone"
           dataKey="value"
-          stroke="var(--navy)"
+          stroke="var(--accent)"
           strokeWidth={2}
           dot={(props) => {
             const isLast = props.index === data.length - 1
@@ -58,12 +58,12 @@ export function MRRTrendChart({ data }: MRRTrendChartProps) {
                 cy={props.cy}
                 r={4}
                 fill="var(--accent)"
-                stroke="white"
+                stroke="var(--canvas)"
                 strokeWidth={2}
               />
             )
           }}
-          activeDot={{ r: 5, fill: 'var(--accent)', stroke: 'white', strokeWidth: 2 }}
+          activeDot={{ r: 5, fill: 'var(--accent)', stroke: 'var(--canvas)', strokeWidth: 2 }}
         />
       </LineChart>
     </ResponsiveContainer>

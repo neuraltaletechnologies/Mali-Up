@@ -60,8 +60,8 @@ extension _CatX on _Cat {
         _Cat.utilities => AppColors.tealAccent,
         _Cat.salaries => AppColors.success,
         _Cat.transport => AppColors.warning,
-        _Cat.marketing => const Color(0xFF7C3AED),
-        _Cat.supplies => const Color(0xFFB45309),
+        _Cat.marketing => AppColors.purpleAccent,
+        _Cat.supplies => AppColors.warning,
         _Cat.other => AppColors.textMuted,
       };
 
@@ -942,7 +942,7 @@ class _InlineField extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              style: GoogleFonts.dmSans(fontSize: 14),
+              style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textPrimary),
               decoration: InputDecoration(
                 hintText: hint,
                 hintStyle: GoogleFonts.dmSans(

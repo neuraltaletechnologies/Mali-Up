@@ -29,41 +29,41 @@ const TIER_META: Record<PlanTier, {
   starter: {
     label: 'Starter',
     target: 'New businesses, solo owners',
-    color: '#64748B',
-    bgGradient: 'from-slate-50 to-white',
-    borderColor: '#E2E8F0',
+    color: '#94A3B8',
+    bgGradient: '',
+    borderColor: 'rgba(255,255,255,0.09)',
     icon: Layers,
   },
   growth: {
     label: 'Growth',
     target: 'Active SMEs, 50+ transactions/month',
-    color: '#1A6E8A',
-    bgGradient: 'from-cyan-50 to-white',
-    borderColor: '#A5D8EA',
+    color: '#2AB0D5',
+    bgGradient: '',
+    borderColor: 'rgba(42,176,213,0.3)',
     icon: Zap,
   },
   business: {
     label: 'Business',
     target: 'Multi-location, 5+ staff',
-    color: '#0D1B3E',
-    bgGradient: 'from-blue-50 to-white',
-    borderColor: '#93C5FD',
+    color: '#6EB4D4',
+    bgGradient: '',
+    borderColor: 'rgba(42,176,213,0.45)',
     icon: Crown,
   },
   enterprise: {
     label: 'Enterprise',
     target: 'Chains, NGOs, franchises',
-    color: '#D97706',
-    bgGradient: 'from-amber-50 to-white',
-    borderColor: '#FCD34D',
+    color: '#FFC107',
+    bgGradient: '',
+    borderColor: 'rgba(255,193,7,0.4)',
     icon: Star,
   },
   lifetime: {
     label: 'Lifetime',
     target: 'Lifetime access holders',
-    color: '#7C3AED',
-    bgGradient: 'from-purple-50 to-white',
-    borderColor: '#C4B5FD',
+    color: '#A78BFA',
+    bgGradient: '',
+    borderColor: 'rgba(167,139,250,0.4)',
     icon: Gift,
   },
 }
@@ -130,7 +130,7 @@ function TierCard({
 
   return (
     <div
-      className={`relative flex flex-col rounded-xl border bg-gradient-to-b ${meta.bgGradient} p-5 gap-3`}
+      className="relative flex flex-col rounded-xl border bg-[var(--surface)] p-5 gap-3"
       style={{ borderColor: meta.borderColor }}
     >
       {/* Header */}
@@ -146,7 +146,7 @@ function TierCard({
         </div>
         <button
           onClick={onEdit}
-          className="p-1.5 rounded-lg border border-[var(--line)] bg-white text-[var(--ink-faint)] hover:text-[var(--ink)] hover:border-[var(--accent)] transition-colors"
+          className="p-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] text-[var(--ink-faint)] hover:text-[var(--ink)] hover:border-[var(--accent)] transition-colors"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
@@ -524,7 +524,7 @@ export default function PlansPage() {
           <span className="text-[13px]">{error}</span>
         </div>
       )}
-      {localPlans && (
+      {localPlans && (<>
       <PageHeader
         title="Subscription Plans"
         description="Edit plan pricing, limits, and features — changes propagate to the mobile app immediately"
@@ -614,7 +614,7 @@ export default function PlansPage() {
           onSave={(patch) => handleSave(tier, patch)}
         />
       ))}
-      )}
+      </>)}
     </div>
   )
 }

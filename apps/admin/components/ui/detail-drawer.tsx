@@ -30,7 +30,7 @@ export function DetailDrawer({ open, onClose, title, description, children, widt
       {/* Backdrop */}
       <div
         className={cn(
-          'fixed inset-0 z-40 bg-black/20 transition-opacity duration-200',
+          'fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-200',
           open ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
         onClick={onClose}

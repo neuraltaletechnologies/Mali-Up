@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../catalog/presentation/screens/catalog_search_screen.dart';
 import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
 import '../../../sales/presentation/screens/sales_return_screen.dart';
 import '../../../invoice/presentation/providers/invoice_providers.dart';
@@ -24,6 +25,8 @@ import '../../data/inventory_providers.dart';
 import '../../domain/models/inventory_item.dart';
 import '../providers/inventory_providers.dart';
 import '../widgets/barcode_view_sheet.dart';
+import '../../../debt/data/debt_providers.dart';
+import '../../../debt/domain/models/debt.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -266,7 +269,20 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         onCreateCustom: () => _openCustomProductForm(ctx),
         onCreateReturn: () => _openSelectSaleForReturn(ctx),
         onCreateManufactured: () => _openProductFormWithType(ctx, ProductType.manufactured),
+        onOpenCatalog: () => _openCatalogSheet(ctx),
       ),
+    );
+  }
+
+  void _openCatalogSheet(BuildContext ctx) {
+    showModalBottomSheet<void>(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(ctx).height * 0.92,
+      ),
+      builder: (_) => const CatalogSearchScreen(),
     );
   }
 
@@ -1040,7 +1056,7 @@ class _ManufacturedBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+        color: AppColors.tealAccent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -1049,7 +1065,7 @@ class _ManufacturedBadge extends StatelessWidget {
           const Icon(
             Icons.precision_manufacturing_outlined,
             size: 9,
-            color: Color(0xFF7C3AED),
+            color: AppColors.tealAccent,
           ),
           const SizedBox(width: 2),
           Text(
@@ -1057,7 +1073,7 @@ class _ManufacturedBadge extends StatelessWidget {
             style: GoogleFonts.dmSans(
               fontSize: 8,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF7C3AED),
+              color: AppColors.tealAccent,
               letterSpacing: 0.4,
             ),
           ),
@@ -2078,9 +2094,9 @@ class _DetailView extends StatelessWidget {
                           style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: AppColors.navyPrimary,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.5),
+                          disabledBackgroundColor: AppColors.navyPrimary.withValues(alpha: 0.5),
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
@@ -2209,9 +2225,9 @@ List<Widget> _buildBomSection(Map<String, dynamic> item, String finishedUnit) {
     Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
+        color: AppColors.tealAccent.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -2243,7 +2259,7 @@ List<Widget> _buildBomSection(Map<String, dynamic> item, String finishedUnit) {
                   style: GoogleFonts.dmSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF7C3AED),
+                    color: AppColors.tealAccent,
                   ),
                 ),
               ],
@@ -2378,7 +2394,7 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                         icon: const Icon(Icons.factory_rounded, size: 17),
                         label: Text(_tr('Confirm', 'Thibitisha'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: AppColors.navyPrimary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -2745,6 +2761,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   String _stockEntryType = 'opening';
   String _selectedAccountId = '';
   double _originalStock = 0.0;
+  bool _isPurchaseOnCredit = false;
+  final _supplierNameCtrl = TextEditingController();
+  final _supplierPhoneCtrl = TextEditingController();
 
   // Selling units (optional multi-tier pricing)
   final List<_UnitEntry> _sellingUnits = [];
@@ -2873,6 +2892,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     for (final u in _sellingUnits) { u.dispose(); }
     for (final i in _bomIngredients) { i.dispose(); }
     for (final o in _bomOverheads) { o.dispose(); }
+    _supplierNameCtrl.dispose();
+    _supplierPhoneCtrl.dispose();
     super.dispose();
   }
 
@@ -3080,6 +3101,30 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
       await ref.read(inventoryRepositoryProvider).save(item);
 
+      // Auto-create payable debt for credit purchases
+      if (!isManufactured && _stockEntryType == 'purchase' && _isPurchaseOnCredit && _buyVal > 0 && !isReturn) {
+        final qty = double.tryParse(_stockCtrl.text) ?? 0;
+        final creditQty =
+            _isEdit ? (qty - _originalStock).clamp(0.0, double.infinity) : qty;
+        if (creditQty > 0) {
+          final total = creditQty * _buyVal;
+          final dueDate = DateTime.now().add(const Duration(days: 30));
+          final dueDateStr =
+              '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
+          await ref.read(debtRepositoryProvider).save(Debt(
+            id: '',
+            partyName: _supplierNameCtrl.text.trim(),
+            partyPhone: _supplierPhoneCtrl.text.trim(),
+            type: 'payable',
+            originalAmount: total,
+            dueDate: dueDateStr,
+            note: _tr('Purchase: $name', 'Ununuzi: $name'),
+            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
+            createdAt: DateTime.now().toIso8601String(),
+          ));
+        }
+      }
+
       // Auto-deduct cash when this is declared as a new purchase (non-manufactured only)
       if (!isManufactured &&
           _stockEntryType == 'purchase' &&
@@ -3124,7 +3169,12 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
             ? _tr('Product updated', 'Bidhaa imesasishwa')
             : isReturn
                 ? _tr('Return recorded', 'Urejesho umerekodiwa')
-                : _tr('Product added', 'Bidhaa imeongezwa')),
+                : (_stockEntryType == 'purchase' && _isPurchaseOnCredit)
+                    ? _tr(
+                        'Product added – debt recorded in Payables',
+                        'Bidhaa imeongezwa – deni limerekodiwa kwenye Madeni',
+                      )
+                    : _tr('Product added', 'Bidhaa imeongezwa')),
         backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
       ));
@@ -3362,11 +3412,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             style: GoogleFonts.dmSans(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
-                              color: _type == ProductType.customerReturn
-                                  ? AppColors.tealAccent
-                                  : _type == ProductType.manufactured
-                                      ? const Color(0xFF7C3AED)
-                                      : AppColors.navyPrimary,
+                              color: AppColors.navyPrimary,
                             ),
                           ),
                         ),
@@ -3395,16 +3441,8 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           Color borderColor;
                           Color contentColor;
                           if (sel) {
-                            if (t == ProductType.customerReturn) {
-                              tileColor   = AppColors.tealAccent;
-                              borderColor = AppColors.tealAccent;
-                            } else if (t == ProductType.manufactured) {
-                              tileColor   = const Color(0xFF7C3AED);
-                              borderColor = const Color(0xFF7C3AED);
-                            } else {
-                              tileColor   = AppColors.navyPrimary;
-                              borderColor = AppColors.navyPrimary;
-                            }
+                            tileColor   = AppColors.navyPrimary;
+                            borderColor = AppColors.navyPrimary;
                             contentColor = Colors.white;
                           } else {
                             tileColor   = AppColors.surface;
@@ -3704,7 +3742,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         const SizedBox(height: 20),
                         Row(
                           children: [
-                            const Icon(Icons.precision_manufacturing_outlined, size: 16, color: Color(0xFF7C3AED)),
+                            const Icon(Icons.precision_manufacturing_outlined, size: 16, color: AppColors.tealAccent),
                             const SizedBox(width: 8),
                             _FormSectionLabel(_tr('Bill of Materials', 'Orodha ya Malighafi')),
                           ],
@@ -3834,13 +3872,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF7C3AED).withValues(alpha: 0.07),
+                              color: AppColors.tealAccent.withValues(alpha: 0.07),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.25)),
+                              border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.25)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.calculate_outlined, size: 15, color: Color(0xFF7C3AED)),
+                                const Icon(Icons.calculate_outlined, size: 15, color: AppColors.tealAccent),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -3851,7 +3889,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                     style: GoogleFonts.dmSans(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF7C3AED),
+                                      color: AppColors.tealAccent,
                                     ),
                                   ),
                                 ),
@@ -3896,9 +3934,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                     height: 48,
                                     padding: const EdgeInsets.symmetric(horizontal: 12),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
+                                      color: AppColors.tealAccent.withValues(alpha: 0.06),
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
+                                      border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.3)),
                                     ),
                                     alignment: Alignment.centerLeft,
                                     child: Text(
@@ -3908,7 +3946,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                       style: GoogleFonts.dmSans(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF7C3AED),
+                                        color: AppColors.tealAccent,
                                       ),
                                     ),
                                   ),
@@ -4137,70 +4175,162 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           value: _stockEntryType,
                           onChanged: (v) => setState(() {
                             _stockEntryType = v;
-                            if (v == 'opening') _selectedAccountId = '';
+                            if (v == 'opening') {
+                              _selectedAccountId = '';
+                              _isPurchaseOnCredit = false;
+                            }
                           }),
                         ),
                         if (_stockEntryType == 'purchase') ...[
                           const SizedBox(height: 12),
-                          _AccountDropdown(
-                            selectedId: _selectedAccountId,
-                            onSelected: (id) =>
-                                setState(() => _selectedAccountId = id),
-                          ),
-                          Builder(builder: (context) {
-                            final qty =
-                                double.tryParse(_stockCtrl.text) ?? 0;
-                            final deductQty = _isEdit
-                                ? (qty - _originalStock)
-                                    .clamp(0.0, double.infinity)
-                                : qty;
-                            final total = deductQty * _buyVal;
-                            if (deductQty <= 0 || _buyVal <= 0) {
-                              return const SizedBox.shrink();
-                            }
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.navyPrimary
-                                      .withValues(alpha: 0.06),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                      color: AppColors.navyPrimary
-                                          .withValues(alpha: 0.15)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                        Icons.account_balance_wallet_outlined,
-                                        size: 15,
-                                        color: AppColors.navyPrimary),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        _isEdit
-                                            ? _tr(
-                                                '${deductQty.toStringAsFixed(0)} new units × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} will be deducted',
-                                                'Vipande ${deductQty.toStringAsFixed(0)} vipya × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} vitakatwa',
-                                              )
-                                            : _tr(
-                                                '${deductQty.toStringAsFixed(0)} units × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} will be deducted',
-                                                'Vipande ${deductQty.toStringAsFixed(0)} × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} vitakatwa',
-                                              ),
-                                        style: GoogleFonts.dmSans(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.navyPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                          // Sub-toggle: paid in full vs on credit from supplier
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _StockToggleOption(
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  label: _tr('Paid in full', 'Kulipwa kikamilifu'),
+                                  sub: _tr('Deduct from account', 'Toa kutoka akaunti'),
+                                  selected: !_isPurchaseOnCredit,
+                                  selectedColor: AppColors.navyPrimary,
+                                  onTap: () => setState(() => _isPurchaseOnCredit = false),
                                 ),
                               ),
-                            );
-                          }),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _StockToggleOption(
+                                  icon: Icons.credit_card_outlined,
+                                  label: _tr('On credit', 'Kwa mkopo'),
+                                  sub: _tr('Record as payable', 'Rekodi kama deni'),
+                                  selected: _isPurchaseOnCredit,
+                                  selectedColor: AppColors.error,
+                                  onTap: () => setState(() => _isPurchaseOnCredit = true),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (!_isPurchaseOnCredit) ...[
+                            const SizedBox(height: 12),
+                            _AccountDropdown(
+                              selectedId: _selectedAccountId,
+                              onSelected: (id) =>
+                                  setState(() => _selectedAccountId = id),
+                            ),
+                            Builder(builder: (context) {
+                              final qty =
+                                  double.tryParse(_stockCtrl.text) ?? 0;
+                              final deductQty = _isEdit
+                                  ? (qty - _originalStock)
+                                      .clamp(0.0, double.infinity)
+                                  : qty;
+                              final total = deductQty * _buyVal;
+                              if (deductQty <= 0 || _buyVal <= 0) {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.navyPrimary
+                                        .withValues(alpha: 0.06),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: AppColors.navyPrimary
+                                            .withValues(alpha: 0.15)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                          Icons.account_balance_wallet_outlined,
+                                          size: 15,
+                                          color: AppColors.navyPrimary),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _isEdit
+                                              ? _tr(
+                                                  '${deductQty.toStringAsFixed(0)} new units × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} will be deducted',
+                                                  'Vipande ${deductQty.toStringAsFixed(0)} vipya × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} vitakatwa',
+                                                )
+                                              : _tr(
+                                                  '${deductQty.toStringAsFixed(0)} units × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} will be deducted',
+                                                  'Vipande ${deductQty.toStringAsFixed(0)} × TZS ${_fmtAmount(_buyVal)} = TZS ${_fmtAmount(total)} vitakatwa',
+                                                ),
+                                          style: GoogleFonts.dmSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.navyPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          ] else ...[
+                            const SizedBox(height: 12),
+                            _FormSectionLabel(_tr('Supplier Details', 'Maelezo ya Muuzaji')),
+                            const SizedBox(height: 8),
+                            _FormField(
+                              ctrl: _supplierNameCtrl,
+                              hint: _tr('Supplier name', 'Jina la muuzaji'),
+                              caps: TextCapitalization.words,
+                            ),
+                            const SizedBox(height: 8),
+                            _FormField(
+                              ctrl: _supplierPhoneCtrl,
+                              hint: '+255 7XX XXX XXX',
+                              keyboard: TextInputType.phone,
+                            ),
+                            Builder(builder: (context) {
+                              final qty =
+                                  double.tryParse(_stockCtrl.text) ?? 0;
+                              final creditQty = _isEdit
+                                  ? (qty - _originalStock)
+                                      .clamp(0.0, double.infinity)
+                                  : qty;
+                              final total = creditQty * _buyVal;
+                              if (creditQty <= 0 || _buyVal <= 0) {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error.withValues(alpha: 0.06),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: AppColors.error.withValues(alpha: 0.2)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.warning_amber_outlined,
+                                          size: 15, color: AppColors.error),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _tr(
+                                            'TZS ${_fmtAmount(total)} will be recorded as a debt to supplier',
+                                            'TZS ${_fmtAmount(total)} itarekodiwa kama deni kwa muuzaji',
+                                          ),
+                                          style: GoogleFonts.dmSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.error,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
                         ],
                         ], // end if (!isManufactured)
                       ],
@@ -4228,17 +4358,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         child: ElevatedButton(
                           onPressed: _saving ? null : _save,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isReturn
-                                ? AppColors.tealAccent
-                                : isManufactured
-                                    ? const Color(0xFF7C3AED)
-                                    : AppColors.navyPrimary,
+                            backgroundColor: AppColors.navyPrimary,
                             foregroundColor: Colors.white,
-                            disabledBackgroundColor: (isReturn
-                                ? AppColors.tealAccent
-                                : isManufactured
-                                    ? const Color(0xFF7C3AED)
-                                    : AppColors.navyPrimary).withValues(alpha: 0.4),
+                            disabledBackgroundColor: AppColors.navyPrimary.withValues(alpha: 0.4),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),

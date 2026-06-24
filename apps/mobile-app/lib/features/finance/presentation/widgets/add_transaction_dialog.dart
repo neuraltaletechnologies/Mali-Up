@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -135,6 +136,8 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                   // Amount
                   TextFormField(
                     controller: _amountController,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14, color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       labelText: _t('Amount', 'Kiasi'),
                       prefixText: 'TZS ',
@@ -201,6 +204,8 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                   // Description
                   TextFormField(
                     controller: _descController,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14, color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       labelText: _t('Description', 'Maelezo'),
                       hintText: _t(
@@ -229,6 +234,8 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                   // Date
                   TextFormField(
                     controller: _dateController,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14, color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       labelText: _t('Date', 'Tarehe'),
                       border: OutlineInputBorder(
@@ -297,6 +304,8 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _referenceController,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14, color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       labelText: _t('Reference (Optional)', 'Kumbukumbu (Hiari)'),
                       hintText: _t('e.g. Receipt #001', 'mfano: Risiti #001'),
@@ -330,11 +339,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _submit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _type == 'deposit'
-                                ? AppColors.success
-                                : _type == 'withdrawal'
-                                    ? AppColors.error
-                                    : AppColors.tealAccent,
+                            backgroundColor: AppColors.navyPrimary,
                             foregroundColor: Colors.white,
                           ),
                           child: _isLoading
@@ -458,10 +463,9 @@ class _TypeTab extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 11,
-                  fontWeight:
-                      selected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: selected ? color : AppColors.textMuted,
                 ),
               ),

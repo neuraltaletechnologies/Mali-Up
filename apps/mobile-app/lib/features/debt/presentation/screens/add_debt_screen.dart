@@ -249,6 +249,8 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                             : _tr('Supplier Name', 'Jina la Muuzaji'),
                         child: TextFormField(
                           controller: _nameCtrl,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14, color: AppColors.textPrimary),
                           decoration: _fieldDecoration(
                             hint: _isReceivable
                                 ? _tr('e.g. John Mwangi', 'mfano: John Mwangi')
@@ -266,6 +268,8 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                         label: _tr('Phone Number', 'Namba ya Simu'),
                         child: TextFormField(
                           controller: _phoneCtrl,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14, color: AppColors.textPrimary),
                           decoration: _fieldDecoration(
                               hint:
                                   _tr('+255 7XX XXX XXX', '+255 7XX XXX XXX')),
@@ -292,7 +296,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                             child: Row(
                               children: [
                                 Icon(Icons.calendar_today_outlined,
-                                    size: 16, color: accentColor),
+                                    size: 16, color: AppColors.navyPrimary),
                                 const SizedBox(width: 10),
                                 Text(
                                   _fmtDate(_dueDate),
@@ -323,6 +327,8 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                             'Nambari ya Ankara (hiari)'),
                         child: TextFormField(
                           controller: _invoiceCtrl,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14, color: AppColors.textPrimary),
                           decoration: _fieldDecoration(hint: 'INV-001'),
                         ),
                       ),
@@ -331,6 +337,8 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                         label: _tr('Note (optional)', 'Maelezo (hiari)'),
                         child: TextFormField(
                           controller: _noteCtrl,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 14, color: AppColors.textPrimary),
                           decoration: _fieldDecoration(
                               hint: _tr('Any additional details…',
                                   'Maelezo zaidi…')),
@@ -354,7 +362,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
             child: FilledButton(
               onPressed: _saving ? null : _save,
               style: FilledButton.styleFrom(
-                backgroundColor: _saving ? AppColors.border : accentColor,
+                backgroundColor: _saving ? AppColors.border : AppColors.navyPrimary,
                 minimumSize: const Size(double.infinity, 52),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),

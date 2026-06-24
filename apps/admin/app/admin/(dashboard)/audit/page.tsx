@@ -100,7 +100,7 @@ export default function AuditPage() {
                   onClick={() => setSelected(entry)}
                   className={cn(
                     'border-b border-[var(--line)] last:border-0 cursor-pointer transition-colors hover:bg-[var(--canvas)]',
-                    entry.isDestructive && 'bg-[#FFF8F8]'
+                    entry.isDestructive && 'bg-[rgba(248,113,113,0.07)]'
                   )}
                 >
                   <td className="px-4 py-3 font-mono text-[12px] text-[var(--ink-faint)] whitespace-nowrap">

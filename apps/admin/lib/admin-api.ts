@@ -2,7 +2,7 @@ import type {
   AdminUser, Business, AnalyticsOverview, CatalogProduct, CatalogCategory,
   Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
-  PlanDefinition, PlanDefinitions, PlanTier,
+  PlanDefinition, PlanDefinitions, PlanTier, AppLookups,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -222,6 +222,33 @@ export async function assignPlan(
   return apiFetch('/api/admin/plans/assign', {
     method: 'POST',
     body: JSON.stringify({ uid, businessId, tier, cycleMonths }),
+  })
+}
+
+// ─── Lookups ──────────────────────────────────────────────────────────────────
+
+export async function fetchLookups(): Promise<AppLookups> {
+  return apiFetch('/api/admin/lookups')
+}
+
+export async function saveLookupBusinessTypes(items: AppLookups['businessTypes']): Promise<void> {
+  await apiFetch('/api/admin/lookups?type=business_types', {
+    method: 'PATCH',
+    body: JSON.stringify({ items }),
+  })
+}
+
+export async function saveLookupCities(items: AppLookups['cities']): Promise<void> {
+  await apiFetch('/api/admin/lookups?type=cities', {
+    method: 'PATCH',
+    body: JSON.stringify({ items }),
+  })
+}
+
+export async function saveLookupDistricts(items: AppLookups['districts']): Promise<void> {
+  await apiFetch('/api/admin/lookups?type=districts', {
+    method: 'PATCH',
+    body: JSON.stringify({ items }),
   })
 }
 

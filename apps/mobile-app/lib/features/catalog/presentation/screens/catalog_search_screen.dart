@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../data/master_catalog_repository.dart';
 import '../../domain/models/master_category.dart';
 import '../../domain/models/master_product.dart';
@@ -55,10 +56,14 @@ class _CatalogSearchScreenState extends ConsumerState<CatalogSearchScreen> {
   }
 
   void _openImport(MasterProduct product) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ImportProductScreen(product: product),
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.90,
       ),
+      builder: (_) => ImportProductScreen(product: product),
     );
   }
 
@@ -69,33 +74,51 @@ class _CatalogSearchScreenState extends ConsumerState<CatalogSearchScreen> {
     final selectedCatId = ref.watch(catalogSelectedCategoryProvider);
     final query = ref.watch(catalogSearchQueryProvider);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.navyPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          _tr('Product Catalog', 'Katalogi ya Bidhaa'),
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-            color: Colors.white,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: _SearchBar(
-              controller: _searchCtrl,
-              onChanged: _onSearchChanged,
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // ── Handle + header ──────────────────────────────────────────────
+          const SheetHandle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _tr('Product Catalog', 'Katalogi ya Bidhaa'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 22,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _SearchBar(
+                  controller: _searchCtrl,
+                  onChanged: _onSearchChanged,
+                ),
+              ],
             ),
           ),
-        ),
-      ),
-      body: Column(
-        children: [
+          Container(height: 1, color: AppColors.border),
+
           // ── Category chips ───────────────────────────────────────────────
           categoriesAsync.when(
             loading: () => const SizedBox(height: 52),

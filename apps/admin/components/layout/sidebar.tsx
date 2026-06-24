@@ -31,10 +31,10 @@ const nav: NavItem[] = [
   {
     label: 'Revenue', icon: DollarSign,
     children: [
+      { label: 'Overview & Pricing', href: '/admin/revenue' },
       { label: 'Plans',              href: '/admin/plans' },
       { label: 'Subscriptions',      href: '/admin/subscriptions' },
       { label: 'Lifetime',           href: '/admin/lifetime' },
-      { label: 'Revenue Analytics',  href: '/admin/revenue' },
       { label: 'Refunds',            href: '/admin/refunds' },
     ]
   },
@@ -81,11 +81,11 @@ function SidebarGroup({ item, pathname }: SidebarGroupProps) {
         className={cn(
           'flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors',
           active
-            ? 'bg-[var(--navy-soft)] text-white'
-            : 'text-slate-300 hover:text-white hover:bg-white/10'
+            ? 'bg-white/[0.08] text-[var(--brand)] border-l-2 border-[var(--brand)] pl-2.5 rounded-l-none rounded-r-md'
+            : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
         )}
       >
-        <Icon className="h-4 w-4 shrink-0" />
+        <Icon className={cn('h-4 w-4 shrink-0', active && 'text-[var(--brand)]')} />
         {item.label}
       </Link>
     )
@@ -102,7 +102,7 @@ function SidebarGroup({ item, pathname }: SidebarGroupProps) {
         {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
       </button>
       {open && (
-        <div className="ml-6 mt-0.5 flex flex-col gap-0.5 border-l border-white/10 pl-3">
+        <div className="ml-6 mt-0.5 flex flex-col gap-0.5 border-l border-white/[0.07] pl-3">
           {item.children.map((child) => {
             const active = pathname.startsWith(child.href) && child.href !== '/'
             return (
@@ -112,7 +112,7 @@ function SidebarGroup({ item, pathname }: SidebarGroupProps) {
                 className={cn(
                   'rounded-md px-2.5 py-1.5 text-[12.5px] transition-colors',
                   active
-                    ? 'text-white font-medium bg-white/10'
+                    ? 'text-[var(--brand)] font-medium border-l border-[var(--brand)]'
                     : 'text-slate-400 hover:text-slate-200'
                 )}
               >
@@ -138,16 +138,19 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-[240px] bg-[var(--navy)] flex flex-col z-30">
+    <aside className="fixed left-0 top-0 h-screen w-[240px] bg-[var(--navy)] border-r border-white/[0.07] flex flex-col z-30">
       {/* Brand */}
-      <div className="px-5 py-5 border-b border-white/10">
+      <div className="px-5 py-5 border-b border-white/[0.07]">
         <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-md bg-gradient-to-br from-[#1A6E8A] to-[#0D1B3E] flex items-center justify-center">
-            <span className="text-white text-[11px] font-bold">M</span>
-          </div>
+          <img
+            src="/mali_up_wordmark.png"
+            alt="Mali Up"
+            className="h-8 w-8 rounded-full shrink-0"
+            style={{ boxShadow: '0 0 12px rgba(255,193,7,0.25)' }}
+          />
           <div>
-            <div className="text-white text-[14px] font-semibold leading-none">Mali Up</div>
-            <div className="text-slate-400 text-[10px] mt-0.5">Admin Console</div>
+            <div className="text-white text-[14px] font-semibold leading-none tracking-tight">Mali Up</div>
+            <div className="text-[10px] mt-0.5" style={{ color: 'rgba(255,193,7,0.6)' }}>Admin Console</div>
           </div>
         </div>
       </div>
@@ -160,10 +163,13 @@ export function Sidebar() {
       </nav>
 
       {/* Footer — user + logout */}
-      <div className="px-3 py-3 border-t border-white/10">
+      <div className="px-3 py-3 border-t border-white/[0.07]">
         <div className="flex items-center gap-2.5 px-2 mb-2">
-          <div className="h-6 w-6 rounded-full bg-gradient-to-br from-[#1A6E8A] to-[#0D1B3E] flex items-center justify-center shrink-0">
-            <span className="text-white text-[10px] font-semibold">
+          <div
+            className="h-6 w-6 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'linear-gradient(135deg, #FFC107, #E5AC00)' }}
+          >
+            <span className="text-[10px] font-bold" style={{ color: '#040C18' }}>
               {(session?.user?.name ?? 'A').charAt(0).toUpperCase()}
             </span>
           </div>
