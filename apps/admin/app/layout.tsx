@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: 'Mali Up Admin',
   description: 'Internal operations console — Neuraltale Technology',
   robots: 'noindex, nofollow',
+  icons: { icon: '/mali_up_wordmark.png', apple: '/mali_up_wordmark.png' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

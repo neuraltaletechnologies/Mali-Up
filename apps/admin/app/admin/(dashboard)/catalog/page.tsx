@@ -378,7 +378,7 @@ export default function CatalogPage() {
           <span className="text-[13px]">{error}</span>
         </div>
       )}
-      {!loading && (
+      {!loading && (<>
       <PageHeader
         title="Master Catalog"
         description={`${categories.length} categories · ${data?.total ?? 0} products`}
@@ -820,7 +820,7 @@ export default function CatalogPage() {
         confirmLabel="Delete"
         destructive
       />
-      )}
+      </>)}
     </div>
   )
 }

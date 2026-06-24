@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
-import '../screens/catalog_search_screen.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -12,12 +11,14 @@ class AddProductChoiceSheet extends StatelessWidget {
   final VoidCallback onCreateCustom;
   final VoidCallback? onCreateReturn;
   final VoidCallback? onCreateManufactured;
+  final VoidCallback? onOpenCatalog;
 
   const AddProductChoiceSheet({
     super.key,
     required this.onCreateCustom,
     this.onCreateReturn,
     this.onCreateManufactured,
+    this.onOpenCatalog,
   });
 
   @override
@@ -49,12 +50,8 @@ class AddProductChoiceSheet extends StatelessWidget {
             label: _tr('Search Catalog', 'Chagua kwenye Katalogi'),
             badge: _tr('Best', 'Bora'),
             onTap: () {
-              final nav = Navigator.of(context, rootNavigator: true);
               Navigator.of(context).pop();
-              nav.push(MaterialPageRoute<void>(
-                builder: (_) => const CatalogSearchScreen(),
-                fullscreenDialog: true,
-              ));
+              onOpenCatalog?.call();
             },
           ),
           const SizedBox(height: 8),

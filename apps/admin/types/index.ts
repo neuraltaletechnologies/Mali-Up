@@ -240,6 +240,24 @@ export interface PlanAssignment {
   cycleMonths: number
 }
 
+export interface LookupBusinessType {
+  value: string
+  en: string
+  sw: string
+  icon: string
+}
+
+export interface LookupCity {
+  en: string
+  sw: string
+}
+
+export interface AppLookups {
+  businessTypes: LookupBusinessType[]
+  cities: LookupCity[]
+  districts: Record<string, string[]>
+}
+
 export interface PlatformConfig {
   pricing: {
     starter: number

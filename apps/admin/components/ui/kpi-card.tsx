@@ -19,18 +19,21 @@ export function KPICard({ label, value, delta, deltaLabel, icon, className, mono
   const isFlat = delta === 0
 
   return (
-    <div className={cn(
-      'rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5 flex flex-col gap-3',
-      className
-    )}>
+    <div
+      className={cn(
+        'rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5 flex flex-col gap-3',
+        className
+      )}
+      style={{ boxShadow: '0 1px 12px rgba(0,0,0,0.35)' }}
+    >
       <div className="flex items-center justify-between">
-        <span className="text-[12px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-[var(--ink-muted)]">
           {label}
         </span>
         {icon && <span className="text-[var(--ink-faint)]">{icon}</span>}
       </div>
 
-      <div className={cn('text-[28px] font-semibold leading-none text-[var(--ink)]', mono && 'font-mono')}>
+      <div className={cn('text-[26px] font-semibold leading-none text-[var(--ink)]', mono && 'font-mono')}>
         {value}
       </div>
 

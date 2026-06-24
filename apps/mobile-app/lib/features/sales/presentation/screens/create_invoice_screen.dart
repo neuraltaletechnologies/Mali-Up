@@ -13,6 +13,8 @@ import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../inventory/data/inventory_providers.dart';
+import '../../../debt/data/debt_providers.dart';
+import '../../../debt/domain/models/debt.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../data/sales_providers.dart';
 
@@ -361,6 +363,30 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
       await batch.commit();
 
+      // Auto-create receivable debt in the offline-first ledger for credit sales
+      if (confirmingNow && _payMethod == _PayMethod.credit && _customer != null) {
+        final dueStr = _dueDate != null
+            ? '${_dueDate!.year}-${_dueDate!.month.toString().padLeft(2, '0')}-${_dueDate!.day.toString().padLeft(2, '0')}'
+            : DateTime.now()
+                .add(const Duration(days: 30))
+                .toIso8601String()
+                .split('T')
+                .first;
+        await ref.read(debtRepositoryProvider).save(Debt(
+          id: '',
+          partyName: _customer!.name,
+          partyPhone: _customer!.phone,
+          partyId: _customer!.id,
+          type: 'receivable',
+          originalAmount: _grandTotal,
+          dueDate: dueStr,
+          invoiceRef: invNumber,
+          note: _notes,
+          createdBy: scope.userUid,
+          createdAt: DateTime.now().toIso8601String(),
+        ));
+      }
+
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,
         businessId: scope.businessId,
@@ -376,7 +402,19 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       ));
       unawaited(ref.read(syncServiceProvider).syncNow());
 
-      if (mounted) Navigator.of(context).pop({'saved': true, 'id': docRef.id});
+      if (mounted) {
+        if (confirmingNow && _payMethod == _PayMethod.credit && _customer != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_tr(
+              'Receivable added for ${_customer!.name} – check Debts',
+              'Dai limeongezwa kwa ${_customer!.name} – angalia Madeni',
+            )),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+        Navigator.of(context).pop({'saved': true, 'id': docRef.id});
+      }
     } catch (e) {
       _showSnack(_tr('Save failed: $e', 'Imeshindwa kuhifadhi: $e'));
       setState(() => _saving = false);

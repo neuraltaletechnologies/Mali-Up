@@ -4,24 +4,26 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-navy:           #0D1B3E;
-  --color-navy-soft:      #16244D;
-  --color-ink:            #0F172A;
-  --color-ink-muted:      #64748B;
-  --color-ink-faint:      #94A3B8;
-  --color-canvas:         #FAFBFC;
-  --color-surface:        #FFFFFF;
-  --color-line:           #EBEEF2;
-  --color-accent:         #1A6E8A;
-  --color-accent-soft:    #EAF4F7;
-  --color-status-good:    #0F9D6E;
-  --color-status-good-bg: #ECFDF5;
-  --color-status-warn:    #D97706;
-  --color-status-warn-bg: #FFFBEB;
-  --color-status-bad:     #DC2626;
-  --color-status-bad-bg:  #FEF2F2;
-  --color-status-neutral: #94A3B8;
-  --color-status-neutral-bg: #F1F5F9;
+  --color-navy:              #0D1B3E;
+  --color-navy-soft:         #1C3A7A;
+  --color-ink:               #E2EAFF;
+  --color-ink-muted:         #7B8FBD;
+  --color-ink-faint:         #3A4E74;
+  --color-canvas:            #040C18;
+  --color-surface:           #091422;
+  --color-line:              rgba(255,255,255,0.09);
+  --color-accent:            #1E90AA;
+  --color-accent-soft:       rgba(30,144,170,0.15);
+  --color-brand:             #FFC107;
+  --color-brand-soft:        rgba(255,193,7,0.12);
+  --color-status-good:       #10B981;
+  --color-status-good-bg:    rgba(16,185,129,0.12);
+  --color-status-warn:       #F59E0B;
+  --color-status-warn-bg:    rgba(245,158,11,0.12);
+  --color-status-bad:        #F87171;
+  --color-status-bad-bg:     rgba(248,113,113,0.12);
+  --color-status-neutral:    #94A3B8;
+  --color-status-neutral-bg: rgba(148,163,184,0.12);
 
   --font-sans: 'Inter', 'Geist Sans', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace;
@@ -33,24 +35,27 @@
 }
 
 :root {
-  --navy:             #0D1B3E;
-  --navy-soft:        #16244D;
-  --ink:              #0F172A;
-  --ink-muted:        #64748B;
-  --ink-faint:        #94A3B8;
-  --canvas:           #FAFBFC;
-  --surface:          #FFFFFF;
-  --line:             #EBEEF2;
-  --accent:           #1A6E8A;
-  --accent-soft:      #EAF4F7;
-  --status-good:      #0F9D6E;
-  --status-good-bg:   #ECFDF5;
-  --status-warn:      #D97706;
-  --status-warn-bg:   #FFFBEB;
-  --status-bad:       #DC2626;
-  --status-bad-bg:    #FEF2F2;
-  --status-neutral:   #94A3B8;
-  --status-neutral-bg:#F1F5F9;
+  /* ── Mali Up Admin — Dark Navy Theme (matches landing page) ── */
+  --navy:              #0D1B3E;
+  --navy-soft:         #1C3A7A;
+  --canvas:            #040C18;
+  --surface:           #091422;
+  --line:              rgba(255, 255, 255, 0.09);
+  --ink:               #E2EAFF;
+  --ink-muted:         #7B8FBD;
+  --ink-faint:         #3A4E74;
+  --accent:            #1E90AA;
+  --accent-soft:       rgba(30, 144, 170, 0.15);
+  --brand:             #FFC107;
+  --brand-soft:        rgba(255, 193, 7, 0.12);
+  --status-good:       #10B981;
+  --status-good-bg:    rgba(16, 185, 129, 0.12);
+  --status-warn:       #F59E0B;
+  --status-warn-bg:    rgba(245, 158, 11, 0.12);
+  --status-bad:        #F87171;
+  --status-bad-bg:     rgba(248, 113, 113, 0.12);
+  --status-neutral:    #94A3B8;
+  --status-neutral-bg: rgba(148, 163, 184, 0.12);
 }
 
 * {
@@ -88,11 +93,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: rgba(255, 193, 7, 0.18);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-faint);
+  background: rgba(255, 193, 7, 0.35);
 }
 
 /* ── Landing page (Mali Up marketing) styles ── */

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../inventory/domain/models/inventory_item.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
 import '../../domain/models/master_product.dart';
@@ -138,26 +139,45 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.navyPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          _tr('Import Product', 'Ingiza Bidhaa'),
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-            color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          const SheetHandle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _tr('Import Product', 'Ingiza Bidhaa'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyPrimary,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 22,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, bottom + 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          Container(height: 1, color: AppColors.border),
+          Expanded(
+            child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, bottom + 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             // ── Source info card ──────────────────────────────────────────
             _SourceCard(product: widget.product),
             const SizedBox(height: 24),
@@ -352,7 +372,10 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
               textAlign: TextAlign.center,
             ),
           ],
-        ),
+            ),
+          ),
+          ),
+        ],
       ),
     );
   }

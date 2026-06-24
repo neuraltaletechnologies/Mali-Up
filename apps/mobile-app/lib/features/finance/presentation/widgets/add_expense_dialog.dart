@@ -8,6 +8,8 @@ import '../../../../shared/widgets/shimmer.dart';
 import '../../domain/models/expense.dart';
 import '../../domain/models/recurring_expense_template.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../debt/data/debt_providers.dart';
+import '../../../debt/domain/models/debt.dart';
 
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -29,6 +31,8 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
   bool _isLoading = false;
   bool _isRecurring = false;
   String _recurrenceType = 'monthly';
+  bool _isCreditPurchase = false;
+  final _supplierPhoneCtrl = TextEditingController();
 
   /// Standard expense categories for Tanzanian SMEs.
   /// Keys are the stored English values; values are Swahili display labels.
@@ -63,6 +67,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
     _noteController.dispose();
     _recipientController.dispose();
     _dateController.dispose();
+    _supplierPhoneCtrl.dispose();
     super.dispose();
   }
 
@@ -178,12 +183,68 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Recipient
+                  // Recipient / Supplier name
                   TextFormField(
                     controller: _recipientController,
                     decoration: InputDecoration(
-                      labelText: _t('Recipient (Optional)', 'Mpokeaji (Hiari)'),
+                      labelText: _isCreditPurchase
+                          ? _t('Supplier Name', 'Jina la Muuzaji')
+                          : _t('Recipient (Optional)', 'Mpokeaji (Hiari)'),
                       border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Credit purchase toggle
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _isCreditPurchase
+                          ? AppColors.error.withValues(alpha: 0.05)
+                          : AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _isCreditPurchase
+                            ? AppColors.error.withValues(alpha: 0.3)
+                            : AppColors.border,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        SwitchListTile(
+                          value: _isCreditPurchase,
+                          onChanged: (v) =>
+                              setState(() => _isCreditPurchase = v),
+                          activeThumbColor: AppColors.error,
+                          title: Text(
+                            _t('Bought on Credit', 'Umenunua kwa Mkopo'),
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            _t(
+                              'Not fully paid – record as payable debt',
+                              'Haujalipia kikamilifu – rekodi kama deni',
+                            ),
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        if (_isCreditPurchase) ...[
+                          const Divider(height: 1),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            child: TextFormField(
+                              controller: _supplierPhoneCtrl,
+                              decoration: InputDecoration(
+                                labelText:
+                                    _t('Supplier Phone (Optional)', 'Simu ya Muuzaji (Hiari)'),
+                                border: const OutlineInputBorder(),
+                                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                              ),
+                              keyboardType: TextInputType.phone,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -363,6 +424,31 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
 
       await repo.addExpense(uid: user.uid, context: ctx, expense: expense);
 
+      // Auto-create payable debt when expense is not fully paid to supplier
+      if (_isCreditPurchase) {
+        final amount =
+            double.tryParse(_amountController.text.trim()) ?? 0;
+        if (amount > 0) {
+          final dueDate = DateTime.now().add(const Duration(days: 30));
+          final dueDateStr =
+              '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
+          await ref.read(debtRepositoryProvider).save(Debt(
+            id: '',
+            partyName: _recipientController.text.trim(),
+            partyPhone: _supplierPhoneCtrl.text.trim(),
+            type: 'payable',
+            originalAmount: amount,
+            dueDate: dueDateStr,
+            note: _t(
+              'Expense: $_selectedCategory',
+              'Matumizi: $_selectedCategory',
+            ),
+            createdBy: user.uid,
+            createdAt: DateTime.now().toIso8601String(),
+          ));
+        }
+      }
+
       // Save template so the system can auto-recreate it next cycle
       if (_isRecurring) {
         await repo.addRecurringTemplate(
@@ -389,7 +475,12 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                     'Expense added & recurring schedule set',
                     'Matumizi yameongezwa na ratiba imewekwa',
                   )
-                : _t('Expense added', 'Matumizi yameongezwa')),
+                : _isCreditPurchase
+                    ? _t(
+                        'Expense added – debt recorded in Payables',
+                        'Matumizi yameongezwa – deni limerekodiwa kwenye Madeni',
+                      )
+                    : _t('Expense added', 'Matumizi yameongezwa')),
             backgroundColor: Colors.green,
           ),
         );

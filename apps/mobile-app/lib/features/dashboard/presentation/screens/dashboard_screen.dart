@@ -1571,49 +1571,36 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
 
                       const SizedBox(height: 14),
 
-                      // ── Stats pill ───────────────────────────────────────
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.07),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.11),
+                      // ── Stats row ────────────────────────────────────────
+                      Row(
+                        children: [
+                          _CardStatItem(
+                            label: _tr('Clients', 'Wateja'),
+                            value: clientsText,
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            _CardStatItem(
-                              label: _tr('Clients', 'Wateja'),
-                              value: clientsText,
-                            ),
-                            Container(
-                              width: 1,
-                              height: 26,
-                              color: Colors.white.withValues(alpha: 0.15),
-                            ),
-                            _CardStatItem(
-                              label: _tr('Expenses', 'Gharama'),
-                              value: expText,
-                              color: expText == '••••'
-                                  ? null
-                                  : const Color(0xFFF87171),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 26,
-                              color: Colors.white.withValues(alpha: 0.15),
-                            ),
-                            _CardStatItem(
-                              label: _tr('Net', 'Faida'),
-                              value: netText,
-                              color: netText == '••••' ? null : netColor,
-                            ),
-                          ],
-                        ),
+                          Container(
+                            width: 1,
+                            height: 26,
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
+                          _CardStatItem(
+                            label: _tr('Expenses', 'Gharama'),
+                            value: expText,
+                            color: expText == '••••'
+                                ? null
+                                : const Color(0xFFF87171),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 26,
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
+                          _CardStatItem(
+                            label: _tr('Net', 'Faida'),
+                            value: netText,
+                            color: netText == '••••' ? null : netColor,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -2609,7 +2596,7 @@ class _RecentTransactionsList extends StatelessWidget {
               final row = grouped[index];
               if (row['type'] == 'header') {
                 return Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 8),
+                  padding: EdgeInsets.only(top: index == 0 ? 0 : 12, bottom: 8),
                   child: Text(
                     row['label'] as String,
                     style: const TextStyle(

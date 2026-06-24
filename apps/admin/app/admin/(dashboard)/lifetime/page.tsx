@@ -143,7 +143,7 @@ export default function LifetimePage() {
             value={reconcileValue}
             onChange={(e) => setReconcileValue(e.target.value)}
             placeholder="e.g. 25,000,000"
-            className="rounded border border-[var(--line)] bg-white px-2 py-1 text-[12px] font-mono focus:outline-none focus:ring-1 focus:ring-[var(--accent)] w-40"
+            className="rounded border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-[12px] font-mono text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] w-40"
           />
           <button
             onClick={() => {

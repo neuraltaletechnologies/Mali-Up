@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -129,7 +130,7 @@ class _AddAccountDialogState extends ConsumerState<AddAccountDialog> {
                                     LocalizationService.isSwahili
                                         ? entry.$2
                                         : entry.$1,
-                                    style: TextStyle(
+                                    style: GoogleFonts.dmSans(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: selected
@@ -151,6 +152,8 @@ class _AddAccountDialogState extends ConsumerState<AddAccountDialog> {
                   // Name
                   TextFormField(
                     controller: _nameController,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14, color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       labelText: _t('Account Name', 'Jina la Akaunti'),
                       hintText: _t(
@@ -189,6 +192,8 @@ class _AddAccountDialogState extends ConsumerState<AddAccountDialog> {
                   if (_type != 'Cash') ...[
                     TextFormField(
                       controller: _accountNumberController,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 14, color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         labelText: _t(
                           _type == 'Mobile Money'
@@ -220,6 +225,8 @@ class _AddAccountDialogState extends ConsumerState<AddAccountDialog> {
                   if (!_isEditing)
                     TextFormField(
                       controller: _initialBalanceController,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 14, color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         labelText: _t('Opening Balance', 'Salio la Awali'),
                         prefixText: 'TZS ',

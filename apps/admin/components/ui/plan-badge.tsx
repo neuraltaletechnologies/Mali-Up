@@ -9,10 +9,10 @@ interface PlanBadgeProps {
 }
 
 const tierConfig: Record<PlanTier, { label: string; className: string; icon?: boolean }> = {
-  starter:    { label: 'Starter',    className: 'bg-[#F1F5F9] text-[#64748B]' },
-  growth:     { label: 'Growth',     className: 'bg-[#EAF4F7] text-[#1A6E8A]' },
-  business:   { label: 'Business',   className: 'bg-[#E8EAF5] text-[#0D1B3E]' },
-  enterprise: { label: 'Enterprise', className: 'bg-[#FFFBEB] text-[#D97706]' },
+  starter:    { label: 'Starter',    className: 'bg-white/[0.07] text-[var(--ink-muted)]' },
+  growth:     { label: 'Growth',     className: 'bg-[rgba(42,176,213,0.12)] text-[var(--accent)]' },
+  business:   { label: 'Business',   className: 'bg-[rgba(42,176,213,0.18)] text-white' },
+  enterprise: { label: 'Enterprise', className: 'bg-[rgba(255,193,7,0.14)] text-[var(--brand)]' },
   lifetime:   { label: 'Lifetime',   className: 'text-white', icon: true },
 }
 
@@ -23,7 +23,7 @@ export function PlanBadge({ tier, className }: PlanBadgeProps) {
     return (
       <span className={cn(
         'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
-        'bg-gradient-to-r from-[#0D1B3E] to-[#1A6E8A] text-white',
+        'bg-gradient-to-r from-[#FFC107] to-[#E5AC00] text-[#040C18] font-semibold',
         className
       )}>
         <Lock className="h-3 w-3" />
