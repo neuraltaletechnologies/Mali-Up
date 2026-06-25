@@ -1,4 +1,4 @@
-# Mali Up — maliup.co.tz
+# Mali Up — maliup.neuraltale.com
 # Tanzania-first business app by Neuraltale Technology
 
 # ── Allow all compliant crawlers ──────────────────────────────────────────────
@@ -75,4 +75,4 @@ Allow: /
 Disallow: /admin/
 
 # ── Sitemap ───────────────────────────────────────────────────────────────────
-Sitemap: https://maliup.co.tz/sitemap.xml
+Sitemap: https://maliup.neuraltale.com/sitemap.xml

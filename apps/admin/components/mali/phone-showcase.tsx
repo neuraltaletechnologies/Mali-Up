@@ -7,7 +7,7 @@ import { ChevronRight } from "lucide-react"
 const tabs = [
   {
     id: "dashboard",
-    label: "Dashibodi",
+    label: "Dashboard",
     img: "/app-dashboard.jpg",
     color: "#F5A623",
     headline: "Command your business at a glance",
@@ -20,11 +20,11 @@ const tabs = [
   },
   {
     id: "invoicing",
-    label: "Ankara",
+    label: "Invoicing",
     img: "/app-invoice.jpg",
     color: "#22C55E",
     headline: "Professional invoices in seconds",
-    desc: "Generate branded invoices, track payment status, send automated reminders, and record partial payments — no accounting degree required.",
+    desc: "Generate branded invoices in TSh, track payment status, send automated reminders, and record partial payments — no accounting degree required.",
     metrics: [
       { label: "Paid",        value: "89%" },
       { label: "Outstanding", value: "TSh 120K" },
@@ -33,20 +33,20 @@ const tabs = [
   },
   {
     id: "analytics",
-    label: "Takwimu",
+    label: "Analytics",
     img: "/app-analytics.jpg",
     color: "#3B82F6",
     headline: "Data that drives real decisions",
     desc: "Visual charts, period comparisons, and product performance heat-maps help you understand your business and spot opportunities faster.",
     metrics: [
-      { label: "Growth",     value: "+34%" },
-      { label: "Top Product",value: "Kitenge A" },
-      { label: "Forecasted", value: "TSh 2.8M" },
+      { label: "Growth",      value: "+34%" },
+      { label: "Top Product", value: "Kitenge A" },
+      { label: "Forecasted",  value: "TSh 2.8M" },
     ],
   },
   {
     id: "inventory",
-    label: "Bidhaa",
+    label: "Inventory",
     img: "/app-inventory.jpg",
     color: "#EF4444",
     headline: "Always know what you have in stock",
@@ -111,10 +111,10 @@ export function PhoneShowcase() {
         {/* Header */}
         <div className="text-center mb-14 flex flex-col gap-4">
           <div className="reveal inline-flex justify-center">
-            <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">Picha za Programu</span>
+            <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">App Screenshots</span>
           </div>
           <h2 id="showcase-heading" className="reveal font-heading font-bold text-white text-balance" style={{ fontSize: "clamp(1.9rem,4vw,3rem)" }}>
-            Imeundwa kwa Ulimwengu wa Biashara ya Tanzania
+            Built for the Real World of Tanzanian Business
           </h2>
         </div>
 
@@ -189,7 +189,7 @@ export function PhoneShowcase() {
           >
             <div className="flex flex-col gap-3">
               <span className="text-xs font-bold uppercase tracking-widest" style={{ color: current.color }}>
-                Moduli ya {current.label}
+                {current.label} Module
               </span>
               <h3 className="font-heading font-bold text-white text-2xl md:text-3xl text-balance">
                 {current.headline}
@@ -235,7 +235,7 @@ export function PhoneShowcase() {
                 className="ml-auto flex items-center gap-1.5 text-xs font-bold transition-all duration-200 hover:gap-2.5 group"
                 style={{ color: current.color }}
               >
-                Moduli inayofuata <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                Next module <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
               </button>
             </div>
           </div>

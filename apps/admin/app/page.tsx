@@ -10,7 +10,7 @@ import { Stats } from "@/components/mali/stats"
 import { Waitlist } from "@/components/mali/waitlist"
 import { Footer } from "@/components/mali/footer"
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://maliup.co.tz'
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://maliup.neuraltale.com'
 
 export const metadata: Metadata = {
   title: 'Mali Up — Programu ya Biashara Tanzania | Mauzo, Ankara, Bidhaa',

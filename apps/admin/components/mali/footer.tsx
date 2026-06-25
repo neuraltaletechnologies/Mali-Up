@@ -3,15 +3,15 @@ import NextImage from "next/image"
 
 export function Footer() {
   const links = {
-    Bidhaa:   ["Vipengele", "Jinsi Inavyofanya Kazi", "Bei", "Mpango wa Baadaye"],
-    Kampuni:  ["Kuhusu Neuraltale", "Blogu", "Kazi", "Vyombo vya Habari"],
-    Kisheria: ["Sera ya Faragha", "Masharti ya Huduma", "Sera ya Vidakuzi"],
+    Product: ["Features", "How It Works", "Pricing", "Roadmap"],
+    Company: ["About Neuraltale", "Blog", "Careers", "Press"],
+    Legal:   ["Privacy Policy", "Terms of Service", "Cookie Policy"],
   }
   const companyLinkMap: Record<string, string> = {
-    "Kuhusu Neuraltale": "https://neuraltale.com/about",
-    "Blogu": "https://neuraltale.com/blog",
-    "Kazi": "https://neuraltale.com/careers",
-    "Vyombo vya Habari": "https://neuraltale.com/press",
+    "About Neuraltale": "https://neuraltale.com/about",
+    Blog: "https://neuraltale.com/blog",
+    Careers: "https://neuraltale.com/careers",
+    Press: "https://neuraltale.com/press",
   }
   const socials = [
     { icon: Twitter,   label: "Twitter",   href: "#" },
@@ -51,8 +51,8 @@ export function Footer() {
               </span>
             </div>
             <p className="text-[#0C1B2E]/60 text-sm leading-relaxed max-w-xs">
-              ERP ya simu kwa biashara ndogo za Tanzania. Imetengenezwa na{" "}
-              <span style={{ color: "rgba(245,166,35,0.7)" }}>Neuraltale Technology</span> — imebuniwa Tanzania, imeundwa kwa ukuaji.
+              The pocket ERP for Tanzanian SMBs. Built by{" "}
+              <span style={{ color: "rgba(245,166,35,0.7)" }}>Neuraltale Technology</span> — engineered in Dar es Salaam, designed for growth.
             </p>
 
             {/* Social links */}
@@ -78,9 +78,9 @@ export function Footer() {
                 {items.map((item) => (
                   <li key={item}>
                     <a
-                      href={section === "Kampuni" ? (companyLinkMap[item] ?? "https://neuraltale.com/") : "#"}
-                      target={section === "Kampuni" ? "_blank" : undefined}
-                      rel={section === "Kampuni" ? "noreferrer" : undefined}
+                      href={section === "Company" ? (companyLinkMap[item] ?? "https://neuraltale.com/") : "#"}
+                      target={section === "Company" ? "_blank" : undefined}
+                      rel={section === "Company" ? "noreferrer" : undefined}
                       className="text-[#0C1B2E]/55 text-sm transition-all duration-200 hover:text-[#0C1B2E] hover:translate-x-0.5 inline-block"
                     >
                       {item}
@@ -98,11 +98,11 @@ export function Footer() {
           style={{ borderTop: "1px solid rgba(12,27,46,0.08)" }}
         >
           <p className="text-[#0C1B2E]/40 text-xs">
-            &copy; {new Date().getFullYear()} Neuraltale Technology · Dar es Salaam, Tanzania. Haki zote zimehifadhiwa.
+            &copy; {new Date().getFullYear()} Neuraltale Technology · Dar es Salaam, Tanzania. All rights reserved.
           </p>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" aria-hidden="true" />
-            <span className="text-[#0C1B2E]/40 text-xs">Mifumo yote inafanya kazi</span>
+            <span className="text-[#0C1B2E]/40 text-xs">All systems operational</span>
           </div>
         </div>
       </div>

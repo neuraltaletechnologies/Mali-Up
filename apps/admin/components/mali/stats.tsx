@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react"
 import { TrendingUp, Layers, Wifi, ShieldCheck } from "lucide-react"
 
 const stats = [
-  { value: 2400, suffix: "+", label: "Biashara kwenye Orodha",  sublabel: "Na zinaendelea kuongezeka", color: "#F5A623", icon: TrendingUp },
-  { value: 8,    suffix: "",  label: "Moduli za Biashara",      sublabel: "Zote katika programu moja", color: "#22C55E", icon: Layers },
-  { value: 3,    suffix: "G", label: "Inafanya kazi 3G",        sublabel: "Imeundwa kwa Tanzania",     color: "#3B82F6", icon: Wifi },
-  { value: 99,   suffix: "%", label: "Uhakika wa Upatikanaji",  sublabel: "Inapatikana daima",         color: "#F5A623", icon: ShieldCheck },
+  { value: 2400, suffix: "+", label: "Businesses on Waitlist", sublabel: "And growing every day",  color: "#F5A623", icon: TrendingUp  },
+  { value: 8,    suffix: "",  label: "Core Business Modules",  sublabel: "All in one mobile app",  color: "#22C55E", icon: Layers      },
+  { value: 3,    suffix: "G", label: "Works on 3G Networks",   sublabel: "Designed for Tanzania",  color: "#3B82F6", icon: Wifi        },
+  { value: 99,   suffix: "%", label: "Uptime Guaranteed",      sublabel: "Always available",       color: "#F5A623", icon: ShieldCheck },
 ]
 
 function useCountUp(target: number, duration: number, started: boolean) {
@@ -19,7 +19,6 @@ function useCountUp(target: number, duration: number, started: boolean) {
     const tick = (now: number) => {
       const elapsed = now - startTime
       const progress = Math.min(elapsed / duration, 1)
-      // Ease out expo
       const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress)
       setCount(Math.floor(ease * target))
       if (progress < 1) raf = requestAnimationFrame(tick)
