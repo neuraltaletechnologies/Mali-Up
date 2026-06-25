@@ -1,14 +1,18 @@
-# Mali Up — Cloudflare Pages deployment
+# Mali Up — Cloudflare Workers deployment
 # Domain: maliup.neuraltale.com
 
 name = "maliup"
+main = ".open-next/worker.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".open-next/assets"
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
 
 [vars]
 NEXT_PUBLIC_BASE_URL = "https://maliup.neuraltale.com"
 
 # All secret env vars (AUTH_SECRET, FIREBASE_*, NEXT_PUBLIC_FIREBASE_*)
-# are set in the Cloudflare Pages dashboard under:
-# Pages → maliup → Settings → Environment Variables
+# are set in the Cloudflare dashboard under:
+# Workers & Pages → maliup → Settings → Variables and Secrets
