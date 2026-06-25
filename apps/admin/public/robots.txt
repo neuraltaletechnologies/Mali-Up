@@ -1,0 +1,78 @@
+# Mali Up — maliup.co.tz
+# Tanzania-first business app by Neuraltale Technology
+
+# ── Allow all compliant crawlers ──────────────────────────────────────────────
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /_next/
+
+# ── Google ────────────────────────────────────────────────────────────────────
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+User-agent: Googlebot-Image
+Allow: /
+Disallow: /admin/
+
+User-agent: Google-Extended
+Allow: /
+
+# ── Bing / Microsoft ──────────────────────────────────────────────────────────
+User-agent: bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+# ── AI crawlers — allow landing page content ──────────────────────────────────
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+User-agent: Claude-Web
+Allow: /
+Disallow: /admin/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+User-agent: Applebot
+Allow: /
+Disallow: /admin/
+
+User-agent: Bytespider
+Allow: /
+Disallow: /admin/
+
+User-agent: CCBot
+Allow: /
+
+User-agent: FacebookExternalHit
+Allow: /
+Disallow: /admin/
+
+User-agent: LinkedInBot
+Allow: /
+Disallow: /admin/
+
+User-agent: Twitterbot
+Allow: /
+Disallow: /admin/
+
+# ── Sitemap ───────────────────────────────────────────────────────────────────
+Sitemap: https://maliup.co.tz/sitemap.xml

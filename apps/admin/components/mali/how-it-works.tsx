@@ -10,24 +10,24 @@ const steps = [
     icon: Download,
     color: "#F5A623",
     img: "/app-dashboard.jpg",
-    title: "Download & Sign Up",
-    desc: "Install Mali Up on Android or iOS. Create your tenant account in under 2 minutes — no paperwork, no delays.",
+    title: "Pakua & Jisajili",
+    desc: "Sakinisha Mali Up kwenye Android au iOS. Unda akaunti yako ya biashara ndani ya dakika 2 — hakuna karatasi, hakuna kuchelewa.",
   },
   {
     number: "02",
     icon: Store,
     color: "#22C55E",
     img: "/app-inventory.jpg",
-    title: "Set Up Your Business",
-    desc: "Add your products, pricing, staff, and customers. Import existing data or start fresh — Mali Up adapts to you.",
+    title: "Weka Biashara Yako",
+    desc: "Ongeza bidhaa zako, bei, wafanyakazi, na wateja. Ingiza data iliyopo au anza upya — Mali Up inakubaliana nawe.",
   },
   {
     number: "03",
     icon: TrendingUp,
     color: "#3B82F6",
     img: "/app-analytics.jpg",
-    title: "Grow with Data",
-    desc: "Sell, invoice, and track in real time. Let the analytics surface insights that help you make smarter decisions every day.",
+    title: "Kua na Takwimu",
+    desc: "Uza, toa ankara, na fuatilia kwa wakati halisi. Achilia takwimu kufunua maarifa yanayokusaidia kufanya maamuzi bora kila siku.",
   },
 ]
 
@@ -143,7 +143,7 @@ export function HowItWorks() {
         <div className="text-center mb-20 flex flex-col gap-4">
           <div className="reveal inline-flex justify-center">
             <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">
-              Simple Onboarding
+              Usajili Rahisi
             </span>
           </div>
           <h2
@@ -151,10 +151,10 @@ export function HowItWorks() {
             className="reveal font-heading font-bold text-[#0C1B2E] text-balance"
             style={{ fontSize: "clamp(1.9rem,4vw,3rem)" }}
           >
-            Up &amp; Running in Minutes
+            Anza Kufanya Kazi kwa Dakika Chache
           </h2>
           <p className="reveal text-[#0C1B2E]/65 max-w-lg mx-auto leading-relaxed">
-            No IT team required. No steep learning curve. Just three steps from download to your first sale.
+            Hakuna timu ya IT inayohitajika. Hakuna ugumu wa kujifunza. Hatua tatu tu kutoka kupakua hadi mauzo yako ya kwanza.
           </p>
         </div>
 
@@ -178,7 +178,7 @@ export function HowItWorks() {
             href="#waitlist"
             className="relative overflow-hidden shimmer-btn text-[#0C1B2E] font-bold px-8 py-4 rounded-2xl text-base shadow-2xl hover:scale-105 hover:shadow-[0_8px_32px_rgba(245,166,35,0.45)] active:scale-[0.97] transition-all duration-200 inline-flex items-center gap-2 group"
           >
-            Start Your Free Account
+            Anza Akaunti Yako Bure
             <span className="group-hover:translate-x-1 transition-transform duration-200" aria-hidden="true">→</span>
           </a>
         </div>

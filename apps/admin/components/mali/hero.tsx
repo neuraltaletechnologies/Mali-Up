@@ -150,7 +150,7 @@ export function Hero() {
                 priority
               />
               <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">
-                Launching Soon · Africa-First ERP
+                Inakuja Hivi Karibuni · Tanzania-First ERP
               </span>
             </div>
 
@@ -161,25 +161,25 @@ export function Hero() {
               className="font-heading font-bold text-[#0C1B2E] leading-[1.08] text-balance"
               style={{ fontSize: "clamp(2.4rem, 5vw, 3.8rem)" }}
             >
-              Your Entire Business{" "}
+              Biashara Yako Yote{" "}
               <span
                 className="shimmer-btn bg-clip-text inline-block"
                 style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
               >
-                In One App.
+                Katika Programu Moja.
               </span>
             </h1>
 
             {/* Sub */}
             <p data-hero-item className="text-[#0C1B2E]/70 leading-relaxed text-lg max-w-md">
-              Mali Up is the pocket ERP built for African SMBs — manage sales, invoices,
-              inventory, finance, customers, and analytics from your phone.{" "}
-              <span className="text-[#0C1B2E]/85">Fast on 3G. Ready for tomorrow.</span>
+              Mali Up ni ERP ya simu iliyoundwa kwa biashara ndogo za Tanzania — simamia mauzo, ankara,
+              bidhaa, fedha, wateja, na takwimu kutoka kwa simu yako.{" "}
+              <span className="text-[#0C1B2E]/85">Haraka kwenye 3G. Tayari kwa kesho.</span>
             </p>
 
             {/* Built by */}
             <p data-hero-item className="text-[#0C1B2E]/45 text-xs tracking-widest uppercase">
-              Built by <span className="text-[#F5A623]/70 font-semibold">Neuraltale Technology</span>
+              Imetengenezwa na <span className="text-[#F5A623]/70 font-semibold">Neuraltale Technology · Tanzania</span>
             </p>
 
             {/* CTAs */}
@@ -188,7 +188,7 @@ export function Hero() {
                 href="#waitlist"
                 className="shimmer-btn text-[#0C1B2E] font-bold px-7 py-3.5 rounded-2xl text-base shadow-2xl flex items-center gap-2 group transition-all duration-200 hover:scale-105 hover:shadow-[0_8px_32px_rgba(245,166,35,0.4)] active:scale-[0.97]"
               >
-                Get Early Access
+                Pata Ufikiaji wa Mapema
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
               </a>
               <a
@@ -198,7 +198,7 @@ export function Hero() {
                 <span className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center group-hover:border-[#F5A623] group-hover:bg-[#F5A623]/10 transition-all duration-300">
                   <Play size={13} className="ml-0.5 text-[#F5A623]" />
                 </span>
-                See how it works
+                Ona jinsi inavyofanya kazi
               </a>
             </div>
 
@@ -215,7 +215,7 @@ export function Hero() {
                 ))}
               </div>
               <p className="text-[#0C1B2E]/55 text-sm">
-                <span className="text-[#0C1B2E] font-semibold">2,400+</span> businesses on the waitlist
+                <span className="text-[#0C1B2E] font-semibold">2,400+</span> biashara kwenye orodha ya kusubiri
               </p>
             </div>
           </div>
@@ -272,13 +272,13 @@ export function Hero() {
       >
         <div className="animate-ticker flex gap-0 whitespace-nowrap select-none">
           {[
-            "Sales Management","Smart Invoicing","Inventory Control","Multi-Tenant",
-            "Business Analytics","Customer CRM","Finance Tracking","Africa-First",
-            "Works on 3G","Flutter Powered",
+            "Simamia Mauzo","Ankara za Haraka","Udhibiti wa Bidhaa","Biashara Nyingi",
+            "Takwimu za Biashara","CRM ya Wateja","Ufuatiliaji wa Fedha","Tanzania-First",
+            "Inafanya kazi 3G","Flutter Powered",
           ].concat([
-            "Sales Management","Smart Invoicing","Inventory Control","Multi-Tenant",
-            "Business Analytics","Customer CRM","Finance Tracking","Africa-First",
-            "Works on 3G","Flutter Powered",
+            "Simamia Mauzo","Ankara za Haraka","Udhibiti wa Bidhaa","Biashara Nyingi",
+            "Takwimu za Biashara","CRM ya Wateja","Ufuatiliaji wa Fedha","Tanzania-First",
+            "Inafanya kazi 3G","Flutter Powered",
           ]).map((item, i) => (
             <span key={i} className="inline-flex items-center gap-3 px-6 text-xs text-[#0C1B2E]/45 uppercase tracking-widest font-semibold">
               <span className="w-1 h-1 rounded-full bg-[#F5A623] inline-block" />

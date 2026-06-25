@@ -7,14 +7,14 @@ import {
 } from "lucide-react"
 
 const modules = [
-  { icon: ShoppingCart, color: "#F5A623", title: "Sales & POS",         desc: "Process sales instantly, manage products, apply discounts, and generate receipts — even offline." },
-  { icon: FileText,     color: "#22C55E", title: "Smart Invoicing",     desc: "Create professional invoices, track payment status, and send reminders automatically to clients." },
-  { icon: Package,      color: "#3B82F6", title: "Inventory Control",   desc: "Real-time stock levels, low-stock alerts, multi-location support, and automated reorder triggers." },
-  { icon: TrendingUp,   color: "#F5A623", title: "Finance & Accounting",desc: "Track income, expenses, cash flow, and profit margins with visual charts tailored for SMBs." },
-  { icon: Users,        color: "#22C55E", title: "Customer CRM",        desc: "Build customer profiles, track purchase history, and maintain lasting relationships every day." },
-  { icon: BarChart3,    color: "#3B82F6", title: "Business Analytics",  desc: "Data-driven dashboards that surface actionable insights on sales, revenue, and growth trends." },
-  { icon: Building2,    color: "#F5A623", title: "Multi-Tenant",        desc: "One platform for multiple businesses. Each tenant gets isolated data, custom branding, and dedicated access." },
-  { icon: Zap,          color: "#22C55E", title: "Works on 3G",         desc: "Engineered for African connectivity — lightweight, fast-loading, and functional on mid-range devices." },
+  { icon: ShoppingCart, color: "#F5A623", title: "Mauzo & POS",          desc: "Simamia mauzo papo hapo, dhibiti bidhaa, toa punguzo, na chapisha risiti — hata bila intaneti." },
+  { icon: FileText,     color: "#22C55E", title: "Ankara za Haraka",     desc: "Tengeneza ankara za kitaalamu, fuatilia malipo, na tuma ukumbusho wa otometi kwa wateja wako." },
+  { icon: Package,      color: "#3B82F6", title: "Udhibiti wa Bidhaa",   desc: "Hisa za wakati halisi, arifa za hisa ndogo, msaada wa maeneo mengi, na vichocheo vya kuagiza upya." },
+  { icon: TrendingUp,   color: "#F5A623", title: "Fedha & Uhasibu",      desc: "Fuatilia mapato, matumizi, mtiririko wa pesa, na faida kwa chati za kuona zilizoundwa kwa biashara ndogo." },
+  { icon: Users,        color: "#22C55E", title: "CRM ya Wateja",        desc: "Jenga maelezo ya wateja, fuatilia historia ya manunuzi, na dumisha uhusiano wa kudumu kila siku." },
+  { icon: BarChart3,    color: "#3B82F6", title: "Takwimu za Biashara",  desc: "Dashibodi zinazoonyesha maarifa muhimu kuhusu mauzo, mapato, na mwelekeo wa ukuaji." },
+  { icon: Building2,    color: "#F5A623", title: "Biashara Nyingi",      desc: "Jukwaa moja kwa biashara nyingi. Kila biashara inapata data yake, chapa yake, na ufikiaji wake mwenyewe." },
+  { icon: Zap,          color: "#22C55E", title: "Inafanya kazi 3G",     desc: "Imeundwa kwa muunganisho wa Tanzania — nyepesi, pakia haraka, na inafanya kazi kwenye simu za bei nafuu." },
 ]
 
 function FeatureCard({ mod, index }: { mod: typeof modules[0]; index: number }) {
@@ -109,13 +109,13 @@ export function Features() {
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center mb-16 flex flex-col gap-4">
           <div className="reveal inline-flex justify-center">
-            <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">Everything You Need</span>
+            <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">Kila Unachohitaji</span>
           </div>
           <h2 id="features-heading" className="reveal font-heading font-bold text-[#0C1B2E] text-balance" style={{ fontSize: "clamp(1.9rem,4vw,3rem)" }}>
-            One App. Eight Powerful Modules.
+            Programu Moja. Moduli Nane Zenye Nguvu.
           </h2>
           <p className="reveal text-[#0C1B2E]/65 max-w-xl mx-auto leading-relaxed">
-            From the market stall to the growing enterprise — Mali Up scales with your business, keeping every operation connected in one place.
+            Kutoka dukani hadi biashara inayokua — Mali Up inakua na biashara yako, ikiunganisha kila operesheni mahali pamoja.
           </p>
         </div>
 
