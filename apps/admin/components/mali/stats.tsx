@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react"
 import { TrendingUp, Layers, Wifi, ShieldCheck } from "lucide-react"
 
 const stats = [
-  { value: 2400, suffix: "+", label: "Businesses on Waitlist", sublabel: "And growing every day", color: "#F5A623", icon: TrendingUp },
-  { value: 8,    suffix: "",  label: "Core Business Modules",  sublabel: "All in one mobile app",  color: "#22C55E", icon: Layers },
-  { value: 3,    suffix: "G", label: "Works on 3G Networks",   sublabel: "Designed for Africa",    color: "#3B82F6", icon: Wifi },
-  { value: 99,   suffix: "%", label: "Uptime Guaranteed",      sublabel: "Always available",       color: "#F5A623", icon: ShieldCheck },
+  { value: 2400, suffix: "+", label: "Biashara kwenye Orodha",  sublabel: "Na zinaendelea kuongezeka", color: "#F5A623", icon: TrendingUp },
+  { value: 8,    suffix: "",  label: "Moduli za Biashara",      sublabel: "Zote katika programu moja", color: "#22C55E", icon: Layers },
+  { value: 3,    suffix: "G", label: "Inafanya kazi 3G",        sublabel: "Imeundwa kwa Tanzania",     color: "#3B82F6", icon: Wifi },
+  { value: 99,   suffix: "%", label: "Uhakika wa Upatikanaji",  sublabel: "Inapatikana daima",         color: "#F5A623", icon: ShieldCheck },
 ]
 
 function useCountUp(target: number, duration: number, started: boolean) {
@@ -113,10 +113,10 @@ export function Stats() {
       <div className="max-w-5xl mx-auto px-6 relative z-10">
         <div className="text-center mb-16 flex flex-col gap-4">
           <h2 id="stats-heading" className="reveal font-heading font-bold text-[#0C1B2E] text-balance" style={{ fontSize: "clamp(1.9rem,4vw,3rem)" }}>
-            Growing Fast Across Africa
+            Growing Fast Across East Africa
           </h2>
           <p className="reveal text-[#0C1B2E]/65 max-w-md mx-auto leading-relaxed">
-            From Ghana to Nigeria, Kenya to Senegal — African businesses are choosing Mali Up to modernise their operations.
+            From Dar es Salaam to Mwanza, Arusha to Dodoma — Tanzanian businesses are choosing Mali Up to modernise their operations.
           </p>
         </div>
 

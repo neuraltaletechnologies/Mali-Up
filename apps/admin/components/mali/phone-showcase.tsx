@@ -7,46 +7,46 @@ import { ChevronRight } from "lucide-react"
 const tabs = [
   {
     id: "dashboard",
-    label: "Dashboard",
+    label: "Dashibodi",
     img: "/app-dashboard.jpg",
     color: "#F5A623",
     headline: "Command your business at a glance",
     desc: "The home screen surfaces revenue trends, top-selling products, pending invoices, and inventory alerts — all in one clean view, optimised for small screens.",
     metrics: [
-      { label: "Revenue Today", value: "GHS 4,820" },
+      { label: "Revenue Today", value: "TSh 485K" },
       { label: "Sales",         value: "64" },
       { label: "Stock Items",   value: "318" },
     ],
   },
   {
     id: "invoicing",
-    label: "Invoicing",
+    label: "Ankara",
     img: "/app-invoice.jpg",
     color: "#22C55E",
     headline: "Professional invoices in seconds",
     desc: "Generate branded invoices, track payment status, send automated reminders, and record partial payments — no accounting degree required.",
     metrics: [
       { label: "Paid",        value: "89%" },
-      { label: "Outstanding", value: "GHS 1.2K" },
+      { label: "Outstanding", value: "TSh 120K" },
       { label: "Sent Today",  value: "12" },
     ],
   },
   {
     id: "analytics",
-    label: "Analytics",
+    label: "Takwimu",
     img: "/app-analytics.jpg",
     color: "#3B82F6",
     headline: "Data that drives real decisions",
     desc: "Visual charts, period comparisons, and product performance heat-maps help you understand your business and spot opportunities faster.",
     metrics: [
       { label: "Growth",     value: "+34%" },
-      { label: "Top Product",value: "Fabric A" },
-      { label: "Forecasted", value: "GHS 28K" },
+      { label: "Top Product",value: "Kitenge A" },
+      { label: "Forecasted", value: "TSh 2.8M" },
     ],
   },
   {
     id: "inventory",
-    label: "Inventory",
+    label: "Bidhaa",
     img: "/app-inventory.jpg",
     color: "#EF4444",
     headline: "Always know what you have in stock",
@@ -101,19 +101,20 @@ export function PhoneShowcase() {
       id="modules"
       ref={sectionRef}
       className="py-24 relative overflow-hidden"
-      style={{ backgroundColor: "#F8FAFC" }}
+      style={{ backgroundColor: "#0C1B2E" }}
       aria-labelledby="showcase-heading"
     >
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px" style={{ background: "linear-gradient(90deg,transparent,#22C55E,transparent)" }} aria-hidden="true" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-px" style={{ background: "linear-gradient(90deg,transparent,#F5A623,transparent)" }} aria-hidden="true" />
 
       <div className="max-w-6xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-14 flex flex-col gap-4">
           <div className="reveal inline-flex justify-center">
-            <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">App Screenshots</span>
+            <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">Picha za Programu</span>
           </div>
-          <h2 id="showcase-heading" className="reveal font-heading font-bold text-[#0C1B2E] text-balance" style={{ fontSize: "clamp(1.9rem,4vw,3rem)" }}>
-            Built for the Real World of African Business
+          <h2 id="showcase-heading" className="reveal font-heading font-bold text-white text-balance" style={{ fontSize: "clamp(1.9rem,4vw,3rem)" }}>
+            Imeundwa kwa Ulimwengu wa Biashara ya Tanzania
           </h2>
         </div>
 
@@ -130,7 +131,7 @@ export function PhoneShowcase() {
               style={
                 active === i
                   ? { backgroundColor: tab.color, borderColor: tab.color, color: "#0C1B2E", transform: "scale(1.06)" }
-                  : { background: "rgba(255,255,255,0.9)", borderColor: "rgba(12,27,46,0.08)", color: "rgba(12,27,46,0.62)" }
+                  : { background: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.5)" }
               }
             >
               {/* Active indicator ripple */}
@@ -188,12 +189,12 @@ export function PhoneShowcase() {
           >
             <div className="flex flex-col gap-3">
               <span className="text-xs font-bold uppercase tracking-widest" style={{ color: current.color }}>
-                {current.label} Module
+                Moduli ya {current.label}
               </span>
               <h3 className="font-heading font-bold text-white text-2xl md:text-3xl text-balance">
                 {current.headline}
               </h3>
-              <p className="text-[#0C1B2E]/65 leading-relaxed">{current.desc}</p>
+              <p className="leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>{current.desc}</p>
             </div>
 
             {/* Metric cards */}
@@ -201,13 +202,13 @@ export function PhoneShowcase() {
               {current.metrics.map((m) => (
                 <div
                   key={m.label}
-                  className="glass rounded-2xl p-4 flex flex-col gap-1 group hover:-translate-y-1 transition-transform duration-200 cursor-default"
-                  style={{ border: `1px solid ${current.color}20` }}
+                  className="rounded-2xl p-4 flex flex-col gap-1 group hover:-translate-y-1 transition-transform duration-200 cursor-default"
+                  style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(12px)", border: `1px solid ${current.color}28` }}
                 >
                   <span className="font-heading font-bold text-lg group-hover:scale-105 transition-transform duration-200 inline-block" style={{ color: current.color }}>
                     {m.value}
                   </span>
-                  <span className="text-[#0C1B2E]/45 text-xs">{m.label}</span>
+                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>{m.label}</span>
                 </div>
               ))}
             </div>
@@ -234,7 +235,7 @@ export function PhoneShowcase() {
                 className="ml-auto flex items-center gap-1.5 text-xs font-bold transition-all duration-200 hover:gap-2.5 group"
                 style={{ color: current.color }}
               >
-                Next module <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                Moduli inayofuata <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
               </button>
             </div>
           </div>
