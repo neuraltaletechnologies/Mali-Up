@@ -1,5 +1,4 @@
 import type { NextConfig } from 'next'
-import path from 'path'
 
 const securityHeaders = [
   { key: 'X-Frame-Options',           value: 'DENY' },
@@ -32,9 +31,6 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [],
     unoptimized: true,
-  },
-  turbopack: {
-    root: path.resolve(__dirname),
   },
   async headers() {
     return [

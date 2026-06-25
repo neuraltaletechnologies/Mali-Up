@@ -5,10 +5,10 @@ import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react"
 import NextImage from "next/image"
 
 const perks = [
-  "Ufikiaji wa mapema kabla ya uzinduzi",
-  "Usajili bure & uingizaji wa data",
-  "Msaada wa kipaumbele kwa miezi 6",
-  "Bei ya mwanzilishi iliyofungwa milele",
+  "Early access before public launch",
+  "Free onboarding & data import",
+  "Priority support for 6 months",
+  "Locked-in founder pricing forever",
 ]
 
 /* Confetti particle */
@@ -83,7 +83,7 @@ export function Waitlist() {
         {/* Badge */}
         <div className="reveal inline-flex justify-center mb-6">
           <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">
-            Nafasi Chache Zimebaki
+            Limited Spots Available
           </span>
         </div>
 
@@ -107,17 +107,17 @@ export function Waitlist() {
           className="reveal font-heading font-bold text-[#0C1B2E] mb-4 text-balance"
           style={{ fontSize: "clamp(2rem,5vw,3.2rem)" }}
         >
-          Kuwa wa Kwanza Wakati{" "}
+          Be First in Line When{" "}
           <span
             className="shimmer-btn bg-clip-text"
             style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
           >
-            Mali Up Inazinduliwa.
+            Mali Up Launches.
           </span>
         </h2>
 
         <p className="reveal text-[#0C1B2E]/65 leading-relaxed mb-10 max-w-xl mx-auto">
-          Jiunge na maelfu ya wajasiriamali wa Tanzania wanaotaka kupeleka biashara zao kwa kiwango kipya. Nafasi ni chache — hifadhi yako leo.
+          Join thousands of Tanzanian entrepreneurs ready to take their business to the next level. Spots are limited — secure yours today.
         </p>
 
         {/* Perks */}
@@ -167,7 +167,7 @@ export function Waitlist() {
                 <span className="w-5 h-5 rounded-full border-2 border-[#0C1B2E]/40 border-t-[#0C1B2E] animate-spin inline-block" />
               ) : (
                 <>
-                  Pata Ufikiaji wa Mapema
+                  Get Early Access
                   <ArrowRight size={15} />
                 </>
               )}
@@ -199,15 +199,15 @@ export function Waitlist() {
                 <Sparkles size={14} className="absolute -top-2 -right-2 text-[#F5A623]" aria-hidden="true" />
               </div>
               <div className="text-left">
-                <p className="text-[#0C1B2E] font-bold text-base">Umewekwa kwenye orodha!</p>
-                <p className="text-[#0C1B2E]/65 text-sm">Tutawasiliana nawe mara Mali Up itakapozinduliwa.</p>
+                <p className="text-[#0C1B2E] font-bold text-base">You&apos;re on the list!</p>
+                <p className="text-[#0C1B2E]/65 text-sm">We&apos;ll reach out the moment Mali Up launches.</p>
               </div>
             </div>
           </div>
         )}
 
         <p className="reveal text-[#0C1B2E]/35 text-xs mt-6">
-          Hakuna barua taka, kamwe. Jiondoe wakati wowote. Data yako inabaki ya siri.
+          No spam, ever. Unsubscribe any time. Your data stays private.
         </p>
       </div>
     </section>

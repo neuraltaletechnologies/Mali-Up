@@ -7,8 +7,8 @@ import NextImage from "next/image"
 const screens = [
   {
     src: "/app-dashboard.jpg",
-    alt: "Mali Up dashibodi na mwonekano wa mapato na biashara",
-    label: "Dashibodi",
+    alt: "Mali Up main dashboard with revenue chart and business overview",
+    label: "Dashboard",
     color: "#F5A623",
     angle: "-8deg",
     zIndex: 4,
@@ -16,8 +16,8 @@ const screens = [
   },
   {
     src: "/app-invoice.jpg",
-    alt: "Mali Up skrini ya ankara zilizolipwa na zinazongoja malipo",
-    label: "Ankara",
+    alt: "Mali Up invoicing screen with paid and pending invoice list",
+    label: "Invoicing",
     color: "#22C55E",
     angle: "-3deg",
     zIndex: 5,
@@ -25,8 +25,8 @@ const screens = [
   },
   {
     src: "/app-analytics.jpg",
-    alt: "Mali Up takwimu za biashara na mchoro wa mapato na bidhaa bora",
-    label: "Takwimu",
+    alt: "Mali Up analytics screen with revenue chart and product performance",
+    label: "Analytics",
     color: "#3B82F6",
     angle: "3deg",
     zIndex: 5,
@@ -34,8 +34,8 @@ const screens = [
   },
   {
     src: "/app-inventory.jpg",
-    alt: "Mali Up udhibiti wa bidhaa na viwango vya hisa",
-    label: "Bidhaa",
+    alt: "Mali Up inventory management screen with product stock levels",
+    label: "Inventory",
     color: "#EF4444",
     angle: "8deg",
     zIndex: 4,
@@ -76,7 +76,7 @@ export function AppGallery() {
         <div className="text-center mb-16 flex flex-col gap-4">
           <div className="reveal inline-flex justify-center">
             <span className="glass-amber text-[#F5A623] text-xs font-bold px-4 py-1.5 rounded-full tracking-wider uppercase">
-              Skrini za Programu
+              App Screens
             </span>
           </div>
           <h2
@@ -84,10 +84,10 @@ export function AppGallery() {
             className="reveal font-heading font-bold text-[#0C1B2E] text-balance"
             style={{ fontSize: "clamp(1.9rem, 4vw, 3rem)" }}
           >
-            Kila Chombo Kilichopo Mkononi Mwako
+            Every Tool at Your Fingertips
           </h2>
           <p className="reveal text-[#0C1B2E]/65 max-w-lg mx-auto leading-relaxed">
-            Imeundwa vizuri kwa uwazi na kasi. Kila moduli ipo kwa kugusa moja, iliyobuniwa kwa hali halisi ya biashara ya Tanzania.
+            Beautifully designed for clarity and speed. Each module is a tap away, built for the realities of Tanzanian business on the move.
           </p>
         </div>
 
@@ -143,13 +143,13 @@ export function AppGallery() {
               className="rounded-xl"
             />
             <p className="text-[#0C1B2E]/45 text-sm uppercase tracking-widest font-semibold">
-              Inakuja kwenye
+              Coming to
             </p>
           </div>
           <div className="flex gap-4 flex-wrap justify-center">
             {[
-              { name: "Google Play", badge: "Android · Msingi" },
-              { name: "App Store", badge: "iOS · Sekondari" },
+              { name: "Google Play", badge: "Android · Primary" },
+              { name: "App Store",   badge: "iOS · Secondary" },
             ].map((store) => (
               <div
                 key={store.name}
