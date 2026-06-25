@@ -10,14 +10,14 @@ import { Tabs } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KPICard } from '@/components/ui/kpi-card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { fetchBusiness, patchBusiness, postBusinessNote } from '@/lib/admin-api'
+import { fetchBusiness, patchBusiness, postBusinessNote, editBusiness } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatDate, timeAgo } from '@/lib/format'
 import {
   ArrowLeft, Ban, RotateCcw, MessageSquarePlus, AlertCircle,
-  Users, Receipt, ShoppingBag, UserCheck,
+  Users, Receipt, ShoppingBag, UserCheck, Pencil, X, Loader2,
 } from 'lucide-react'
-import type { StaffMember } from '@/types'
+import type { Business, StaffMember } from '@/types'
 
 const TABS = [
   { id: 'overview',      label: 'Overview' },
@@ -43,6 +43,117 @@ function RoleBadge({ role }: { role: string }) {
   )
 }
 
+// ─── Edit Business Drawer ─────────────────────────────────────────────────────
+
+function EditBusinessDrawer({
+  business, uid, bizId, open, onClose, onSaved,
+}: {
+  business: Business; uid: string; bizId: string
+  open: boolean; onClose: () => void; onSaved: () => void
+}) {
+  const [name,     setName]     = useState(business.name)
+  const [category, setCategory] = useState(business.industry)
+  const [location, setLocation] = useState(business.location ?? '')
+  const [plan,     setPlan]     = useState(business.plan)
+  const [saving,   setSaving]   = useState(false)
+  const [err,      setErr]      = useState<string | null>(null)
+
+  const PLANS = ['starter', 'growth', 'business', 'enterprise', 'lifetime']
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) { setErr('Business name is required.'); return }
+    setSaving(true); setErr(null)
+    try {
+      await editBusiness(uid, bizId, {
+        businessName:     name.trim(),
+        businessCategory: category.trim() || undefined,
+        placeOfBusiness:  location.trim() || undefined,
+        plan:             plan || undefined,
+      })
+      onSaved()
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="flex-1 bg-black/50" onClick={onClose} />
+      <div className="w-[400px] bg-[var(--navy)] border-l border-white/[0.09] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.07]">
+          <h2 className="text-[15px] font-semibold text-white">Edit Business</h2>
+          <button onClick={onClose} className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSave} className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+          <DField label="Business Name" value={name} onChange={setName} required />
+          <DField label="Industry / Category" value={category} onChange={setCategory} placeholder="e.g. retail, pharmacy…" />
+          <DField label="Location / City" value={location} onChange={setLocation} placeholder="e.g. Dar es Salaam" />
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] text-slate-400">Plan</span>
+            <select
+              value={plan}
+              onChange={(e) => setPlan(e.target.value as typeof plan)}
+              className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+            >
+              {PLANS.map((p) => (
+                <option key={p} value={p} className="bg-[#0D1B3E]">
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {err && (
+            <div className="flex items-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2">
+              <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+              <span className="text-[12px] text-red-300">{err}</span>
+            </div>
+          )}
+
+          <div className="mt-auto pt-4 flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 rounded-md border border-white/10 px-4 py-2 text-[13px] text-slate-300 hover:bg-white/10 transition-colors">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-4 py-2 text-[13px] font-medium text-[#040C18] hover:opacity-90 disabled:opacity-60 transition-opacity">
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function DField({
+  label, value, onChange, placeholder, required,
+}: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; required?: boolean
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[11px] text-slate-400">{label}{required && <span className="text-red-400 ml-0.5">*</span>}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+      />
+    </label>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function BusinessDetailPage() {
   const { uid, bizId } = useParams<{ uid: string; bizId: string }>()
   const router = useRouter()
@@ -54,6 +165,7 @@ export default function BusinessDetailPage() {
   const [actionPending, setActionPending] = useState(false)
   const [noteInput, setNoteInput] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
 
   const { data, loading, error, refetch } = useAdminFetch(
     useCallback(() => fetchBusiness(uid, bizId), [uid, bizId])
@@ -131,23 +243,32 @@ export default function BusinessDetailPage() {
         title={business.name}
         description={`${business.industry}${business.location ? ` · ${business.location}` : ''}`}
       >
-        {isSuspended ? (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowUnsuspend(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--status-good)] px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+            onClick={() => setShowEdit(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[12px] font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Unsuspend
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
           </button>
-        ) : (
-          <button
-            onClick={() => setShowSuspend(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--status-bad)] bg-[var(--status-bad-bg)] px-3 py-1.5 text-[12px] font-medium text-[var(--status-bad)] hover:bg-[var(--status-bad)] hover:text-white transition-colors"
-          >
-            <Ban className="h-3.5 w-3.5" />
-            Suspend
-          </button>
-        )}
+          {isSuspended ? (
+            <button
+              onClick={() => setShowUnsuspend(true)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--status-good)] px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Unsuspend
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowSuspend(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--status-bad)] bg-[var(--status-bad-bg)] px-3 py-1.5 text-[12px] font-medium text-[var(--status-bad)] hover:bg-[var(--status-bad)] hover:text-white transition-colors"
+            >
+              <Ban className="h-3.5 w-3.5" />
+              Suspend
+            </button>
+          )}
+        </div>
       </PageHeader>
 
       {/* Header strip */}
@@ -371,6 +492,15 @@ export default function BusinessDetailPage() {
         consequence="Restoring access will allow all staff to sign in immediately. Make sure the reason for suspension has been resolved."
         confirmLabel={actionPending ? 'Saving…' : 'Unsuspend business'}
         variant="warning"
+      />
+
+      <EditBusinessDrawer
+        business={business}
+        uid={uid}
+        bizId={bizId}
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        onSaved={() => { setShowEdit(false); refetch() }}
       />
     </div>
   )

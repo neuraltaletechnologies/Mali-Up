@@ -115,6 +115,7 @@ export default function LifetimePage() {
         </div>
       )}
       {!lifetimeLoading && (
+      <>
       <PageHeader
         title="Lifetime Subscriptions"
         description="UTT AMIS investment tracking and refund management"
@@ -224,6 +225,7 @@ export default function LifetimePage() {
           </div>
         )}
       </DetailDrawer>
+      </>
       )}
     </div>
   )

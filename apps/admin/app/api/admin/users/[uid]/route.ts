@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { adminFirestore } from '@/lib/firebase-admin'
+import { adminAuth, adminFirestore } from '@/lib/firebase-admin'
 import { requireAdminSession } from '@/lib/api-guard'
 import { mapUser, mapBusiness } from '@/lib/firestore-mappers'
 import { writeAudit } from '@/lib/write-audit'
@@ -14,24 +14,26 @@ export async function GET(
   const { uid } = await params
 
   try {
-    // User profile
     const userDoc = await adminFirestore.collection('users').doc(uid).get()
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
     const user = mapUser(uid, userDoc.data() as Record<string, unknown>)
 
-    // Businesses owned by this user
+    // Mobile app stores businesses in the top-level `businesses` collection
+    // with an `ownerUid` field — not under tenants/{uid}/businesses.
     const bizSnap = await adminFirestore
-      .collection('tenants')
-      .doc(uid)
       .collection('businesses')
+      .where('ownerUid', '==', uid)
       .get()
 
     const businesses = await Promise.all(
       bizSnap.docs.map(async (doc) => {
-        const staffSnap = await doc.ref.collection('team_members').count().get()
-        const staffCount = staffSnap.data().count ?? 0
+        let staffCount = 0
+        try {
+          const s = await doc.ref.collection('staff').count().get()
+          staffCount = s.data().count ?? 0
+        } catch { /* staff sub-collection may not exist */ }
         return mapBusiness(uid, doc.id, doc.data() as Record<string, unknown>, staffCount)
       })
     )
@@ -78,6 +80,77 @@ export async function PATCH(
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error(`[PATCH /api/admin/users/${uid}]`, err)
+    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
+  }
+}
+
+// ── PUT — edit user profile fields ───────────────────────────────────────────
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ uid: string }> },
+) {
+  const denied = await requireAdminSession()
+  if (denied) return denied
+
+  const { uid } = await params
+
+  try {
+    const body = (await request.json()) as {
+      name?: string
+      phone?: string
+      email?: string
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() }
+
+    if (body.name?.trim()) {
+      updates.displayName = body.name.trim()
+      updates.name        = body.name.trim()
+    }
+    if (body.phone?.trim()) {
+      const normalized = body.phone.trim().replace(/\D/g, '').replace(/^0/, '').replace(/^255/, '')
+      updates.phone = normalized
+    }
+    if (body.email !== undefined) {
+      updates.email = body.email.trim().toLowerCase() || null
+    }
+
+    const userRef = adminFirestore.collection('users').doc(uid)
+    const snap    = await userRef.get()
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    await userRef.update(updates)
+
+    // Sync displayName to Firebase Auth if name changed
+    if (updates.displayName) {
+      try {
+        const authUpdate: Record<string, unknown> = { displayName: updates.displayName as string }
+        if (updates.email) authUpdate.email = updates.email as string
+        await adminAuth.updateUser(uid, authUpdate)
+      } catch { /* auth update is best-effort */ }
+    }
+
+    const before: Record<string, unknown> = {}
+    const after:  Record<string, unknown> = {}
+    if (updates.displayName) { before.name = snap.data()?.displayName; after.name = updates.displayName }
+    if (updates.phone)       { before.phone = snap.data()?.phone;       after.phone = updates.phone }
+    if (updates.email !== undefined) { before.email = snap.data()?.email; after.email = updates.email }
+
+    await writeAudit({
+      action: 'edit_user',
+      resourceType: 'user',
+      resourceId: uid,
+      resourceName: (updates.displayName as string) || (snap.data()?.displayName as string) || uid,
+      isDestructive: false,
+      before,
+      after,
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error(`[PUT /api/admin/users/${uid}]`, err)
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
   }
 }
