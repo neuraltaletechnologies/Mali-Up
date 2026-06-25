@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/reports_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -16,6 +18,8 @@ class ReportsHubScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(reportDateRangeProvider);
+    final planAsync = ref.watch(planStatusProvider);
+    final locked = planAsync.whenOrNull(data: (s) => !s.limits.fullReports) ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -41,29 +45,37 @@ class ReportsHubScreen extends ConsumerWidget {
                     style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                   ),
                   const SizedBox(height: 14),
-                  // Date range chip row
                   _DateRangeBar(range: range),
                   const SizedBox(height: 6),
-                  // Tier badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.secondary.withValues(alpha: 0.12)),
+                  if (locked)
+                    _UpgradeBanner(onTap: () => planAsync.whenOrNull(
+                      data: (s) => showUpgradeSheet(context,
+                          currentStatus: s,
+                          triggerReason: _tr(
+                            'Full financial reports require Growth or Business plan.',
+                            'Ripoti kamili za kifedha zinahitaji mpango wa Growth au Business.',
+                          )),
+                    ))
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.12)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.lock_outline_rounded, size: 13, color: AppColors.secondary),
+                          const SizedBox(width: 6),
+                          Text(
+                            _tr('Export available on Growth & Business plans', 'Usafirishaji unapatikana kwa mipango ya Growth na Business'),
+                            style: const TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.lock_outline_rounded, size: 13, color: AppColors.secondary),
-                        const SizedBox(width: 6),
-                        Text(
-                          _tr('Export available on Growth & Business plans', 'Usafirishaji unapatikana kwa mipango ya Growth na Business'),
-                          style: const TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -76,6 +88,8 @@ class ReportsHubScreen extends ConsumerWidget {
             title: _tr('Profit & Loss', 'Faida na Hasara'),
             subtitle: _tr('Revenue vs expenses for any period', 'Mapato dhidi ya gharama kwa kipindi chochote'),
             route: '/reports/pnl',
+            locked: locked,
+            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
           _ReportCard(
             icon: Icons.account_balance_rounded,
@@ -83,6 +97,8 @@ class ReportsHubScreen extends ConsumerWidget {
             title: _tr('Balance Sheet', 'Karatasi ya Mizania'),
             subtitle: _tr('Assets, liabilities and owner equity snapshot', 'Rasilimali, madeni na hisa ya mmiliki'),
             route: '/reports/balance-sheet',
+            locked: locked,
+            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
           _ReportCard(
             icon: Icons.water_drop_rounded,
@@ -90,6 +106,8 @@ class ReportsHubScreen extends ConsumerWidget {
             title: _tr('Cash Flow Statement', 'Taarifa ya Mtiririko wa Fedha'),
             subtitle: _tr('All inflows and outflows by activity', 'Mapato yote na matumizi kwa shughuli'),
             route: '/reports/cash-flow',
+            locked: locked,
+            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           _SectionHeader(label: _tr('SALES & EXPENSES', 'MAUZO & GHARAMA')),
@@ -99,6 +117,8 @@ class ReportsHubScreen extends ConsumerWidget {
             title: _tr('Sales Report', 'Ripoti ya Mauzo'),
             subtitle: _tr('By product, customer, staff and payment method', 'Kwa bidhaa, mteja, mfanyakazi na njia ya malipo'),
             route: '/reports/sales',
+            locked: locked,
+            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
           _ReportCard(
             icon: Icons.pie_chart_rounded,
@@ -106,6 +126,8 @@ class ReportsHubScreen extends ConsumerWidget {
             title: _tr('Expense Report', 'Ripoti ya Gharama'),
             subtitle: _tr('By category, vendor and period with trends', 'Kwa kategoria, muuzaji na kipindi na mwenendo'),
             route: '/reports/expenses',
+            locked: locked,
+            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
           _ReportCard(
             icon: Icons.percent_rounded,
@@ -113,6 +135,8 @@ class ReportsHubScreen extends ConsumerWidget {
             title: _tr('VAT Summary', 'Muhtasari wa VAT'),
             subtitle: _tr('VAT collected vs paid — TRA compliance', 'VAT iliyokusanywa dhidi ya kulipwa — kufuata TRA'),
             route: '/reports/vat',
+            locked: locked,
+            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           _SectionHeader(label: _tr('AGING & STOCK', 'UMRI & HISA')),
@@ -122,6 +146,8 @@ class ReportsHubScreen extends ConsumerWidget {
             title: _tr('Accounts Receivable Aging', 'Umri wa Madai'),
             subtitle: _tr('Customer overdue invoices with collection priority', 'Ankara zilizopita muda kwa wateja na kipaumbele cha ukusanyaji'),
             route: '/reports/ar-aging',
+            locked: locked,
+            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
           _ReportCard(
             icon: Icons.local_shipping_rounded,
@@ -129,6 +155,8 @@ class ReportsHubScreen extends ConsumerWidget {
             title: _tr('Accounts Payable Aging', 'Umri wa Madeni'),
             subtitle: _tr('Supplier aging with upcoming due dates', 'Umri wa wasambazaji na tarehe za malipo yanayokuja'),
             route: '/reports/ap-aging',
+            locked: locked,
+            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
           _ReportCard(
             icon: Icons.inventory_2_rounded,
@@ -136,6 +164,8 @@ class ReportsHubScreen extends ConsumerWidget {
             title: _tr('Inventory Valuation', 'Tathmini ya Hisa'),
             subtitle: _tr('Stock on hand valued at cost — FIFO & weighted average', 'Hisa iliyopo kwa gharama — FIFO na wastani uliopimwa'),
             route: '/reports/inventory-valuation',
+            locked: locked,
+            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
@@ -265,6 +295,65 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+// ─── Upgrade Banner ───────────────────────────────────────────────────────────
+
+class _UpgradeBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _UpgradeBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0D1B3E), Color(0xFF1A3A5C)],
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.yellowBrand.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.lock_rounded, color: AppColors.yellowBrand, size: 15),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _tr(
+                  'Reports are locked on the free plan. Upgrade to Growth to unlock.',
+                  'Ripoti zimefungwa kwenye mpango wa bure. Panda mpango wa Growth kuzifungua.',
+                ),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.yellowBrand,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                _tr('Upgrade', 'Panda'),
+                style: const TextStyle(
+                  color: AppColors.navyPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Report Card ──────────────────────────────────────────────────────────────
 
 class _ReportCard extends StatelessWidget {
@@ -273,6 +362,8 @@ class _ReportCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String route;
+  final bool locked;
+  final VoidCallback? onLockedTap;
 
   const _ReportCard({
     required this.icon,
@@ -280,6 +371,8 @@ class _ReportCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.route,
+    this.locked = false,
+    this.onLockedTap,
   });
 
   @override
@@ -287,62 +380,73 @@ class _ReportCard extends StatelessWidget {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        child: Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            onTap: () => context.go(route),
+        child: Opacity(
+          opacity: locked ? 0.5 : 1.0,
+          child: Material(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: iconColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: locked ? onLockedTap : () => context.go(route),
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                    child: Icon(icon, color: iconColor, size: 22),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            color: AppColors.secondary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          subtitle,
-                          style: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                  ],
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: iconColor.withValues(alpha: locked ? 0.06 : 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        locked ? Icons.lock_rounded : icon,
+                        color: locked ? AppColors.textDisabled : iconColor,
+                        size: 22,
+                      ),
                     ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
-                ],
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: AppColors.secondary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      locked ? Icons.upgrade_rounded : Icons.chevron_right_rounded,
+                      color: locked ? AppColors.yellowBrand : AppColors.textMuted,
+                      size: 20,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -11,7 +11,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../customer/data/customer_providers.dart';
@@ -109,7 +111,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
     return Scaffold(
       floatingActionButton: ps.isOwner
           ? FloatingActionButton.extended(
-              onPressed: () => _showInviteSheet(context),
+              onPressed: () => _tryInvite(context),
               backgroundColor: AppColors.yellowBrand,
               foregroundColor: AppColors.navyPrimary,
               elevation: 3,
@@ -187,6 +189,29 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _tryInvite(BuildContext ctx) async {
+    final plan = await ref.read(planStatusProvider.future);
+    if (!ctx.mounted) return;
+    final maxUsers = plan.limits.maxUsers;
+    if (maxUsers != -1) {
+      final currentCount =
+          ref.read(teamMembersProvider).valueOrNull?.length ?? 0;
+      if (currentCount >= maxUsers) {
+        await showUpgradeSheet(
+          ctx,
+          currentStatus: plan,
+          triggerReason: _tr(
+            'Your ${plan.tierLabel} plan supports up to $maxUsers user${maxUsers == 1 ? '' : 's'}. Upgrade to add more team members.',
+            'Mpango wako wa ${plan.tierLabelSw} unasaidia hadi watumiaji $maxUsers. Panda mpango kuongeza wanachama zaidi.',
+          ),
+        );
+        return;
+      }
+    }
+    if (!ctx.mounted) return;
+    _showInviteSheet(ctx);
   }
 
   void _showInviteSheet(BuildContext ctx) {

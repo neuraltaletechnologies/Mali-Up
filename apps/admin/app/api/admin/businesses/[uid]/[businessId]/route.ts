@@ -71,6 +71,63 @@ export async function GET(
   }
 }
 
+// ── PUT — edit business fields ────────────────────────────────────────────────
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<Params> },
+) {
+  const denied = await requireAdminSession()
+  if (denied) return denied
+
+  const { uid, businessId } = await params
+
+  try {
+    const body = (await request.json()) as {
+      businessName?: string
+      businessCategory?: string
+      placeOfBusiness?: string
+      plan?: string
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() }
+
+    if (body.businessName?.trim())     updates.businessName     = body.businessName.trim()
+    if (body.businessCategory?.trim()) {
+      updates.businessCategory = body.businessCategory.trim()
+      updates.businessType     = body.businessCategory.trim()
+    }
+    if (body.placeOfBusiness?.trim()) {
+      updates.placeOfBusiness = body.placeOfBusiness.trim()
+      updates.city            = body.placeOfBusiness.trim()
+    }
+    if (body.plan?.trim()) updates.plan = body.plan.trim()
+
+    const bizRef = adminFirestore.collection('businesses').doc(businessId)
+    const snap   = await bizRef.get()
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'Business not found' }, { status: 404 })
+    }
+
+    await bizRef.update(updates)
+
+    const raw = snap.data() as Record<string, unknown>
+    await writeAudit({
+      action: 'edit_business',
+      resourceType: 'business',
+      resourceId: businessId,
+      resourceName: (updates.businessName as string) || (raw.businessName as string) || businessId,
+      isDestructive: false,
+      before: { businessName: raw.businessName, businessCategory: raw.businessCategory, placeOfBusiness: raw.placeOfBusiness, plan: raw.plan },
+      after:  { ...updates, updatedAt: undefined },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error(`[PUT /api/admin/businesses/${uid}/${businessId}]`, err)
+    return NextResponse.json({ error: 'Failed to update business' }, { status: 500 })
+  }
+}
+
 // ── PATCH — suspend / unsuspend ───────────────────────────────────────────────
 export async function PATCH(
   request: Request,

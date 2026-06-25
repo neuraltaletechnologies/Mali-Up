@@ -1,8 +1,0 @@
-name = "maliup-launch-website"
-compatibility_date = "2026-04-07"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = "out"
-
-# Keep this file free of [[services]] bindings unless explicitly required.
-# Adding a self-reference binding (for example WORKER_SELF_REFERENCE)
-# can fail deploys when names drift between environments.

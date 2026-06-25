@@ -36,6 +36,16 @@ export async function patchUser(uid: string, isActive: boolean): Promise<void> {
   })
 }
 
+export async function editUser(
+  uid: string,
+  data: { name?: string; phone?: string; email?: string },
+): Promise<void> {
+  await apiFetch(`/api/admin/users/${uid}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
 // ─── Businesses ──────────────────────────────────────────────────────────────
 
 export async function fetchBusinesses(limit = 300): Promise<{ businesses: Business[]; total: number }> {
@@ -50,6 +60,17 @@ export async function patchBusiness(uid: string, businessId: string, isActive: b
   await apiFetch(`/api/admin/businesses/${uid}/${businessId}`, {
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
+  })
+}
+
+export async function editBusiness(
+  uid: string,
+  businessId: string,
+  data: { businessName?: string; businessCategory?: string; placeOfBusiness?: string; plan?: string },
+): Promise<void> {
+  await apiFetch(`/api/admin/businesses/${uid}/${businessId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
   })
 }
 
@@ -263,6 +284,29 @@ export async function generateCatalogForIndustry(
     method: 'POST',
     body: JSON.stringify({ businessTypeId, businessTypeEn, businessTypeSw }),
   })
+}
+
+// ─── User Activity ────────────────────────────────────────────────────────────
+
+export interface ActivityEntry {
+  id: string
+  action: string
+  entityType?: string
+  entityId?: string
+  entityName?: string
+  performedByName?: string
+  amount?: number
+  details?: string
+  previousValue?: unknown
+  newValue?: unknown
+  businessId: string
+  businessName: string
+  timestamp: string
+  source: 'business_log' | 'admin_log'
+}
+
+export async function fetchUserActivity(uid: string): Promise<{ entries: ActivityEntry[]; total: number }> {
+  return apiFetch(`/api/admin/users/${uid}/activity`)
 }
 
 // ─── Create User + Business ───────────────────────────────────────────────────
