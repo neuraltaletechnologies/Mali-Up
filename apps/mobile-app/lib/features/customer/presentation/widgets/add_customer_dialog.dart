@@ -600,7 +600,6 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
           id: '',
           name: name,
           phone: phone,
-          tags: const ['Contact'],
           createdByUserId: user.uid,
         );
         final saved = await customerRepo.save(customer);

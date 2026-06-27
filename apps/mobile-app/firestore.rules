@@ -224,6 +224,15 @@ service cloud.firestore {
         match /notes/{noteId} {
           allow read, create, update, delete: if isOwnerOrStaffWithAny(bizId, ['manageCustomers']);
         }
+
+        match /payments/{paymentId} {
+          allow read: if isOwnerOrStaffWithAny(bizId,
+            ['viewDebt', 'viewCustomers', 'manageCustomers', 'createSale']);
+          allow create: if isOwnerOrStaffWithAny(bizId,
+            ['manageCustomers', 'grantCredit', 'manageDebt', 'createSale']);
+          allow update, delete: if isOwnerOrStaffWithAny(bizId,
+            ['manageCustomers', 'manageDebt']);
+        }
       }
 
       // ── Sales invoices ─────────────────────────────────────────────────────

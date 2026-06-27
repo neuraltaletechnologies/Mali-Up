@@ -165,6 +165,36 @@ final customerInvoicesProvider =
       });
 });
 
+// Payment records per customer (subcollection — written on manual debt payments)
+final customerPaymentsProvider =
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, customerId) async* {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null || customerId.isEmpty) {
+    yield const [];
+    return;
+  }
+  final ownerUid = ref.watch(tenantOwnerUidProvider) ?? user.uid;
+  final businessAsync = ref.watch(currentBusinessIdProvider);
+  if (businessAsync.isLoading) return;
+  final bizId = businessAsync.valueOrNull;
+  if (bizId == null || bizId.isEmpty) {
+    yield const [];
+    return;
+  }
+  final repo = ref.read(contextFirestoreRepositoryProvider);
+  final customersCol = repo.scopeCollection(
+    uid: ownerUid,
+    context: ResolvedFinanceContext.business(bizId),
+    childCollection: 'customers',
+  );
+  yield* customersCol
+      .doc(customerId)
+      .collection('payments')
+      .orderBy('paidAt', descending: true)
+      .snapshots()
+      .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+});
+
 // Communication log / notes per customer (subcollection)
 final customerNotesProvider =
     StreamProvider.family<List<Map<String, dynamic>>, String>((ref, customerId) async* {

@@ -173,17 +173,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       data: (items) => items,
       orElse: () => const <CashAccount>[],
     );
-    final totalExpenses = expenseItems.fold<double>(
-      0,
-      (t, e) => t + _numericValue(e.amount),
-    );
+    final now2 = DateTime.now();
+    final monthExpenses = expenseItems.where((e) {
+      final d = DateTime.tryParse(e.date);
+      return d != null && d.year == now2.year && d.month == now2.month;
+    }).fold<double>(0, (t, e) => t + _numericValue(e.amount));
     final totalCash = cashAccountItems.fold<double>(0, (t, a) => t + a.balance);
-    final salesItems = ref
-        .watch(salesInvoiceListProvider)
-        .maybeWhen(
-          data: (items) => items,
-          orElse: () => const <Map<String, dynamic>>[],
-        );
+    final salesAsyncValue = ref.watch(salesInvoiceListProvider);
+    final salesItems = salesAsyncValue.maybeWhen(
+      data: (items) => items,
+      orElse: () => const <Map<String, dynamic>>[],
+    );
+    final activityLoading = expenses.isLoading || salesAsyncValue.isLoading;
     final inventoryItems = ref
         .watch(inventoryItemListProvider)
         .maybeWhen(
@@ -217,7 +218,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         : (selectedRevenue > 0 ? 100.0 : 0.0);
 
     // ── Profit snapshot inputs ──────────────────────────────────────────────
-    final netProfit = monthRevenue - totalExpenses;
+    final netProfit = monthRevenue - monthExpenses;
 
     // ── Receivables ──────────────────────────────────────────────────────────
     final now = DateTime.now();
@@ -371,7 +372,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     if (_showHeavyContent)
                       _UnifiedHeroCard(
                         totalCash: totalCash,
-                        totalExpenses: totalExpenses,
+                        monthRevenue: monthRevenue,
+                        monthExpenses: monthExpenses,
                         customerCount: customerCount,
                         businessName: _getBusinessName(snapshot.data),
                         logoUrl: _getBusinessLogoUrl(snapshot.data),
@@ -381,26 +383,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const _DashboardHeroSkeleton(),
 
                     const SizedBox(height: 24),
-
-                    // ── Quick access ─────────────────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _tr('Quick Access', 'Ufikiaji wa Haraka'),
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.secondary,
-                              ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    const _ModuleGrid(showHeavyContent: true),
-
-                    const SizedBox(height: 28),
 
                     // ── Revenue snapshot + period switcher ───────────────
                     if (permissions.canViewSales || permissions.isOwner) ...[
@@ -521,6 +503,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       title: _tr('Recent Activity', 'Shughuli za Karibuni'),
                       expenses: expenseItems,
                       salesItems: salesItems,
+                      isLoading: activityLoading,
                     ),
                   ],
                 ),
@@ -1304,7 +1287,8 @@ class _DashboardHeaderSkeleton extends StatelessWidget {
 
 class _UnifiedHeroCard extends StatefulWidget {
   final double totalCash;
-  final double totalExpenses;
+  final double monthRevenue;
+  final double monthExpenses;
   final int customerCount;
   final String? businessName;
   final String? logoUrl;
@@ -1312,7 +1296,8 @@ class _UnifiedHeroCard extends StatefulWidget {
 
   const _UnifiedHeroCard({
     required this.totalCash,
-    required this.totalExpenses,
+    required this.monthRevenue,
+    required this.monthExpenses,
     required this.customerCount,
     this.businessName,
     this.logoUrl,
@@ -1339,9 +1324,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
         : '••••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
     final expText = _detailsVisible
-        ? _fmtCompactAmount(widget.totalExpenses)
+        ? _fmtCompactAmount(widget.monthExpenses)
         : '••••';
-    final net = widget.totalCash - widget.totalExpenses;
+    final net = widget.monthRevenue - widget.monthExpenses;
     final netText = _detailsVisible ? _fmtCompactAmount(net) : '••••';
     final netColor = net >= 0
         ? const Color(0xFF34D399)
@@ -2452,11 +2437,13 @@ class _RecentTransactionsList extends StatelessWidget {
   final String title;
   final List<dynamic> expenses;
   final List<Map<String, dynamic>> salesItems;
+  final bool isLoading;
 
   const _RecentTransactionsList({
     this.title = 'Recent Activity',
     this.expenses = const [],
     this.salesItems = const [],
+    this.isLoading = false,
   });
 
   List<Map<String, dynamic>> get _sortedItems {
@@ -2560,7 +2547,21 @@ class _RecentTransactionsList extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        if (items.isEmpty)
+        if (isLoading)
+          Column(
+            children: List.generate(
+              3,
+              (_) => const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: ShimmerBox(
+                  width: double.infinity,
+                  height: 64,
+                  borderRadius: BorderRadius.all(Radius.circular(14)),
+                ),
+              ),
+            ),
+          )
+        else if (items.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 32),
             alignment: Alignment.center,

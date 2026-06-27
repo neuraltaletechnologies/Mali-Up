@@ -267,7 +267,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
               color: Colors.white),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          icon: const Icon(Icons.close_rounded, size: 22),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),

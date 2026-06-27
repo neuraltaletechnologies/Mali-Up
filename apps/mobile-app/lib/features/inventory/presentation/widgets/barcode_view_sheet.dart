@@ -1,12 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:barcode_widget/barcode_widget.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 
-/// Bottom sheet that displays a product's barcode/QR code for scanning or printing.
+/// Bottom sheet that displays a product's 1D (Code 128) barcode for scanning or printing.
 class BarcodeViewSheet extends StatelessWidget {
   final String productName;
   final String sku;
@@ -66,7 +66,7 @@ class BarcodeViewSheet extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   border: Border.all(color: AppColors.border),
@@ -79,17 +79,19 @@ class BarcodeViewSheet extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: QrImageView(
+                child: BarcodeWidget(
+                  barcode: Barcode.code128(),
                   data: sku,
-                  size: 200,
-                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                  width: double.infinity,
+                  height: 90,
+                  drawText: false,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.qr_code, size: 16, color: AppColors.textSecondary),
+                  const Icon(Icons.barcode_reader, size: 16, color: AppColors.textSecondary),
                   const SizedBox(width: 6),
                   Text(
                     sku,
@@ -141,12 +143,11 @@ class BarcodeViewSheet extends StatelessWidget {
   }
 
   void _printLabel(BuildContext context) {
-    // Share the barcode code for printing via system share sheet
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           'Label: $productName | $sku | TSh ${price.toStringAsFixed(0)}\n'
-          'Use your label printer app to print this QR code.',
+          'Use your label printer app to print this barcode.',
         ),
         action: SnackBarAction(
           label: 'OK',
