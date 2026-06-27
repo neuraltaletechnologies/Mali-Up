@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../domain/models/expense.dart';
@@ -106,8 +107,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
   ConsumerState<AddExpenseScreen> createState() => _AddExpenseScreenState();
 }
 
-class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
-    with TickerProviderStateMixin {
+class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   _Cat _cat = _Cat.other;
   _PayMethod _payMethod = _PayMethod.cash;
   DateTime _date = DateTime.now();
@@ -126,18 +126,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
   final _supplierPhoneCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
-  late AnimationController _fadeCtrl;
-  late Animation<double> _fadeAnim;
-
   bool get _isEditing => widget.expenseToEdit != null;
 
   @override
   void initState() {
     super.initState();
-    _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 260));
-    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _fadeCtrl.forward();
 
     if (widget.expenseToEdit != null) {
       final e = widget.expenseToEdit!;
@@ -164,7 +157,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
     _recipientCtrl.dispose();
     _supplierPhoneCtrl.dispose();
     _scrollCtrl.dispose();
-    _fadeCtrl.dispose();
     super.dispose();
   }
 
@@ -299,7 +291,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
         'createdBy': user.uid,
         'isRecurring': _isRecurring,
         if (_isRecurring) 'recurrenceType': _frequency,
-        if (finalReceiptUrl.isNotEmpty) 'receiptUrl': finalReceiptUrl,
+        'receiptUrl': finalReceiptUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -397,35 +389,52 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        backgroundColor: AppColors.navyPrimary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          _isEditing
-              ? _tr('Edit Expense', 'Hariri Gharama')
-              : _tr('New Expense', 'Gharama Mpya'),
-          style: GoogleFonts.dmSans(
-              fontWeight: FontWeight.w700,
-              fontSize: 17,
-              color: Colors.white),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: FadeTransition(
-        opacity: _fadeAnim,
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
         child: Column(
           children: [
+            const SheetHandle(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _isEditing
+                          ? _tr('Edit Expense', 'Hariri Gharama')
+                          : _tr('New Expense', 'Gharama Mpya'),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Icon(Icons.close_rounded,
+                          size: 18, color: AppColors.textMuted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: ListView(
                 controller: _scrollCtrl,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 16),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
                 children: [
                   _AmountSection(controller: _amountCtrl),
                   const SizedBox(height: 20),
@@ -464,20 +473,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
                               'Maelezo (mfano Kodi ofisi - Juni)'),
                           icon: Icons.notes_rounded,
                         ),
-                        const Divider(
-                            height: 1, color: AppColors.border),
+                        const Divider(height: 1, color: AppColors.border),
                         _InlineField(
                           controller: _recipientCtrl,
-                          hint: _tr(
-                              'Paid to (recipient)',
-                              'Imelipwa kwa (mlipwaji)'),
+                          hint: _tr('Paid to (recipient)', 'Imelipwa kwa (mlipwaji)'),
                           icon: Icons.person_outline_rounded,
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // Credit purchase toggle
                   _FieldCard(
                     child: Column(
                       children: [
@@ -490,16 +495,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
                           ),
                           value: _isCreditPurchase,
                           color: AppColors.error,
-                          onChanged: (v) =>
-                              setState(() => _isCreditPurchase = v),
+                          onChanged: (v) => setState(() => _isCreditPurchase = v),
                         ),
                         if (_isCreditPurchase) ...[
                           const Divider(height: 1, color: AppColors.border),
                           _InlineField(
                             controller: _supplierPhoneCtrl,
                             hint: _tr(
-                                'Supplier Phone (Optional)',
-                                'Simu ya Muuzaji (Hiari)'),
+                                'Supplier Phone (Optional)', 'Simu ya Muuzaji (Hiari)'),
                             icon: Icons.phone_outlined,
                           ),
                           const Divider(height: 1, color: AppColors.border),
@@ -538,25 +541,21 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
                     onTap: _showReceiptOptions,
                   ),
                   const SizedBox(height: 20),
-                  // Recurring toggle
                   _FieldCard(
                     child: Column(
                       children: [
                         _ToggleRow(
                           icon: Icons.repeat_rounded,
-                          label: _tr('Recurring expense',
-                              'Gharama inayojirudia'),
+                          label: _tr('Recurring expense', 'Gharama inayojirudia'),
                           subtitle: _tr(
                               'Auto-log this expense on schedule',
                               'Andika gharama hii moja kwa moja kwa ratiba'),
                           value: _isRecurring,
                           color: AppColors.tealAccent,
-                          onChanged: (v) =>
-                              setState(() => _isRecurring = v),
+                          onChanged: (v) => setState(() => _isRecurring = v),
                         ),
                         if (_isRecurring) ...[
-                          const Divider(
-                              height: 1, color: AppColors.border),
+                          const Divider(height: 1, color: AppColors.border),
                           Padding(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
@@ -572,15 +571,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
                                 _FreqPill(
                                   label: _tr('Monthly', 'Kila Mwezi'),
                                   active: _frequency == 'monthly',
-                                  onTap: () => setState(
-                                      () => _frequency = 'monthly'),
+                                  onTap: () =>
+                                      setState(() => _frequency = 'monthly'),
                                 ),
                                 const SizedBox(width: 8),
                                 _FreqPill(
                                   label: _tr('Weekly', 'Kila Wiki'),
                                   active: _frequency == 'weekly',
-                                  onTap: () => setState(
-                                      () => _frequency = 'weekly'),
+                                  onTap: () =>
+                                      setState(() => _frequency = 'weekly'),
                                 ),
                               ],
                             ),
@@ -590,27 +589,22 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // Approval workflow toggle
                   _FieldCard(
                     child: _ToggleRow(
                       icon: Icons.approval_rounded,
-                      label: _tr(
-                          'Submit for approval',
-                          'Wasilisha kwa idhini'),
+                      label: _tr('Submit for approval', 'Wasilisha kwa idhini'),
                       subtitle: _tr(
                           'Expense will be held pending manager review',
                           'Gharama itashikiliwa hadi meneja akubali'),
                       value: _submitForApproval,
                       color: AppColors.warning,
-                      onChanged: (v) =>
-                          setState(() => _submitForApproval = v),
+                      onChanged: (v) => setState(() => _submitForApproval = v),
                     ),
                   ),
-                  const SizedBox(height: 100),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
-            // Bottom save bar
             _BottomSaveBar(
               saving: _saving,
               submitForApproval: _submitForApproval,

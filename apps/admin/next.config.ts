@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import path from 'path'
 
 const securityHeaders = [
   { key: 'X-Frame-Options',           value: 'DENY' },
@@ -27,6 +28,18 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
+  },
+  // Prevent Turbopack from bundling Node.js-only packages — doing so causes
+  // a stack overflow during module-graph traversal (STATUS_STACK_OVERFLOW).
+  serverExternalPackages: [
+    'firebase-admin',
+    '@google-cloud/firestore',
+    '@google-cloud/storage',
+    'google-auth-library',
+    'googleapis',
+  ],
+  turbopack: {
+    root: path.resolve(__dirname, '../..'),
   },
   images: {
     remotePatterns: [],

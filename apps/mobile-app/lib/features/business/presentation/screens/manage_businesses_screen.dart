@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/lookup_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -55,6 +56,63 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   }
 
   String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+  bool _isStarterPlan(Map<String, dynamic>? profile) {
+    final tier = PlanTierX.fromString(profile?['plan'] as String?);
+    if (tier == PlanTier.starter) return true;
+    final expiresRaw = profile?['planExpiresAt'] ?? profile?['premiumExpiresAt'];
+    if (expiresRaw is Timestamp) {
+      return expiresRaw.toDate().isBefore(DateTime.now());
+    }
+    return false;
+  }
+
+  Future<void> _showMultiBusinessUpgradeDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.lock_rounded, color: AppColors.yellowBrand, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _tr('Paid Feature', 'Kipengele cha Malipo'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: Text(_tr(
+          'Managing multiple businesses is available on Growth, Business, and Enterprise plans. Upgrade to unlock this feature.',
+          'Usimamizi wa biashara nyingi unapatikana kwenye mipango ya Growth, Business, na Enterprise. Panda daraja ili kufungua kipengele hiki.',
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(),
+            child: Text(_tr('Cancel', 'Ghairi')),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.yellowBrand,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.of(c).pop();
+              context.push(AppRouter.subscriptionPath);
+            },
+            child: Text(
+              _tr('Upgrade', 'Panda Daraja'),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // ─── Storage helpers ─────────────────────────────────────────────────────────
 
@@ -1167,7 +1225,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
-        onTap: () => _openBusinessFormSheet(profile),
+        onTap: () {
+          if (_isStarterPlan(profile) && _businessesFromProfile(profile).isNotEmpty) {
+            _showMultiBusinessUpgradeDialog();
+            return;
+          }
+          _openBusinessFormSheet(profile);
+        },
         borderRadius: BorderRadius.circular(22),
         child: Ink(
           decoration: BoxDecoration(

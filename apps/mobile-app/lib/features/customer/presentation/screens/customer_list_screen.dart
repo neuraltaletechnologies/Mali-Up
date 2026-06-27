@@ -1,9 +1,12 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
@@ -999,15 +1002,19 @@ class _CustomerCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          hasBalance
+                          balance > 0
                               ? 'TZS ${_fmtShort(balance)}'
-                              : _tr('Clear', 'Safi'),
+                              : balance < 0
+                                  ? _tr('Credit', 'Mkopo')
+                                  : _tr('Clear', 'Safi'),
                           style: GoogleFonts.jetBrainsMono(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: hasBalance
+                              color: balance > 0
                                   ? AppColors.error
-                                  : AppColors.success),
+                                  : balance < 0
+                                      ? AppColors.tealAccent
+                                      : AppColors.success),
                         ),
                         if (hasBalance && customer.creditLimit > 0) ...[
                           const SizedBox(height: 2),
@@ -1073,30 +1080,13 @@ class _CustomerCard extends ConsumerWidget {
   }
 
   List<Widget> _statusChips() {
-    final chips = <Widget>[];
-    final importedFromContacts =
-        customer.tags.any((t) => t.toLowerCase() == 'contact');
-
-    chips.add(
+    if (!customer.isOrganisation) return [];
+    return [
       _TagChip(
-        tag: importedFromContacts
-            ? _tr('FROM CONTACTS', 'KUTOKA MAWASILIANO')
-            : _tr('MANUAL', 'KWA MKONO'),
-        color:
-            importedFromContacts ? AppColors.tealAccent : AppColors.textMuted,
+        tag: _tr('ORG', 'SHIRIKA'),
+        color: AppColors.navySecondary,
       ),
-    );
-
-    if (customer.isOrganisation) {
-      chips.add(
-        _TagChip(
-          tag: _tr('ORG', 'SHIRIKA'),
-          color: AppColors.navySecondary,
-        ),
-      );
-    }
-
-    return chips;
+    ];
   }
 }
 
@@ -1769,51 +1759,147 @@ class _CustomerInfoSheet extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 11),
                       decoration: BoxDecoration(
-                        color: hasBalance
+                        color: balance > 0
                             ? AppColors.error.withValues(alpha: 0.06)
-                            : AppColors.success.withValues(alpha: 0.06),
+                            : balance < 0
+                                ? AppColors.tealAccent.withValues(alpha: 0.06)
+                                : AppColors.success.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: hasBalance
+                          color: balance > 0
                               ? AppColors.error.withValues(alpha: 0.2)
-                              : AppColors.success.withValues(alpha: 0.2),
+                              : balance < 0
+                                  ? AppColors.tealAccent.withValues(alpha: 0.2)
+                                  : AppColors.success.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            hasBalance
+                            balance > 0
                                 ? Icons.account_balance_wallet_rounded
-                                : Icons.check_circle_rounded,
+                                : balance < 0
+                                    ? Icons.savings_rounded
+                                    : Icons.check_circle_rounded,
                             size: 16,
-                            color: hasBalance
+                            color: balance > 0
                                 ? AppColors.error
-                                : AppColors.success,
+                                : balance < 0
+                                    ? AppColors.tealAccent
+                                    : AppColors.success,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              hasBalance
+                              balance > 0
                                   ? _tr(
                                       'Outstanding: TZS ${_fmtShort(balance)}',
                                       'Deni: TZS ${_fmtShort(balance)}',
                                     )
-                                  : _tr(
-                                      'No outstanding balance',
-                                      'Hakuna deni',
-                                    ),
+                                  : balance < 0
+                                      ? _tr(
+                                          'Credit: TZS ${_fmtShort(balance.abs())}',
+                                          'Mkopo: TZS ${_fmtShort(balance.abs())}',
+                                        )
+                                      : _tr(
+                                          'No outstanding balance',
+                                          'Hakuna deni',
+                                        ),
                               style: GoogleFonts.dmSans(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: hasBalance
+                                color: balance > 0
                                     ? AppColors.error
-                                    : AppColors.success,
+                                    : balance < 0
+                                        ? AppColors.tealAccent
+                                        : AppColors.success,
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
+                    if (hasBalance) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            showAppSheet<void>(
+                              context,
+                              builder: (_) => CustomerPayDebtSheet(
+                                customerName: live.name,
+                                balance: balance,
+                                onSave: (amount, method, note) async {
+                                  final newBalance = balance - amount;
+                                  await ref
+                                      .read(customerRepositoryProvider)
+                                      .save(live.copyWith(
+                                        balance: newBalance == 0
+                                            ? '0'
+                                            : newBalance.toStringAsFixed(0),
+                                      ));
+                                  final user =
+                                      FirebaseAuth.instance.currentUser;
+                                  if (user != null) {
+                                    final ownerUid =
+                                        ref.read(tenantOwnerUidProvider) ??
+                                            user.uid;
+                                    final bizId = ref
+                                            .read(currentBusinessIdProvider)
+                                            .valueOrNull ??
+                                        '';
+                                    if (bizId.isNotEmpty) {
+                                      final col = ref
+                                          .read(
+                                              contextFirestoreRepositoryProvider)
+                                          .scopeCollection(
+                                            uid: ownerUid,
+                                            context: ResolvedFinanceContext
+                                                .business(bizId),
+                                            childCollection: 'customers',
+                                          );
+                                      await col
+                                          .doc(live.id)
+                                          .collection('payments')
+                                          .add({
+                                        'amount': amount,
+                                        'method': method,
+                                        'note': note,
+                                        'paidAt': FieldValue.serverTimestamp(),
+                                        'recordedBy': user.uid,
+                                      });
+                                    }
+                                  }
+                                  await ref
+                                      .read(customerAuditLoggerProvider)
+                                      .log(
+                                        AuditLogService.customerUpdated,
+                                        customerId: live.id,
+                                        customerName: live.name,
+                                        previousValue: 'balance:$balance',
+                                        newValue: 'balance:$newBalance',
+                                      );
+                                },
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.payments_rounded, size: 16),
+                          label: Text(
+                            _tr('Pay Debt', 'Lipa Deni'),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 14, fontWeight: FontWeight.w700),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.tealAccent,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
 
                   const SizedBox(height: 18),

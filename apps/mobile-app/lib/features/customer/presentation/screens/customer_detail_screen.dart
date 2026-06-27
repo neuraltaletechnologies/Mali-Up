@@ -15,6 +15,7 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../../sales/data/sales_providers.dart';
+import '../../../sales/presentation/screens/invoice_detail_screen.dart';
 import '../../data/customer_providers.dart';
 import '../../domain/models/customer.dart';
 
@@ -180,7 +181,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
   void initState() {
     super.initState();
     _customer = widget.customer;
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 2, vsync: this);
     _fadeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 300));
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
@@ -407,15 +408,11 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                 onCall: _callCustomer,
                 onWhatsApp: _whatsappCustomer,
                 onReminder: _sendReminder,
+                onPayDebt: showFinancials ? _showPayDebtSheet : null,
               ),
-              _InvoicesTab(
+              _ActivityTab(
                 customerId: _customer.id,
                 showFinancials: showFinancials,
-              ),
-              _NotesTab(
-                customerId: _customer.id,
-                customerName: _customer.name,
-                onAddNote: _showAddNoteSheet,
               ),
             ],
           ),
@@ -440,7 +437,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         : '?';
 
     return SliverAppBar(
-      expandedHeight: 240,
+      expandedHeight: 160,
       pinned: true,
       backgroundColor: AppColors.navyPrimary,
       foregroundColor: Colors.white,
@@ -473,34 +470,30 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 56, 20, 16),
+              padding: const EdgeInsets.fromLTRB(20, 48, 20, 12),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Avatar ────────────────────────────────────────────────
-                  Hero(
-                    tag: 'customer-${_customer.id}',
-                    child: Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            width: 1.5),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        initials,
-                        style: GoogleFonts.dmSans(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white),
-                      ),
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          width: 1.5),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      initials,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 14),
                   // ── Name + meta ───────────────────────────────────────────
                   Expanded(
                     child: Column(
@@ -513,7 +506,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                               child: Text(
                                 _customer.name,
                                 style: GoogleFonts.dmSans(
-                                    fontSize: 20,
+                                    fontSize: 17,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.white),
                                 overflow: TextOverflow.ellipsis,
@@ -538,54 +531,28 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                               ),
                           ],
                         ),
-                        const SizedBox(height: 3),
-                        if (_customer.phone.isNotEmpty)
+                        if (_customer.phone.isNotEmpty) ...[
+                          const SizedBox(height: 2),
                           Text(_customer.phone,
                               style: GoogleFonts.dmSans(
-                                  fontSize: 13, color: Colors.white60)),
-                        const SizedBox(height: 10),
-                        // Tags
-                        if (_customer.tags.isNotEmpty)
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            children: _customer.tags.map((tag) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.25)),
-                                ),
-                                child: Text(
-                                  tag,
-                                  style: GoogleFonts.dmSans(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        const SizedBox(height: 10),
-                        // Balance (hidden for stock clerks)
-                        if (showFinancials)
+                                  fontSize: 12, color: Colors.white60)),
+                        ],
+                        if (showFinancials) ...[
+                          const SizedBox(height: 5),
                           Row(
                             children: [
                               Text(
                                 _tr('Balance: ', 'Salio: '),
                                 style: GoogleFonts.dmSans(
-                                    fontSize: 12, color: Colors.white54),
+                                    fontSize: 11, color: Colors.white54),
                               ),
                               Text(
                                 hasBalance
                                     ? 'TZS ${_fmtNum(balance)}'
                                     : _tr('All clear', 'Hakuna deni'),
-                                style: GoogleFonts.dmSerifDisplay(
-                                  fontSize: 16,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
                                   color: hasBalance
                                       ? const Color(0xFFFC8181)
                                       : const Color(0xFF86EFAC),
@@ -611,6 +578,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                                 ),
                             ],
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -640,8 +608,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
             indicatorWeight: 2.5,
             tabs: [
               Tab(text: _tr('Overview', 'Muhtasari')),
-              Tab(text: _tr('Invoices', 'Ankara')),
-              Tab(text: _tr('Notes', 'Logi')),
+              Tab(text: _tr('Activity', 'Shughuli')),
             ],
           ),
           const Divider(height: 1, color: AppColors.border),
@@ -650,16 +617,66 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     );
   }
 
-  void _showAddNoteSheet() {
+  void _showPayDebtSheet() {
+    final balance = _customer.balanceAmount;
+    if (balance <= 0) return;
     showAppSheet(
       context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _AddNoteSheet(
-        onSave: (type, text, scheduledFor) async {
-          await _saveNote(type: type, text: text, scheduledFor: scheduledFor);
-          if (mounted) Navigator.of(context).pop();
+      builder: (_) => CustomerPayDebtSheet(
+        customerName: _customer.name,
+        balance: balance,
+        onSave: (amount, method, note) async {
+          final newBalance = balance - amount;
+          try {
+            // Update balance via the offline-first sync path
+            await ref.read(customerRepositoryProvider).save(
+              _customer.copyWith(
+                  balance: newBalance == 0
+                      ? '0'
+                      : newBalance.toStringAsFixed(0)),
+            );
+            // Record the payment event in Firestore subcollection
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              final ownerUid = ref.read(tenantOwnerUidProvider) ?? user.uid;
+              final bizId =
+                  ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+              if (bizId.isNotEmpty) {
+                final fsRepo = ref.read(contextFirestoreRepositoryProvider);
+                final col = fsRepo.scopeCollection(
+                  uid: ownerUid,
+                  context: ResolvedFinanceContext.business(bizId),
+                  childCollection: 'customers',
+                );
+                await col.doc(_customer.id).collection('payments').add({
+                  'amount': amount,
+                  'method': method,
+                  'note': note,
+                  'paidAt': FieldValue.serverTimestamp(),
+                  'recordedBy': user.uid,
+                });
+              }
+            }
+            await ref.read(customerAuditLoggerProvider).log(
+              AuditLogService.customerUpdated,
+              customerId: _customer.id,
+              customerName: _customer.name,
+              previousValue: 'balance:$balance',
+              newValue: 'balance:$newBalance',
+            );
+            if (mounted) {
+              _showSnack(
+                _tr('Payment recorded successfully',
+                    'Malipo yamerekodiwa kikamilifu'),
+                color: AppColors.success,
+              );
+            }
+          } catch (_) {
+            if (mounted) {
+              _showSnack(_tr(
+                  'Failed to record payment', 'Imeshindwa kurekodi malipo'));
+            }
+          }
         },
       ),
     );
@@ -679,6 +696,7 @@ class _OverviewTab extends ConsumerStatefulWidget {
   final VoidCallback onCall;
   final VoidCallback onWhatsApp;
   final VoidCallback onReminder;
+  final VoidCallback? onPayDebt;
 
   const _OverviewTab({
     required this.customer,
@@ -689,6 +707,7 @@ class _OverviewTab extends ConsumerStatefulWidget {
     required this.onCall,
     required this.onWhatsApp,
     required this.onReminder,
+    this.onPayDebt,
   });
 
   @override
@@ -778,6 +797,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
             limitCtrl: _limitCtrl,
             canEditCredit: widget.canEditCredit,
             onSaveLimit: (v) => widget.onCreditLimitSave(v),
+            onPayDebt: widget.onPayDebt,
           ),
           const SizedBox(height: 16),
         ],
@@ -921,6 +941,7 @@ class _BalanceCard extends StatefulWidget {
   final TextEditingController limitCtrl;
   final bool canEditCredit;
   final ValueChanged<double> onSaveLimit;
+  final VoidCallback? onPayDebt;
 
   const _BalanceCard({
     required this.balance,
@@ -928,6 +949,7 @@ class _BalanceCard extends StatefulWidget {
     required this.limitCtrl,
     required this.canEditCredit,
     required this.onSaveLimit,
+    this.onPayDebt,
   });
 
   @override
@@ -980,9 +1002,15 @@ class _BalanceCardState extends State<_BalanceCard> {
                 child: Icon(
                   widget.balance > 0
                       ? Icons.account_balance_wallet_rounded
-                      : Icons.check_circle_rounded,
+                      : widget.balance < 0
+                          ? Icons.savings_rounded
+                          : Icons.check_circle_rounded,
                   size: 16,
-                  color: widget.balance > 0 ? AppColors.error : AppColors.success,
+                  color: widget.balance > 0
+                      ? AppColors.error
+                      : widget.balance < 0
+                          ? AppColors.tealAccent
+                          : AppColors.success,
                 ),
               ),
               const SizedBox(width: 10),
@@ -991,7 +1019,9 @@ class _BalanceCardState extends State<_BalanceCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _tr('Outstanding Balance', 'Deni Linalodaiwa'),
+                      widget.balance < 0
+                          ? _tr('Customer Credit', 'Mkopo wa Mteja')
+                          : _tr('Outstanding Balance', 'Deni Linalodaiwa'),
                       style: GoogleFonts.dmSans(
                           fontSize: 11,
                           color: AppColors.textMuted,
@@ -1000,12 +1030,16 @@ class _BalanceCardState extends State<_BalanceCard> {
                     Text(
                       widget.balance > 0
                           ? 'TZS ${_fmtNum(widget.balance)}'
-                          : _tr('All clear', 'Hakuna deni'),
+                          : widget.balance < 0
+                              ? 'TZS ${_fmtNum(widget.balance.abs())}'
+                              : _tr('All clear', 'Hakuna deni'),
                       style: GoogleFonts.dmSerifDisplay(
                           fontSize: 22,
                           color: widget.balance > 0
                               ? AppColors.error
-                              : AppColors.success),
+                              : widget.balance < 0
+                                  ? AppColors.tealAccent
+                                  : AppColors.success),
                     ),
                   ],
                 ),
@@ -1174,6 +1208,29 @@ class _BalanceCardState extends State<_BalanceCard> {
                 ),
               ],
             ),
+
+          // ── Pay Debt button ───────────────────────────────────────
+          if (widget.balance > 0 && widget.onPayDebt != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: widget.onPayDebt,
+                icon: const Icon(Icons.payments_rounded, size: 16),
+                label: Text(
+                  _tr('Pay Debt', 'Lipa Deni'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.tealAccent,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1871,9 +1928,10 @@ class _CustomTagPill extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tab 2 — Invoices
+// Tab 2 — Invoices (kept for potential future re-use; no longer in tab bar)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ignore: unused_element
 class _InvoicesTab extends ConsumerWidget {
   final String customerId;
   final bool showFinancials;
@@ -2004,8 +2062,17 @@ class _InvoiceTile extends StatelessWidget {
         '—';
     final createdAt =
         readTimestamp(invoice['createdAt'] ?? invoice['invoiceDate']);
+    final dueDate = readTimestamp(invoice['dueDate']);
     final isQuotation =
         (invoice['type'] ?? '').toString().toLowerCase() == 'quotation';
+
+    final rawItems = invoice['lineItems'] ?? invoice['items'];
+    final itemCount = rawItems is List ? rawItems.length : 0;
+
+    final isOverdue = status != 'paid' &&
+        status != 'cancelled' &&
+        dueDate != null &&
+        dueDate.isBefore(DateTime.now());
 
     final statusColor = switch (status) {
       'paid' => AppColors.success,
@@ -2016,87 +2083,154 @@ class _InvoiceTile extends StatelessWidget {
       _ => AppColors.warning,
     };
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        border: Border(
-          left: BorderSide(color: statusColor, width: 3),
-          right: const BorderSide(color: AppColors.border),
-          top: const BorderSide(color: AppColors.border),
-          bottom: const BorderSide(color: AppColors.border),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => InvoiceDetailScreen(invoice: invoice),
+        )),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border(
+              left: BorderSide(color: statusColor, width: 3),
+              right: const BorderSide(color: AppColors.border),
+              top: const BorderSide(color: AppColors.border),
+              bottom: const BorderSide(color: AppColors.border),
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      number,
-                      style: GoogleFonts.jetBrainsMono(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary),
-                    ),
-                    if (isQuotation) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color:
-                              AppColors.tealAccent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          _tr('QUOTE', 'NUKUU'),
-                          style: GoogleFonts.dmSans(
-                              fontSize: 9,
+                    Row(
+                      children: [
+                        Text(
+                          number,
+                          style: GoogleFonts.jetBrainsMono(
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.tealAccent),
+                              color: AppColors.textPrimary),
                         ),
+                        if (isQuotation) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.tealAccent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _tr('QUOTE', 'NUKUU'),
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.tealAccent),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        if (createdAt != null) ...[
+                          const Icon(Icons.calendar_today_rounded,
+                              size: 10, color: AppColors.textDisabled),
+                          const SizedBox(width: 3),
+                          Text(
+                            _fmtDate(createdAt),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 11, color: AppColors.textMuted),
+                          ),
+                        ],
+                        if (createdAt != null && itemCount > 0)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Container(
+                              width: 3,
+                              height: 3,
+                              decoration: const BoxDecoration(
+                                  color: AppColors.textDisabled,
+                                  shape: BoxShape.circle),
+                            ),
+                          ),
+                        if (itemCount > 0)
+                          Text(
+                            _tr('$itemCount item${itemCount == 1 ? '' : 's'}',
+                                'vitu $itemCount'),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 11, color: AppColors.textMuted),
+                          ),
+                      ],
+                    ),
+                    if (dueDate != null) ...[
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 10,
+                            color: isOverdue
+                                ? AppColors.error
+                                : AppColors.textDisabled,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${_tr('Due', 'Mwisho')}: ${_fmtDate(dueDate)}',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              color: isOverdue
+                                  ? AppColors.error
+                                  : AppColors.textMuted,
+                              fontWeight: isOverdue
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
                 ),
-                if (createdAt != null)
-                  Text(
-                    _fmtDate(createdAt),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11, color: AppColors.textMuted),
-                  ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                'TZS ${_fmtNum(total)}',
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary),
               ),
-              const SizedBox(height: 3),
-              PaymentStatusChip(status: status),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'TZS ${_fmtNum(total)}',
+                    style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 4),
+                  PaymentStatusChip(status: status),
+                ],
+              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded,
+                  size: 16, color: AppColors.textDisabled),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tab 3 — Notes / Communication Log
+// Notes / Communication Log (kept for potential future re-use; no longer in tab bar)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ignore: unused_element
 class _NotesTab extends ConsumerWidget {
   final String customerId;
   final String customerName;
@@ -2839,6 +2973,539 @@ class _MiniStat extends StatelessWidget {
           Text(label,
               style: GoogleFonts.dmSans(
                   fontSize: 10, color: AppColors.textMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pay Debt Bottom Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class CustomerPayDebtSheet extends StatefulWidget {
+  final String customerName;
+  final double balance;
+  final Future<void> Function(double amount, String method, String note) onSave;
+
+  const CustomerPayDebtSheet({
+    super.key,
+    required this.customerName,
+    required this.balance,
+    required this.onSave,
+  });
+
+  @override
+  State<CustomerPayDebtSheet> createState() => _CustomerPayDebtSheetState();
+}
+
+class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
+  final _amountCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  String _method = 'cash';
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    final amount =
+        double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+            0;
+    try {
+      await widget.onSave(amount, _method, _noteCtrl.text.trim());
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_tr(
+              'Failed to record payment', 'Imeshindwa kurekodi malipo')),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomPad),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _tr('Record Debt Payment', 'Rekodi Malipo ya Deni'),
+              style: GoogleFonts.dmSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${_tr('Outstanding balance', 'Deni linalobaki')}: TZS ${_fmtNum(widget.balance)}',
+              style: GoogleFonts.dmSans(
+                  fontSize: 13, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 18),
+
+            // Amount field
+            TextFormField(
+              controller: _amountCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              autofocus: true,
+              style: GoogleFonts.jetBrainsMono(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                prefixText: 'TZS  ',
+                prefixStyle: GoogleFonts.dmSans(
+                    fontSize: 15,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w500),
+                hintText: '0',
+                hintStyle: GoogleFonts.jetBrainsMono(
+                    fontSize: 22,
+                    color: AppColors.textDisabled,
+                    fontWeight: FontWeight.w700),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: AppColors.tealAccent, width: 1.5),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return _tr('Enter amount', 'Ingiza kiasi');
+                }
+                final amt = double.tryParse(v) ?? 0;
+                if (amt <= 0) return _tr('Invalid amount', 'Kiasi si halali');
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+
+            // Payment method chips
+            Text(
+              _tr('Payment Method', 'Njia ya Malipo'),
+              style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _PayMethodChip(
+                    method: 'cash',
+                    label: _tr('Cash', 'Taslimu'),
+                    selected: _method,
+                    onSelect: (v) => setState(() => _method = v)),
+                const SizedBox(width: 8),
+                _PayMethodChip(
+                    method: 'mpesa',
+                    label: 'M-Pesa',
+                    selected: _method,
+                    onSelect: (v) => setState(() => _method = v)),
+                const SizedBox(width: 8),
+                _PayMethodChip(
+                    method: 'bank',
+                    label: _tr('Bank', 'Benki'),
+                    selected: _method,
+                    onSelect: (v) => setState(() => _method = v)),
+                const SizedBox(width: 8),
+                _PayMethodChip(
+                    method: 'card',
+                    label: _tr('Card', 'Kadi'),
+                    selected: _method,
+                    onSelect: (v) => setState(() => _method = v)),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Note field
+            TextField(
+              controller: _noteCtrl,
+              decoration: InputDecoration(
+                hintText: _tr('Note (optional)', 'Maelezo (hiari)'),
+                hintStyle: GoogleFonts.dmSans(
+                    fontSize: 13, color: AppColors.textDisabled),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: AppColors.tealAccent, width: 1.5),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              maxLines: 2,
+              minLines: 1,
+            ),
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton(
+                onPressed: _saving ? null : _save,
+                style: FilledButton.styleFrom(
+                  backgroundColor:
+                      _saving ? AppColors.border : AppColors.tealAccent,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _saving
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : Text(
+                        _tr('Confirm Payment', 'Thibitisha Malipo'),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PayMethodChip extends StatelessWidget {
+  final String method;
+  final String label;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  const _PayMethodChip({
+    required this.method,
+    required this.label,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final active = method == selected;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onSelect(method),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: active
+                ? AppColors.tealAccent
+                : AppColors.tealAccent.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: active
+                  ? AppColors.tealAccent
+                  : AppColors.tealAccent.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: active ? Colors.white : AppColors.tealAccent),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab 3 — Activity (combined purchases + debt payments timeline)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum _ActivityType { purchase, payment }
+
+class _ActivityEntry {
+  final _ActivityType type;
+  final DateTime date;
+  final double amount;
+  final String title;
+  final String? subtitle;
+  final String? status;
+
+  const _ActivityEntry({
+    required this.type,
+    required this.date,
+    required this.amount,
+    required this.title,
+    this.subtitle,
+    this.status,
+  });
+}
+
+String _payMethodLabel(String method) => switch (method) {
+      'cash' => _tr('Cash', 'Taslimu'),
+      'mpesa' => 'M-Pesa',
+      'bank' => _tr('Bank', 'Benki'),
+      'card' => _tr('Card', 'Kadi'),
+      _ => method,
+    };
+
+class _ActivityTab extends ConsumerWidget {
+  final String customerId;
+  final bool showFinancials;
+
+  const _ActivityTab({
+    required this.customerId,
+    required this.showFinancials,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final invoicesAsync = ref.watch(customerInvoicesProvider(customerId));
+    final paymentsAsync = ref.watch(customerPaymentsProvider(customerId));
+
+    if (invoicesAsync.isLoading || paymentsAsync.isLoading) {
+      return const Center(
+          child: CircularProgressIndicator(
+              color: AppColors.navyPrimary, strokeWidth: 2));
+    }
+
+    final invoices = invoicesAsync.valueOrNull ?? [];
+    final payments = paymentsAsync.valueOrNull ?? [];
+
+    final items = <_ActivityEntry>[
+      ...invoices.map((inv) {
+        final date =
+            readTimestamp(inv['createdAt'] ?? inv['invoiceDate']) ??
+                DateTime(2000);
+        final amount = readInvoiceTotal(inv);
+        final status =
+            (inv['status'] ?? 'pending').toString().toLowerCase();
+        final number = inv['invoiceNumber']?.toString() ??
+            inv['id']?.toString() ??
+            '—';
+        final rawItems = inv['lineItems'] ?? inv['items'];
+        final itemCount = rawItems is List ? rawItems.length : 0;
+        return _ActivityEntry(
+          type: _ActivityType.purchase,
+          date: date,
+          amount: amount,
+          title: '${_tr('Invoice', 'Ankara')} $number',
+          subtitle: itemCount > 0
+              ? _tr('$itemCount item${itemCount == 1 ? '' : 's'}',
+                  'vitu $itemCount')
+              : null,
+          status: status,
+        );
+      }),
+      ...payments.map((pay) {
+        final date =
+            readTimestamp(pay['paidAt'] ?? pay['date']) ?? DateTime(2000);
+        final amount = (pay['amount'] as num?)?.toDouble() ?? 0;
+        final method = pay['method']?.toString() ?? 'cash';
+        final note = pay['note']?.toString() ?? '';
+        return _ActivityEntry(
+          type: _ActivityType.payment,
+          date: date,
+          amount: amount,
+          title: _tr('Debt Payment', 'Malipo ya Deni'),
+          subtitle: note.isNotEmpty
+              ? '${_payMethodLabel(method)} · $note'
+              : _payMethodLabel(method),
+        );
+      }),
+    ];
+
+    items.sort((a, b) => b.date.compareTo(a.date));
+
+    if (items.isEmpty) {
+      return EmptyState(
+        icon: Icons.timeline_rounded,
+        title: _tr('No activity yet', 'Bado hakuna shughuli'),
+        subtitle: _tr(
+          'Sales and debt payments will appear here.',
+          'Uuzaji na malipo ya deni vitaonekana hapa.',
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 60),
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (_, i) => _ActivityTile(
+        entry: items[i],
+        showFinancials: showFinancials,
+      ),
+    );
+  }
+}
+
+class _ActivityTile extends StatelessWidget {
+  final _ActivityEntry entry;
+  final bool showFinancials;
+
+  const _ActivityTile(
+      {required this.entry, required this.showFinancials});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPurchase = entry.type == _ActivityType.purchase;
+    final isPayment = entry.type == _ActivityType.payment;
+
+    final statusColor = isPurchase
+        ? switch (entry.status ?? 'pending') {
+            'paid' => AppColors.success,
+            'overdue' => AppColors.error,
+            'cancelled' => AppColors.textDisabled,
+            'draft' => AppColors.textMuted,
+            _ => AppColors.warning,
+          }
+        : AppColors.tealAccent;
+
+    final iconBg = isPayment
+        ? AppColors.tealAccent.withValues(alpha: 0.1)
+        : statusColor.withValues(alpha: 0.1);
+    final icon = isPayment
+        ? Icons.payments_rounded
+        : Icons.shopping_bag_rounded;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border(
+          left: BorderSide(color: statusColor, width: 3),
+          right: const BorderSide(color: AppColors.border),
+          top: const BorderSide(color: AppColors.border),
+          bottom: const BorderSide(color: AppColors.border),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 17, color: statusColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.title,
+                  style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary),
+                ),
+                if (entry.subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    entry.subtitle!,
+                    style: GoogleFonts.dmSans(
+                        fontSize: 11, color: AppColors.textMuted),
+                  ),
+                ],
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today_rounded,
+                        size: 10, color: AppColors.textDisabled),
+                    const SizedBox(width: 3),
+                    Text(
+                      _fmtDate(entry.date),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 11, color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (showFinancials)
+                Text(
+                  'TZS ${_fmtNum(entry.amount)}',
+                  style: GoogleFonts.jetBrainsMono(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isPayment
+                          ? AppColors.tealAccent
+                          : AppColors.textPrimary),
+                ),
+              if (isPurchase && entry.status != null) ...[
+                const SizedBox(height: 4),
+                PaymentStatusChip(status: entry.status!),
+              ],
+              if (isPayment) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.tealAccent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    _tr('PAID', 'IMELIPWA'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.tealAccent),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );

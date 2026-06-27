@@ -202,6 +202,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
         await showUpgradeSheet(
           ctx,
           currentStatus: plan,
+          featureKey: PlanFeatureKey.teamMembers,
           triggerReason: _tr(
             'Your ${plan.tierLabel} plan supports up to $maxUsers user${maxUsers == 1 ? '' : 's'}. Upgrade to add more team members.',
             'Mpango wako wa ${plan.tierLabelSw} unasaidia hadi watumiaji $maxUsers. Panda mpango kuongeza wanachama zaidi.',

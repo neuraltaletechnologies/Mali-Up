@@ -299,9 +299,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       builder: (_) => _SelectSaleForReturnSheet(
         onSaleSelected: (invoice) {
           Navigator.of(ctx, rootNavigator: true).push(
-            MaterialPageRoute<void>(
-              builder: (_) => SalesReturnScreen(originalInvoice: invoice),
-              fullscreenDialog: true,
+            PageRouteBuilder<void>(
+              pageBuilder: (_, __, ___) =>
+                  SalesReturnScreen(originalInvoice: invoice),
+              transitionDuration: const Duration(milliseconds: 380),
+              reverseTransitionDuration: const Duration(milliseconds: 300),
+              transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                position: animation.drive(
+                  Tween(begin: const Offset(0, 1), end: Offset.zero)
+                      .chain(CurveTween(curve: Curves.easeOutCubic)),
+                ),
+                child: child,
+              ),
             ),
           );
         },
@@ -950,7 +959,7 @@ class _ProductRow extends ConsumerWidget {
                   ),
                   const SizedBox(width: 14),
 
-                  // ── Name + subtitle ────────────────────────────────
+                  // ── Name + subtitle + stock ────────────────────────
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -988,6 +997,17 @@ class _ProductRow extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (type != ProductType.service) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            '$qty $unit',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: fColor,
+                            ),
+                          ),
+                        ],
                         if (expiryLabel.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
@@ -1005,7 +1025,7 @@ class _ProductRow extends ConsumerWidget {
                   ),
                   const SizedBox(width: 12),
 
-                  // ── Price + stock ──────────────────────────────────
+                  // ── Price + status ─────────────────────────────────
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -1017,18 +1037,8 @@ class _ProductRow extends ConsumerWidget {
                           color: AppColors.navyPrimary,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      if (type != ProductType.service)
-                        Text(
-                          '$qty $unit',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: fColor,
-                          ),
-                        )
-                      else
-                        _StatusPill(level: fullStatus),
+                      const SizedBox(height: 4),
+                      _StatusPill(level: fullStatus),
                     ],
                   ),
                 ],
@@ -2749,6 +2759,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
   String _unit = 'pcs';
   bool _saving = false;
+  InventoryItem? _restockTarget; // non-null = form is in restock mode for this product
 
   // Category state
   String _selectedCategoryId = '';
@@ -2953,6 +2964,75 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final nav = Navigator.of(context);
     final msg = ScaffoldMessenger.of(context);
 
+    // ── Restock mode: adjustQuantity on the tracked existing product ────────
+    if (_restockTarget != null) {
+      final qty = double.tryParse(_stockCtrl.text) ?? 0;
+      if (qty <= 0) {
+        _snack(_tr('Enter quantity to add', 'Ingiza kiasi cha kuongeza'));
+        return;
+      }
+      setState(() => _saving = true);
+      try {
+        final target = _restockTarget!;
+        await ref.read(inventoryRepositoryProvider).adjustQuantity(target.id, qty);
+
+        if (!isManufactured && _stockEntryType == 'purchase' && _isPurchaseOnCredit && _buyVal > 0) {
+          final total      = qty * _buyVal;
+          final dueDate    = DateTime.now().add(const Duration(days: 30));
+          final dueDateStr =
+              '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
+          await ref.read(debtRepositoryProvider).save(Debt(
+            id: '',
+            partyName:  _supplierNameCtrl.text.trim(),
+            partyPhone: _supplierPhoneCtrl.text.trim(),
+            type: 'payable',
+            originalAmount: total,
+            dueDate: dueDateStr,
+            note: _tr('Restock: ${target.name}', 'Restock: ${target.name}'),
+            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
+            createdAt: DateTime.now().toIso8601String(),
+          ));
+        }
+
+        if (!isManufactured && _stockEntryType == 'purchase' &&
+            !_isPurchaseOnCredit && _selectedAccountId.isNotEmpty && _buyVal > 0) {
+          final total   = qty * _buyVal;
+          final today   = DateTime.now();
+          final dateStr =
+              '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+          await ref.read(cashRepositoryProvider).addTransaction(CashTransaction(
+            id: '',
+            type: 'withdrawal',
+            amount: total,
+            fromAccountId: _selectedAccountId,
+            description: _tr('Restock: ${target.name}', 'Restock: ${target.name}'),
+            date: dateStr,
+          ));
+        }
+
+        if (!mounted) return;
+        final qtyStr = qty % 1 == 0 ? qty.toStringAsFixed(0) : qty.toStringAsFixed(2);
+        msg.showSnackBar(SnackBar(
+          content: Text((_stockEntryType == 'purchase' && _isPurchaseOnCredit)
+              ? _tr('Restocked $qtyStr ${target.unit} – debt recorded',
+                    'Imeongezwa $qtyStr ${target.unit} – deni limerekodiwa')
+              : _tr('Restocked $qtyStr ${target.unit}',
+                    'Imeongezwa $qtyStr ${target.unit}')),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ));
+        widget.onDone != null ? widget.onDone!() : nav.pop();
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        msg.showSnackBar(SnackBar(
+          content: Text(_tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.')),
+          backgroundColor: AppColors.error,
+        ));
+      }
+      return;
+    }
+
     // ── Duplicate-name check (new products only) ─────────────────────────────
     if (!_isEdit && !isReturn) {
       final allItems = ref.read(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
@@ -2962,62 +3042,22 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
         orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
       );
       if (existing.id.isNotEmpty) {
-        final qty = double.tryParse(_stockCtrl.text) ?? 0;
-        if (!mounted) return;
-        final addToExisting = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Text(
-              _tr('Product already exists', 'Bidhaa tayari ipo'),
-              style: GoogleFonts.dmSans(fontWeight: FontWeight.w800, color: AppColors.navyPrimary),
-            ),
-            content: Text(
-              _tr(
-                '"$name" is already in your inventory. Add $qty ${existing.unit} to existing stock instead?',
-                '"$name" tayari ipo kwenye bidhaa zako. Ongeza $qty ${existing.unit} kwenye stoo iliyopo badala yake?',
-              ),
-              style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textSecondary),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text(_tr('Create new', 'Unda mpya'), style: GoogleFonts.dmSans(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                style: TextButton.styleFrom(foregroundColor: AppColors.tealAccent),
-                child: Text(_tr('Add to existing', 'Ongeza kwenye iliyopo'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-        );
-        if (addToExisting == true) {
-          if (qty > 0) {
-            setState(() => _saving = true);
-            try {
-              await ref.read(inventoryRepositoryProvider).adjustQuantity(existing.id, qty);
-              if (!mounted) return;
-              msg.showSnackBar(SnackBar(
-                content: Text(_tr('Added $qty ${existing.unit} to $name', 'Imeongeza $qty ${existing.unit} kwenye $name')),
-                backgroundColor: AppColors.success,
-                behavior: SnackBarBehavior.floating,
-              ));
-              widget.onDone != null ? widget.onDone!() : nav.pop();
-            } catch (_) {
-              if (!mounted) return;
-              setState(() => _saving = false);
-              msg.showSnackBar(SnackBar(
-                content: Text(_tr('Failed. Try again.', 'Imeshindikana. Jaribu tena.')),
-                backgroundColor: AppColors.error,
-              ));
-            }
-          } else {
-            widget.onDone != null ? widget.onDone!() : nav.pop();
-          }
-          return;
-        }
-        // fall through → create new product with a distinct name
+        // Switch to restock mode inline — no new sheet
+        _applyFromExisting(existing);
+        setState(() {
+          _restockTarget = existing;
+          _saving = false;
+          _stockCtrl.text = '1';
+        });
+        msg.showSnackBar(SnackBar(
+          content: Text(_tr(
+            '"$name" already exists — enter how many to add',
+            '"$name" tayari ipo — ingiza kiasi cha kuongeza',
+          )),
+          backgroundColor: AppColors.tealAccent,
+          behavior: SnackBarBehavior.floating,
+        ));
+        return;
       }
     }
 
@@ -3364,7 +3404,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
     // Live name suggestions: match any existing item whose name contains the typed text
     final query = _nameCtrl.text.trim().toLowerCase();
-    final nameSuggestions = (!_isEdit && query.isNotEmpty && _nameFocus.hasFocus)
+    final nameSuggestions = (!_isEdit && _restockTarget == null && query.isNotEmpty && _nameFocus.hasFocus)
         ? allInventory
             .where((i) => i.name.toLowerCase().contains(query))
             .take(5)
@@ -3402,13 +3442,15 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       children: [
                         Expanded(
                           child: Text(
-                            _isEdit
-                                ? _tr('Edit Product', 'Hariri Bidhaa')
-                                : _type == ProductType.customerReturn
-                                    ? _tr('Record Return', 'Rekodi Urejesho')
-                                    : _type == ProductType.manufactured
-                                        ? _tr('Add Manufactured Product', 'Ongeza Bidhaa ya Uzalishaji')
-                                        : _tr('Add Product', 'Ongeza Bidhaa'),
+                            _restockTarget != null
+                                ? _tr('Restock: ${_restockTarget!.name}', 'Ongeza Stoo: ${_restockTarget!.name}')
+                                : _isEdit
+                                    ? _tr('Edit Product', 'Hariri Bidhaa')
+                                    : _type == ProductType.customerReturn
+                                        ? _tr('Record Return', 'Rekodi Urejesho')
+                                        : _type == ProductType.manufactured
+                                            ? _tr('Add Manufactured Product', 'Ongeza Bidhaa ya Uzalishaji')
+                                            : _tr('Add Product', 'Ongeza Bidhaa'),
                             style: GoogleFonts.dmSans(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -3524,14 +3566,14 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         focusNode: _nameFocus,
                         onChanged: (_) => setState(() {}),
                       ),
-                      // ── Existing-product suggestions ──────────────────
+                      // ── Existing-product suggestions (restock) ────────
                       if (nameSuggestions.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.35)),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.06),
@@ -3541,13 +3583,33 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             ],
                           ),
                           child: Column(
-                            children: nameSuggestions.asMap().entries.map((e) {
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(14, 9, 14, 4),
+                                child: Text(
+                                  _tr('Already in your inventory — restock?',
+                                      'Tayari kwenye stoo yako — ongeza tena?'),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.tealAccent,
+                                  ),
+                                ),
+                              ),
+                              ...nameSuggestions.asMap().entries.map((e) {
                               final idx  = e.key;
                               final item = e.value;
+                              final isExact = item.name.toLowerCase() == query;
                               return InkWell(
-                                onTap: () => _applyFromExisting(item),
+                                onTap: () {
+                                  _applyFromExisting(item);
+                                  setState(() {
+                                    _restockTarget = item;
+                                    _stockCtrl.text = '1';
+                                  });
+                                },
                                 borderRadius: BorderRadius.vertical(
-                                  top: idx == 0 ? const Radius.circular(12) : Radius.zero,
                                   bottom: idx == nameSuggestions.length - 1 ? const Radius.circular(12) : Radius.zero,
                                 ),
                                 child: Padding(
@@ -3558,43 +3620,111 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                         width: 32,
                                         height: 32,
                                         decoration: BoxDecoration(
-                                          color: AppColors.surface,
+                                          color: AppColors.tealAccent.withValues(alpha: 0.08),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
-                                        child: const Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.textMuted),
+                                        child: const Icon(Icons.add_circle_outline_rounded, size: 16, color: AppColors.tealAccent),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              item.name,
-                                              style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.navyPrimary),
+                                            Row(
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    item.name,
+                                                    style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.navyPrimary),
+                                                  ),
+                                                ),
+                                                if (isExact) ...[
+                                                  const SizedBox(width: 6),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.tealAccent.withValues(alpha: 0.12),
+                                                      borderRadius: BorderRadius.circular(4),
+                                                    ),
+                                                    child: Text(
+                                                      _tr('MATCH', 'INAFANANA'),
+                                                      style: GoogleFonts.dmSans(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.tealAccent),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                             Text(
                                               [
                                                 if (item.categoryName.isNotEmpty) item.categoryName,
                                                 if (item.unitPrice > 0) _fmtAmount(item.unitPrice),
-                                                '${item.currentStock.toStringAsFixed(0)} ${item.unit}',
+                                                '${item.currentStock.toStringAsFixed(0)} ${item.unit} ${_tr("on hand", "iliyopo")}',
                                               ].join(' · '),
                                               style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
                                             ),
                                           ],
                                         ),
                                       ),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        _tr('Fill form', 'Jaza'),
-                                        style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.tealAccent),
+                                        _tr('Restock', 'Ongeza'),
+                                        style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.tealAccent),
                                       ),
+                                      const SizedBox(width: 2),
+                                      const Icon(Icons.chevron_right_rounded, size: 15, color: AppColors.tealAccent),
                                     ],
                                   ),
                                 ),
                               );
-                            }).toList(),
+                            }),
+                            ],
                           ),
                         ),
                       ],
+
+                      // ── Restock mode banner ───────────────────────────────
+                      if (_restockTarget != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.tealAccent.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.30)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.add_circle_outline_rounded, size: 15, color: AppColors.tealAccent),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _tr(
+                                    'Restocking — ${_restockTarget!.currentStock % 1 == 0 ? _restockTarget!.currentStock.toStringAsFixed(0) : _restockTarget!.currentStock.toStringAsFixed(2)} ${_restockTarget!.unit} currently on hand',
+                                    'Kuongeza stoo — ${_restockTarget!.currentStock % 1 == 0 ? _restockTarget!.currentStock.toStringAsFixed(0) : _restockTarget!.currentStock.toStringAsFixed(2)} ${_restockTarget!.unit} zilizopo sasa',
+                                  ),
+                                  style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.tealAccent),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => setState(() {
+                                  _restockTarget = null;
+                                  _stockCtrl.text = '1';
+                                }),
+                                child: Text(
+                                  _tr('New product', 'Bidhaa mpya'),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: AppColors.textMuted,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 14),
 
                       // Category dropdown + Unit
@@ -4107,7 +4237,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         const SizedBox(height: 20),
                         Container(height: 1, color: AppColors.border),
                         const SizedBox(height: 20),
-                        _FormSectionLabel(_tr('Stock', 'Stoo')),
+                        _FormSectionLabel(_restockTarget != null
+                            ? _tr('Quantity to add', 'Kiasi cha kuongeza')
+                            : _tr('Stock', 'Stoo')),
                         const SizedBox(height: 12),
                         Row(
                           children: [
@@ -4115,7 +4247,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _FormLabel(_tr('Quantity', 'Kiasi')),
+                                  _FormLabel(_restockTarget != null
+                                      ? _tr('Add quantity', 'Ongeza kiasi')
+                                      : _tr('Quantity', 'Kiasi')),
                                   const SizedBox(height: 6),
                                   _FormField(
                                     ctrl: _stockCtrl,
@@ -5766,6 +5900,7 @@ class _ProfitStrip extends StatelessWidget {
     );
   }
 }
+
 
 // ── Stock Entry Type Toggle ───────────────────────────────────────────────────
 

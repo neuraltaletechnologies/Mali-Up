@@ -1151,6 +1151,27 @@ class _InvoiceCard extends StatelessWidget {
     final dueDate = readTimestamp(item['dueDate']);
     final items = (item['items'] as List?) ?? const [];
     final itemCount = items.length;
+
+    // Main heading: first product name; overflow to "+ N more" for multi-item sales
+    final String cardTitle;
+    if (items.isNotEmpty) {
+      final firstName = (items.first is Map
+              ? (items.first as Map)['name']
+              : null)
+          ?.toString()
+          .trim() ??
+          '';
+      if (firstName.isNotEmpty) {
+        cardTitle = itemCount > 1
+            ? '$firstName & ${itemCount - 1} ${_tr('more', 'zaidi')}'
+            : firstName;
+      } else {
+        cardTitle = customer;
+      }
+    } else {
+      cardTitle = customer;
+    }
+
     final isQuotation =
         (item['type'] ?? '').toString().toLowerCase() == 'quotation';
 
@@ -1208,7 +1229,7 @@ class _InvoiceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row 1: invoice number + date + status chip
+            // Row 1: [invoiceNo + customer] left | [amount + status] right
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1250,7 +1271,7 @@ class _InvoiceCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        customer,
+                        cardTitle,
                         style: GoogleFonts.dmSans(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -1263,9 +1284,20 @@ class _InvoiceCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
+                // Amount + status chip stacked on right
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    Text(
+                      _fmtAmt(amount),
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
@@ -1290,39 +1322,29 @@ class _InvoiceCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _fmtDate(date),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
                   ],
                 ),
               ],
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
 
-            // Row 2: amount + item count + share button
+            // Row 2: date + item count | share button
             Row(
               children: [
                 Text(
-                  _fmtAmt(amount),
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.3,
+                  _fmtDate(date),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
                   ),
                 ),
                 if (itemCount > 0) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Text(
                     '· $itemCount ${_tr(itemCount == 1 ? "item" : "items", itemCount == 1 ? "kitu" : "vitu")}',
                     style: GoogleFonts.dmSans(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: AppColors.textMuted,
                     ),
                   ),
@@ -1535,13 +1557,18 @@ class _ItemEntry {
 
   double get lineTotal => unitPrice * qty;
 
+  bool get _isService =>
+      (selectedItem?['productType'] as String?) == 'service';
+
   int get maxStock {
     if (selectedItem == null) return 9999;
+    if (_isService) return 9999;
     return parseStock(
         selectedItem!['currentStock'] ?? selectedItem!['stock'] ?? 9999);
   }
 
-  bool get isOutOfStock => selectedItem != null && maxStock <= 0;
+  bool get isOutOfStock =>
+      selectedItem != null && !_isService && maxStock <= 0;
 
   void dispose() {
     nameCtrl.dispose();
@@ -2130,10 +2157,17 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       };
 
       if (!mounted) return;
-      await showAppSheet<void>(
-        context,
-        builder: (_) =>
-            _SaleSuccessSheet(saleData: saleReceipt, ref: ref),
+      await Navigator.of(context, rootNavigator: true).push<void>(
+        PageRouteBuilder(
+          pageBuilder: (_, _, _) =>
+              _SaleSuccessScreen(saleData: saleReceipt, ref: ref),
+          transitionsBuilder: (_, animation, _, child) => FadeTransition(
+            opacity:
+                CurvedAnimation(parent: animation, curve: Curves.easeIn),
+            child: child,
+          ),
+          transitionDuration: const Duration(milliseconds: 250),
+        ),
       );
       if (!mounted) return;
       navigator.pop();
@@ -2682,26 +2716,32 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: (entry.isOutOfStock
-                            ? AppColors.error
-                            : entry.maxStock <= 5
-                                ? AppColors.warning
-                                : AppColors.success)
+                    color: (entry._isService
+                            ? AppColors.tealAccent
+                            : entry.isOutOfStock
+                                ? AppColors.error
+                                : entry.maxStock <= 5
+                                    ? AppColors.warning
+                                    : AppColors.success)
                         .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    entry.isOutOfStock
-                        ? _tr('Out of stock', 'Imekwisha')
-                        : '${entry.maxStock} ${_tr("in stock", "stokuni")}',
+                    entry._isService
+                        ? _tr('Service', 'Huduma')
+                        : entry.isOutOfStock
+                            ? _tr('Out of stock', 'Imekwisha')
+                            : '${entry.maxStock} ${_tr("in stock", "stokuni")}',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: entry.isOutOfStock
-                            ? AppColors.error
-                            : entry.maxStock <= 5
-                                ? AppColors.warning
-                                : AppColors.success),
+                        color: entry._isService
+                            ? AppColors.tealAccent
+                            : entry.isOutOfStock
+                                ? AppColors.error
+                                : entry.maxStock <= 5
+                                    ? AppColors.warning
+                                    : AppColors.success),
                   ),
                 ),
               const Spacer(),
@@ -4434,29 +4474,28 @@ String _sNum(double v) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SALE SUCCESS RECEIPT POPUP
+// SALE SUCCESS RECEIPT SCREEN
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _SaleSuccessSheet extends StatefulWidget {
+class _SaleSuccessScreen extends StatefulWidget {
   final Map<String, dynamic> saleData;
   final WidgetRef ref;
 
-  const _SaleSuccessSheet({required this.saleData, required this.ref});
+  const _SaleSuccessScreen({required this.saleData, required this.ref});
 
   @override
-  State<_SaleSuccessSheet> createState() => _SaleSuccessSheetState();
+  State<_SaleSuccessScreen> createState() => _SaleSuccessScreenState();
 }
 
-class _SaleSuccessSheetState extends State<_SaleSuccessSheet>
+class _SaleSuccessScreenState extends State<_SaleSuccessScreen>
     with TickerProviderStateMixin {
   late final AnimationController _checkCtrl;
-  late final AnimationController _contentCtrl;
-  late final AnimationController _pulseCtrl;
+  late final AnimationController _cardCtrl;
 
   late final Animation<double> _checkScale;
-  late final Animation<double> _checkOpacity;
-  late final Animation<Offset> _contentSlide;
-  late final Animation<double> _contentOpacity;
+  late final Animation<double> _checkFade;
+  late final Animation<Offset> _cardSlide;
+  late final Animation<double> _cardFade;
 
   @override
   void initState() {
@@ -4466,37 +4505,28 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _contentCtrl = AnimationController(
+    _cardCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
 
-    _checkScale = CurvedAnimation(
-      parent: _checkCtrl,
-      curve: Curves.elasticOut,
-    );
-    _checkOpacity = Tween<double>(begin: 0, end: 1).animate(
+    _checkScale =
+        CurvedAnimation(parent: _checkCtrl, curve: Curves.elasticOut);
+    _checkFade = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
-        parent: _checkCtrl,
-        curve: const Interval(0, 0.4, curve: Curves.easeIn),
-      ),
+          parent: _checkCtrl,
+          curve: const Interval(0, 0.4, curve: Curves.easeIn)),
     );
-    _contentSlide = Tween<Offset>(
-      begin: const Offset(0, 0.25),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOutCubic),
-    );
-    _contentOpacity =
-        CurvedAnimation(parent: _contentCtrl, curve: Curves.easeOut);
+    _cardSlide =
+        Tween<Offset>(begin: const Offset(0, 0.18), end: Offset.zero)
+            .animate(CurvedAnimation(
+                parent: _cardCtrl, curve: Curves.easeOutCubic));
+    _cardFade =
+        CurvedAnimation(parent: _cardCtrl, curve: Curves.easeOut);
 
     _checkCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 380), () {
-      if (mounted) _contentCtrl.forward();
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (mounted) _cardCtrl.forward();
     });
     HapticFeedback.heavyImpact();
   }
@@ -4504,8 +4534,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet>
   @override
   void dispose() {
     _checkCtrl.dispose();
-    _contentCtrl.dispose();
-    _pulseCtrl.dispose();
+    _cardCtrl.dispose();
     super.dispose();
   }
 
@@ -4514,212 +4543,110 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet>
     final sale = widget.saleData;
     final amount = (sale['amount'] as num?)?.toDouble() ?? 0;
     final amountPaid = (sale['amountPaid'] as num?)?.toDouble() ?? 0;
-    final items =
-        (sale['items'] as List?)?.whereType<Map>().toList() ?? const [];
     final invoiceNo = (sale['invoiceNumber'] ?? '').toString();
     final customerName =
         (sale['customerName'] ?? _tr('Walk-in', 'Mteja wa kawaida'))
             .toString();
     final statusStr = (sale['status'] ?? 'paid').toString();
+    final items =
+        (sale['items'] as List?)?.whereType<Map>().toList() ?? const [];
+    final createdAt = sale['createdAt'] as DateTime? ?? DateTime.now();
 
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.92,
-        ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SheetHandle(),
-
-                const SizedBox(height: 24),
-
-                // Animated checkmark with pulsing rings
-                _buildCheckHero(),
-
-                const SizedBox(height: 20),
-
-                // Headline — fades + slides in slightly after the check
-                FadeTransition(
-                  opacity: _contentOpacity,
-                  child: SlideTransition(
-                    position: _contentSlide,
-                    child: Column(
-                      children: [
-                        Text(
-                          _tr('Sale Recorded!', 'Mauzo Yamerekodiwa!'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.navyPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          _tr('Receipt ready to share with customer',
-                              'Risiti iko tayari kushirikiwa na mteja'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 13,
-                            color: AppColors.textMuted,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Receipt card
-                FadeTransition(
-                  opacity: _contentOpacity,
-                  child: SlideTransition(
-                    position: _contentSlide,
-                    child: _SuccessReceiptCard(
-                      invoiceNo: invoiceNo,
-                      customerName: customerName,
-                      amount: amount,
-                      amountPaid: amountPaid,
-                      items: items,
-                      sale: sale,
-                      statusStr: statusStr,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Action buttons
-                FadeTransition(
-                  opacity: _contentOpacity,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              await _SalesScreenState._openReceiptActions(
-                                context: context,
-                                sale: widget.saleData,
-                                ref: widget.ref,
-                              );
-                            },
-                            icon: const Icon(Icons.share_rounded, size: 18),
-                            label: Text(
-                              _tr('Share Receipt', 'Shiriki Risiti'),
-                              style: GoogleFonts.dmSans(
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
-                              foregroundColor: AppColors.tealAccent,
-                              side: const BorderSide(
-                                  color: AppColors.tealAccent, width: 1.5),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            style: ElevatedButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
-                              backgroundColor: AppColors.navyPrimary,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                            ),
-                            child: Text(
-                              _tr('Done', 'Maliza'),
-                              style: GoogleFonts.dmSans(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCheckHero() {
-    return SizedBox(
-      width: 130,
-      height: 130,
-      child: Stack(
-        alignment: Alignment.center,
+    return Scaffold(
+      backgroundColor: AppColors.navyPrimary,
+      body: Column(
         children: [
-          // Three expanding pulse rings
-          AnimatedBuilder(
-            animation: _pulseCtrl,
-            builder: (_, child) => Stack(
-              alignment: Alignment.center,
-              children: List.generate(3, (i) {
-                final t = (_pulseCtrl.value + i / 3) % 1.0;
-                return Opacity(
-                  opacity: (1 - t) * 0.3,
-                  child: Transform.scale(
-                    scale: 0.65 + t * 0.85,
-                    child: Container(
-                      width: 110,
-                      height: 110,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.success.withValues(alpha: 0.18),
+          // ── Top hero — navy background ────────────────────────────────────────
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
+              child: Column(
+                children: [
+                  ScaleTransition(
+                    scale: _checkScale,
+                    child: FadeTransition(
+                      opacity: _checkFade,
+                      child: Container(
+                        width: 88,
+                        height: 88,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.1),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25),
+                              width: 2),
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.success,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0x4005966A),
+                                blurRadius: 20,
+                                offset: Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.check_rounded,
+                              color: Colors.white, size: 36),
+                        ),
                       ),
                     ),
                   ),
-                );
-              }),
+                  const SizedBox(height: 18),
+                  Text(
+                    _tr('Sale Successful!', 'Mauzo Yamefanikiwa!'),
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'TSh ${_sNum(amount)}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -1.0,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _SuccessStatusBadge(statusStr),
+                ],
+              ),
             ),
           ),
-          // Bouncy checkmark circle
-          ScaleTransition(
-            scale: _checkScale,
+
+          // ── Ticket receipt card — white ───────────────────────────────────────
+          Expanded(
             child: FadeTransition(
-              opacity: _checkOpacity,
-              child: Container(
-                width: 82,
-                height: 82,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.success,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x3305966A),
-                      blurRadius: 20,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  color: Colors.white,
-                  size: 48,
+              opacity: _cardFade,
+              child: SlideTransition(
+                position: _cardSlide,
+                child: _TicketReceiptCard(
+                  invoiceNo: invoiceNo,
+                  customerName: customerName,
+                  amount: amount,
+                  amountPaid: amountPaid,
+                  items: items,
+                  sale: sale,
+                  statusStr: statusStr,
+                  createdAt: createdAt,
+                  onShare: () async {
+                    await _SalesScreenState._openReceiptActions(
+                      context: context,
+                      sale: widget.saleData,
+                      ref: widget.ref,
+                    );
+                  },
+                  onDone: () => Navigator.of(context).pop(),
                 ),
               ),
             ),
@@ -4730,9 +4657,9 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet>
   }
 }
 
-// ── Receipt card shown inside the success popup ────────────────────────────────
+// ── Ticket-style receipt card with perforated edge ────────────────────────────
 
-class _SuccessReceiptCard extends StatelessWidget {
+class _TicketReceiptCard extends StatelessWidget {
   final String invoiceNo;
   final String customerName;
   final double amount;
@@ -4740,8 +4667,11 @@ class _SuccessReceiptCard extends StatelessWidget {
   final List<Map> items;
   final Map<String, dynamic> sale;
   final String statusStr;
+  final DateTime createdAt;
+  final VoidCallback onShare;
+  final VoidCallback onDone;
 
-  const _SuccessReceiptCard({
+  const _TicketReceiptCard({
     required this.invoiceNo,
     required this.customerName,
     required this.amount,
@@ -4749,6 +4679,9 @@ class _SuccessReceiptCard extends StatelessWidget {
     required this.items,
     required this.sale,
     required this.statusStr,
+    required this.createdAt,
+    required this.onShare,
+    required this.onDone,
   });
 
   @override
@@ -4758,157 +4691,268 @@ class _SuccessReceiptCard extends StatelessWidget {
     final outstanding = (amount - amountPaid).clamp(0.0, amount);
     final payMethod = (sale['paymentMethod'] ?? '').toString();
     final mpesaRef = (sale['mpesaRef'] ?? '').toString();
+    final dateStr =
+        '${createdAt.day.toString().padLeft(2, '0')}/'
+        '${createdAt.month.toString().padLeft(2, '0')}/'
+        '${createdAt.year}  '
+        '${createdAt.hour.toString().padLeft(2, '0')}:'
+        '${createdAt.minute.toString().padLeft(2, '0')}';
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFD),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          // Dark navy header row
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.navyPrimary,
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(15)),
+          // Navy semicircle notches — mimic a physical ticket stub
+          Positioned(
+            top: -1,
+            left: -16,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.navyPrimary,
+              ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        invoiceNo,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        customerName,
-                        style: GoogleFonts.dmSans(
-                            fontSize: 12, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-                _SuccessStatusBadge(statusStr),
-              ],
+          ),
+          Positioned(
+            top: -1,
+            right: -16,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.navyPrimary,
+              ),
             ),
           ),
 
-          // Body
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Line items
-                for (final item in items)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${item['name'] ?? '-'}  ×${item['qty'] ?? 1}',
+          // Card content
+          SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Perforated dashed line
+                  const _PerforatedLine(),
+                  const SizedBox(height: 20),
+
+                  // Invoice meta row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _tr('Invoice', 'Ankara'),
                             style: GoogleFonts.dmSans(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
+                              fontSize: 10,
+                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.5,
                             ),
                           ),
-                        ),
-                        Text(
-                          'TSh ${_sNum(((item['total'] as num?)?.toDouble() ?? 0))}',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.navyPrimary,
+                          Text(
+                            invoiceNo,
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _tr('Customer', 'Mteja'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 10,
+                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Text(
+                            customerName,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navyPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 4),
+                  Text(
+                    dateStr,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10,
+                      color: AppColors.textMuted,
                     ),
                   ),
 
-                if (items.isNotEmpty)
-                  const Divider(height: 16, color: AppColors.border),
+                  const SizedBox(height: 14),
+                  const Divider(color: AppColors.border, height: 1),
+                  const SizedBox(height: 10),
 
-                if (discount > 0) ...[
+                  // Line items
+                  for (final item in items)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${item['name'] ?? '-'}  ×${item['qty'] ?? 1}',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            'TSh ${_sNum((item['total'] as num?)?.toDouble() ?? 0)}',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.navyPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  if (items.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    const Divider(color: AppColors.border, height: 1),
+                    const SizedBox(height: 10),
+                  ],
+
+                  if (discount > 0) ...[
+                    _SuccessTotalRow(
+                      label: _tr('Discount', 'Punguzo'),
+                      value: '-TSh ${_sNum(discount)}',
+                      valueColor: AppColors.success,
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  if (vat > 0) ...[
+                    _SuccessTotalRow(
+                        label: 'VAT (18%)',
+                        value: 'TSh ${_sNum(vat)}'),
+                    const SizedBox(height: 6),
+                  ],
                   _SuccessTotalRow(
-                    label: _tr('Discount', 'Punguzo'),
-                    value: '-TSh ${_sNum(discount)}',
+                    label: _tr('TOTAL', 'JUMLA KUU'),
+                    value: 'TSh ${_sNum(amount)}',
+                    isBold: true,
+                  ),
+                  const SizedBox(height: 6),
+                  _SuccessTotalRow(
+                    label: _tr('Paid', 'Imelipwa'),
+                    value: 'TSh ${_sNum(amountPaid)}',
                     valueColor: AppColors.success,
                   ),
-                  const SizedBox(height: 5),
-                ],
-                if (vat > 0) ...[
-                  _SuccessTotalRow(
-                    label: 'VAT (18%)',
-                    value: 'TSh ${_sNum(vat)}',
-                  ),
-                  const SizedBox(height: 5),
-                ],
+                  if (outstanding > 0) ...[
+                    const SizedBox(height: 6),
+                    _SuccessTotalRow(
+                      label: _tr('Balance Due', 'Baki'),
+                      value: 'TSh ${_sNum(outstanding)}',
+                      valueColor: AppColors.error,
+                    ),
+                  ],
 
-                const Divider(height: 14, color: AppColors.border),
+                  if (payMethod.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(_pmIcon(payMethod),
+                            size: 14, color: AppColors.textMuted),
+                        const SizedBox(width: 6),
+                        Text(
+                          _pmLabel(payMethod),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12, color: AppColors.textMuted),
+                        ),
+                        if (mpesaRef.isNotEmpty) ...[
+                          const Text(' · ',
+                              style: TextStyle(color: AppColors.textMuted)),
+                          Text(
+                            mpesaRef,
+                            style: GoogleFonts.jetBrainsMono(
+                                fontSize: 11, color: AppColors.textMuted),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
 
-                _SuccessTotalRow(
-                  label: _tr('TOTAL', 'JUMLA KUU'),
-                  value: 'TSh ${_sNum(amount)}',
-                  isBold: true,
-                ),
-                const SizedBox(height: 7),
-                _SuccessTotalRow(
-                  label: _tr('Paid', 'Imelipwa'),
-                  value: 'TSh ${_sNum(amountPaid)}',
-                  valueColor: AppColors.success,
-                ),
+                  const SizedBox(height: 24),
 
-                if (outstanding > 0) ...[
-                  const SizedBox(height: 5),
-                  _SuccessTotalRow(
-                    label: _tr('Balance Due', 'Baki'),
-                    value: 'TSh ${_sNum(outstanding)}',
-                    valueColor: AppColors.error,
-                  ),
-                ],
-
-                // Payment method chip
-                if (payMethod.isNotEmpty) ...[
-                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(_pmIcon(payMethod),
-                          size: 14, color: AppColors.textMuted),
-                      const SizedBox(width: 6),
-                      Text(
-                        _pmLabel(payMethod),
-                        style: GoogleFonts.dmSans(
-                            fontSize: 12, color: AppColors.textMuted),
-                      ),
-                      if (mpesaRef.isNotEmpty) ...[
-                        const Text(' · ',
-                            style:
-                                TextStyle(color: AppColors.textMuted)),
-                        Text(
-                          mpesaRef,
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11, color: AppColors.textMuted),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: onShare,
+                          icon: const Icon(Icons.share_rounded, size: 18),
+                          label: Text(
+                            _tr('Share', 'Shiriki'),
+                            style: GoogleFonts.dmSans(
+                                fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                            foregroundColor: AppColors.tealAccent,
+                            side: const BorderSide(
+                                color: AppColors.tealAccent, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: onDone,
+                          style: ElevatedButton.styleFrom(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: AppColors.navyPrimary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: Text(
+                            _tr('Done', 'Maliza'),
+                            style: GoogleFonts.dmSans(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
+                  const SizedBox(height: 16),
                 ],
-              ],
+              ),
             ),
           ),
         ],
@@ -4930,6 +4974,37 @@ class _SuccessReceiptCard extends StatelessWidget {
         'credit' => _tr('Credit', 'Mkopo'),
         _ => _tr('Cash', 'Taslimu'),
       };
+}
+
+// Dashed perforated line (mimics a ticket tear edge)
+class _PerforatedLine extends StatelessWidget {
+  const _PerforatedLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const dashW = 5.0;
+        const gap = 4.0;
+        final count =
+            ((constraints.maxWidth) / (dashW + gap)).floor();
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(
+            count,
+            (_) => Container(
+              width: dashW,
+              height: 1.5,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _SuccessTotalRow extends StatelessWidget {

@@ -4,9 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
@@ -51,6 +53,18 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
 
   @override
   Widget build(BuildContext context) {
+    final planAsync = ref.watch(planStatusProvider);
+    final locked = planAsync.whenOrNull(data: (s) => !s.limits.fullReports) ?? false;
+
+    if (locked) {
+      return Scaffold(
+        backgroundColor: AppColors.surface,
+        body: _CashFlowLockedView(
+          plan: planAsync.valueOrNull,
+        ),
+      );
+    }
+
     return Scaffold(
       body: Column(
         children: [
@@ -70,6 +84,193 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
         ],
       ),
       floatingActionButton: _CashFlowFab(),
+    );
+  }
+}
+
+// ── Locked view shown to Starter plan users ───────────────────────────────────
+
+class _CashFlowLockedView extends StatelessWidget {
+  final PlanStatus? plan;
+
+  const _CashFlowLockedView({this.plan});
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+
+    return Column(
+      children: [
+        // Blurred-out header (decorative)
+        Container(
+          height: top + 110,
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  Text(
+                    _tr('Cash Flow', 'Mtiririko wa Fedha'),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white.withValues(alpha: 0.35),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.lock_rounded,
+                      color: Colors.white38, size: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 32),
+
+        // Lock illustration
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: AppColors.navyPrimary.withValues(alpha: 0.07),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.waterfall_chart_rounded,
+            size: 36,
+            color: AppColors.navyPrimary,
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36),
+          child: Column(
+            children: [
+              Text(
+                _tr('Cash Flow is a Premium Feature',
+                    'Mtiririko wa Fedha ni Kipengele cha Premium'),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSans(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _tr(
+                  'Track your accounts, inflows, outflows and generate statements with a Growth or Business plan.',
+                  'Fuatilia akaunti, mapato, matumizi na ripoti za fedha kwa mpango wa Growth au Business.',
+                ),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Feature chips
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  _FeatureChip(
+                      icon: Icons.account_balance_wallet_rounded,
+                      label: _tr('Account tracking', 'Ufuatiliaji wa akaunti')),
+                  _FeatureChip(
+                      icon: Icons.trending_up_rounded,
+                      label: _tr('Inflow analysis', 'Uchambuzi wa mapato')),
+                  _FeatureChip(
+                      icon: Icons.trending_down_rounded,
+                      label: _tr('Outflow analysis', 'Uchambuzi wa matumizi')),
+                  _FeatureChip(
+                      icon: Icons.description_rounded,
+                      label: _tr('Statements', 'Ripoti za fedha')),
+                ],
+              ),
+              const SizedBox(height: 32),
+
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: () => showUpgradeSheet(
+                    context,
+                    currentStatus: plan,
+                    featureKey: PlanFeatureKey.cashFlow,
+                    triggerReason: _tr(
+                      'Cash flow tracking requires Growth or Business plan.',
+                      'Ufuatiliaji wa mtiririko wa fedha unahitaji mpango wa Growth au Business.',
+                    ),
+                  ),
+                  icon: const Icon(Icons.rocket_launch_rounded, size: 18),
+                  label: Text(_tr('Upgrade to Unlock', 'Panda Mpango')),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.yellowBrand,
+                    foregroundColor: AppColors.navyPrimary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    textStyle: GoogleFonts.dmSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FeatureChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _FeatureChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.navyPrimary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.navyPrimary.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: AppColors.navyPrimary),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.navyPrimary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
