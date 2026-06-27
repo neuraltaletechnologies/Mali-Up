@@ -29,11 +29,8 @@ export async function POST(req: Request) {
       ? null
       : new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000)
 
-    const bizRef = adminFirestore
-      .collection('users')
-      .doc(uid)
-      .collection('businesses')
-      .doc(businessId)
+    // Businesses live in the top-level `businesses` collection, not under users/{uid}
+    const bizRef = adminFirestore.collection('businesses').doc(businessId)
 
     const before = (await bizRef.get()).data() ?? {}
 

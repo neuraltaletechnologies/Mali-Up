@@ -123,14 +123,16 @@ export async function PUT(
 
     await userRef.update(updates)
 
-    // Sync displayName to Firebase Auth if name changed
-    if (updates.displayName) {
-      try {
-        const authUpdate: Record<string, unknown> = { displayName: updates.displayName as string }
-        if (updates.email) authUpdate.email = updates.email as string
+    // Sync name, email and phone number to Firebase Auth
+    try {
+      const authUpdate: { displayName?: string; email?: string; phoneNumber?: string } = {}
+      if (updates.displayName)                               authUpdate.displayName = updates.displayName as string
+      if (updates.email && typeof updates.email === 'string') authUpdate.email      = updates.email
+      if (updates.phone  && typeof updates.phone === 'string') authUpdate.phoneNumber = `+255${updates.phone}`
+      if (Object.keys(authUpdate).length > 0) {
         await adminAuth.updateUser(uid, authUpdate)
-      } catch { /* auth update is best-effort */ }
-    }
+      }
+    } catch { /* auth update is best-effort */ }
 
     const before: Record<string, unknown> = {}
     const after:  Record<string, unknown> = {}

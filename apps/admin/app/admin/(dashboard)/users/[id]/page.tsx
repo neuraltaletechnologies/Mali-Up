@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatusDot } from '@/components/ui/status-dot'
@@ -8,7 +8,7 @@ import { PlanBadge } from '@/components/ui/plan-badge'
 import { Tabs } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { fetchUser, patchUser, editUser, fetchUserActivity } from '@/lib/admin-api'
+import { fetchUser, patchUser, editUser, assignPlan, fetchUserActivity } from '@/lib/admin-api'
 import type { ActivityEntry } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatDate, timeAgo } from '@/lib/format'
@@ -16,7 +16,7 @@ import { ArrowLeft, Ban, RotateCcw, AlertCircle, Pencil, X, Loader2, Building2,
   ShoppingCart, FileText, CreditCard, RefreshCw, XCircle, Trash2, Users, UserPlus,
   UserMinus, UserCheck, Tag, Bell, Settings, Shield, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
-import type { AdminUser } from '@/types'
+import type { AdminUser, Business, PlanTier } from '@/types'
 
 const TABS = [
   { id: 'overview',   label: 'Overview' },
@@ -26,24 +26,54 @@ const TABS = [
 
 // ─── Edit Drawer ──────────────────────────────────────────────────────────────
 
+const PLAN_OPTIONS: PlanTier[] = ['starter', 'growth', 'business', 'enterprise', 'lifetime']
+
 function EditUserDrawer({
   user,
+  businesses,
   open,
   onClose,
   onSaved,
 }: {
   user: AdminUser
+  businesses: Business[]
   open: boolean
   onClose: () => void
   onSaved: () => void
 }) {
   const [name,  setName]  = useState(user.name)
-  const [phone, setPhone] = useState(
-    user.phone.replace(/^\+255/, '')
-  )
+  const [phone, setPhone] = useState(user.phone.replace(/^\+255/, ''))
   const [email,  setEmail]  = useState(user.email ?? '')
   const [saving, setSaving] = useState(false)
   const [err,    setErr]    = useState<string | null>(null)
+
+  // Plan change state
+  const [planBizId, setPlanBizId] = useState(businesses[0]?.id ?? '')
+  const [newPlan,   setNewPlan]   = useState<string>(businesses[0]?.plan ?? 'starter')
+  const [cycleMonths, setCycleMonths] = useState(6)
+
+  // Reset all fields when the drawer opens (or when user/businesses data changes)
+  useEffect(() => {
+    if (!open) return
+    setName(user.name)
+    setPhone(user.phone.replace(/^\+255/, ''))
+    setEmail(user.email ?? '')
+    setErr(null)
+    const first = businesses[0]
+    setPlanBizId(first?.id ?? '')
+    setNewPlan(first?.plan ?? 'starter')
+    setCycleMonths(6)
+  }, [open, user, businesses])
+
+  // When the selected business changes, reflect its current plan
+  useEffect(() => {
+    const biz = businesses.find((b) => b.id === planBizId)
+    if (biz) setNewPlan(biz.plan)
+  }, [planBizId, businesses])
+
+  const selectedBiz  = businesses.find((b) => b.id === planBizId)
+  const planChanged  = !!selectedBiz && newPlan !== selectedBiz.plan
+  const paidPlan     = newPlan !== 'starter' && newPlan !== 'enterprise' && newPlan !== 'lifetime'
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -55,6 +85,9 @@ function EditUserDrawer({
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
       })
+      if (planBizId && planChanged) {
+        await assignPlan(user.id, planBizId, newPlan as PlanTier, cycleMonths)
+      }
       onSaved()
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Failed to save')
@@ -79,6 +112,63 @@ function EditUserDrawer({
           <DrawerField label="Full Name" value={name} onChange={setName} placeholder="e.g. Amina Juma" required />
           <DrawerField label="Phone (TZ digits)" value={phone} onChange={setPhone} placeholder="712345678" type="tel" />
           <DrawerField label="Email (optional)" value={email} onChange={setEmail} placeholder="user@example.com" type="email" />
+
+          {/* ── Plan change ── */}
+          {businesses.length > 0 && (
+            <div className="flex flex-col gap-3 pt-3 border-t border-white/[0.07]">
+              <span className="text-[11px] uppercase tracking-wide text-slate-500">Subscription Plan</span>
+
+              {businesses.length > 1 && (
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] text-slate-400">Business</span>
+                  <select
+                    value={planBizId}
+                    onChange={(e) => setPlanBizId(e.target.value)}
+                    className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                  >
+                    {businesses.map((b) => (
+                      <option key={b.id} value={b.id} className="bg-[#0D1B3E]">{b.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-slate-400">
+                  Plan{selectedBiz ? ` — current: ${selectedBiz.plan}` : ''}
+                </span>
+                <select
+                  value={newPlan}
+                  onChange={(e) => setNewPlan(e.target.value)}
+                  className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                >
+                  {PLAN_OPTIONS.map((p) => (
+                    <option key={p} value={p} className="bg-[#0D1B3E]">
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {paidPlan && (
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] text-slate-400">Duration (months)</span>
+                  <input
+                    type="number" min="1" max="60"
+                    value={cycleMonths}
+                    onChange={(e) => setCycleMonths(Number(e.target.value))}
+                    className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                  />
+                </label>
+              )}
+
+              {planChanged && (
+                <p className="text-[11px] text-amber-400">
+                  Plan: {selectedBiz?.plan} → {newPlan}{paidPlan ? ` (${cycleMonths} months)` : ''}
+                </p>
+              )}
+            </div>
+          )}
 
           {err && (
             <div className="flex items-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2">
@@ -321,6 +411,7 @@ export default function UserDetailPage() {
       {user && (
         <EditUserDrawer
           user={user}
+          businesses={businesses}
           open={showEdit}
           onClose={() => setShowEdit(false)}
           onSaved={() => { setShowEdit(false); refetch() }}
