@@ -275,13 +275,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   void _openCatalogSheet(BuildContext ctx) {
-    showModalBottomSheet<void>(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(ctx).height * 0.92,
-      ),
+    showAppSheet<void>(
+      ctx,
       builder: (_) => const CatalogSearchScreen(),
     );
   }

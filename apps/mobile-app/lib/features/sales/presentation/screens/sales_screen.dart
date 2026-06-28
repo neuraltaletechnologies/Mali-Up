@@ -1152,22 +1152,24 @@ class _InvoiceCard extends StatelessWidget {
     final items = (item['items'] as List?) ?? const [];
     final itemCount = items.length;
 
-    // Main heading: first product name; overflow to "+ N more" for multi-item sales
+    // Main heading: customer name if set, otherwise first product name
     final String cardTitle;
-    if (items.isNotEmpty) {
+    final hasCustomerName =
+        (item['customerName'] ?? '').toString().trim().isNotEmpty;
+    if (hasCustomerName) {
+      cardTitle = customer;
+    } else if (items.isNotEmpty) {
       final firstName = (items.first is Map
               ? (items.first as Map)['name']
               : null)
           ?.toString()
           .trim() ??
           '';
-      if (firstName.isNotEmpty) {
-        cardTitle = itemCount > 1
-            ? '$firstName & ${itemCount - 1} ${_tr('more', 'zaidi')}'
-            : firstName;
-      } else {
-        cardTitle = customer;
-      }
+      cardTitle = firstName.isNotEmpty
+          ? (itemCount > 1
+              ? '$firstName & ${itemCount - 1} ${_tr('more', 'zaidi')}'
+              : firstName)
+          : customer;
     } else {
       cardTitle = customer;
     }
@@ -1912,6 +1914,23 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       amountPaid = 0;
     }
 
+    // Enforce credit limit: block the sale if the projected balance after
+    // this outstanding amount would exceed the customer's set credit limit.
+    if (payStatus != _PayStatus.paid &&
+        _selectedCustomer != null &&
+        _selectedCustomer!.creditLimit > 0) {
+      final outstanding = _grandTotal - amountPaid;
+      final projectedBalance = _selectedCustomer!.balanceAmount + outstanding;
+      if (projectedBalance > _selectedCustomer!.creditLimit) {
+        final available = _selectedCustomer!.availableCredit;
+        _snack(_tr(
+          'Credit limit exceeded. ${_selectedCustomer!.name} can only borrow TZS ${available.toStringAsFixed(0)} more.',
+          'Kikomo cha mkopo kimezidiwa. ${_selectedCustomer!.name} anaweza kukopa TZS ${available.toStringAsFixed(0)} tu zaidi.',
+        ));
+        return;
+      }
+    }
+
     setState(() => _isSaving = true);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
@@ -2039,18 +2058,15 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               context: scope.context,
               childCollection: 'debts');
           batch.set(debtsRef.doc(), {
-            'customerId': _selectedCustomer!.id,
-            'customerName': _selectedCustomer!.name,
-            'customerPhone': _selectedCustomer!.phone,
-            'invoiceId': invoiceDoc.id,
-            'saleId': invoiceDoc.id,
+            'partyId': _selectedCustomer!.id,
+            'partyName': _selectedCustomer!.name,
+            'partyPhone': _selectedCustomer!.phone,
+            'invoiceRef': invoiceNumber,
             'businessId': scope.businessId,
-            'invoiceNumber': invoiceNumber,
             'originalAmount': _grandTotal,
-            'amountPaid': amountPaid,
-            'outstandingAmount': outstanding,
+            'paidAmount': amountPaid,
             'status': payStatus == _PayStatus.partial ? 'partial' : 'unpaid',
-            'type': 'sale',
+            'type': 'receivable',
             if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
             'createdBy': scope.userUid,
             'createdAt': FieldValue.serverTimestamp(),
