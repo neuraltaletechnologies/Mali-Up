@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../core/providers/business_id_provider.dart';
 import '../../../core/providers/sync_provider.dart';
+import '../../invoice/domain/models/invoice.dart';
+import '../../invoice/presentation/providers/invoice_providers.dart';
 import '../../rbac/data/audit_log_service.dart';
 import '../../rbac/data/rbac_providers.dart';
 import 'mappers/customer_mapper.dart';
@@ -122,48 +124,41 @@ final customerRepositoryProvider = Provider<SyncCustomerRepository>((ref) {
       db: db, uid: uid, businessId: bizId, policy: policy);
 });
 
-// Invoices belonging to a specific customer
+// Invoices belonging to a specific customer — read from Drift (offline-first).
+// Derives from invoicesProvider so new sales appear immediately without waiting
+// for Firestore sync.
 final customerInvoicesProvider =
-    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, customerId) async* {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null || customerId.isEmpty) {
-    yield const [];
-    return;
-  }
-  final ownerUid = ref.watch(tenantOwnerUidProvider) ?? user.uid;
-  final businessAsync = ref.watch(currentBusinessIdProvider);
-  if (businessAsync.isLoading) {
-    return;
-  }
-  final bizId = businessAsync.valueOrNull;
-  if (bizId == null || bizId.isEmpty) {
-    yield const [];
-    return;
-  }
-  final repo = ref.read(contextFirestoreRepositoryProvider);
-  final col = repo.scopeCollection(
-    uid: ownerUid,
-    context: ResolvedFinanceContext.business(bizId),
-    childCollection: 'sales_invoices',
-  );
-  // No composite index needed: filter only, sort client-side.
-  yield* col
-      .where('customerId', isEqualTo: customerId)
-      .snapshots()
-      .map((s) {
-        final docs =
-            s.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-        docs.sort((a, b) {
-          final at = _toDateTime(a['createdAt']);
-          final bt = _toDateTime(b['createdAt']);
-          if (at == null && bt == null) return 0;
-          if (at == null) return 1;
-          if (bt == null) return -1;
-          return bt.compareTo(at); // descending: newest first
-        });
-        return docs;
+    Provider.family<AsyncValue<List<Map<String, dynamic>>>, String>(
+        (ref, customerId) {
+  if (customerId.isEmpty) return const AsyncValue.data([]);
+  return ref.watch(invoicesProvider).whenData((invoices) {
+    final filtered = invoices.where((inv) => inv.customerId == customerId).toList()
+      ..sort((a, b) {
+        final at = _toDateTime(a.createdAt);
+        final bt = _toDateTime(b.createdAt);
+        if (at == null && bt == null) return 0;
+        if (at == null) return 1;
+        if (bt == null) return -1;
+        return bt.compareTo(at);
       });
+    return filtered.map(_invoiceModelToMap).toList();
+  });
 });
+
+Map<String, dynamic> _invoiceModelToMap(Invoice inv) => {
+      'id': inv.id,
+      'customerId': inv.customerId,
+      'invoiceNumber': inv.invoiceNumber,
+      'status': inv.status,
+      'type': inv.type,
+      'totalAmount': inv.total,
+      'amount': inv.total,
+      'amountPaid': inv.amountPaid,
+      'lineItems': inv.items.map((i) => i.toFirestore()).toList(),
+      'createdAt': inv.createdAt,
+      'invoiceDate': inv.date,
+      'dueDate': inv.dueDate,
+    };
 
 // Payment records per customer (subcollection — written on manual debt payments)
 final customerPaymentsProvider =

@@ -408,7 +408,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 66, 20, 40),
+        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 62, 20, 40),
         children: [
           // ── Page title ───────────────────────────────────────
           Text(
@@ -430,14 +430,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // ── Profile card ────────────────────────────────────
-          _ProfileCard(tr: _tr),
+          // ── Profile & Plan card ─────────────────────────────
+          _ProfileAndPlanCard(tr: _tr, onSwitchAccount: _switchAccount),
           const SizedBox(height: 20),
 
-          // ── My Plan ──────────────────────────────────────────
-          _SectionHeader(label: _tr('Subscription', 'Usajili')),
+          // ── Security ─────────────────────────────────────────
+          _SectionHeader(label: _tr('Security', 'Usalama')),
           const SizedBox(height: 8),
-          _PlanCard(tr: _tr),
+          _SettingCard(
+            children: [
+              _SettingTile(
+                icon: Icons.lock_rounded,
+                iconBg: AppColors.success.withValues(alpha: 0.1),
+                iconColor: AppColors.success,
+                title: _tr('App Lock', 'Kufunga Programu'),
+                subtitle: _tr('Require PIN to open the app', 'Hitaji PIN kufungua programu'),
+                trailing: Switch.adaptive(
+                  value: _appLockEnabled,
+                  onChanged: _toggleAppLock,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppColors.secondary,
+                ),
+              ),
+              const _TileDivider(),
+              _SettingTile(
+                icon: Icons.fingerprint_rounded,
+                iconBg: AppColors.secondary.withValues(alpha: 0.07),
+                iconColor: AppColors.secondary,
+                title: _tr('Biometric Login', 'Kuingia kwa Alama ya Kidole'),
+                subtitle: _tr('Fingerprint or Face ID', 'Alama ya kidole au uso'),
+                trailing: Switch.adaptive(
+                  value: _biometricEnabled,
+                  onChanged: _appLockEnabled ? _toggleBiometric : null,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppColors.secondary,
+                ),
+              ),
+              const _TileDivider(),
+              _SettingTile(
+                icon: Icons.password_rounded,
+                iconBg: AppColors.error.withValues(alpha: 0.08),
+                iconColor: AppColors.error,
+                title: _tr('Change PIN', 'Badili PIN'),
+                subtitle: _tr('Update your security PIN', 'Sasisha PIN yako ya usalama'),
+                onTap: _appLockEnabled ? _changePin : null,
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: _appLockEnabled ? AppColors.textMuted : AppColors.textDisabled,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
 
           // ── Preferences ──────────────────────────────────────
@@ -491,31 +535,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // ── Account ─────────────────────────────────────────────
-          _SectionHeader(label: _tr('Account', 'Akaunti')),
-          const SizedBox(height: 8),
-          _SettingCard(
-            children: [
-              _SettingTile(
-                icon: Icons.swap_horiz_rounded,
-                iconBg: AppColors.secondary.withValues(alpha: 0.07),
-                iconColor: AppColors.secondary,
-                title: _tr('Switch Account', 'Badili Akaunti'),
-                subtitle: _tr(
-                  'Sign out and use a different account',
-                  'Toka na utumie akaunti nyingine',
-                ),
-                onTap: _switchAccount,
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
           // ── Notifications ────────────────────────────────────
           _SectionHeader(label: _tr('Notifications', 'Arifa')),
           const SizedBox(height: 8),
@@ -552,56 +571,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                   activeThumbColor: Colors.white,
                   activeTrackColor: AppColors.secondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // ── Security ─────────────────────────────────────────
-          _SectionHeader(label: _tr('Security', 'Usalama')),
-          const SizedBox(height: 8),
-          _SettingCard(
-            children: [
-              _SettingTile(
-                icon: Icons.lock_rounded,
-                iconBg: AppColors.success.withValues(alpha: 0.1),
-                iconColor: AppColors.success,
-                title: _tr('App Lock', 'Kufunga Programu'),
-                subtitle: _tr('Require PIN to open the app', 'Hitaji PIN kufungua programu'),
-                trailing: Switch.adaptive(
-                  value: _appLockEnabled,
-                  onChanged: _toggleAppLock,
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: AppColors.secondary,
-                ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
-                icon: Icons.fingerprint_rounded,
-                iconBg: AppColors.secondary.withValues(alpha: 0.07),
-                iconColor: AppColors.secondary,
-                title: _tr('Biometric Login', 'Kuingia kwa Alama ya Kidole'),
-                subtitle: _tr('Fingerprint or Face ID', 'Alama ya kidole au uso'),
-                trailing: Switch.adaptive(
-                  value: _biometricEnabled,
-                  onChanged: _appLockEnabled ? _toggleBiometric : null,
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: AppColors.secondary,
-                ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
-                icon: Icons.password_rounded,
-                iconBg: AppColors.error.withValues(alpha: 0.08),
-                iconColor: AppColors.error,
-                title: _tr('Change PIN', 'Badili PIN'),
-                subtitle: _tr('Update your security PIN', 'Sasisha PIN yako ya usalama'),
-                onTap: _appLockEnabled ? _changePin : null,
-                trailing: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: _appLockEnabled ? AppColors.textMuted : AppColors.textDisabled,
                 ),
               ),
             ],
@@ -854,14 +823,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
-// ── Profile card ─────────────────────────────────────────────────────────────
+// ── Profile & Plan combined card ─────────────────────────────────────────────
 
-class _ProfileCard extends StatelessWidget {
+class _ProfileAndPlanCard extends ConsumerWidget {
   final String Function(String en, String sw) tr;
-  const _ProfileCard({required this.tr});
+  final VoidCallback onSwitchAccount;
+  const _ProfileAndPlanCard({required this.tr, required this.onSwitchAccount});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final planAsync = ref.watch(planStatusProvider);
     final user = FirebaseAuth.instance.currentUser;
     final displayName = user?.displayName?.trim();
     final initial = displayName != null && displayName.isNotEmpty
@@ -878,114 +849,201 @@ class _ProfileCard extends StatelessWidget {
         tr('No contact details', 'Hakuna mawasiliano');
 
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.navyPrimary, AppColors.navySecondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.30),
+            color: AppColors.navyPrimary.withValues(alpha: 0.28),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.yellowBrand,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.yellowBrand.withValues(alpha: 0.4),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: AppColors.navyPrimary,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          children: [
+            // ── Blue gradient section (profile + plan) ──────────
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.navyPrimary, AppColors.navySecondary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  contact,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.18),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.edit_rounded,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    size: 12,
+                  // Profile row
+                  Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: AppColors.yellowBrand,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.yellowBrand.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              color: AppColors.navyPrimary,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              contact,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.55),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {},
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.edit_rounded,
+                                color: Colors.white.withValues(alpha: 0.7),
+                                size: 12,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                tr('Edit', 'Hariri'),
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 5),
-                  Text(
-                    tr('Edit', 'Hariri'),
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Divider(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      height: 1,
+                    ),
+                  ),
+                  // Plan section
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                    ),
+                    child: planAsync.when(
+                      loading: () => _PlanCardBody(
+                        planName: 'Starter',
+                        statusLabel: tr('Loading…', 'Inapakia…'),
+                        isStarter: true,
+                        pct: 0,
+                        invoicesUsed: 0,
+                        invoiceLimit: 10,
+                        expiresAt: null,
+                        tr: tr,
+                      ),
+                      error: (err, st) => _PlanCardBody(
+                        planName: 'Starter',
+                        statusLabel: tr('Free plan', 'Mpango wa bure'),
+                        isStarter: true,
+                        pct: 0,
+                        invoicesUsed: 0,
+                        invoiceLimit: 10,
+                        expiresAt: null,
+                        tr: tr,
+                      ),
+                      data: (s) => _PlanCardBody(
+                        planName: s.tierLabel,
+                        statusLabel: s.isStarter
+                            ? tr('Free plan · Limited features', 'Mpango wa bure · Vipengele vichache')
+                            : tr('Active subscription', 'Usajili unaofanya kazi'),
+                        isStarter: s.isStarter,
+                        pct: s.isStarter
+                            ? (s.invoicesUsedThisMonth / s.limits.monthlyInvoices).clamp(0.0, 1.0)
+                            : 1.0,
+                        invoicesUsed: s.invoicesUsedThisMonth,
+                        invoiceLimit: s.limits.monthlyInvoices,
+                        expiresAt: s.expiresAt,
+                        tr: tr,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            // ── Switch Account (white section) ──────────────────
+            Container(
+              color: AppColors.surface,
+              child: _SettingTile(
+                icon: Icons.swap_horiz_rounded,
+                iconBg: AppColors.secondary.withValues(alpha: 0.07),
+                iconColor: AppColors.secondary,
+                title: tr('Switch Account', 'Badili Akaunti'),
+                subtitle: tr(
+                  'Sign out and use a different account',
+                  'Toka na utumie akaunti nyingine',
+                ),
+                onTap: onSwitchAccount,
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1162,78 +1220,6 @@ class _SocialIcon extends StatelessWidget {
                     height: 1.0,
                   ),
                 ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Plan card (subscription summary) ─────────────────────────────────────────
-
-class _PlanCard extends ConsumerWidget {
-  final String Function(String en, String sw) tr;
-  const _PlanCard({required this.tr});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final planAsync = ref.watch(planStatusProvider);
-
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.navyPrimary, AppColors.navySecondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.navyPrimary.withValues(alpha: 0.28),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: planAsync.when(
-          loading: () => _PlanCardBody(
-            planName: 'Starter',
-            statusLabel: tr('Loading…', 'Inapakia…'),
-            isStarter: true,
-            pct: 0,
-            invoicesUsed: 0,
-            invoiceLimit: 10,
-            expiresAt: null,
-            tr: tr,
-          ),
-          error: (err, st) => _PlanCardBody(
-            planName: 'Starter',
-            statusLabel: tr('Free plan', 'Mpango wa bure'),
-            isStarter: true,
-            pct: 0,
-            invoicesUsed: 0,
-            invoiceLimit: 10,
-            expiresAt: null,
-            tr: tr,
-          ),
-          data: (s) => _PlanCardBody(
-            planName: s.tierLabel,
-            statusLabel: s.isStarter
-                ? tr('Free plan · Limited features', 'Mpango wa bure · Vipengele vichache')
-                : tr('Active subscription', 'Usajili unaofanya kazi'),
-            isStarter: s.isStarter,
-            pct: s.isStarter
-                ? (s.invoicesUsedThisMonth / s.limits.monthlyInvoices).clamp(0.0, 1.0)
-                : 1.0,
-            invoicesUsed: s.invoicesUsedThisMonth,
-            invoiceLimit: s.limits.monthlyInvoices,
-            expiresAt: s.expiresAt,
-            tr: tr,
-          ),
         ),
       ),
     );

@@ -611,6 +611,7 @@ class _AmountCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                   decoration: InputDecoration(
+                    filled: false,
                     border: InputBorder.none,
                     hintText: '0',
                     hintStyle: GoogleFonts.jetBrainsMono(

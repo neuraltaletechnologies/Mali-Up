@@ -1170,26 +1170,39 @@ class _BalanceCardState extends State<_BalanceCard> {
                   )
                 : GestureDetector(
                     onTap: () => setState(() => _editingLimit = true),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.credit_score_rounded,
-                            size: 16, color: AppColors.textMuted),
-                        const SizedBox(width: 6),
-                        Text(
-                          hasLimit
-                              ? _tr('Edit credit limit',
-                                  'Badilisha kikomo cha mkopo')
-                              : _tr('Set credit limit',
-                                  'Weka kikomo cha mkopo'),
-                          style: GoogleFonts.dmSans(
-                              fontSize: 13,
-                              color: AppColors.navyPrimary,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const Spacer(),
-                        const Icon(Icons.chevron_right_rounded,
-                            size: 16, color: AppColors.textMuted),
-                      ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.tealAccent.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color:
+                                AppColors.tealAccent.withValues(alpha: 0.30)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.credit_score_rounded,
+                              size: 16, color: AppColors.tealAccent),
+                          const SizedBox(width: 8),
+                          Text(
+                            hasLimit
+                                ? _tr('Edit credit limit',
+                                    'Badilisha kikomo cha mkopo')
+                                : _tr('Set credit limit',
+                                    'Weka kikomo cha mkopo'),
+                            style: GoogleFonts.dmSans(
+                                fontSize: 13,
+                                color: AppColors.tealAccent,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const Spacer(),
+                          Icon(Icons.chevron_right_rounded,
+                              size: 16,
+                              color:
+                                  AppColors.tealAccent.withValues(alpha: 0.6)),
+                        ],
+                      ),
                     ),
                   )
           else

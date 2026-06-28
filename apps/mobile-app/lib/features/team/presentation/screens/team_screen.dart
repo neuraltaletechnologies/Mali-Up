@@ -198,7 +198,9 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
     if (maxUsers != -1) {
       final currentCount =
           ref.read(teamMembersProvider).valueOrNull?.length ?? 0;
-      if (currentCount >= maxUsers) {
+      // maxUsers counts total users including the owner, so additional
+      // members allowed = maxUsers - 1 (Starter=1 means owner only).
+      if (currentCount >= maxUsers - 1) {
         await showUpgradeSheet(
           ctx,
           currentStatus: plan,

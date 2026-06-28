@@ -1,3 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+String _dateFromFirestore(dynamic value) {
+  if (value == null) return '';
+  if (value is Timestamp) {
+    final d = value.toDate();
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+  return value.toString();
+}
+
 class DebtPayment {
   final String id;
   final double amount;
@@ -109,18 +120,23 @@ class Debt {
     final normalizedType = rawType == 'payable' ? 'payable' : 'receivable';
     return Debt(
       id: id,
-      partyName: data['partyName']?.toString() ?? '',
-      partyPhone: data['partyPhone']?.toString() ?? '',
-      partyId: data['partyId']?.toString() ?? '',
+      partyName: data['partyName']?.toString() ??
+          data['customerName']?.toString() ?? '',
+      partyPhone: data['partyPhone']?.toString() ??
+          data['customerPhone']?.toString() ?? '',
+      partyId: data['partyId']?.toString() ??
+          data['customerId']?.toString() ?? '',
       type: normalizedType,
       originalAmount: origAmt,
-      paidAmount: (data['paidAmount'] as num?)?.toDouble() ?? 0,
-      dueDate: data['dueDate']?.toString() ?? '',
+      paidAmount: (data['paidAmount'] as num?)?.toDouble() ??
+          (data['amountPaid'] as num?)?.toDouble() ?? 0,
+      dueDate: _dateFromFirestore(data['dueDate']),
       status: data['status']?.toString() ?? 'current',
-      invoiceRef: data['invoiceRef']?.toString() ?? '',
+      invoiceRef: data['invoiceRef']?.toString() ??
+          data['invoiceNumber']?.toString() ?? '',
       note: data['note']?.toString() ?? '',
       createdBy: data['createdBy']?.toString() ?? '',
-      createdAt: data['createdAt']?.toString() ?? '',
+      createdAt: _dateFromFirestore(data['createdAt']),
       isWrittenOff: data['isWrittenOff'] as bool? ?? false,
       writeOffReason: data['writeOffReason']?.toString() ?? '',
       writtenOffBy: data['writtenOffBy']?.toString() ?? '',

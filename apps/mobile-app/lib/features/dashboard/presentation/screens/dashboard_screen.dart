@@ -231,24 +231,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final paid = parseNumericAmount(inv['amountPaid']);
       return total + (amt - paid).clamp(0.0, amt);
     });
-    double aging30 = 0, aging60 = 0, aging90plus = 0;
-    int overdueCount = 0;
-    for (final inv in unpaidSales) {
-      final d = readTimestamp(inv['createdAt']);
-      if (d == null) continue;
-      final age = now.difference(d).inDays;
-      final balance =
-          parseNumericAmount(inv['amount']) -
-          parseNumericAmount(inv['amountPaid']);
-      if (age > 30) { overdueCount++; }
-      if (age <= 30) {
-        aging30 += balance;
-      } else if (age <= 60) {
-        aging60 += balance;
-      } else {
-        aging90plus += balance;
-      }
-    }
 
     // ── Low stock ────────────────────────────────────────────────────────────
     final lowStockItems = inventoryItems.where((item) {
@@ -397,20 +379,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const SizedBox(height: 16),
                     ],
 
-                    // ── Outstanding receivables ──────────────────────────
-                    if ((permissions.canViewDebt || permissions.isOwner) &&
-                        totalOutstanding > 0) ...[
-                      _OutstandingReceivablesCard(
-                        totalOutstanding: totalOutstanding,
-                        overdueCount: overdueCount,
-                        aging30: aging30,
-                        aging60: aging60,
-                        aging90plus: aging90plus,
-                        onViewAll: () => _openDebtPanel(context),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-
                     // ── Sales Performance ────────────────────────────────
                     if (permissions.canViewSales || permissions.isOwner) ...[
                       Row(
@@ -530,18 +498,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     super.dispose();
   }
 
-  void _openDebtPanel(BuildContext context) {
-    showAppSheet(
-      context,
-      builder: (_) => const ClipRRect(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        child: Material(
-          color: AppColors.background,
-          child: DebtTrackingScreen(),
-        ),
-      ),
-    );
-  }
 }
 
 // ── Change badge ──────────────────────────────────────────────────────────────

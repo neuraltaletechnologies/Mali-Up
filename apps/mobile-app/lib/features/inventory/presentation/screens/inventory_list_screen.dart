@@ -11,6 +11,8 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../catalog/domain/models/master_category.dart';
 import '../../data/inventory_providers.dart';
+import '../../domain/models/inventory_item.dart';
+import '../providers/inventory_providers.dart';
 import '../widgets/category_picker_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -752,6 +754,35 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
+      final name = _nameCtrl.text.trim();
+      final qty = double.tryParse(_stockCtrl.text) ?? 0;
+
+      // Detect duplicate name — restock existing product instead of creating a copy
+      final allItems = ref.read(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
+      final nameLower = name.toLowerCase();
+      final existing = allItems.firstWhere(
+        (i) => i.name.toLowerCase() == nameLower,
+        orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
+      );
+
+      if (existing.id.isNotEmpty) {
+        await ref.read(inventoryRepositoryProvider).adjustQuantity(existing.id, qty);
+        if (mounted) {
+          navigator.pop();
+          final qtyStr = qty % 1 == 0 ? qty.toStringAsFixed(0) : qty.toStringAsFixed(2);
+          messenger.showSnackBar(SnackBar(
+            content: Text(_tr(
+              'Restocked $qtyStr ${existing.unit} of ${existing.name}',
+              'Imeongezwa $qtyStr ${existing.unit} ya ${existing.name}',
+            )),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ));
+        }
+        return;
+      }
+
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Not logged in');
 
@@ -764,13 +795,13 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
       );
 
       await inventoryRef.add({
-        'name': _nameCtrl.text.trim(),
+        'name': name,
         'description': _descCtrl.text.trim(),
         // Smart category — both legacy and structured fields
         'category': _selectedCategory?.categoryName ?? 'General',
         'categoryId': _selectedCategory?.id ?? '',
         'categoryName': _selectedCategory?.categoryName ?? '',
-        'currentStock': double.tryParse(_stockCtrl.text) ?? 0,
+        'currentStock': qty,
         'reorderPoint': double.tryParse(_reorderCtrl.text) ?? 0,
         'unitPrice': double.tryParse(_priceCtrl.text) ?? 0,
         'unit': _selectedUnit,
