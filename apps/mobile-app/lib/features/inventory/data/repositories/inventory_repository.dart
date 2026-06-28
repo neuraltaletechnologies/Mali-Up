@@ -7,6 +7,7 @@ abstract interface class InventoryRepository {
   Future<InventoryItem?> getById(String id);
   Future<InventoryItem?> getByBarcode(String barcode);
   Future<InventoryItem?> getBySku(String sku);
+  Future<InventoryItem?> getByName(String name);
   Future<double> getTotalInventoryValue();
 
   Future<void> save(InventoryItem item);

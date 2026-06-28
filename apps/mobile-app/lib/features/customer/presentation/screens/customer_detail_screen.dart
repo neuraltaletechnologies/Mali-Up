@@ -210,6 +210,11 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         mode: LaunchMode.externalApplication);
   }
 
+  void _smsCustomer() async {
+    if (_customer.phone.isEmpty) return;
+    await launchUrl(Uri(scheme: 'sms', path: _customer.phone));
+  }
+
   void _sendReminder() async {
     final balance = _customer.balanceAmount;
     if (balance <= 0) {
@@ -255,10 +260,32 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
     if (overdue.isNotEmpty) {
       buf.writeln(_tr('Unpaid invoices:', 'Ankara ambazo hazijalipwa:'));
       for (final inv in overdue.take(5)) {
-        final num =
+        final invNum =
             inv['invoiceNumber']?.toString() ?? inv['id']?.toString() ?? '';
         final amt = readInvoiceTotal(inv);
-        buf.writeln('• $num — TZS ${_fmtNum(amt)}');
+        final date = readTimestamp(inv['invoiceDate'] ?? inv['createdAt']);
+        final datePart = date != null ? ' (${_fmtDate(date)})' : '';
+        buf.writeln('• ${_tr('Invoice', 'Ankara')} $invNum$datePart — TZS ${_fmtNum(amt)}');
+
+        // List the purchased items so the customer knows which purchase created this debt.
+        final rawItems = inv['lineItems'] ?? inv['items'];
+        if (rawItems is List && rawItems.isNotEmpty) {
+          for (final item in rawItems.take(3)) {
+            final name = (item['name'] ?? item['productName'] ?? '').toString();
+            if (name.isEmpty) continue;
+            final rawQty = item['quantity'] ?? item['qty'] ?? 1;
+            final qtyVal = rawQty is num ? rawQty.toDouble() : 1.0;
+            final qtyStr = qtyVal % 1 == 0
+                ? qtyVal.toInt().toString()
+                : qtyVal.toStringAsFixed(1);
+            buf.writeln('   › $name × $qtyStr');
+          }
+          if (rawItems.length > 3) {
+            final extra = rawItems.length - 3;
+            buf.writeln('   ${_tr('+ $extra more item${extra == 1 ? '' : 's'}', '+ vitu $extra zaidi')}');
+          }
+          buf.writeln();
+        }
       }
       buf.writeln();
     }
@@ -407,6 +434,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                 onCreditLimitSave: _updateCreditLimit,
                 onCall: _callCustomer,
                 onWhatsApp: _whatsappCustomer,
+                onSms: _smsCustomer,
                 onReminder: _sendReminder,
                 onPayDebt: showFinancials ? _showPayDebtSheet : null,
               ),
@@ -695,6 +723,7 @@ class _OverviewTab extends ConsumerStatefulWidget {
   final ValueChanged<double> onCreditLimitSave;
   final VoidCallback onCall;
   final VoidCallback onWhatsApp;
+  final VoidCallback onSms;
   final VoidCallback onReminder;
   final VoidCallback? onPayDebt;
 
@@ -706,6 +735,7 @@ class _OverviewTab extends ConsumerStatefulWidget {
     required this.onCreditLimitSave,
     required this.onCall,
     required this.onWhatsApp,
+    required this.onSms,
     required this.onReminder,
     this.onPayDebt,
   });
@@ -784,10 +814,16 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
         _QuickActions(
           onCall: widget.onCall,
           onWhatsApp: widget.onWhatsApp,
+          onSms: widget.onSms,
           onReminder: widget.onReminder,
           showReminder: widget.showFinancials,
         ),
         const SizedBox(height: 16),
+
+        // ── Smart Insights ────────────────────────────────────────────────
+        if (widget.showFinancials)
+          _InsightsCard(customerId: c.id),
+        if (widget.showFinancials) const SizedBox(height: 16),
 
         // ── Balance + credit limit ────────────────────────────────────────
         if (widget.showFinancials) ...[
@@ -801,11 +837,6 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
           ),
           const SizedBox(height: 16),
         ],
-
-        // ── Smart Insights ────────────────────────────────────────────────
-        if (widget.showFinancials)
-          _InsightsCard(customerId: c.id),
-        if (widget.showFinancials) const SizedBox(height: 16),
 
         // ── Contact info ──────────────────────────────────────────────────
         _ContactCard(customer: c),
@@ -833,12 +864,14 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
 class _QuickActions extends StatelessWidget {
   final VoidCallback onCall;
   final VoidCallback onWhatsApp;
+  final VoidCallback onSms;
   final VoidCallback onReminder;
   final bool showReminder;
 
   const _QuickActions({
     required this.onCall,
     required this.onWhatsApp,
+    required this.onSms,
     required this.onReminder,
     required this.showReminder,
   });
@@ -862,6 +895,15 @@ class _QuickActions extends StatelessWidget {
             label: 'WhatsApp',
             color: const Color(0xFF25D366),
             onTap: onWhatsApp,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ActionBtn(
+            icon: Icons.sms_rounded,
+            label: _tr('Message', 'Ujumbe'),
+            color: const Color(0xFF1A6E8A),
+            onTap: onSms,
           ),
         ),
         if (showReminder) ...[
@@ -1008,9 +1050,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                   size: 16,
                   color: widget.balance > 0
                       ? AppColors.error
-                      : widget.balance < 0
-                          ? AppColors.tealAccent
-                          : AppColors.success,
+                      : AppColors.success,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1020,7 +1060,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                   children: [
                     Text(
                       widget.balance < 0
-                          ? _tr('Customer Credit', 'Mkopo wa Mteja')
+                          ? _tr('Reserve Credit', 'Akiba ya Mteja')
                           : _tr('Outstanding Balance', 'Deni Linalodaiwa'),
                       style: GoogleFonts.dmSans(
                           fontSize: 11,
@@ -1031,15 +1071,13 @@ class _BalanceCardState extends State<_BalanceCard> {
                       widget.balance > 0
                           ? 'TZS ${_fmtNum(widget.balance)}'
                           : widget.balance < 0
-                              ? 'TZS ${_fmtNum(widget.balance.abs())}'
+                              ? '+TZS ${_fmtNum(widget.balance.abs())}'
                               : _tr('All clear', 'Hakuna deni'),
                       style: GoogleFonts.dmSerifDisplay(
                           fontSize: 22,
                           color: widget.balance > 0
                               ? AppColors.error
-                              : widget.balance < 0
-                                  ? AppColors.tealAccent
-                                  : AppColors.success),
+                              : AppColors.success),
                     ),
                   ],
                 ),
@@ -1537,10 +1575,40 @@ class _ContactCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header ──────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: AppColors.tealAccent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.contact_page_rounded,
+                      size: 15, color: AppColors.tealAccent),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  _tr('Contact Info', 'Mawasiliano'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+
           if (customer.phone.isNotEmpty)
             _ContactRow(
               icon: Icons.phone_rounded,
+              iconColor: AppColors.success,
               label: _tr('Phone', 'Simu'),
               value: customer.phone,
               copyValue: customer.phone,
@@ -1551,6 +1619,7 @@ class _ContactCard extends StatelessWidget {
             const Divider(height: 1, color: AppColors.border),
             _ContactRow(
               icon: Icons.email_rounded,
+              iconColor: AppColors.tealAccent,
               label: _tr('Email', 'Barua pepe'),
               value: customer.email,
               copyValue: customer.email,
@@ -1562,6 +1631,7 @@ class _ContactCard extends StatelessWidget {
             const Divider(height: 1, color: AppColors.border),
             _ContactRow(
               icon: Icons.location_on_rounded,
+              iconColor: AppColors.navyPrimary,
               label: _tr('Address', 'Anwani'),
               value: customer.address,
               copyValue: customer.address,
@@ -1573,6 +1643,7 @@ class _ContactCard extends StatelessWidget {
             const Divider(height: 1, color: AppColors.border),
             _ContactRow(
               icon: Icons.numbers_rounded,
+              iconColor: AppColors.warning,
               label: 'TIN',
               value: customer.tinNumber,
               copyValue: customer.tinNumber,
@@ -1597,6 +1668,7 @@ class _ContactCard extends StatelessWidget {
 
 class _ContactRow extends StatelessWidget {
   final IconData icon;
+  final Color iconColor;
   final String label;
   final String value;
   final String? copyValue;
@@ -1604,6 +1676,7 @@ class _ContactRow extends StatelessWidget {
 
   const _ContactRow({
     required this.icon,
+    required this.iconColor,
     required this.label,
     required this.value,
     this.copyValue,
@@ -1628,10 +1701,10 @@ class _ContactRow extends StatelessWidget {
               width: 30,
               height: 30,
               decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
+                color: iconColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, size: 15, color: AppColors.textMuted),
+              child: Icon(icon, size: 15, color: iconColor),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -3317,9 +3390,15 @@ class _ActivityTab extends ConsumerWidget {
     final paymentsAsync = ref.watch(customerPaymentsProvider(customerId));
 
     if (invoicesAsync.isLoading || paymentsAsync.isLoading) {
-      return const Center(
-          child: CircularProgressIndicator(
-              color: AppColors.navyPrimary, strokeWidth: 2));
+      return const CustomScrollView(slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: CircularProgressIndicator(
+                color: AppColors.navyPrimary, strokeWidth: 2),
+          ),
+        ),
+      ]);
     }
 
     final invoices = invoicesAsync.valueOrNull ?? [];
@@ -3371,14 +3450,19 @@ class _ActivityTab extends ConsumerWidget {
     items.sort((a, b) => b.date.compareTo(a.date));
 
     if (items.isEmpty) {
-      return EmptyState(
-        icon: Icons.timeline_rounded,
-        title: _tr('No activity yet', 'Bado hakuna shughuli'),
-        subtitle: _tr(
-          'Sales and debt payments will appear here.',
-          'Uuzaji na malipo ya deni vitaonekana hapa.',
+      return CustomScrollView(slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: EmptyState(
+            icon: Icons.timeline_rounded,
+            title: _tr('No activity yet', 'Bado hakuna shughuli'),
+            subtitle: _tr(
+              'Sales and debt payments will appear here.',
+              'Uuzaji na malipo ya deni vitaonekana hapa.',
+            ),
+          ),
         ),
-      );
+      ]);
     }
 
     return ListView.separated(

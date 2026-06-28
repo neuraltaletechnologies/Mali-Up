@@ -76,6 +76,20 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
         .getSingleOrNull();
   }
 
+  Future<InventoryTableData?> getByName(
+    String businessId,
+    String name,
+  ) {
+    return (select(inventoryTable)
+          ..where((t) =>
+              t.businessId.equals(businessId) &
+              t.name.lower().equals(name.toLowerCase()) &
+              t.isDeleted.equals(0) &
+              t.isActive.equals(1))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   Future<double> getTotalInventoryValue(String businessId) async {
     final rows = await (select(inventoryTable)
           ..where((t) =>

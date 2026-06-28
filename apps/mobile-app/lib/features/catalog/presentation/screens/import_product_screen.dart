@@ -38,9 +38,15 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
   late final TextEditingController _skuCtrl;
 
   bool _saving = false;
-  bool _isPurchaseOnCredit = false;
+
+  // Asili ya Stoo: 'existing' = stoki niliyo nayo, 'purchased' = nimenunua
+  String _stockOrigin = 'existing';
+  // Malipo: 'paid' = nimelipia, 'partial' = nimelipa kiasi, 'unpaid' = sijalipia
+  String _paymentStatus = 'paid';
+
   final _supplierNameCtrl = TextEditingController();
   final _supplierPhoneCtrl = TextEditingController();
+  final _amountPaidCtrl = TextEditingController(text: '0');
 
   @override
   void initState() {
@@ -70,6 +76,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
     _skuCtrl.dispose();
     _supplierNameCtrl.dispose();
     _supplierPhoneCtrl.dispose();
+    _amountPaidCtrl.dispose();
     super.dispose();
   }
 
@@ -115,39 +122,48 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
 
       await ref.read(inventoryRepositoryProvider).save(item);
 
-      // Auto-create payable debt when product is purchased on credit
-      if (_isPurchaseOnCredit && _costVal > 0 && _stockVal > 0) {
+      // Create payable debt when purchased and not fully paid
+      final hasDebt = _stockOrigin == 'purchased' &&
+          (_paymentStatus == 'unpaid' || _paymentStatus == 'partial');
+      if (hasDebt && _costVal > 0 && _stockVal > 0) {
         final total = _costVal * _stockVal;
-        final dueDate = DateTime.now().add(const Duration(days: 30));
-        final dueDateStr =
-            '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
-        await ref.read(debtRepositoryProvider).save(Debt(
-          id: '',
-          partyName: _supplierNameCtrl.text.trim(),
-          partyPhone: _supplierPhoneCtrl.text.trim(),
-          type: 'payable',
-          originalAmount: total,
-          dueDate: dueDateStr,
-          note: _tr(
-              'Purchase: ${_nameCtrl.text.trim()}',
-              'Ununuzi: ${_nameCtrl.text.trim()}'),
-          createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
-          createdAt: DateTime.now().toIso8601String(),
-        ));
+        final alreadyPaid = _paymentStatus == 'partial'
+            ? (double.tryParse(
+                    _amountPaidCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                0)
+            : 0.0;
+        final debtAmount = (total - alreadyPaid).clamp(0.0, total);
+        if (debtAmount > 0) {
+          final dueDate = DateTime.now().add(const Duration(days: 30));
+          final dueDateStr =
+              '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
+          await ref.read(debtRepositoryProvider).save(Debt(
+            id: '',
+            partyName: _supplierNameCtrl.text.trim(),
+            partyPhone: _supplierPhoneCtrl.text.trim(),
+            type: 'payable',
+            originalAmount: debtAmount,
+            dueDate: dueDateStr,
+            note: _tr(
+                'Purchase: ${_nameCtrl.text.trim()}',
+                'Ununuzi: ${_nameCtrl.text.trim()}'),
+            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
+            createdAt: DateTime.now().toIso8601String(),
+          ));
+        }
       }
 
       if (!mounted) return;
       msg.showSnackBar(SnackBar(
         content: Text(
-          _isPurchaseOnCredit
+          hasDebt
               ? _tr(
                   'Product imported – debt recorded in Payables',
                   'Bidhaa imeingizwa – deni limerekodiwa kwenye Madeni',
                 )
               : _tr('Product imported successfully!', 'Bidhaa imeingizwa kwa mafanikio!'),
         ),
-        backgroundColor:
-            _isPurchaseOnCredit ? AppColors.warning : AppColors.success,
+        backgroundColor: hasDebt ? AppColors.warning : AppColors.success,
         behavior: SnackBarBehavior.floating,
       ));
       // Pop back to catalog, then pop catalog to return to inventory
@@ -349,110 +365,249 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── Section: Credit Purchase ──────────────────────────────────
-            Container(
-              decoration: BoxDecoration(
-                color: _isPurchaseOnCredit
-                    ? AppColors.error.withValues(alpha: 0.05)
-                    : const Color(0xFFF8F9FC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _isPurchaseOnCredit
-                      ? AppColors.error.withValues(alpha: 0.3)
-                      : const Color(0xFFE2E8F0),
+            // ── Section: Asili ya Stoo ────────────────────────────────────
+            _SectionLabel(_tr('Stock Origin', 'Asili ya Stoo')),
+            const SizedBox(height: 10),
+            _OriginOption(
+              value: 'existing',
+              groupValue: _stockOrigin,
+              label: _tr('Stock I already had', 'Stoki niliyo nayo'),
+              subtitle: _tr(
+                'This stock was already in my possession',
+                'Stoki hii ilikuwepo kwangu tayari',
+              ),
+              icon: Icons.inventory_2_outlined,
+              iconColor: AppColors.tealAccent,
+              onChanged: (v) => setState(() => _stockOrigin = v!),
+            ),
+            const SizedBox(height: 8),
+            _OriginOption(
+              value: 'purchased',
+              groupValue: _stockOrigin,
+              label: _tr('I purchased it', 'Nimenunua'),
+              subtitle: _tr(
+                'I bought this stock from a supplier',
+                'Nilinunua stoo hii kutoka kwa muuzaji',
+              ),
+              icon: Icons.shopping_cart_outlined,
+              iconColor: AppColors.navyPrimary,
+              onChanged: (v) => setState(() {
+                _stockOrigin = v!;
+                // default to paid when first switching to purchased
+                _paymentStatus = 'paid';
+              }),
+            ),
+
+            // ── Payment status (shown only when purchased) ────────────────
+            if (_stockOrigin == 'purchased') ...[
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: _paymentStatus == 'unpaid'
+                      ? AppColors.error.withValues(alpha: 0.05)
+                      : const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _paymentStatus == 'unpaid'
+                        ? AppColors.error.withValues(alpha: 0.3)
+                        : AppColors.success.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                      child: Text(
+                        _tr('Payment Status', 'Hali ya Malipo'),
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                    ),
+                    _PaymentOption(
+                      value: 'paid',
+                      groupValue: _paymentStatus,
+                      label: _tr('Already paid in full', 'Nimelipia'),
+                      subtitle: _tr(
+                        'Payment completed at time of purchase',
+                        'Nililipa kikamilifu wakati wa ununuzi',
+                      ),
+                      color: AppColors.success,
+                      onChanged: (v) =>
+                          setState(() => _paymentStatus = v!),
+                    ),
+                    const Divider(height: 1, indent: 14, endIndent: 14,
+                        color: Color(0xFFE2E8F0)),
+                    _PaymentOption(
+                      value: 'partial',
+                      groupValue: _paymentStatus,
+                      label: _tr('Partially paid', 'Nimelipa kiasi'),
+                      subtitle: _tr(
+                        'I paid some – remaining balance is a debt',
+                        'Nililipa kiasi – baki ni deni',
+                      ),
+                      color: AppColors.warning,
+                      onChanged: (v) => setState(() {
+                        _paymentStatus = v!;
+                        _amountPaidCtrl.text = '0';
+                      }),
+                    ),
+                    const Divider(height: 1, indent: 14, endIndent: 14,
+                        color: Color(0xFFE2E8F0)),
+                    _PaymentOption(
+                      value: 'unpaid',
+                      groupValue: _paymentStatus,
+                      label: _tr('Not paid at all', 'Sijalipia'),
+                      subtitle: _tr(
+                        'Full amount is owed – record as payable debt',
+                        'Deni la jumla – rekodia kama deni la kulipa',
+                      ),
+                      color: AppColors.error,
+                      onChanged: (v) =>
+                          setState(() => _paymentStatus = v!),
+                    ),
+
+                    // Supplier + amount fields (shown when partial or unpaid)
+                    if (_paymentStatus == 'partial' ||
+                        _paymentStatus == 'unpaid') ...[
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              controller: _supplierNameCtrl,
+                              style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: AppColors.navyPrimary),
+                              decoration: InputDecoration(
+                                labelText: _tr(
+                                    'Supplier Name (Optional)',
+                                    'Jina la Muuzaji (Hiari)'),
+                                prefixIcon: const Icon(
+                                    Icons.person_outline_rounded,
+                                    size: 20),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _supplierPhoneCtrl,
+                              keyboardType: TextInputType.phone,
+                              style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: AppColors.navyPrimary),
+                              decoration: InputDecoration(
+                                labelText: _tr(
+                                    'Supplier Phone (Optional)',
+                                    'Simu ya Muuzaji (Hiari)'),
+                                prefixIcon: const Icon(
+                                    Icons.phone_outlined, size: 20),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+
+                            // Amount paid field (partial only)
+                            if (_paymentStatus == 'partial') ...[
+                              const SizedBox(height: 10),
+                              TextFormField(
+                                controller: _amountPaidCtrl,
+                                keyboardType: const TextInputType
+                                    .numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[0-9.]')),
+                                ],
+                                onChanged: (_) => setState(() {}),
+                                style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: AppColors.navyPrimary,
+                                    fontWeight: FontWeight.w600),
+                                decoration: InputDecoration(
+                                  labelText: _tr(
+                                    'Amount already paid (TZS)',
+                                    'Kiasi ulicholipa tayari (TZS)',
+                                  ),
+                                  prefixIcon: const Icon(
+                                      Icons.payments_outlined, size: 20),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ],
+
+                            // Debt summary
+                            if (_costVal > 0 && _stockVal > 0) ...[
+                              const SizedBox(height: 10),
+                              Builder(builder: (_) {
+                                final total = _costVal * _stockVal;
+                                final paid = _paymentStatus == 'partial'
+                                    ? (double.tryParse(
+                                            _amountPaidCtrl.text
+                                                .replaceAll(
+                                                    RegExp(r'[^0-9.]'),
+                                                    '')) ??
+                                        0)
+                                    : 0.0;
+                                final debt =
+                                    (total - paid).clamp(0.0, total);
+                                return Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error
+                                        .withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (_paymentStatus == 'partial')
+                                        Text(
+                                          _tr(
+                                            'Total: TZS ${total.toStringAsFixed(0)}  |  Paid: TZS ${paid.toStringAsFixed(0)}',
+                                            'Jumla: TZS ${total.toStringAsFixed(0)}  |  Ulicholipa: TZS ${paid.toStringAsFixed(0)}',
+                                          ),
+                                          style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: AppColors.textMuted),
+                                        ),
+                                      if (_paymentStatus == 'partial')
+                                        const SizedBox(height: 4),
+                                      Text(
+                                        _tr(
+                                          'Debt to record: TZS ${debt.toStringAsFixed(0)}',
+                                          'Deni la kurekodi: TZS ${debt.toStringAsFixed(0)}',
+                                        ),
+                                        style: GoogleFonts.jetBrainsMono(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.error),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    value: _isPurchaseOnCredit,
-                    onChanged: (v) =>
-                        setState(() => _isPurchaseOnCredit = v),
-                    activeThumbColor: AppColors.error,
-                    title: Text(
-                      _tr('Purchased on Credit', 'Umenunua kwa Mkopo'),
-                      style: GoogleFonts.inter(
-                          fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      _tr(
-                        'Not fully paid – record as payable debt',
-                        'Haujalipia kikamilifu – rekodi kama deni',
-                      ),
-                      style: GoogleFonts.inter(fontSize: 12),
-                    ),
-                  ),
-                  if (_isPurchaseOnCredit) ...[
-                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                      child: Column(
-                        children: [
-                          TextFormField(
-                            controller: _supplierNameCtrl,
-                            style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: AppColors.navyPrimary),
-                            decoration: InputDecoration(
-                              labelText: _tr(
-                                  'Supplier Name (Optional)',
-                                  'Jina la Muuzaji (Hiari)'),
-                              prefixIcon: const Icon(
-                                  Icons.person_outline_rounded,
-                                  size: 20),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          TextFormField(
-                            controller: _supplierPhoneCtrl,
-                            keyboardType: TextInputType.phone,
-                            style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: AppColors.navyPrimary),
-                            decoration: InputDecoration(
-                              labelText: _tr(
-                                  'Supplier Phone (Optional)',
-                                  'Simu ya Muuzaji (Hiari)'),
-                              prefixIcon: const Icon(
-                                  Icons.phone_outlined, size: 20),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                          if (_costVal > 0 && _stockVal > 0) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: AppColors.error
-                                    .withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                _tr(
-                                  'Debt amount: TZS ${(_costVal * _stockVal).toStringAsFixed(0)}',
-                                  'Kiasi cha deni: TZS ${(_costVal * _stockVal).toStringAsFixed(0)}',
-                                ),
-                                style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.error),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+            ],
             const SizedBox(height: 24),
 
             // ── Import button ─────────────────────────────────────────────
@@ -698,6 +853,155 @@ class _NumericField extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           borderSide:
               const BorderSide(color: AppColors.tealAccent, width: 1.5),
+        ),
+      ),
+    );
+  }
+}
+
+class _OriginOption extends StatelessWidget {
+  final String value;
+  final String groupValue;
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final Color iconColor;
+  final ValueChanged<String?> onChanged;
+
+  const _OriginOption({
+    required this.value,
+    required this.groupValue,
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.iconColor,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value == groupValue;
+    return GestureDetector(
+      onTap: () => onChanged(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? iconColor.withValues(alpha: 0.07)
+              : const Color(0xFFF8F9FC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? iconColor : const Color(0xFFE2E8F0),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: selected
+                    ? iconColor.withValues(alpha: 0.15)
+                    : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon,
+                  size: 20,
+                  color: selected ? iconColor : AppColors.textMuted),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: selected ? iconColor : AppColors.navyPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Radio<String>(
+              value: value,
+              groupValue: groupValue,
+              onChanged: onChanged,
+              activeColor: iconColor,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentOption extends StatelessWidget {
+  final String value;
+  final String groupValue;
+  final String label;
+  final String subtitle;
+  final Color color;
+  final ValueChanged<String?> onChanged;
+
+  const _PaymentOption({
+    required this.value,
+    required this.groupValue,
+    required this.label,
+    required this.subtitle,
+    required this.color,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value == groupValue;
+    return InkWell(
+      onTap: () => onChanged(value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Radio<String>(
+              value: value,
+              groupValue: groupValue,
+              onChanged: onChanged,
+              activeColor: color,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: selected ? color : AppColors.navyPrimary,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

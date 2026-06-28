@@ -102,11 +102,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get(const GetOptions());
-      return snapshot.data() ?? {};
+      final fs = FirebaseFirestore.instance;
+      final userSnap = await fs.collection('users').doc(user.uid).get(const GetOptions());
+      final profile = userSnap.data();
+      if (profile == null) return {};
+
+      final isTeamMember = profile['isTeamMember'] == true;
+      if (isTeamMember) {
+        final bizId = (profile['businessId'] as String?)?.trim() ?? '';
+        if (bizId.isNotEmpty) {
+          final bizSnap = await fs.collection('businesses').doc(bizId).get(const GetOptions());
+          if (bizSnap.exists) {
+            profile['businesses'] = [{'id': bizId, ...?bizSnap.data()}];
+          }
+        }
+      } else {
+        final bizSnap = await fs
+            .collection('businesses')
+            .where('ownerUid', isEqualTo: user.uid)
+            .get(const GetOptions());
+        profile['businesses'] = bizSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      }
+
+      return profile;
     } catch (e) {
       debugPrint('Error fetching user profile: $e');
       return {};
@@ -123,6 +141,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             orElse: () => businesses.first as Map<String, dynamic>,
           )
         : businesses.first as Map<String, dynamic>;
+    // Firestore stores the name under 'businessName' (phone_auth_service) or 'name' (older paths).
+    final raw = (business['businessName'] as String?)?.trim();
+    if (raw != null && raw.isNotEmpty) return raw;
     return (business['name'] as String?)?.trim();
   }
 
@@ -177,6 +198,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final monthExpenses = expenseItems.where((e) {
       final d = DateTime.tryParse(e.date);
       return d != null && d.year == now2.year && d.month == now2.month;
+    }).fold<double>(0, (t, e) => t + _numericValue(e.amount));
+    final yearExpenses = expenseItems.where((e) {
+      final d = DateTime.tryParse(e.date);
+      return d != null && d.year == now2.year;
     }).fold<double>(0, (t, e) => t + _numericValue(e.amount));
     final totalCash = cashAccountItems.fold<double>(0, (t, a) => t + a.balance);
     final salesAsyncValue = ref.watch(salesInvoiceListProvider);
@@ -356,6 +381,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         totalCash: totalCash,
                         monthRevenue: monthRevenue,
                         monthExpenses: monthExpenses,
+                        yearNetProfit: yearRevenue - yearExpenses,
                         customerCount: customerCount,
                         businessName: _getBusinessName(snapshot.data),
                         logoUrl: _getBusinessLogoUrl(snapshot.data),
@@ -1245,6 +1271,7 @@ class _UnifiedHeroCard extends StatefulWidget {
   final double totalCash;
   final double monthRevenue;
   final double monthExpenses;
+  final double yearNetProfit;
   final int customerCount;
   final String? businessName;
   final String? logoUrl;
@@ -1254,6 +1281,7 @@ class _UnifiedHeroCard extends StatefulWidget {
     required this.totalCash,
     required this.monthRevenue,
     required this.monthExpenses,
+    required this.yearNetProfit,
     required this.customerCount,
     this.businessName,
     this.logoUrl,
@@ -1282,9 +1310,10 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final expText = _detailsVisible
         ? _fmtCompactAmount(widget.monthExpenses)
         : '••••';
-    final net = widget.monthRevenue - widget.monthExpenses;
-    final netText = _detailsVisible ? _fmtCompactAmount(net) : '••••';
-    final netColor = net >= 0
+    final netText = _detailsVisible
+        ? _fmtCompactAmount(widget.yearNetProfit)
+        : '••••';
+    final netColor = widget.yearNetProfit >= 0
         ? const Color(0xFF34D399)
         : const Color(0xFFF87171);
 
@@ -1537,7 +1566,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                             color: Colors.white.withValues(alpha: 0.15),
                           ),
                           _CardStatItem(
-                            label: _tr('Net', 'Faida'),
+                            label: _tr('Net YTD', 'Faida Mwaka'),
                             value: netText,
                             color: netText == '••••' ? null : netColor,
                           ),

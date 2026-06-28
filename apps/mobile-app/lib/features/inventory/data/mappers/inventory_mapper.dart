@@ -93,7 +93,7 @@ abstract final class InventoryMapper {
       businessId: Value(businessId),
       name: Value(item.name),
       sku: Value(item.sku),
-      barcode: const Value(''),
+      barcode: Value(item.sku),
       category: Value(
         item.categoryName.isNotEmpty ? item.categoryName : item.category,
       ),

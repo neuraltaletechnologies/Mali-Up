@@ -1541,7 +1541,8 @@ class _ReceiptAction extends StatelessWidget {
 class _ItemEntry {
   final TextEditingController nameCtrl;
   final TextEditingController priceCtrl;
-  int qty;
+  final TextEditingController qtyCtrl;
+  int _qty;
   Map<String, dynamic>? selectedItem;
   double? basePrice;
   List<Map<String, dynamic>> suggs = [];
@@ -1550,7 +1551,15 @@ class _ItemEntry {
   _ItemEntry({String name = '', String price = ''})
       : nameCtrl = TextEditingController(text: name),
         priceCtrl = TextEditingController(text: price),
-        qty = 1;
+        qtyCtrl = TextEditingController(text: '1'),
+        _qty = 1;
+
+  int get qty => _qty;
+  set qty(int v) {
+    _qty = v;
+    final s = '$v';
+    if (qtyCtrl.text != s) qtyCtrl.text = s;
+  }
 
   double get unitPrice {
     final t = priceCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '');
@@ -1575,6 +1584,7 @@ class _ItemEntry {
   void dispose() {
     nameCtrl.dispose();
     priceCtrl.dispose();
+    qtyCtrl.dispose();
   }
 }
 
@@ -2712,15 +2722,59 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 ),
               ),
               const SizedBox(width: 10),
-              _QtyWidget(
-                qty: entry.qty,
-                maxQty: entry.maxStock,
-                onDecrement:
-                    entry.qty > 1 ? () => setState(() => entry.qty--) : null,
-                onIncrement:
-                    (entry.selectedItem == null || entry.qty < entry.maxStock)
-                        ? () => setState(() => entry.qty++)
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: entry.qtyCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textAlign: TextAlign.center,
+                  onChanged: (v) {
+                    final parsed = int.tryParse(v) ?? 1;
+                    final clamped = parsed.clamp(1, entry.maxStock);
+                    setState(() => entry._qty = clamped);
+                    if (clamped != parsed) {
+                      entry.qtyCtrl.text = '$clamped';
+                      entry.qtyCtrl.selection = TextSelection.collapsed(
+                          offset: '$clamped'.length);
+                    }
+                  },
+                  decoration: _fieldDec(
+                    label: _tr('Qty', 'Idadi'),
+                    prefix: Icons.remove_rounded,
+                  ).copyWith(
+                    prefixIcon: GestureDetector(
+                      onTap: entry.qty > 1
+                          ? () => setState(() => entry.qty--)
+                          : null,
+                      child: Icon(Icons.remove_rounded,
+                          size: 18,
+                          color: entry.qty > 1
+                              ? AppColors.navyPrimary
+                              : AppColors.textMuted),
+                    ),
+                    suffixIcon: GestureDetector(
+                      onTap:
+                          (entry.selectedItem == null ||
+                                  entry.qty < entry.maxStock)
+                              ? () => setState(() => entry.qty++)
+                              : null,
+                      child: Icon(Icons.add_rounded,
+                          size: 18,
+                          color: (entry.selectedItem == null ||
+                                  entry.qty < entry.maxStock)
+                              ? AppColors.navyPrimary
+                              : AppColors.textMuted),
+                    ),
+                    helperText: entry.selectedItem != null &&
+                            !entry._isService &&
+                            entry.maxStock < 9999
+                        ? '/ ${entry.maxStock}'
                         : null,
+                    helperStyle: const TextStyle(
+                        fontSize: 11, color: AppColors.textMuted),
+                  ),
+                ),
               ),
             ],
           ),
@@ -3276,93 +3330,6 @@ class _TotalRow extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary)),
       ],
-    );
-  }
-}
-
-// ── Qty widget ─────────────────────────────────────────────────────────────────
-
-class _QtyWidget extends StatelessWidget {
-  final int qty;
-  final int maxQty;
-  final VoidCallback? onDecrement;
-  final VoidCallback? onIncrement;
-
-  const _QtyWidget({
-    required this.qty,
-    required this.maxQty,
-    this.onDecrement,
-    this.onIncrement,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(_tr('Qty', 'Idadi'),
-            style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w500)),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Btn(icon: Icons.remove_rounded, onTap: onDecrement),
-              SizedBox(
-                width: 36,
-                child: Text(
-                  '$qty',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.secondary),
-                ),
-              ),
-              _Btn(icon: Icons.add_rounded, onTap: onIncrement),
-            ],
-          ),
-        ),
-        if (maxQty < 9999)
-          Padding(
-            padding: const EdgeInsets.only(top: 3),
-            child: Text('/ $maxQty',
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.textMuted)),
-          ),
-      ],
-    );
-  }
-}
-
-class _Btn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _Btn({required this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: SizedBox(
-          width: 40,
-          height: 46,
-          child: Icon(icon,
-              size: 18,
-              color: onTap != null ? AppColors.secondary : AppColors.border),
-        ),
-      ),
     );
   }
 }
