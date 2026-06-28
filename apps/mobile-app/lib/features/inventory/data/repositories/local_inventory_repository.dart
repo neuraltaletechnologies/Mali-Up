@@ -37,6 +37,11 @@ class LocalInventoryRepository {
     return row != null ? InventoryMapper.fromRow(row) : null;
   }
 
+  Future<InventoryItem?> getByName(String name) async {
+    final row = await _dao.getByName(businessId, name);
+    return row != null ? InventoryMapper.fromRow(row) : null;
+  }
+
   Future<double> getTotalInventoryValue() =>
       _dao.getTotalInventoryValue(businessId);
 

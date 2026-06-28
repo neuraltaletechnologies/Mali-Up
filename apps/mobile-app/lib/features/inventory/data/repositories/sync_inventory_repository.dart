@@ -49,6 +49,9 @@ class SyncInventoryRepository implements InventoryRepository {
   Future<InventoryItem?> getBySku(String sku) => _local.getBySku(sku);
 
   @override
+  Future<InventoryItem?> getByName(String name) => _local.getByName(name);
+
+  @override
   Future<double> getTotalInventoryValue() => _local.getTotalInventoryValue();
 
   // ─── Writes ────────────────────────────────────────────────────────────────
@@ -57,6 +60,28 @@ class SyncInventoryRepository implements InventoryRepository {
   Future<void> save(InventoryItem item) async {
     _policy.assertCanWrite();
     final isNew = item.id.isEmpty;
+
+    // Upsert-by-barcode/SKU: scanner populates the SKU field with the scanned
+    // barcode value; check that first since it's more precise than name.
+    if (isNew && item.sku.isNotEmpty) {
+      final byBarcode = await _local.getByBarcode(item.sku);
+      final duplicate = byBarcode ?? await _local.getBySku(item.sku);
+      if (duplicate != null && duplicate.id.isNotEmpty) {
+        await adjustQuantity(duplicate.id, item.currentStock);
+        return;
+      }
+    }
+
+    // Upsert-by-name: if a new product shares a name with an existing one,
+    // increment stock on the existing record rather than creating a duplicate.
+    if (isNew && item.name.isNotEmpty) {
+      final duplicate = await _local.getByName(item.name);
+      if (duplicate != null && duplicate.id.isNotEmpty) {
+        await adjustQuantity(duplicate.id, item.currentStock);
+        return;
+      }
+    }
+
     final entityId = isNew ? const Uuid().v4() : item.id;
     final now = DateTime.now().millisecondsSinceEpoch;
 

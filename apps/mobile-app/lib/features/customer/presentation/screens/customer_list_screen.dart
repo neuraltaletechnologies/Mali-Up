@@ -1005,7 +1005,7 @@ class _CustomerCard extends ConsumerWidget {
                           balance > 0
                               ? 'TZS ${_fmtShort(balance)}'
                               : balance < 0
-                                  ? _tr('Credit', 'Mkopo')
+                                  ? '+TZS ${_fmtShort(balance.abs())}'
                                   : _tr('Clear', 'Safi'),
                           style: GoogleFonts.jetBrainsMono(
                               fontSize: 13,
@@ -1013,7 +1013,7 @@ class _CustomerCard extends ConsumerWidget {
                               color: balance > 0
                                   ? AppColors.error
                                   : balance < 0
-                                      ? AppColors.tealAccent
+                                      ? AppColors.success
                                       : AppColors.success),
                         ),
                         if (hasBalance && customer.creditLimit > 0) ...[
@@ -1588,6 +1588,10 @@ class _CustomerInfoSheet extends ConsumerWidget {
     );
   }
 
+  Future<void> _sms(String phone) async {
+    await launchUrl(Uri(scheme: 'sms', path: phone));
+  }
+
   Future<void> _remind(Customer c) async {
     final e164 = _e164(c.phone);
     final balance = _fmtShort(c.balanceAmount);
@@ -1616,7 +1620,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
     final hasEmail = live.email.isNotEmpty;
     final hasAddress = live.address.isNotEmpty;
     final hasTin = live.tinNumber.isNotEmpty;
-    final hasContact = hasPhone || hasEmail || hasAddress || hasTin;
+    final hasContact = hasEmail || hasAddress || hasTin;
 
     return Material(
       color: Colors.white,
@@ -1761,16 +1765,12 @@ class _CustomerInfoSheet extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: balance > 0
                             ? AppColors.error.withValues(alpha: 0.06)
-                            : balance < 0
-                                ? AppColors.tealAccent.withValues(alpha: 0.06)
-                                : AppColors.success.withValues(alpha: 0.06),
+                            : AppColors.success.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: balance > 0
                               ? AppColors.error.withValues(alpha: 0.2)
-                              : balance < 0
-                                  ? AppColors.tealAccent.withValues(alpha: 0.2)
-                                  : AppColors.success.withValues(alpha: 0.2),
+                              : AppColors.success.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Row(
@@ -1784,9 +1784,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                             size: 16,
                             color: balance > 0
                                 ? AppColors.error
-                                : balance < 0
-                                    ? AppColors.tealAccent
-                                    : AppColors.success,
+                                : AppColors.success,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -1798,8 +1796,8 @@ class _CustomerInfoSheet extends ConsumerWidget {
                                     )
                                   : balance < 0
                                       ? _tr(
-                                          'Credit: TZS ${_fmtShort(balance.abs())}',
-                                          'Mkopo: TZS ${_fmtShort(balance.abs())}',
+                                          'Reserve: +TZS ${_fmtShort(balance.abs())}',
+                                          'Akiba: +TZS ${_fmtShort(balance.abs())}',
                                         )
                                       : _tr(
                                           'No outstanding balance',
@@ -1810,9 +1808,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                                 fontWeight: FontWeight.w600,
                                 color: balance > 0
                                     ? AppColors.error
-                                    : balance < 0
-                                        ? AppColors.tealAccent
-                                        : AppColors.success,
+                                    : AppColors.success,
                               ),
                             ),
                           ),
@@ -1927,6 +1923,15 @@ class _CustomerInfoSheet extends ConsumerWidget {
                             onTap: () => _whatsapp(live.phone),
                           ),
                         ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _SheetActionBtn(
+                            icon: Icons.sms_rounded,
+                            label: _tr('Message', 'Ujumbe'),
+                            color: const Color(0xFF1A6E8A),
+                            onTap: () => _sms(live.phone),
+                          ),
+                        ),
                         if (showFinancials && hasBalance) ...[
                           const SizedBox(width: 10),
                           Expanded(
@@ -1965,20 +1970,12 @@ class _CustomerInfoSheet extends ConsumerWidget {
                       ),
                       child: Column(
                         children: [
-                          if (hasPhone)
-                            _SheetInfoRow(
-                              icon: Icons.phone_rounded,
-                              label: _tr('Phone', 'Simu'),
-                              value: live.phone,
-                              isFirst: true,
-                              isLast: !hasEmail && !hasAddress && !hasTin,
-                            ),
                           if (hasEmail)
                             _SheetInfoRow(
                               icon: Icons.email_rounded,
                               label: _tr('Email', 'Barua pepe'),
                               value: live.email,
-                              isFirst: !hasPhone,
+                              isFirst: true,
                               isLast: !hasAddress && !hasTin,
                             ),
                           if (hasAddress)
@@ -1986,7 +1983,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                               icon: Icons.location_on_rounded,
                               label: _tr('Address', 'Anwani'),
                               value: live.address,
-                              isFirst: !hasPhone && !hasEmail,
+                              isFirst: !hasEmail,
                               isLast: !hasTin,
                             ),
                           if (hasTin)
@@ -1994,7 +1991,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                               icon: Icons.numbers_rounded,
                               label: 'TIN',
                               value: live.tinNumber,
-                              isFirst: !hasPhone && !hasEmail && !hasAddress,
+                              isFirst: !hasEmail && !hasAddress,
                               isLast: true,
                             ),
                         ],

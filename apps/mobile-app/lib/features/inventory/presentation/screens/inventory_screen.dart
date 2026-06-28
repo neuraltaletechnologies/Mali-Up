@@ -3028,26 +3028,40 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       return;
     }
 
-    // ── Duplicate-name check (new products only) ─────────────────────────────
+    // ── Duplicate check by barcode/SKU then name (new products only) ─────────
     if (!_isEdit && !isReturn) {
       final allItems = ref.read(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
-      final nameLower = name.toLowerCase();
-      final existing = allItems.firstWhere(
-        (i) => i.name.toLowerCase() == nameLower,
-        orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
-      );
-      if (existing.id.isNotEmpty) {
+
+      InventoryItem? matchedItem;
+      final sku = _skuCtrl.text.trim();
+      if (sku.isNotEmpty) {
+        final byBarcode = allItems.firstWhere(
+          (i) => i.sku.isNotEmpty && i.sku == sku,
+          orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
+        );
+        if (byBarcode.id.isNotEmpty) matchedItem = byBarcode;
+      }
+      matchedItem ??= () {
+        final nameLower = name.toLowerCase();
+        final byName = allItems.firstWhere(
+          (i) => i.name.toLowerCase() == nameLower,
+          orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
+        );
+        return byName.id.isNotEmpty ? byName : null;
+      }();
+
+      if (matchedItem != null) {
         // Switch to restock mode inline — no new sheet
-        _applyFromExisting(existing);
+        _applyFromExisting(matchedItem);
         setState(() {
-          _restockTarget = existing;
+          _restockTarget = matchedItem;
           _saving = false;
           _stockCtrl.text = '1';
         });
         msg.showSnackBar(SnackBar(
           content: Text(_tr(
-            '"$name" already exists — enter how many to add',
-            '"$name" tayari ipo — ingiza kiasi cha kuongeza',
+            '"${matchedItem.name}" already exists — enter how many to add',
+            '"${matchedItem.name}" tayari ipo — ingiza kiasi cha kuongeza',
           )),
           backgroundColor: AppColors.tealAccent,
           behavior: SnackBarBehavior.floating,
@@ -3290,8 +3304,32 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       context,
       title: _tr('Scan Product Barcode', 'Skani Nambari ya Bidhaa'),
     );
-    if (scanned != null && scanned.isNotEmpty && mounted) {
-      setState(() => _skuCtrl.text = scanned);
+    if (scanned == null || scanned.isEmpty || !mounted) return;
+    setState(() => _skuCtrl.text = scanned);
+
+    // If in new-product mode and the scanned barcode matches an existing product,
+    // switch to restock mode immediately instead of waiting for the save button.
+    if (!_isEdit && _restockTarget == null) {
+      final allItems = ref.read(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
+      final match = allItems.firstWhere(
+        (i) => i.sku.isNotEmpty && i.sku == scanned,
+        orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
+      );
+      if (match.id.isNotEmpty) {
+        _applyFromExisting(match);
+        setState(() {
+          _restockTarget = match;
+          _stockCtrl.text = '1';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_tr(
+            '"${match.name}" already exists — enter how many to add',
+            '"${match.name}" tayari ipo — ingiza kiasi cha kuongeza',
+          )),
+          backgroundColor: AppColors.tealAccent,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 

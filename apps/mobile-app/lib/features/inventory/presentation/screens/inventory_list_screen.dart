@@ -1,6 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,7 +6,6 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
-import '../../../customer/data/customer_providers.dart';
 import '../../../catalog/domain/models/master_category.dart';
 import '../../data/inventory_providers.dart';
 import '../../domain/models/inventory_item.dart';
@@ -757,23 +754,36 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
       final name = _nameCtrl.text.trim();
       final qty = double.tryParse(_stockCtrl.text) ?? 0;
 
-      // Detect duplicate name — restock existing product instead of creating a copy
+      // Detect duplicate by barcode/SKU then name — restock instead of creating a copy
       final allItems = ref.read(inventoryProvider).valueOrNull ?? const <InventoryItem>[];
-      final nameLower = name.toLowerCase();
-      final existing = allItems.firstWhere(
-        (i) => i.name.toLowerCase() == nameLower,
-        orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
-      );
 
-      if (existing.id.isNotEmpty) {
-        await ref.read(inventoryRepositoryProvider).adjustQuantity(existing.id, qty);
+      InventoryItem? matched;
+      final sku = _skuCtrl.text.trim();
+      if (sku.isNotEmpty) {
+        final byBarcode = allItems.firstWhere(
+          (i) => i.sku.isNotEmpty && i.sku == sku,
+          orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
+        );
+        if (byBarcode.id.isNotEmpty) matched = byBarcode;
+      }
+      if (matched == null) {
+        final nameLower = name.toLowerCase();
+        final byName = allItems.firstWhere(
+          (i) => i.name.toLowerCase() == nameLower,
+          orElse: () => InventoryItem(id: '', name: '', category: '', currentStock: 0, reorderPoint: 0, unitPrice: 0, unit: '', createdAt: '', updatedAt: ''),
+        );
+        if (byName.id.isNotEmpty) matched = byName;
+      }
+
+      if (matched != null) {
+        await ref.read(inventoryRepositoryProvider).adjustQuantity(matched.id, qty);
         if (mounted) {
           navigator.pop();
           final qtyStr = qty % 1 == 0 ? qty.toStringAsFixed(0) : qty.toStringAsFixed(2);
           messenger.showSnackBar(SnackBar(
             content: Text(_tr(
-              'Restocked $qtyStr ${existing.unit} of ${existing.name}',
-              'Imeongezwa $qtyStr ${existing.unit} ya ${existing.name}',
+              'Restocked $qtyStr ${matched.unit} of ${matched.name}',
+              'Imeongezwa $qtyStr ${matched.unit} ya ${matched.name}',
             )),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
@@ -783,34 +793,23 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
         return;
       }
 
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not logged in');
-
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      final inventoryRef = repo.scopeCollection(
-        uid: user.uid,
-        context: ctx,
-        childCollection: 'inventory_items',
-      );
-
-      await inventoryRef.add({
-        'name': name,
-        'description': _descCtrl.text.trim(),
-        // Smart category — both legacy and structured fields
-        'category': _selectedCategory?.categoryName ?? 'General',
-        'categoryId': _selectedCategory?.id ?? '',
-        'categoryName': _selectedCategory?.categoryName ?? '',
-        'currentStock': qty,
-        'reorderPoint': double.tryParse(_reorderCtrl.text) ?? 0,
-        'unitPrice': double.tryParse(_priceCtrl.text) ?? 0,
-        'unit': _selectedUnit,
-        'sku': _skuCtrl.text.trim(),
-        'supplier': _supplierCtrl.text.trim(),
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final now = DateTime.now().toIso8601String();
+      await ref.read(inventoryRepositoryProvider).save(InventoryItem(
+        id: '',
+        name: name,
+        description: _descCtrl.text.trim(),
+        category: _selectedCategory?.categoryName ?? 'General',
+        categoryId: _selectedCategory?.id ?? '',
+        categoryName: _selectedCategory?.categoryName ?? '',
+        sku: _skuCtrl.text.trim(),
+        currentStock: qty,
+        reorderPoint: double.tryParse(_reorderCtrl.text) ?? 0,
+        unitPrice: double.tryParse(_priceCtrl.text) ?? 0,
+        unit: _selectedUnit,
+        supplier: _supplierCtrl.text.trim(),
+        createdAt: now,
+        updatedAt: now,
+      ));
 
       if (mounted) {
         navigator.pop();
