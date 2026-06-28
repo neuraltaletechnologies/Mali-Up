@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/debt_providers.dart';
@@ -21,7 +22,6 @@ String _fmtAmt(double v) {
   return 'TZS ${v.toStringAsFixed(0)}';
 }
 
-
 String _fmtDate(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return iso;
@@ -32,6 +32,65 @@ String _monthShort(int m) => const [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ][m - 1];
+
+// ── Sort options ──────────────────────────────────────────────────────────────
+
+enum _DebtSort { nameAz, nameZa, amountHigh, amountLow, dueDateAsc }
+
+extension _DebtSortX on _DebtSort {
+  String get label => switch (this) {
+        _DebtSort.nameAz => _tr('Name A–Z', 'Jina A–Z'),
+        _DebtSort.nameZa => _tr('Name Z–A', 'Jina Z–A'),
+        _DebtSort.amountHigh => _tr('Amount ↑', 'Kiasi ↑'),
+        _DebtSort.amountLow => _tr('Amount ↓', 'Kiasi ↓'),
+        _DebtSort.dueDateAsc => _tr('Due Date', 'Tarehe ya Mwisho'),
+      };
+}
+
+// ── Filter helper ─────────────────────────────────────────────────────────────
+
+List<Debt> _applyDebtFilters(
+  List<Debt> debts,
+  String query,
+  String? bucket,
+  _DebtSort sort,
+) {
+  var list = debts;
+  if (bucket != null) {
+    list = list.where((d) => d.agingBucket == bucket).toList();
+  }
+  final q = query.trim().toLowerCase();
+  if (q.isNotEmpty) {
+    list = list
+        .where((d) =>
+            d.partyName.toLowerCase().contains(q) ||
+            d.partyPhone.contains(q))
+        .toList();
+  }
+  list = List.from(list);
+  switch (sort) {
+    case _DebtSort.nameAz:
+      list.sort((a, b) => a.partyName.compareTo(b.partyName));
+    case _DebtSort.nameZa:
+      list.sort((a, b) => b.partyName.compareTo(a.partyName));
+    case _DebtSort.amountHigh:
+      list.sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
+    case _DebtSort.amountLow:
+      list.sort((a, b) => a.remainingAmount.compareTo(b.remainingAmount));
+    case _DebtSort.dueDateAsc:
+      list.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+  }
+  return list;
+}
+
+String _bucketLabel(String bucket) => switch (bucket) {
+      'current' => _tr('Current', 'Sasa'),
+      '0-30' => '0–30 days',
+      '31-60' => '31–60 days',
+      '61-90' => '61–90 days',
+      '90+' => '90+ days',
+      _ => bucket,
+    };
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
@@ -45,6 +104,11 @@ class DebtTrackingScreen extends ConsumerStatefulWidget {
 class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
     with TickerProviderStateMixin {
   late TabController _tabCtrl;
+  final _searchCtrl = TextEditingController();
+  bool _searchExpanded = false;
+  String _query = '';
+  String? _filterBucket;
+  _DebtSort _sort = _DebtSort.nameAz;
 
   @override
   void initState() {
@@ -56,8 +120,12 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
   @override
   void dispose() {
     _tabCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
+
+  int get _activeFilters =>
+      (_filterBucket != null ? 1 : 0) + (_sort != _DebtSort.nameAz ? 1 : 0);
 
   void _openAdd({bool isReceivable = true, Debt? edit}) async {
     await showModalBottomSheet(
@@ -77,6 +145,20 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
     ));
   }
 
+  void _openFilterSheet() {
+    showAppSheet<void>(
+      context,
+      builder: (_) => _DebtFilterSheet(
+        currentBucket: _filterBucket,
+        currentSort: _sort,
+        onApply: (bucket, sort) => setState(() {
+          _filterBucket = bucket;
+          _sort = sort;
+        }),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalRec = ref.watch(totalReceivablesProvider);
@@ -88,32 +170,59 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
           _DebtDarkHeader(
             totalReceivables: totalRec,
             totalPayables: totalPay,
+            searchCtrl: _searchCtrl,
+            query: _query,
+            searchExpanded: _searchExpanded,
+            onToggleSearch: () => setState(() {
+              _searchExpanded = !_searchExpanded;
+              if (!_searchExpanded) {
+                _searchCtrl.clear();
+                _query = '';
+              }
+            }),
+            onSearchChanged: (v) => setState(() => _query = v),
+            activeFilters: _activeFilters,
+            onFilterTap: _openFilterSheet,
           ),
           const SizedBox(height: _DebtDarkHeader._pillHalf + 8),
           _DebtTabBar(tabController: _tabCtrl),
+          if (_filterBucket != null)
+            _ActiveFilterChip(
+              label: _bucketLabel(_filterBucket!),
+              onRemove: () => setState(() => _filterBucket = null),
+            ),
           Expanded(
             child: TabBarView(
               controller: _tabCtrl,
               children: [
-                _ReceivablesTab(onTap: _openDetail),
-                _PayablesTab(onTap: _openDetail),
+                _ReceivablesTab(
+                  onTap: _openDetail,
+                  query: _query,
+                  filterBucket: _filterBucket,
+                  sort: _sort,
+                ),
+                _PayablesTab(
+                  onTap: _openDetail,
+                  query: _query,
+                  sort: _sort,
+                ),
               ],
             ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-              onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
-              backgroundColor: AppColors.yellowBrand,
-              foregroundColor: AppColors.navyPrimary,
-              icon: const Icon(Icons.add_rounded),
-              label: Text(
-                _tabCtrl.index == 0
-                    ? _tr('Add Receivable', 'Ongeza Dai')
-                    : _tr('Add Payable', 'Ongeza Deni'),
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-              ),
-            ),
+        onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
+        backgroundColor: AppColors.yellowBrand,
+        foregroundColor: AppColors.navyPrimary,
+        icon: const Icon(Icons.add_rounded),
+        label: Text(
+          _tabCtrl.index == 0
+              ? _tr('Add Receivable', 'Ongeza Dai')
+              : _tr('Add Payable', 'Ongeza Deni'),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+        ),
+      ),
     );
   }
 }
@@ -125,10 +234,24 @@ class _DebtDarkHeader extends StatelessWidget {
 
   final double totalReceivables;
   final double totalPayables;
+  final TextEditingController searchCtrl;
+  final String query;
+  final bool searchExpanded;
+  final VoidCallback onToggleSearch;
+  final ValueChanged<String> onSearchChanged;
+  final int activeFilters;
+  final VoidCallback onFilterTap;
 
   const _DebtDarkHeader({
     required this.totalReceivables,
     required this.totalPayables,
+    required this.searchCtrl,
+    required this.query,
+    required this.searchExpanded,
+    required this.onToggleSearch,
+    required this.onSearchChanged,
+    required this.activeFilters,
+    required this.onFilterTap,
   });
 
   @override
@@ -148,43 +271,185 @@ class _DebtDarkHeader extends StatelessWidget {
             ),
           ),
           padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 24),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _tr('Debt Tracker', 'Ufuatiliaji wa Madeni'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          net >= 0
-                              ? Icons.trending_up_rounded
-                              : Icons.trending_down_rounded,
-                          color: net >= 0 ? AppColors.success : AppColors.error,
-                          size: 12,
-                        ),
-                        const SizedBox(width: 4),
                         Text(
-                          '${_fmtAmt(net.abs())} ${net >= 0 ? _tr('in your favour', 'unafaidi') : _tr('against you', 'dhidi yako')}',
+                          _tr('Debt Tracker', 'Ufuatiliaji wa Madeni'),
                           style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white60,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
                           ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(
+                              net >= 0
+                                  ? Icons.trending_up_rounded
+                                  : Icons.trending_down_rounded,
+                              color: net >= 0
+                                  ? AppColors.success
+                                  : AppColors.error,
+                              size: 12,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_fmtAmt(net.abs())} ${net >= 0 ? _tr('in your favour', 'unafaidi') : _tr('against you', 'dhidi yako')}',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white60,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                  // Search button
+                  GestureDetector(
+                    onTap: onToggleSearch,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: searchExpanded
+                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                            : Colors.white12,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: searchExpanded
+                              ? AppColors.yellowBrand
+                              : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        searchExpanded
+                            ? Icons.close_rounded
+                            : Icons.search_rounded,
+                        color: searchExpanded
+                            ? AppColors.yellowBrand
+                            : Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Filter button
+                  GestureDetector(
+                    onTap: onFilterTap,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: activeFilters > 0
+                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                                : Colors.white12,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: activeFilters > 0
+                                  ? AppColors.yellowBrand
+                                  : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            color: activeFilters > 0
+                                ? AppColors.yellowBrand
+                                : Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        if (activeFilters > 0)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: AppColors.yellowBrand,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: AppColors.navyPrimary, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: searchExpanded
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: SizedBox(
+                          height: 44,
+                          child: TextField(
+                            controller: searchCtrl,
+                            autofocus: true,
+                            onChanged: onSearchChanged,
+                            style: GoogleFonts.dmSans(
+                                fontSize: 14, color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: _tr(
+                                'Search by name or phone…',
+                                'Tafuta kwa jina au simu…',
+                              ),
+                              hintStyle: GoogleFonts.dmSans(
+                                  fontSize: 14, color: Colors.white38),
+                              prefixIcon: const Icon(Icons.search_rounded,
+                                  size: 18, color: Colors.white54),
+                              suffixIcon: query.isNotEmpty
+                                  ? GestureDetector(
+                                      onTap: () {
+                                        searchCtrl.clear();
+                                        onSearchChanged('');
+                                      },
+                                      child: const Icon(Icons.close_rounded,
+                                          size: 16, color: Colors.white54),
+                                    )
+                                  : null,
+                              filled: true,
+                              fillColor: Colors.white12,
+                              contentPadding: EdgeInsets.zero,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: Colors.white24),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.yellowBrand, width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
           ),
@@ -315,79 +580,118 @@ class _PillDivider extends StatelessWidget {
   }
 }
 
+// ── Active filter chip ────────────────────────────────────────────────────────
+
+class _ActiveFilterChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onRemove;
+  const _ActiveFilterChip({required this.label, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 36,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+        children: [
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.navyPrimary,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                GestureDetector(
+                  onTap: onRemove,
+                  child: const Icon(Icons.close_rounded,
+                      size: 13, color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tab 1 — Receivables
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _ReceivablesTab extends ConsumerStatefulWidget {
+class _ReceivablesTab extends ConsumerWidget {
   final void Function(Debt) onTap;
-  const _ReceivablesTab({required this.onTap});
+  final String query;
+  final String? filterBucket;
+  final _DebtSort sort;
+
+  const _ReceivablesTab({
+    required this.onTap,
+    required this.query,
+    required this.filterBucket,
+    required this.sort,
+  });
 
   @override
-  ConsumerState<_ReceivablesTab> createState() => _ReceivablesTabState();
-}
-
-class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
-  String? _filterBucket; // null = all
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final receivables = ref.watch(receivablesProvider);
     final isLoading = ref.watch(debtListProvider).isLoading;
-
-    final filtered = _filterBucket == null
-        ? receivables
-        : receivables.where((d) => d.agingBucket == _filterBucket).toList();
+    final filtered = _applyDebtFilters(receivables, query, filterBucket, sort);
 
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-            child: _AgingFilterPills(
-              selected: _filterBucket,
-              onSelect: (b) => setState(() =>
-                  _filterBucket = (_filterBucket == b) ? null : b),
-              counts: _bucketCounts(receivables),
-            ),
-          ),
-        ),
         if (isLoading)
           const SliverDebtListSkeleton()
         else if (filtered.isEmpty)
-          SliverToBoxAdapter(child: EmptyState(
-            icon: Icons.check_circle_outline_rounded,
-            title: _tr("You're all settled up!", 'Umesawazishwa kikamilifu!'),
-            subtitle: _tr('No outstanding amounts owed to you right now.',
-                'Hakuna kiasi kinachokudaiwa kwa sasa.'),
-          ))
+          SliverToBoxAdapter(
+            child: EmptyState(
+              icon: query.isNotEmpty
+                  ? Icons.search_off_rounded
+                  : Icons.check_circle_outline_rounded,
+              title: query.isNotEmpty
+                  ? _tr('No results for "$query"', 'Hakuna matokeo ya "$query"')
+                  : _tr("You're all settled up!", 'Umesawazishwa kikamilifu!'),
+              subtitle: query.isNotEmpty
+                  ? _tr('Try a different search term.',
+                      'Jaribu neno tofauti la kutafuta.')
+                  : _tr(
+                      'No outstanding amounts owed to you right now.',
+                      'Hakuna kiasi kinachokudaiwa kwa sasa.',
+                    ),
+            ),
+          )
         else
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (ctx, i) => ListSwipeCard(
                 itemKey: ValueKey(filtered[i].id),
-                onEdit: () => widget.onTap(filtered[i]),
+                onEdit: () => onTap(filtered[i]),
                 onDelete: () => _deleteDebt(ctx, ref, filtered[i]),
                 child: _DebtCard(
                   debt: filtered[i],
                   isLast: i == filtered.length - 1,
-                  onTap: () => widget.onTap(filtered[i]),
+                  onTap: () => onTap(filtered[i]),
                 ),
               ),
               childCount: filtered.length,
             ),
           ),
-          const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+        const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
       ],
     );
-  }
-
-  Map<String, int> _bucketCounts(List<Debt> debts) {
-    final map = <String, int>{};
-    for (final d in debts) {
-      map[d.agingBucket] = (map[d.agingBucket] ?? 0) + 1;
-    }
-    return map;
   }
 }
 
@@ -397,32 +701,49 @@ class _ReceivablesTabState extends ConsumerState<_ReceivablesTab> {
 
 class _PayablesTab extends ConsumerWidget {
   final void Function(Debt) onTap;
-  const _PayablesTab({required this.onTap});
+  final String query;
+  final _DebtSort sort;
+
+  const _PayablesTab({
+    required this.onTap,
+    required this.query,
+    required this.sort,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final payables = ref.watch(payablesProvider);
     final isLoading = ref.watch(debtListProvider).isLoading;
 
-    final overdue = payables.where((d) => d.daysOverdue > 0).toList();
-    final dueSoon = payables
+    // Bucket filter doesn't apply to payables — they're grouped by overdue status
+    final allFiltered = _applyDebtFilters(payables, query, null, sort);
+
+    final overdue = allFiltered.where((d) => d.daysOverdue > 0).toList();
+    final dueSoon = allFiltered
         .where((d) => d.daysOverdue <= 0 && d.daysOverdue >= -7)
         .toList();
-    final upcoming = payables
-        .where((d) => d.daysOverdue < -7)
-        .toList();
+    final upcoming = allFiltered.where((d) => d.daysOverdue < -7).toList();
 
     Widget body;
     if (isLoading) {
       body = const DebtTabSkeleton(key: ValueKey('skeleton'));
-    } else if (payables.isEmpty) {
+    } else if (allFiltered.isEmpty) {
       body = KeyedSubtree(
         key: const ValueKey('empty'),
         child: EmptyState(
-          icon: Icons.handshake_outlined,
-          title: _tr('No outstanding bills', 'Hakuna bili zilizo wazi'),
-          subtitle: _tr('All your supplier payments are up to date.',
-              'Malipo yote ya wasambazaji yamekamilika.'),
+          icon: query.isNotEmpty
+              ? Icons.search_off_rounded
+              : Icons.handshake_outlined,
+          title: query.isNotEmpty
+              ? _tr('No results for "$query"', 'Hakuna matokeo ya "$query"')
+              : _tr('No outstanding bills', 'Hakuna bili zilizo wazi'),
+          subtitle: query.isNotEmpty
+              ? _tr('Try a different search term.',
+                  'Jaribu neno tofauti la kutafuta.')
+              : _tr(
+                  'All your supplier payments are up to date.',
+                  'Malipo yote ya wasambazaji yamekamilika.',
+                ),
         ),
       );
     } else {
@@ -556,7 +877,7 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared widgets
+// Debt card — compact single-row style
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _DebtCard extends StatelessWidget {
@@ -570,39 +891,37 @@ class _DebtCard extends StatelessWidget {
     required this.onTap,
   });
 
-  Color get _ageColor {
-    return switch (debt.agingBucket) {
-      'current' => AppColors.success,
-      '0-30' => AppColors.warning,
-      '31-60' => const Color(0xFFE07010),
-      '61-90' => const Color(0xFFDC4A26),
-      '90+' => AppColors.error,
-      _ => AppColors.textMuted,
-    };
-  }
+  Color get _ageColor => switch (debt.agingBucket) {
+        'current' => AppColors.success,
+        '0-30' => AppColors.warning,
+        '31-60' => const Color(0xFFE07010),
+        '61-90' => const Color(0xFFDC4A26),
+        '90+' => AppColors.error,
+        _ => AppColors.textMuted,
+      };
 
   @override
   Widget build(BuildContext context) {
     final isReceivable = debt.type == 'receivable';
     final daysOver = debt.daysOverdue;
+    final avatarColor =
+        isReceivable ? AppColors.success : AppColors.error;
 
     return InkWell(
       onTap: onTap,
       child: Container(
         color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
+                // Avatar
                 Container(
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: isReceivable
-                        ? AppColors.success.withValues(alpha: 0.12)
-                        : AppColors.error.withValues(alpha: 0.12),
+                    color: avatarColor.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
@@ -613,13 +932,12 @@ class _DebtCard extends StatelessWidget {
                     style: GoogleFonts.dmSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: isReceivable
-                          ? AppColors.success
-                          : AppColors.error,
+                      color: avatarColor,
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
+                // Name + phone
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,32 +945,40 @@ class _DebtCard extends StatelessWidget {
                       Text(
                         debt.partyName,
                         style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.navyPrimary),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (debt.partyPhone.isNotEmpty)
+                      if (debt.partyPhone.isNotEmpty) ...[
+                        const SizedBox(height: 2),
                         Text(
                           debt.partyPhone,
                           style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              color: AppColors.textMuted),
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
                         ),
+                      ],
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Amount + aging badge
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       _fmtAmt(debt.remainingAmount),
                       style: GoogleFonts.jetBrainsMono(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
+                    const SizedBox(height: 3),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
@@ -665,58 +991,25 @@ class _DebtCard extends StatelessWidget {
                             ? 'Due ${_fmtDate(debt.dueDate)}'
                             : '$daysOver ${_tr('days overdue', 'siku zimechelewa')}',
                         style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: _ageColor),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _ageColor,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: debt.paidPercent,
-                backgroundColor: AppColors.border,
-                color: isReceivable ? AppColors.success : AppColors.error,
-                minHeight: 4,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Text(
-                  '${_tr('Paid', 'Kilicholipwa')}: ${_fmtAmt(debt.paidAmount)}',
-                  style: GoogleFonts.dmSans(
-                      fontSize: 11, color: AppColors.textMuted),
-                ),
-                const Spacer(),
-                if (debt.invoiceRef.isNotEmpty)
-                  Row(
-                    children: [
-                      const Icon(Icons.receipt_long_outlined,
-                          size: 11, color: AppColors.textDisabled),
-                      const SizedBox(width: 3),
-                      Text(
-                        debt.invoiceRef,
-                        style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            color: AppColors.textDisabled),
-                      ),
-                    ],
-                  ),
+                const SizedBox(width: 4),
                 const Icon(Icons.chevron_right_rounded,
                     size: 16, color: AppColors.textDisabled),
               ],
             ),
             if (!isLast)
               const Padding(
-                padding: EdgeInsets.only(top: 12),
+                padding: EdgeInsets.only(top: 12, left: 54),
                 child: Divider(
                   height: 1,
-                  thickness: 1,
+                  thickness: 0.8,
                   color: AppColors.border,
                 ),
               ),
@@ -727,92 +1020,211 @@ class _DebtCard extends StatelessWidget {
   }
 }
 
-class _AgingFilterPills extends StatelessWidget {
-  final String? selected;
-  final void Function(String) onSelect;
-  final Map<String, int> counts;
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter / Sort Sheet
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const _AgingFilterPills({
-    required this.selected,
-    required this.onSelect,
-    required this.counts,
+class _DebtFilterSheet extends StatefulWidget {
+  final String? currentBucket;
+  final _DebtSort currentSort;
+  final void Function(String? bucket, _DebtSort sort) onApply;
+
+  const _DebtFilterSheet({
+    required this.currentBucket,
+    required this.currentSort,
+    required this.onApply,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final pills = [
-      (key: 'current', label: _tr('Current', 'Sasa'), color: AppColors.success),
-      (key: '0-30', label: '0–30d', color: AppColors.warning),
-      (key: '31-60', label: '31–60d', color: const Color(0xFFE07010)),
-      (key: '61-90', label: '61–90d', color: const Color(0xFFDC4A26)),
-      (key: '90+', label: '90+d', color: AppColors.error),
-    ];
+  State<_DebtFilterSheet> createState() => _DebtFilterSheetState();
+}
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: pills.map((p) {
-          final isActive = selected == p.key;
-          final count = counts[p.key] ?? 0;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => onSelect(p.key),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? p.color
-                      : p.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isActive ? p.color : p.color.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      p.label,
+class _DebtFilterSheetState extends State<_DebtFilterSheet> {
+  String? _bucket;
+  late _DebtSort _sort;
+
+  static const _buckets = [
+    (key: 'current', label: 'Current'),
+    (key: '0-30', label: '0–30 days'),
+    (key: '31-60', label: '31–60 days'),
+    (key: '61-90', label: '61–90 days'),
+    (key: '90+', label: '90+ days'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _bucket = widget.currentBucket;
+    _sort = widget.currentSort;
+  }
+
+  void _reset() => setState(() {
+        _bucket = null;
+        _sort = _DebtSort.nameAz;
+      });
+
+  void _apply() {
+    widget.onApply(_bucket, _sort);
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SheetHandle(),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _tr('Sort & Filter', 'Panga na Chuja'),
                       style: GoogleFonts.dmSans(
-                        fontSize: 12,
+                        fontSize: 17,
                         fontWeight: FontWeight.w700,
-                        color: isActive ? Colors.white : p.color,
+                        color: AppColors.navyPrimary,
                       ),
                     ),
-                    if (count > 0) ...[
-                      const SizedBox(width: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? Colors.white.withValues(alpha: 0.3)
-                              : p.color.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$count',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: isActive ? Colors.white : p.color,
-                          ),
-                        ),
+                  ),
+                  GestureDetector(
+                    onTap: _reset,
+                    child: Text(
+                      _tr('Reset', 'Futa'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        color: AppColors.tealAccent,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _SheetLabel(_tr('Sort by', 'Panga kwa')),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _DebtSort.values
+                    .map((s) => _FilterChip(
+                          label: s.label,
+                          selected: _sort == s,
+                          onTap: () => setState(() => _sort = s),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+              _SheetLabel(_tr('Aging — Receivables', 'Umri wa Madeni')),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _FilterChip(
+                    label: _tr('All', 'Yote'),
+                    selected: _bucket == null,
+                    onTap: () => setState(() => _bucket = null),
+                  ),
+                  ..._buckets.map((b) => _FilterChip(
+                        label: b.label,
+                        selected: _bucket == b.key,
+                        onTap: () => setState(
+                            () => _bucket = _bucket == b.key ? null : b.key),
+                      )),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _apply,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navyPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    _tr('Apply', 'Tumia'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
+
+class _SheetLabel extends StatelessWidget {
+  final String text;
+  const _SheetLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: GoogleFonts.dmSans(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textMuted,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _FilterChip(
+      {required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.navyPrimary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.navyPrimary : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.textMuted,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Section header (payables grouping)
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String label;
@@ -828,7 +1240,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 4),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
       child: Row(
         children: [
           Container(
@@ -840,15 +1252,14 @@ class _SectionHeader extends StatelessWidget {
           Text(
             '$label  ($count)',
             style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: color,
-                letterSpacing: 0.4),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+              letterSpacing: 0.4,
+            ),
           ),
         ],
       ),
     );
   }
 }
-
-

@@ -410,14 +410,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 66, 20, 40),
         children: [
+          // ── Page title ───────────────────────────────────────
+          Text(
+            _tr('Settings', 'Mipangilio'),
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _tr('Account & preferences', 'Akaunti na mipangilio'),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 20),
+
           // ── Profile card ────────────────────────────────────
           _ProfileCard(tr: _tr),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           // ── My Plan ──────────────────────────────────────────
           _SectionHeader(label: _tr('Subscription', 'Usajili')),
           const SizedBox(height: 8),
-          _MyPlanTile(tr: _tr),
+          _PlanCard(tr: _tr),
           const SizedBox(height: 20),
 
           // ── Preferences ──────────────────────────────────────
@@ -836,13 +856,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
 // ── Profile card ─────────────────────────────────────────────────────────────
 
-class _ProfileCard extends ConsumerWidget {
+class _ProfileCard extends StatelessWidget {
   final String Function(String en, String sw) tr;
   const _ProfileCard({required this.tr});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final planAsync = ref.watch(planStatusProvider);
+  Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final displayName = user?.displayName?.trim();
     final initial = displayName != null && displayName.isNotEmpty
@@ -931,50 +950,39 @@ class _ProfileCard extends ConsumerWidget {
                     fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: 8),
-                planAsync.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, e) => const SizedBox.shrink(),
-                  data: (status) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.yellowBrand.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: AppColors.yellowBrand.withValues(alpha: 0.4),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          status.isPaid ? Icons.stars_rounded : Icons.workspace_premium_outlined,
-                          size: 11,
-                          color: AppColors.yellowBrand,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          status.isPaid ? status.tierLabel : tr('Free Plan', 'Mpango wa Bure'),
-                          style: const TextStyle(
-                            color: AppColors.yellowBrand,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            tooltip: 'Edit profile',
-            icon: Icon(
-              Icons.edit_rounded,
-              color: Colors.white.withValues(alpha: 0.7),
-              size: 20,
+          GestureDetector(
+            onTap: () {},
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.edit_rounded,
+                    color: Colors.white.withValues(alpha: 0.7),
+                    size: 12,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    tr('Edit', 'Hariri'),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1160,73 +1168,282 @@ class _SocialIcon extends StatelessWidget {
   }
 }
 
-// ── My Plan tile ──────────────────────────────────────────────────────────────
+// ── Plan card (subscription summary) ─────────────────────────────────────────
 
-class _MyPlanTile extends ConsumerWidget {
+class _PlanCard extends ConsumerWidget {
   final String Function(String en, String sw) tr;
-  const _MyPlanTile({required this.tr});
+  const _PlanCard({required this.tr});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final planAsync = ref.watch(planStatusProvider);
 
-    final subtitle = planAsync.when(
-      loading: () => tr('Loading…', 'Inapakia…'),
-      error: (_, e) => tr('Starter (Free)', 'Starter (Bure)'),
-      data: (s) => s.isStarter
-          ? tr(
-              'Starter — ${s.invoicesRemaining} invoices left this month',
-              'Starter — ankara ${s.invoicesRemaining} zimebaki mwezi huu',
-            )
-          : '${s.tierLabel} · ${tr("Active", "Inafanya kazi")}',
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
       ),
-      child: _SettingTile(
-        icon: Icons.workspace_premium_rounded,
-        iconBg: AppColors.yellowBrand.withValues(alpha: 0.12),
-        iconColor: AppColors.yellowBrand,
-        title: tr('My Plan', 'Mpango Wangu'),
-        subtitle: subtitle,
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            planAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, e) => const SizedBox.shrink(),
-              data: (s) => s.isStarter
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.tealAccent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        tr('Upgrade', 'Boresha'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.tealAccent,
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.navyPrimary, AppColors.navySecondary],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.navyPrimary.withValues(alpha: 0.28),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded,
-                size: 20, color: AppColors.textMuted),
           ],
+        ),
+        child: planAsync.when(
+          loading: () => _PlanCardBody(
+            planName: 'Starter',
+            statusLabel: tr('Loading…', 'Inapakia…'),
+            isStarter: true,
+            pct: 0,
+            invoicesUsed: 0,
+            invoiceLimit: 10,
+            expiresAt: null,
+            tr: tr,
+          ),
+          error: (err, st) => _PlanCardBody(
+            planName: 'Starter',
+            statusLabel: tr('Free plan', 'Mpango wa bure'),
+            isStarter: true,
+            pct: 0,
+            invoicesUsed: 0,
+            invoiceLimit: 10,
+            expiresAt: null,
+            tr: tr,
+          ),
+          data: (s) => _PlanCardBody(
+            planName: s.tierLabel,
+            statusLabel: s.isStarter
+                ? tr('Free plan · Limited features', 'Mpango wa bure · Vipengele vichache')
+                : tr('Active subscription', 'Usajili unaofanya kazi'),
+            isStarter: s.isStarter,
+            pct: s.isStarter
+                ? (s.invoicesUsedThisMonth / s.limits.monthlyInvoices).clamp(0.0, 1.0)
+                : 1.0,
+            invoicesUsed: s.invoicesUsedThisMonth,
+            invoiceLimit: s.limits.monthlyInvoices,
+            expiresAt: s.expiresAt,
+            tr: tr,
+          ),
         ),
       ),
     );
   }
+}
+
+class _PlanCardBody extends StatelessWidget {
+  final String planName;
+  final String statusLabel;
+  final bool isStarter;
+  final double pct;
+  final int invoicesUsed;
+  final int invoiceLimit;
+  final DateTime? expiresAt;
+  final String Function(String, String) tr;
+
+  const _PlanCardBody({
+    required this.planName,
+    required this.statusLabel,
+    required this.isStarter,
+    required this.pct,
+    required this.invoicesUsed,
+    required this.invoiceLimit,
+    required this.expiresAt,
+    required this.tr,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: Icon(
+                isStarter ? Icons.workspace_premium_outlined : Icons.stars_rounded,
+                color: AppColors.yellowBrand,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    planName,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.white.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (isStarter)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.yellowBrand,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  tr('Upgrade', 'Boresha'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppColors.success.withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: AppColors.success,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      tr('Active', 'Inafanya kazi'),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        if (isStarter) ...[
+          const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                tr('Invoices this month', 'Ankara mwezi huu'),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.55),
+                ),
+              ),
+              Text(
+                '$invoicesUsed / $invoiceLimit',
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: pct >= 0.8 ? AppColors.warning : Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 4,
+              backgroundColor: Colors.white.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                pct >= 1.0
+                    ? AppColors.error
+                    : pct >= 0.8
+                        ? AppColors.warning
+                        : AppColors.tealAccent,
+              ),
+            ),
+          ),
+        ] else if (expiresAt != null) ...[
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Icon(
+                Icons.calendar_today_rounded,
+                size: 12,
+                color: Colors.white.withValues(alpha: 0.45),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                tr(
+                  'Valid until ${_fmtDate(expiresAt!)}',
+                  'Inakwisha tarehe ${_fmtDate(expiresAt!)}',
+                ),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.55),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              tr('Manage plan', 'Simamia mpango'),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.50),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.arrow_forward_rounded,
+              size: 14,
+              color: Colors.white.withValues(alpha: 0.35),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static String _fmtDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
