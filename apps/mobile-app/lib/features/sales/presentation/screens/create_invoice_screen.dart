@@ -375,10 +375,37 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
             'createdBy': scope.userUid,
             'createdAt': FieldValue.serverTimestamp(),
           });
+
+          // Increment the customer's outstanding balance so the credit-limit
+          // check on future sales uses the correct value.
+          final customersRef = repo.scopeCollection(
+              uid: scope.ownerUid,
+              context: scope.context,
+              childCollection: 'customers');
+          batch.set(
+              customersRef.doc(_customer!.id),
+              {
+                'balance': FieldValue.increment(_grandTotal),
+                'lastTransactionDate': FieldValue.serverTimestamp(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true));
         }
       }
 
       await batch.commit();
+
+      // Update Drift customer balance immediately so the credit-limit check on
+      // the next sale in this session uses the correct outstanding amount.
+      if (confirmingNow && _payMethod == _PayMethod.credit && _customer != null) {
+        try {
+          final db = ref.read(appDatabaseProvider);
+          await db.customerDao.updateBalance(
+            _customer!.id,
+            _customer!.balanceAmount + _grandTotal,
+          );
+        } catch (_) {}
+      }
 
       // Auto-create receivable debt in the offline-first ledger for credit sales
       if (confirmingNow && _payMethod == _PayMethod.credit && _customer != null) {
