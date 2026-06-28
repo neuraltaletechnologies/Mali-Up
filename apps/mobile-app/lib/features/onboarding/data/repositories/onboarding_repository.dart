@@ -374,8 +374,7 @@ class OnboardingRepository {
   Future<void> updateAuthEmail(String email) async {
     if (email.isEmpty) return;
     try {
-      // ignore: deprecated_member_use
-      await _auth.currentUser?.updateEmail(email);
+      await _auth.currentUser?.verifyBeforeUpdateEmail(email);
     } catch (e) {
       if (kDebugMode) debugPrint('[OnboardingRepository.updateAuthEmail] $e');
     }
