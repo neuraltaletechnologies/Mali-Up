@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 import 'add_debt_screen.dart';
@@ -128,6 +130,20 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
       (_filterBucket != null ? 1 : 0) + (_sort != _DebtSort.nameAz ? 1 : 0);
 
   void _openAdd({bool isReceivable = true, Debt? edit}) async {
+    final plan = await ref.read(planStatusProvider.future);
+    if (!mounted) return;
+    if (plan.isStarter) {
+      await showUpgradeSheet(
+        context,
+        currentStatus: plan,
+        featureKey: PlanFeatureKey.manualDebt,
+        triggerReason: _tr(
+          'Manual debt entry is available on paid plans. Debts from customer sales are always visible.',
+          'Kuongeza deni mkononi kunahitaji mpango wa malipo. Madeni kutoka mauzo ya wateja yanaonekana daima.',
+        ),
+      );
+      return;
+    }
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
