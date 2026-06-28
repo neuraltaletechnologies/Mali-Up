@@ -335,11 +335,23 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
             {
               'balance': FieldValue.increment(-received),
               'lastTransactionDate': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
             },
             SetOptions(merge: true));
       }
 
       await batch.commit();
+
+      if (customerId.isNotEmpty) {
+        try {
+          final db = ref.read(appDatabaseProvider);
+          final row = await db.customerDao.getById(customerId);
+          if (row != null) {
+            final newBalance = (row.balance - received).clamp(0.0, double.maxFinite);
+            await db.customerDao.updateBalance(customerId, newBalance);
+          }
+        } catch (_) {}
+      }
 
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,

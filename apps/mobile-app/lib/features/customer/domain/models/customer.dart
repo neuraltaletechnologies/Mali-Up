@@ -104,8 +104,9 @@ class Customer {
       'name': name,
       'phone': phone,
       'email': email,
-      // Store as a number so FieldValue.increment() works when sales are saved.
-      'balance': double.tryParse(balance) ?? 0.0,
+      // balance is intentionally excluded: it is managed exclusively via
+      // FieldValue.increment() in sales/payment flows so that customer edits
+      // (e.g. updating the credit limit) never overwrite the accumulated debt.
       'lastTransactionDate': lastTransactionDate,
       'tags': tags,
       'isOrganisation': isOrganisation,

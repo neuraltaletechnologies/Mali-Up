@@ -2056,7 +2056,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             customersRef.doc(_selectedCustomer!.id),
             {
               'lastTransactionDate': FieldValue.serverTimestamp(),
-              if (outstanding > 0) 'balance': FieldValue.increment(outstanding),
+              if (outstanding > 0) ...{
+                'balance': FieldValue.increment(outstanding),
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
             },
             SetOptions(merge: true));
 
@@ -2086,6 +2089,21 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       }
 
       await batch.commit();
+
+      // Update the Drift customer balance immediately so the credit-limit check
+      // on the *next* sale in this session uses the correct outstanding amount,
+      // without having to wait for the background sync to pull Firestore.
+      if (_selectedCustomer != null && outstanding > 0) {
+        try {
+          final db = ref.read(appDatabaseProvider);
+          await db.customerDao.updateBalance(
+            _selectedCustomer!.id,
+            _selectedCustomer!.balanceAmount + outstanding,
+          );
+        } catch (e, st) {
+          unawaited(Sentry.captureException(e, stackTrace: st));
+        }
+      }
 
       // Write to Drift immediately so the sale appears in the list right away
       // without waiting for the next Firestore sync pull.
@@ -3837,11 +3855,26 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
             {
               'balance': FieldValue.increment(-_outstanding),
               'lastTransactionDate': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
             },
             SetOptions(merge: true));
       }
 
       await batch.commit();
+
+      if (customerId.isNotEmpty && _outstanding > 0) {
+        try {
+          final db = ref.read(appDatabaseProvider);
+          final row = await db.customerDao.getById(customerId);
+          if (row != null) {
+            final newBalance = (row.balance - _outstanding).clamp(0.0, double.maxFinite);
+            await db.customerDao.updateBalance(customerId, newBalance);
+          }
+        } catch (e, st) {
+          unawaited(Sentry.captureException(e, stackTrace: st));
+        }
+      }
+
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,
         businessId: scope.businessId,
