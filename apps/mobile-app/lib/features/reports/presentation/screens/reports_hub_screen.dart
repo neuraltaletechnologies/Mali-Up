@@ -27,7 +27,7 @@ class ReportsHubScreen extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + kToolbarHeight, 20, 0),
+              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 8, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -46,36 +46,6 @@ class ReportsHubScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 14),
                   _DateRangeBar(range: range),
-                  const SizedBox(height: 6),
-                  if (locked)
-                    _UpgradeBanner(onTap: () => planAsync.whenOrNull(
-                      data: (s) => showUpgradeSheet(context,
-                          currentStatus: s,
-                          triggerReason: _tr(
-                            'Full financial reports require Growth or Business plan.',
-                            'Ripoti kamili za kifedha zinahitaji mpango wa Growth au Business.',
-                          )),
-                    ))
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.12)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.lock_outline_rounded, size: 13, color: AppColors.secondary),
-                          const SizedBox(width: 6),
-                          Text(
-                            _tr('Export available on Growth & Business plans', 'Usafirishaji unapatikana kwa mipango ya Growth na Business'),
-                            style: const TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -295,65 +265,6 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ─── Upgrade Banner ───────────────────────────────────────────────────────────
-
-class _UpgradeBanner extends StatelessWidget {
-  final VoidCallback onTap;
-  const _UpgradeBanner({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0D1B3E), Color(0xFF1A3A5C)],
-          ),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.yellowBrand.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.lock_rounded, color: AppColors.yellowBrand, size: 15),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                _tr(
-                  'Reports are locked on the free plan. Upgrade to Growth to unlock.',
-                  'Ripoti zimefungwa kwenye mpango wa bure. Panda mpango wa Growth kuzifungua.',
-                ),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.yellowBrand,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                _tr('Upgrade', 'Panda'),
-                style: const TextStyle(
-                  color: AppColors.navyPrimary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ─── Report Card ──────────────────────────────────────────────────────────────
 
 class _ReportCard extends StatelessWidget {
@@ -380,73 +291,62 @@ class _ReportCard extends StatelessWidget {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        child: Opacity(
-          opacity: locked ? 0.5 : 1.0,
-          child: Material(
-            color: Colors.white,
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: locked ? onLockedTap : () => context.go(route),
             borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: locked ? onLockedTap : () => context.go(route),
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: iconColor.withValues(alpha: locked ? 0.06 : 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        locked ? Icons.lock_rounded : icon,
-                        color: locked ? AppColors.textDisabled : iconColor,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              color: AppColors.secondary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
+                    child: Icon(icon, color: iconColor, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: AppColors.secondary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            subtitle,
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 12,
-                            ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    Icon(
-                      locked ? Icons.upgrade_rounded : Icons.chevron_right_rounded,
-                      color: locked ? AppColors.yellowBrand : AppColors.textMuted,
-                      size: 20,
-                    ),
-                  ],
-                ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+                ],
               ),
             ),
           ),

@@ -21,6 +21,7 @@ enum PlanFeatureKey {
   mpesaImport,
   smsReminders,
   allExports,
+  manualDebt,
 }
 
 extension PlanFeatureKeyX on PlanFeatureKey {
@@ -33,6 +34,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
         PlanFeatureKey.mpesaImport     => Icons.phone_android_rounded,
         PlanFeatureKey.smsReminders    => Icons.sms_rounded,
         PlanFeatureKey.allExports      => Icons.ios_share_rounded,
+        PlanFeatureKey.manualDebt      => Icons.edit_note_rounded,
       };
 
   String get labelSw => switch (this) {
@@ -44,6 +46,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
         PlanFeatureKey.mpesaImport     => 'Kuingiza Data ya M-Pesa',
         PlanFeatureKey.smsReminders    => 'SMS za Ukumbusho',
         PlanFeatureKey.allExports      => 'Uhamishaji wa Data',
+        PlanFeatureKey.manualDebt      => 'Kuongeza Deni/Dai Mkononi',
       };
 
   String get labelEn => switch (this) {
@@ -55,6 +58,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
         PlanFeatureKey.mpesaImport     => 'M-Pesa Import',
         PlanFeatureKey.smsReminders    => 'SMS Reminders',
         PlanFeatureKey.allExports      => 'Data Exports',
+        PlanFeatureKey.manualDebt      => 'Manual Debt Entry',
       };
 }
 
