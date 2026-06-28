@@ -405,6 +405,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       const SizedBox(height: 16),
                     ],
 
+                    // ── Business insights ────────────────────────────────
+                    if (insights.isNotEmpty) ...[
+                      _BusinessInsightsCard(insights: insights),
+                      const SizedBox(height: 24),
+                    ],
+
                     // ── Sales Performance ────────────────────────────────
                     if (permissions.canViewSales || permissions.isOwner) ...[
                       Row(
@@ -483,12 +489,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         accounts: cashAccountItems,
                         totalCash: totalCash,
                       ),
-                      const SizedBox(height: 28),
-                    ],
-
-                    // ── Business insights ────────────────────────────────
-                    if (insights.isNotEmpty) ...[
-                      _BusinessInsightsCard(insights: insights),
                       const SizedBox(height: 28),
                     ],
 
@@ -1116,30 +1116,13 @@ class _BusinessInsightsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.navyPrimary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 14,
-                  color: AppColors.yellowBrand,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _tr('Business Insights', 'Mwanga wa Biashara'),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navyPrimary,
-                ),
-              ),
-            ],
+          Text(
+            _tr('Business Insights', 'Mwanga wa Biashara'),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.navyPrimary,
+            ),
           ),
           const SizedBox(height: 14),
           ...insights.map(
@@ -2228,46 +2211,102 @@ class _TopPerformersSection extends StatelessWidget {
 
     if (products.isEmpty && customers.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _tr('Top Performers', 'Wabora wa Mwezi'),
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: AppColors.secondary,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          _tr('This month', 'Mwezi huu'),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textMuted,
-            fontSize: 12,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 13, 14, 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: AppColors.navyPrimary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.leaderboard_rounded,
+                    size: 14,
+                    color: AppColors.yellowBrand,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _tr('Top Performers', 'Wabora wa Mwezi'),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
+                      Text(
+                        _tr('This month', 'Mwezi huu'),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        if (products.isNotEmpty)
-          _PerformerSubsection(
-            icon: Icons.inventory_2_outlined,
-            label: _tr('Best Products', 'Bidhaa Bora'),
-            color: AppColors.tealAccent,
-            entries: products,
-          ),
-        if (products.isNotEmpty && customers.isNotEmpty)
-          const SizedBox(height: 10),
-        if (customers.isNotEmpty)
-          _PerformerSubsection(
-            icon: Icons.star_outline_rounded,
-            label: _tr('Top Customers', 'Wateja Bora'),
-            color: AppColors.primary,
-            entries: customers,
-          ),
-      ],
+
+          if (products.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _PerformerSubsection(
+              icon: Icons.inventory_2_outlined,
+              label: _tr('Best Products', 'Bidhaa Bora'),
+              color: AppColors.tealAccent,
+              entries: products,
+            ),
+          ],
+
+          if (products.isNotEmpty && customers.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14),
+              child: Divider(height: 1, thickness: 1, color: AppColors.border),
+            ),
+
+          if (customers.isNotEmpty) ...[
+            _PerformerSubsection(
+              icon: Icons.star_rounded,
+              label: _tr('Top Customers', 'Wateja Bora'),
+              color: AppColors.primary,
+              entries: customers,
+            ),
+          ],
+
+          const SizedBox(height: 4),
+        ],
+      ),
     );
   }
 }
+
+// Rank dot colours: gold / silver / bronze
+const _rankColors = [Color(0xFFD4A017), Color(0xFF8A9BAE), Color(0xFFB87333)];
 
 class _PerformerSubsection extends StatelessWidget {
   final IconData icon;
@@ -2284,132 +2323,82 @@ class _PerformerSubsection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxVal = entries.isNotEmpty ? entries.first.value : 1.0;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 13, color: color),
-              const SizedBox(width: 6),
+              Icon(icon, size: 11, color: color),
+              const SizedBox(width: 5),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: color,
+                  letterSpacing: 0.3,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 140,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: entries.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 10),
-              itemBuilder: (context, index) {
-                final rank = index + 1;
-                final entry = entries[index];
-                final pct = maxVal > 0
-                    ? (entry.value / maxVal).clamp(0.0, 1.0)
-                    : 0.0;
-                return Container(
-                  width: 240,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: color.withValues(alpha: 0.2)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '#$rank',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: color,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            entry.key,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                        ],
+          const SizedBox(height: 8),
+          ...entries.asMap().entries.map((e) {
+            final rank = e.key;
+            final entry = e.value;
+            final rankColor = _rankColors[rank];
+            return Padding(
+              padding: EdgeInsets.only(bottom: rank < entries.length - 1 ? 6 : 0),
+              child: Row(
+                children: [
+                  // Rank indicator
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: rankColor.withValues(alpha: 0.13),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${rank + 1}',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: rankColor,
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _tr('Performance', 'Utendaji'),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(999),
-                            child: LinearProgressIndicator(
-                              value: pct,
-                              backgroundColor: color.withValues(alpha: 0.12),
-                              valueColor: AlwaysStoppedAnimation(
-                                color.withValues(alpha: 0.65),
-                              ),
-                              minHeight: 4,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _fmtCompactAmount(entry.value),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: color,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
-                );
-              },
-            ),
-          ),
+                  const SizedBox(width: 9),
+                  // Name
+                  Expanded(
+                    child: Text(
+                      entry.key,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Amount
+                  Text(
+                    _fmtCompactAmount(entry.value),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -2531,7 +2520,7 @@ class _RecentTransactionsList extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         if (isLoading)
           Column(
             children: List.generate(
@@ -2582,7 +2571,7 @@ class _RecentTransactionsList extends StatelessWidget {
               final row = grouped[index];
               if (row['type'] == 'header') {
                 return Padding(
-                  padding: EdgeInsets.only(top: index == 0 ? 0 : 12, bottom: 8),
+                  padding: EdgeInsets.only(top: index == 0 ? 0 : 12, bottom: 4),
                   child: Text(
                     row['label'] as String,
                     style: const TextStyle(

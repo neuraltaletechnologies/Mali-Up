@@ -19,7 +19,7 @@ class ReportsHubScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(reportDateRangeProvider);
     final planAsync = ref.watch(planStatusProvider);
-    final locked = planAsync.whenOrNull(data: (s) => !s.limits.fullReports) ?? false;
+    final locked = planAsync.whenOrNull(data: (s) => !s.limits.fullReports) ?? true;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -27,7 +27,7 @@ class ReportsHubScreen extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 62, 20, 0),
+              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + kToolbarHeight, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

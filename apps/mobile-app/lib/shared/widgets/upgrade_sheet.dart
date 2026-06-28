@@ -9,7 +9,7 @@ import 'app_sheet.dart';
 import 'mali_components.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Feature keys — lets the sheet show context-aware locked-feature header.
+// Feature keys — lets the sheet show context-aware locked-feature notice.
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum PlanFeatureKey {
@@ -25,47 +25,36 @@ enum PlanFeatureKey {
 
 extension PlanFeatureKeyX on PlanFeatureKey {
   IconData get icon => switch (this) {
-        PlanFeatureKey.teamMembers    => Icons.group_rounded,
-        PlanFeatureKey.cashFlow       => Icons.waterfall_chart_rounded,
-        PlanFeatureKey.expenseExports => Icons.download_rounded,
+        PlanFeatureKey.teamMembers     => Icons.group_rounded,
+        PlanFeatureKey.cashFlow        => Icons.waterfall_chart_rounded,
+        PlanFeatureKey.expenseExports  => Icons.download_rounded,
         PlanFeatureKey.expenseTracking => Icons.receipt_long_rounded,
-        PlanFeatureKey.fullReports    => Icons.bar_chart_rounded,
-        PlanFeatureKey.mpesaImport    => Icons.phone_android_rounded,
-        PlanFeatureKey.smsReminders   => Icons.sms_rounded,
-        PlanFeatureKey.allExports     => Icons.ios_share_rounded,
+        PlanFeatureKey.fullReports     => Icons.bar_chart_rounded,
+        PlanFeatureKey.mpesaImport     => Icons.phone_android_rounded,
+        PlanFeatureKey.smsReminders    => Icons.sms_rounded,
+        PlanFeatureKey.allExports      => Icons.ios_share_rounded,
       };
 
   String get labelSw => switch (this) {
-        PlanFeatureKey.teamMembers    => 'Wanachama wa Timu',
-        PlanFeatureKey.cashFlow       => 'Mtiririko wa Fedha',
-        PlanFeatureKey.expenseExports => 'Uhamishaji wa Matumizi',
+        PlanFeatureKey.teamMembers     => 'Wanachama wa Timu',
+        PlanFeatureKey.cashFlow        => 'Mtiririko wa Fedha',
+        PlanFeatureKey.expenseExports  => 'Uhamishaji wa Matumizi',
         PlanFeatureKey.expenseTracking => 'Kufuatilia Matumizi',
-        PlanFeatureKey.fullReports    => 'Ripoti Kamili',
-        PlanFeatureKey.mpesaImport    => 'Kuingiza Data ya M-Pesa',
-        PlanFeatureKey.smsReminders   => 'SMS za Ukumbusho',
-        PlanFeatureKey.allExports     => 'Uhamishaji wa Data',
+        PlanFeatureKey.fullReports     => 'Ripoti Kamili',
+        PlanFeatureKey.mpesaImport     => 'Kuingiza Data ya M-Pesa',
+        PlanFeatureKey.smsReminders    => 'SMS za Ukumbusho',
+        PlanFeatureKey.allExports      => 'Uhamishaji wa Data',
       };
 
   String get labelEn => switch (this) {
-        PlanFeatureKey.teamMembers    => 'Team Members',
-        PlanFeatureKey.cashFlow       => 'Cash Flow',
-        PlanFeatureKey.expenseExports => 'Expense Exports',
+        PlanFeatureKey.teamMembers     => 'Team Members',
+        PlanFeatureKey.cashFlow        => 'Cash Flow',
+        PlanFeatureKey.expenseExports  => 'Expense Exports',
         PlanFeatureKey.expenseTracking => 'Expense Tracking',
-        PlanFeatureKey.fullReports    => 'Full Reports',
-        PlanFeatureKey.mpesaImport    => 'M-Pesa Import',
-        PlanFeatureKey.smsReminders   => 'SMS Reminders',
-        PlanFeatureKey.allExports     => 'Data Exports',
-      };
-
-  Color get accentColor => switch (this) {
-        PlanFeatureKey.teamMembers    => AppColors.tealAccent,
-        PlanFeatureKey.cashFlow       => const Color(0xFF1A6E8A),
-        PlanFeatureKey.expenseExports => const Color(0xFF7C3AED),
-        PlanFeatureKey.expenseTracking => const Color(0xFF7C3AED),
-        PlanFeatureKey.fullReports    => AppColors.tealAccent,
-        PlanFeatureKey.mpesaImport    => const Color(0xFF16A34A),
-        PlanFeatureKey.smsReminders   => AppColors.warning,
-        PlanFeatureKey.allExports     => const Color(0xFF7C3AED),
+        PlanFeatureKey.fullReports     => 'Full Reports',
+        PlanFeatureKey.mpesaImport     => 'M-Pesa Import',
+        PlanFeatureKey.smsReminders    => 'SMS Reminders',
+        PlanFeatureKey.allExports      => 'Data Exports',
       };
 }
 
@@ -150,12 +139,9 @@ class _UpgradeSheet extends StatefulWidget {
   State<_UpgradeSheet> createState() => _UpgradeSheetState();
 }
 
-class _UpgradeSheetState extends State<_UpgradeSheet>
-    with SingleTickerProviderStateMixin {
+class _UpgradeSheetState extends State<_UpgradeSheet> {
   PlanTier _selected = PlanTier.growth;
   bool _showPayment = false;
-  late AnimationController _pulseCtrl;
-  late Animation<double> _pulseAnim;
 
   static const _mpesaNumber = '+255 XXX XXX XXX';
 
@@ -164,68 +150,49 @@ class _UpgradeSheetState extends State<_UpgradeSheet>
   int get _priceCycle   => _selLimits.pricePerCycle;
 
   @override
-  void initState() {
-    super.initState();
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.04).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
-            20, 12, 20, 24 + MediaQuery.of(context).viewInsets.bottom,
+            20, 12, 20, 20 + MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SheetHandle(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // ── Locked-feature hero ───────────────────────────────────────
-              _LockedFeatureHero(
+              // ── Locked-feature notice ─────────────────────────────────────
+              _LockedFeatureNotice(
                 featureKey: widget.featureKey,
                 triggerReason: widget.triggerReason,
               ),
-              const SizedBox(height: 20),
 
               // ── Headline ─────────────────────────────────────────────────
               Text(
                 'Inua Biashara Yako',
                 style: GoogleFonts.dmSans(
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w800,
                   color: AppColors.navyPrimary,
                   letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.',
                 style: GoogleFonts.dmSans(
                   fontSize: 13,
-                  color: AppColors.textSecondary,
+                  color: AppColors.textMuted,
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // ── Plan cards ───────────────────────────────────────────────
               _TierCard(
@@ -237,7 +204,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet>
                   _showPayment = false;
                 }),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               _TierCard(
                 tier: PlanTier.business,
                 limits: limitsFor(PlanTier.business, widget.defs),
@@ -247,47 +214,44 @@ class _UpgradeSheetState extends State<_UpgradeSheet>
                   _showPayment = false;
                 }),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               const _EnterpriseCard(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // ── CTA / Payment ─────────────────────────────────────────
+              // ── CTA / Payment ─────────────────────────────────────────────
               if (!_showPayment) ...[
-                ScaleTransition(
-                  scale: _pulseAnim,
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: () => setState(() => _showPayment = true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.yellowBrand,
-                        foregroundColor: AppColors.navyPrimary,
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () => setState(() => _showPayment = true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.yellowBrand,
+                      foregroundColor: AppColors.navyPrimary,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.rocket_launch_rounded, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Panda ${_selected == PlanTier.growth ? "Growth" : "Business"}'
-                            ' — ${_fmtPrice(_priceMonthly)}/mwezi',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                            ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.rocket_launch_rounded, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Panda ${_selected == PlanTier.growth ? "Growth" : "Business"}'
+                          ' — ${_fmtPrice(_priceMonthly)}/mwezi',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Center(
                   child: Text(
                     '${_fmtPrice(_priceCycle)} ulipwa kwa miezi ${_selLimits.cycleMonths} mbele',
@@ -317,109 +281,95 @@ class _UpgradeSheetState extends State<_UpgradeSheet>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Locked-feature hero banner
+// Locked-feature notice — flat row, no gradient, brand colors only
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _LockedFeatureHero extends StatelessWidget {
+class _LockedFeatureNotice extends StatelessWidget {
   final PlanFeatureKey? featureKey;
   final String? triggerReason;
 
-  const _LockedFeatureHero({this.featureKey, this.triggerReason});
+  const _LockedFeatureNotice({this.featureKey, this.triggerReason});
 
   @override
   Widget build(BuildContext context) {
     if (featureKey == null && triggerReason == null) return const SizedBox.shrink();
 
-    final accent = featureKey?.accentColor ?? AppColors.navyPrimary;
-    final icon   = featureKey?.icon ?? Icons.lock_rounded;
-    final label  = featureKey?.labelSw;
+    final icon  = featureKey?.icon ?? Icons.lock_rounded;
+    final label = featureKey?.labelSw;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.navyPrimary,
-            accent.withValues(alpha: 0.9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
         ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Lock badge
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.25),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.navyPrimary.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.navyPrimary, size: 17),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (label != null) ...[
+                    Text(
+                      label,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                  ],
+                  Text(
+                    triggerReason ?? 'Kipengele hiki kinahitaji mpango wa juu.',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Stack(
-              children: [
-                Center(
-                  child: Icon(icon, color: Colors.white, size: 22),
-                ),
-                Positioned(
-                  right: 4,
-                  bottom: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: AppColors.yellowBrand,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.lock_rounded,
-                      size: 9,
-                      color: AppColors.navyPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (label != null)
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.navyPrimary,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_rounded, size: 9, color: Colors.white),
+                  const SizedBox(width: 3),
                   Text(
-                    label,
+                    'PREMIUM',
                     style: GoogleFonts.dmSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
                       color: Colors.white,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                const SizedBox(height: 3),
-                Text(
-                  triggerReason ??
-                      'Kipengele hiki kinahitaji mpango wa juu.',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.8),
-                    height: 1.4,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -449,50 +399,36 @@ class _TierCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.navyPrimary : Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? AppColors.navyPrimary : AppColors.border,
-            width: isSelected ? 2 : 1,
+            width: isSelected ? 1.5 : 1,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.navyPrimary.withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : null,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Radio indicator
             AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 22,
-              height: 22,
+              duration: const Duration(milliseconds: 180),
+              width: 20,
+              height: 20,
               margin: const EdgeInsets.only(top: 2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSelected ? AppColors.yellowBrand : Colors.transparent,
                 border: Border.all(
-                  color:
-                      isSelected ? AppColors.yellowBrand : AppColors.border,
+                  color: isSelected ? AppColors.yellowBrand : AppColors.border,
                   width: 2,
                 ),
               ),
               child: isSelected
-                  ? const Icon(
-                      Icons.check_rounded,
-                      size: 13,
-                      color: AppColors.navyPrimary,
-                    )
+                  ? const Icon(Icons.check_rounded, size: 12, color: AppColors.navyPrimary)
                   : null,
             ),
             const SizedBox(width: 12),
@@ -507,23 +443,19 @@ class _TierCard extends StatelessWidget {
                       Text(
                         isGrowth ? 'Growth' : 'Business',
                         style: GoogleFonts.dmSans(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
-                          color:
-                              isSelected ? Colors.white : AppColors.navyPrimary,
+                          color: isSelected ? Colors.white : AppColors.navyPrimary,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      if (isGrowth)
+                      if (isGrowth) ...[
+                        const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.yellowBrand.withValues(alpha: 0.25)
-                                : AppColors.yellowBrand.withValues(alpha: 0.15),
+                            color: AppColors.yellowBrand.withValues(
+                              alpha: isSelected ? 0.2 : 0.12,
+                            ),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
@@ -537,15 +469,15 @@ class _TierCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                      ],
                       const Spacer(),
-                      // Price on the right
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
                             _fmtPrice(limits.pricePerMonth),
                             style: GoogleFonts.dmSans(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w800,
                               color: isSelected
                                   ? AppColors.yellowBrand
@@ -557,7 +489,7 @@ class _TierCard extends StatelessWidget {
                             style: GoogleFonts.dmSans(
                               fontSize: 10,
                               color: isSelected
-                                  ? Colors.white.withValues(alpha: 0.6)
+                                  ? Colors.white.withValues(alpha: 0.5)
                                   : AppColors.textMuted,
                             ),
                           ),
@@ -571,11 +503,11 @@ class _TierCard extends StatelessWidget {
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
                       color: isSelected
-                          ? Colors.white.withValues(alpha: 0.5)
+                          ? Colors.white.withValues(alpha: 0.45)
                           : AppColors.textMuted,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 9),
                   Wrap(
                     children: [
                       _Feature(
@@ -699,24 +631,24 @@ class _EnterpriseCard extends StatelessWidget {
         ),
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(9),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.yellowBrand.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                color: AppColors.yellowBrand.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(9),
               ),
               child: const Icon(
                 Icons.business_center_rounded,
                 color: AppColors.yellowBrand,
-                size: 18,
+                size: 16,
               ),
             ),
             const SizedBox(width: 12),
@@ -727,8 +659,8 @@ class _EnterpriseCard extends StatelessWidget {
                   Text(
                     'Enterprise',
                     style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.navyPrimary,
                     ),
                   ),
@@ -736,7 +668,7 @@ class _EnterpriseCard extends StatelessWidget {
                     'Minyororo, NGO, wasambazaji — bei maalum',
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -745,7 +677,7 @@ class _EnterpriseCard extends StatelessWidget {
             const Icon(
               Icons.chevron_right_rounded,
               color: AppColors.textMuted,
-              size: 18,
+              size: 16,
             ),
           ],
         ),
@@ -786,7 +718,6 @@ class _PaymentInstructions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Back row
         GestureDetector(
           onTap: onBack,
           child: Row(
@@ -806,13 +737,11 @@ class _PaymentInstructions extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: AppColors.navyPrimary.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: AppColors.navyPrimary.withValues(alpha: 0.1),
-            ),
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -823,16 +752,16 @@ class _PaymentInstructions extends StatelessWidget {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: AppColors.tealAccent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(9),
                     ),
                     child: const Icon(Icons.phone_android_rounded,
-                        color: AppColors.tealAccent, size: 18),
+                        color: AppColors.tealAccent, size: 16),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     'Hatua za Malipo ya M-Pesa',
                     style: GoogleFonts.dmSans(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: AppColors.navyPrimary,
                     ),
@@ -887,7 +816,7 @@ class _PaymentInstructions extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.08),
+                  color: AppColors.warningBg,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: AppColors.warning.withValues(alpha: 0.2),
@@ -911,7 +840,7 @@ class _PaymentInstructions extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -976,8 +905,7 @@ class _CopyRow extends StatelessWidget {
                 label,
                 style: GoogleFonts.dmSans(
                   fontSize: 13,
-                  fontWeight:
-                      bold ? FontWeight.w700 : FontWeight.w600,
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
                   color: AppColors.navyPrimary,
                   letterSpacing: bold ? 0.5 : 0,
                 ),
@@ -1029,8 +957,8 @@ class _Step extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 22,
-            height: 22,
+            width: 20,
+            height: 20,
             decoration: const BoxDecoration(
               color: AppColors.navyPrimary,
               shape: BoxShape.circle,
@@ -1050,7 +978,7 @@ class _Step extends StatelessWidget {
           Expanded(
             child: text != null
                 ? Padding(
-                    padding: const EdgeInsets.only(top: 3),
+                    padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       text!,
                       style: GoogleFonts.dmSans(fontSize: 13),

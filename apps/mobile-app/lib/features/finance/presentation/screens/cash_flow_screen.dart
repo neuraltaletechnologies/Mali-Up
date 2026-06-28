@@ -42,7 +42,7 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -64,7 +64,6 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
               controller: _tabController,
               children: const [
                 _OverviewTab(),
-                _TransactionsTab(),
                 _StatementTab(),
               ],
             ),
@@ -241,7 +240,6 @@ class _CashFlowTabBar extends StatelessWidget {
             indicatorWeight: 2.5,
             tabs: [
               Tab(text: _tr('Overview', 'Muhtasari')),
-              Tab(text: _tr('Transactions', 'Miamala')),
               Tab(text: _tr('Statement', 'Taarifa')),
             ],
           ),
@@ -350,9 +348,6 @@ class _OverviewTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accountsAsync = ref.watch(cashAccountListProvider);
     final month = ref.watch(cfMonthProvider);
-    final inflow = ref.watch(monthlyInflowProvider);
-    final outflow = ref.watch(monthlyOutflowProvider);
-    final netFlow = ref.watch(netCashFlowProvider);
     final recentTxns = ref.watch(cfTransactionsByMonthProvider);
 
     return SingleChildScrollView(
@@ -411,48 +406,19 @@ class _OverviewTab extends ConsumerWidget {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _FlowSummaryCard(
-              inflow: inflow,
-              outflow: outflow,
-              netFlow: netFlow,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(
+              _tr('Transactions', 'Miamala'),
+              style: GoogleFonts.dmSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navyPrimary,
+              ),
             ),
           ),
-
-          const SizedBox(height: 24),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _tr('Recent Movements', 'Mienendo ya Hivi Karibuni'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navyPrimary,
-                  ),
-                ),
-                if (recentTxns.length > 5)
-                  TextButton(
-                    onPressed: () {},
-                    child: Text(
-                      _tr('See all', 'Tazama zote'),
-                      style: GoogleFonts.dmSans(
-                        color: AppColors.tealAccent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
 
           if (recentTxns.isEmpty)
             EmptyState(
@@ -469,7 +435,7 @@ class _OverviewTab extends ConsumerWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: recentTxns.take(5).length,
+              itemCount: recentTxns.length,
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, i) => _TxnListTile(
                 txn: recentTxns[i],
@@ -484,46 +450,7 @@ class _OverviewTab extends ConsumerWidget {
   }
 }
 
-// ── Tab 2: Transactions ───────────────────────────────────────────────────────
-
-class _TransactionsTab extends ConsumerWidget {
-  const _TransactionsTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final month = ref.watch(cfMonthProvider);
-    final txns = ref.watch(cfTransactionsByMonthProvider);
-
-    return Column(
-      children: [
-        _MonthNavigator(month: month),
-        Expanded(
-          child: txns.isEmpty
-              ? EmptyState(
-                  icon: Icons.swap_horiz_rounded,
-                  title: _tr('No transactions this month',
-                      'Hakuna miamala mwezi huu'),
-                  subtitle: _tr(
-                    'Record a deposit or withdrawal to see it here.',
-                    'Rekodi amana au kutoa ili ione hapa.',
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                  itemCount: txns.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) => _TxnListTile(
-                    txn: txns[i],
-                    accountsAsync: ref.watch(cashAccountListProvider),
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Tab 3: Statement ──────────────────────────────────────────────────────────
+// ── Tab 2: Statement ──────────────────────────────────────────────────────────
 
 class _StatementTab extends ConsumerWidget {
   const _StatementTab();
@@ -762,126 +689,6 @@ class _NoAccountsCard extends StatelessWidget {
             _tr('Add your first account', 'Ongeza akaunti yako ya kwanza'),
             style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
             textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FlowSummaryCard extends StatelessWidget {
-  final double inflow;
-  final double outflow;
-  final double netFlow;
-  const _FlowSummaryCard({
-    required this.inflow,
-    required this.outflow,
-    required this.netFlow,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          Text(
-            _tr('Monthly Flow Summary', 'Muhtasari wa Mtiririko wa Mwezi'),
-            style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _FlowStat(
-                label: _tr('Inflow', 'Mapato'),
-                value: _fmtCompact(inflow),
-                color: AppColors.success,
-                icon: Icons.south_west_rounded,
-              ),
-              Container(width: 1, height: 40, color: AppColors.border),
-              _FlowStat(
-                label: _tr('Outflow', 'Matumizi'),
-                value: _fmtCompact(outflow),
-                color: AppColors.error,
-                icon: Icons.north_east_rounded,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: netFlow >= 0 ? AppColors.successBg : AppColors.errorBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  netFlow >= 0 ? Icons.trending_up : Icons.trending_down,
-                  size: 14,
-                  color: netFlow >= 0 ? AppColors.success : AppColors.error,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${_tr('Net', 'Halisi')}: ${netFlow >= 0 ? '+' : ''}${_fmtCompact(netFlow)}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: netFlow >= 0 ? AppColors.success : AppColors.error,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FlowStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
-  const _FlowStat({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 14),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: GoogleFonts.dmSans(
-                    color: AppColors.textMuted, fontSize: 11),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.dmSans(
-              color: color,
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-            ),
           ),
         ],
       ),
