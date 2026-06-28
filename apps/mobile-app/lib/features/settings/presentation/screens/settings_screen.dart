@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -234,7 +233,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 62, 20, 40),
+        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 40),
         children: [
           // ── Page title ───────────────────────────────────────
           Text(
@@ -626,22 +625,26 @@ class _ProfileAndPlanCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.navyPrimary.withValues(alpha: 0.28),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: AppColors.navyPrimary.withValues(alpha: 0.22),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         child: Column(
           children: [
             // ── Blue gradient section (profile + plan) ──────────
-            Container(
-              padding: const EdgeInsets.all(20),
+            GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+              ),
+              child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppColors.navyPrimary, AppColors.navySecondary],
@@ -656,35 +659,28 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                   Row(
                     children: [
                       Container(
-                        width: 52,
-                        height: 52,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           color: AppColors.yellowBrand,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            width: 2,
+                            color: Colors.white.withValues(alpha: 0.18),
+                            width: 1.5,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.yellowBrand.withValues(alpha: 0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
                         ),
                         child: Center(
                           child: Text(
                             initial,
                             style: const TextStyle(
                               color: AppColors.navyPrimary,
-                              fontSize: 22,
+                              fontSize: 17,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,18 +691,18 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 15,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: 2),
                             Text(
                               contact,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.55),
-                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.50),
+                                fontSize: 11.5,
                               ),
                             ),
                           ],
@@ -714,51 +710,23 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                       ),
                       GestureDetector(
                         onTap: () {},
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.18),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.edit_rounded,
-                                color: Colors.white.withValues(alpha: 0.7),
-                                size: 12,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                tr('Edit', 'Hariri'),
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.7),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
+                        child: Icon(
+                          Icons.edit_outlined,
+                          color: Colors.white.withValues(alpha: 0.40),
+                          size: 16,
                         ),
                       ),
                     ],
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Divider(
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: Colors.white.withValues(alpha: 0.10),
                       height: 1,
                     ),
                   ),
                   // Plan section
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-                    ),
-                    child: planAsync.when(
+                  planAsync.when(
                       loading: () => _PlanCardBody(
                         planName: 'Starter',
                         statusLabel: tr('Loading…', 'Inapakia…'),
@@ -794,9 +762,9 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                         tr: tr,
                       ),
                     ),
-                  ),
                 ],
               ),
+            ),
             ),
             // ── Switch Account (white section) ──────────────────
             Container(
@@ -1025,80 +993,49 @@ class _PlanCardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-              ),
-              child: Icon(
-                isStarter ? Icons.workspace_premium_outlined : Icons.stars_rounded,
-                color: AppColors.yellowBrand,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        Icon(
+          isStarter ? Icons.workspace_premium_outlined : Icons.stars_rounded,
+          color: AppColors.yellowBrand,
+          size: 16,
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
                 children: [
                   Text(
                     planName,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                       color: Colors.white,
-                      letterSpacing: -0.2,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    statusLabel,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: Colors.white.withValues(alpha: 0.55),
+                  if (isStarter) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.yellowBrand,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        tr('Upgrade', 'Boresha'),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyPrimary,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (isStarter)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.yellowBrand,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  tr('Upgrade', 'Boresha'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyPrimary,
-                  ),
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.success.withValues(alpha: 0.35)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                  ] else ...[
+                    const SizedBox(width: 8),
                     Container(
                       width: 6,
                       height: 6,
@@ -1107,100 +1044,63 @@ class _PlanCardBody extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 5),
+                  ],
+                ],
+              ),
+              if (isStarter) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: pct,
+                          minHeight: 3,
+                          backgroundColor: Colors.white.withValues(alpha: 0.12),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            pct >= 1.0
+                                ? AppColors.error
+                                : pct >= 0.8
+                                    ? AppColors.warning
+                                    : AppColors.tealAccent,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      tr('Active', 'Inafanya kazi'),
-                      style: const TextStyle(
-                        fontSize: 11,
+                      '$invoicesUsed/$invoiceLimit',
+                      style: TextStyle(
+                        fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.success,
+                        color: pct >= 0.8
+                            ? AppColors.warning
+                            : Colors.white.withValues(alpha: 0.55),
                       ),
                     ),
                   ],
                 ),
-              ),
-          ],
+              ] else if (expiresAt != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  tr(
+                    'Valid until ${_fmtDate(expiresAt!)}',
+                    'Inakwisha ${_fmtDate(expiresAt!)}',
+                  ),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.45),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-        if (isStarter) ...[
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                tr('Invoices this month', 'Ankara mwezi huu'),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.55),
-                ),
-              ),
-              Text(
-                '$invoicesUsed / $invoiceLimit',
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: pct >= 0.8 ? AppColors.warning : Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: pct,
-              minHeight: 4,
-              backgroundColor: Colors.white.withValues(alpha: 0.12),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                pct >= 1.0
-                    ? AppColors.error
-                    : pct >= 0.8
-                        ? AppColors.warning
-                        : AppColors.tealAccent,
-              ),
-            ),
-          ),
-        ] else if (expiresAt != null) ...[
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Icon(
-                Icons.calendar_today_rounded,
-                size: 12,
-                color: Colors.white.withValues(alpha: 0.45),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                tr(
-                  'Valid until ${_fmtDate(expiresAt!)}',
-                  'Inakwisha tarehe ${_fmtDate(expiresAt!)}',
-                ),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.55),
-                ),
-              ),
-            ],
-          ),
-        ],
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              tr('Manage plan', 'Simamia mpango'),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.50),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.arrow_forward_rounded,
-              size: 14,
-              color: Colors.white.withValues(alpha: 0.35),
-            ),
-          ],
+        Icon(
+          Icons.chevron_right_rounded,
+          size: 16,
+          color: Colors.white.withValues(alpha: 0.30),
         ),
       ],
     );

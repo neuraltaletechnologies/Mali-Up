@@ -465,7 +465,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         : '?';
 
     return SliverAppBar(
-      expandedHeight: 160,
+      expandedHeight: 112,
       pinned: true,
       backgroundColor: AppColors.navyPrimary,
       foregroundColor: Colors.white,
@@ -490,24 +490,25 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.navyPrimary, AppColors.navySecondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
             ),
           ),
-          child: SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 48, 20, 12),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: Row(
                 children: [
                   // ── Avatar ────────────────────────────────────────────────
                   Container(
-                    width: 50,
-                    height: 50,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                           color: Colors.white.withValues(alpha: 0.2),
                           width: 1.5),
@@ -516,17 +517,17 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                     child: Text(
                       initials,
                       style: GoogleFonts.dmSans(
-                          fontSize: 18,
+                          fontSize: 14,
                           fontWeight: FontWeight.w800,
                           color: Colors.white),
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  // ── Name + meta ───────────────────────────────────────────
+                  const SizedBox(width: 11),
+                  // ── Name + phone ──────────────────────────────────────────
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
                           children: [
@@ -534,7 +535,7 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                               child: Text(
                                 _customer.name,
                                 style: GoogleFonts.dmSans(
-                                    fontSize: 17,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.white),
                                 overflow: TextOverflow.ellipsis,
@@ -544,15 +545,15 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                               Container(
                                 margin: const EdgeInsets.only(left: 6),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                    horizontal: 5, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(5),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   _tr('ORG', 'SHIRIKA'),
                                   style: GoogleFonts.dmSans(
-                                      fontSize: 9,
+                                      fontSize: 8,
                                       fontWeight: FontWeight.w700,
                                       color: Colors.white70),
                                 ),
@@ -563,53 +564,50 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
                           const SizedBox(height: 2),
                           Text(_customer.phone,
                               style: GoogleFonts.dmSans(
-                                  fontSize: 12, color: Colors.white60)),
-                        ],
-                        if (showFinancials) ...[
-                          const SizedBox(height: 5),
-                          Row(
-                            children: [
-                              Text(
-                                _tr('Balance: ', 'Salio: '),
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 11, color: Colors.white54),
-                              ),
-                              Text(
-                                hasBalance
-                                    ? 'TZS ${_fmtNum(balance)}'
-                                    : _tr('All clear', 'Hakuna deni'),
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: hasBalance
-                                      ? const Color(0xFFFC8181)
-                                      : const Color(0xFF86EFAC),
-                                ),
-                              ),
-                              if (_customer.isOverCreditLimit)
-                                Container(
-                                  margin: const EdgeInsets.only(left: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error
-                                        .withValues(alpha: 0.25),
-                                    borderRadius: BorderRadius.circular(5),
-                                  ),
-                                  child: Text(
-                                    _tr('OVER LIMIT', 'IMEZIDI'),
-                                    style: GoogleFonts.dmSans(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFFFC8181)),
-                                  ),
-                                ),
-                            ],
-                          ),
+                                  fontSize: 11, color: Colors.white60)),
                         ],
                       ],
                     ),
                   ),
+                  // ── Balance pill ──────────────────────────────────────────
+                  if (showFinancials) ...[
+                    const SizedBox(width: 10),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          hasBalance
+                              ? 'TZS ${_fmtNum(balance)}'
+                              : _tr('All clear', 'Hakuna deni'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: hasBalance
+                                ? const Color(0xFFFC8181)
+                                : const Color(0xFF86EFAC),
+                          ),
+                        ),
+                        if (_customer.isOverCreditLimit)
+                          Container(
+                            margin: const EdgeInsets.only(top: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _tr('OVER LIMIT', 'IMEZIDI'),
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFFFC8181)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
