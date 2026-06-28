@@ -16,6 +16,7 @@ enum PlanFeatureKey {
   teamMembers,
   cashFlow,
   expenseExports,
+  expenseTracking,
   fullReports,
   mpesaImport,
   smsReminders,
@@ -24,43 +25,47 @@ enum PlanFeatureKey {
 
 extension PlanFeatureKeyX on PlanFeatureKey {
   IconData get icon => switch (this) {
-        PlanFeatureKey.teamMembers   => Icons.group_rounded,
-        PlanFeatureKey.cashFlow      => Icons.waterfall_chart_rounded,
+        PlanFeatureKey.teamMembers    => Icons.group_rounded,
+        PlanFeatureKey.cashFlow       => Icons.waterfall_chart_rounded,
         PlanFeatureKey.expenseExports => Icons.download_rounded,
-        PlanFeatureKey.fullReports   => Icons.bar_chart_rounded,
-        PlanFeatureKey.mpesaImport   => Icons.phone_android_rounded,
-        PlanFeatureKey.smsReminders  => Icons.sms_rounded,
-        PlanFeatureKey.allExports    => Icons.ios_share_rounded,
+        PlanFeatureKey.expenseTracking => Icons.receipt_long_rounded,
+        PlanFeatureKey.fullReports    => Icons.bar_chart_rounded,
+        PlanFeatureKey.mpesaImport    => Icons.phone_android_rounded,
+        PlanFeatureKey.smsReminders   => Icons.sms_rounded,
+        PlanFeatureKey.allExports     => Icons.ios_share_rounded,
       };
 
   String get labelSw => switch (this) {
-        PlanFeatureKey.teamMembers   => 'Wanachama wa Timu',
-        PlanFeatureKey.cashFlow      => 'Mtiririko wa Fedha',
+        PlanFeatureKey.teamMembers    => 'Wanachama wa Timu',
+        PlanFeatureKey.cashFlow       => 'Mtiririko wa Fedha',
         PlanFeatureKey.expenseExports => 'Uhamishaji wa Matumizi',
-        PlanFeatureKey.fullReports   => 'Ripoti Kamili',
-        PlanFeatureKey.mpesaImport   => 'Kuingiza Data ya M-Pesa',
-        PlanFeatureKey.smsReminders  => 'SMS za Ukumbusho',
-        PlanFeatureKey.allExports    => 'Uhamishaji wa Data',
+        PlanFeatureKey.expenseTracking => 'Kufuatilia Matumizi',
+        PlanFeatureKey.fullReports    => 'Ripoti Kamili',
+        PlanFeatureKey.mpesaImport    => 'Kuingiza Data ya M-Pesa',
+        PlanFeatureKey.smsReminders   => 'SMS za Ukumbusho',
+        PlanFeatureKey.allExports     => 'Uhamishaji wa Data',
       };
 
   String get labelEn => switch (this) {
-        PlanFeatureKey.teamMembers   => 'Team Members',
-        PlanFeatureKey.cashFlow      => 'Cash Flow',
+        PlanFeatureKey.teamMembers    => 'Team Members',
+        PlanFeatureKey.cashFlow       => 'Cash Flow',
         PlanFeatureKey.expenseExports => 'Expense Exports',
-        PlanFeatureKey.fullReports   => 'Full Reports',
-        PlanFeatureKey.mpesaImport   => 'M-Pesa Import',
-        PlanFeatureKey.smsReminders  => 'SMS Reminders',
-        PlanFeatureKey.allExports    => 'Data Exports',
+        PlanFeatureKey.expenseTracking => 'Expense Tracking',
+        PlanFeatureKey.fullReports    => 'Full Reports',
+        PlanFeatureKey.mpesaImport    => 'M-Pesa Import',
+        PlanFeatureKey.smsReminders   => 'SMS Reminders',
+        PlanFeatureKey.allExports     => 'Data Exports',
       };
 
   Color get accentColor => switch (this) {
-        PlanFeatureKey.teamMembers   => AppColors.tealAccent,
-        PlanFeatureKey.cashFlow      => const Color(0xFF1A6E8A),
+        PlanFeatureKey.teamMembers    => AppColors.tealAccent,
+        PlanFeatureKey.cashFlow       => const Color(0xFF1A6E8A),
         PlanFeatureKey.expenseExports => const Color(0xFF7C3AED),
-        PlanFeatureKey.fullReports   => AppColors.tealAccent,
-        PlanFeatureKey.mpesaImport   => const Color(0xFF16A34A),
-        PlanFeatureKey.smsReminders  => AppColors.warning,
-        PlanFeatureKey.allExports    => const Color(0xFF7C3AED),
+        PlanFeatureKey.expenseTracking => const Color(0xFF7C3AED),
+        PlanFeatureKey.fullReports    => AppColors.tealAccent,
+        PlanFeatureKey.mpesaImport    => const Color(0xFF16A34A),
+        PlanFeatureKey.smsReminders   => AppColors.warning,
+        PlanFeatureKey.allExports     => const Color(0xFF7C3AED),
       };
 }
 
@@ -109,7 +114,7 @@ class _UpgradeSheetWrapper extends ConsumerWidget {
         height: 300,
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => _UpgradeSheet(
+      error: (e, _) => _UpgradeSheet(
         currentStatus: currentStatus,
         triggerReason: triggerReason,
         featureKey: featureKey,
@@ -498,7 +503,6 @@ class _TierCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
                         isGrowth ? 'Growth' : 'Business',
@@ -573,8 +577,6 @@ class _TierCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Wrap(
-                    spacing: 0,
-                    runSpacing: 0,
                     children: [
                       _Feature(
                         text: 'Ankara zisizo na kikomo',
@@ -838,8 +840,8 @@ class _PaymentInstructions extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              _Step(number: '1', text: 'Fungua M-Pesa kwenye simu yako'),
-              _Step(
+              const _Step(number: '1', text: 'Fungua M-Pesa kwenye simu yako'),
+              const _Step(
                 number: '2',
                 text: 'Chagua "Lipa Biashara" (Lipa Number)',
               ),

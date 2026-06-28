@@ -239,6 +239,23 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       ));
       return;
     }
+    // Enforce credit limit: block the sale if the customer's outstanding
+    // balance after this sale would exceed their set limit.
+    if (!asDraft &&
+        !_isQuotation &&
+        _payMethod == _PayMethod.credit &&
+        _customer != null &&
+        _customer!.creditLimit > 0) {
+      final projectedBalance = _customer!.balanceAmount + _grandTotal;
+      if (projectedBalance > _customer!.creditLimit) {
+        final available = _customer!.availableCredit;
+        _showSnack(_tr(
+          'Credit limit exceeded. ${_customer!.name} can only borrow TZS ${available.toStringAsFixed(0)} more.',
+          'Kikomo cha mkopo kimezidiwa. ${_customer!.name} anaweza kukopa TZS ${available.toStringAsFixed(0)} tu zaidi.',
+        ));
+        return;
+      }
+    }
     setState(() => _saving = true);
 
     try {

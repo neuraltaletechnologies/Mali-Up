@@ -91,6 +91,20 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   }
 
   void _openAdd({Expense? edit}) async {
+    final plan = await ref.read(planStatusProvider.future);
+    if (!mounted) return;
+    if (plan.isStarter) {
+      await showUpgradeSheet(
+        context,
+        currentStatus: plan,
+        featureKey: PlanFeatureKey.expenseTracking,
+        triggerReason: _tr(
+          'Expense tracking requires a Growth or Business plan.',
+          'Kufuatilia matumizi kunahitaji mpango wa Growth au Business.',
+        ),
+      );
+      return;
+    }
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -106,30 +120,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ExpenseDetailScreen(expense: expense),
     ));
-  }
-
-  Future<void> _tryExport() async {
-    final plan = await ref.read(planStatusProvider.future);
-    if (!mounted) return;
-    if (!plan.limits.allExports) {
-      await showUpgradeSheet(
-        context,
-        currentStatus: plan,
-        featureKey: PlanFeatureKey.expenseExports,
-        triggerReason: _tr(
-          'Expense exports require a Growth or Business plan.',
-          'Uhamishaji wa matumizi unahitaji mpango wa Growth au Business.',
-        ),
-      );
-      return;
-    }
-    // TODO: implement actual export (CSV / PDF)
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_tr('Exporting…', 'Inahamisha…')),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -174,7 +164,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             onPrev: _prevMonth,
             onNext: _nextMonth,
             canGoNext: canGoNext,
-            onExport: _tryExport,
           ),
           const SizedBox(height: _ExpenseDarkHeader._pillHalf + 8),
           // Category filter pills
@@ -279,7 +268,6 @@ class _ExpenseDarkHeader extends StatelessWidget {
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final bool canGoNext;
-  final VoidCallback? onExport;
 
   const _ExpenseDarkHeader({
     required this.month,
@@ -290,7 +278,6 @@ class _ExpenseDarkHeader extends StatelessWidget {
     required this.onPrev,
     required this.onNext,
     required this.canGoNext,
-    this.onExport,
   });
 
   @override
@@ -324,28 +311,6 @@ class _ExpenseDarkHeader extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Export button (premium gate)
-                  if (onExport != null)
-                    GestureDetector(
-                      onTap: onExport,
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        margin: const EdgeInsets.only(right: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.ios_share_rounded,
-                          color: Colors.white70,
-                          size: 17,
-                        ),
-                      ),
-                    ),
                   // Month navigation
                   GestureDetector(
                     onTap: onPrev,

@@ -117,6 +117,26 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
           0;
       final now = DateTime.now().toIso8601String();
 
+      // Enforce credit limit for new receivables linked to a customer with a limit.
+      final isNew = widget.debtToEdit == null;
+      if (isNew && _isReceivable && _linkedCustomer != null && _linkedCustomer!.creditLimit > 0) {
+        final projectedBalance = _linkedCustomer!.balanceAmount + amount;
+        if (projectedBalance > _linkedCustomer!.creditLimit) {
+          final available = _linkedCustomer!.availableCredit;
+          if (mounted) {
+            setState(() => _saving = false);
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(_tr(
+                'Credit limit exceeded. ${_linkedCustomer!.name} can only borrow TZS ${available.toStringAsFixed(0)} more.',
+                'Kikomo cha mkopo kimezidiwa. ${_linkedCustomer!.name} anaweza kukopa TZS ${available.toStringAsFixed(0)} tu zaidi.',
+              )),
+              backgroundColor: AppColors.error,
+            ));
+          }
+          return;
+        }
+      }
+
       final debt = Debt(
         id: widget.debtToEdit?.id ?? '',
         partyName: _nameCtrl.text.trim(),
