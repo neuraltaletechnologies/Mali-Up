@@ -10,7 +10,7 @@ import {
   saveLookupDistricts,
 } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
-import { AlertCircle, Plus, Pencil, Trash2, Save, X, Check, MapPin, Building2, Clock } from 'lucide-react'
+import { AlertCircle, Plus, Pencil, Trash2, Save, X, Check, MapPin, Building2, Map } from 'lucide-react'
 import type { LookupBusinessType, LookupCity, AppLookups } from '@/types'
 
 const ICONS = [
@@ -181,41 +181,25 @@ function CityRow({
 // ─── Districts panel ─────────────────────────────────────────────────────────
 
 function DistrictsPanel({
+  cities,
   districts,
   onChange,
 }: {
+  cities: LookupCity[]
   districts: Record<string, string[]>
   onChange: (updated: Record<string, string[]>) => void
 }) {
-  const [selectedRegion, setSelectedRegion] = useState<string>(Object.keys(districts)[0] ?? '')
-  const [newRegion, setNewRegion] = useState('')
-  const [addingRegion, setAddingRegion] = useState(false)
+  const cityNames = cities.filter(c => c.en !== 'Other').map(c => c.en)
+  const [selectedCity, setSelectedCity] = useState<string>(cityNames[0] ?? '')
   const [newDistrict, setNewDistrict] = useState('')
   const [addingDistrict, setAddingDistrict] = useState(false)
   const [editingDistrict, setEditingDistrict] = useState<{ idx: number; val: string } | null>(null)
 
-  const regions = Object.keys(districts).sort()
-  const currentDistricts = districts[selectedRegion] ?? []
-
-  function addRegion() {
-    if (!newRegion.trim() || districts[newRegion.trim()]) return
-    const updated = { ...districts, [newRegion.trim()]: [] }
-    onChange(updated)
-    setSelectedRegion(newRegion.trim())
-    setNewRegion('')
-    setAddingRegion(false)
-  }
-
-  function deleteRegion(r: string) {
-    const updated = { ...districts }
-    delete updated[r]
-    onChange(updated)
-    setSelectedRegion(Object.keys(updated)[0] ?? '')
-  }
+  const currentDistricts = districts[selectedCity] ?? []
 
   function addDistrict() {
-    if (!newDistrict.trim() || !selectedRegion) return
-    const updated = { ...districts, [selectedRegion]: [...currentDistricts, newDistrict.trim()] }
+    if (!newDistrict.trim() || !selectedCity) return
+    const updated = { ...districts, [selectedCity]: [...currentDistricts, newDistrict.trim()] }
     onChange(updated)
     setNewDistrict('')
     setAddingDistrict(false)
@@ -223,74 +207,57 @@ function DistrictsPanel({
 
   function deleteDistrict(idx: number) {
     const list = currentDistricts.filter((_, i) => i !== idx)
-    onChange({ ...districts, [selectedRegion]: list })
+    onChange({ ...districts, [selectedCity]: list })
   }
 
   function saveDistrict(idx: number, val: string) {
     if (!val.trim()) return
     const list = [...currentDistricts]
     list[idx] = val.trim()
-    onChange({ ...districts, [selectedRegion]: list })
+    onChange({ ...districts, [selectedCity]: list })
     setEditingDistrict(null)
   }
 
   return (
     <div className="flex gap-5 mt-2">
-      {/* Region sidebar */}
+      {/* Cities sidebar */}
       <div className="w-52 shrink-0">
         <div className="text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-2 px-1">
-          Regions ({regions.length})
+          Cities ({cityNames.length})
         </div>
-        <div className="rounded-lg border border-[var(--line)] overflow-hidden bg-[var(--surface)]">
-          {regions.map((r) => (
-            <div key={r} className={`group flex items-center border-b border-[var(--line)] last:border-0 ${selectedRegion === r ? 'bg-[var(--accent-soft)]' : ''}`}>
-              <button
-                onClick={() => setSelectedRegion(r)}
-                className={`flex-1 text-left px-3 py-2 text-[12.5px] transition-colors ${selectedRegion === r ? 'text-[var(--accent)] font-medium' : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'}`}
-              >
-                {r}
-                <span className="ml-1.5 text-[11px] text-[var(--ink-faint)]">({(districts[r] ?? []).length})</span>
-              </button>
-              <button
-                onClick={() => deleteRegion(r)}
-                className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded hover:bg-[var(--status-bad-bg)] text-[var(--ink-faint)] hover:text-[var(--status-bad)] transition-all"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
+        <div className="rounded-lg border border-[var(--line)] overflow-hidden bg-[var(--surface)] max-h-[520px] overflow-y-auto">
+          {cityNames.map((name) => (
+            <button
+              key={name}
+              onClick={() => { setSelectedCity(name); setAddingDistrict(false); setEditingDistrict(null) }}
+              className={`w-full flex items-center justify-between border-b border-[var(--line)] last:border-0 px-3 py-2 text-left text-[12.5px] transition-colors ${
+                selectedCity === name
+                  ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-medium'
+                  : 'text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--canvas)]'
+              }`}
+            >
+              <span className="truncate">{name}</span>
+              <span className="ml-1.5 shrink-0 text-[11px] text-[var(--ink-faint)]">
+                {(districts[name] ?? []).length}
+              </span>
+            </button>
           ))}
         </div>
-
-        {addingRegion ? (
-          <div className="mt-2 flex gap-1">
-            <input
-              autoFocus
-              value={newRegion}
-              onChange={(e) => setNewRegion(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addRegion()}
-              placeholder="Region name"
-              className="flex-1 rounded border border-[var(--line)] bg-[var(--surface)] px-2 py-1.5 text-[12px] text-[var(--ink)]"
-            />
-            <button onClick={addRegion} className="p-1.5 rounded bg-[var(--accent-soft)] text-[var(--accent)]"><Check className="h-3.5 w-3.5" /></button>
-            <button onClick={() => { setAddingRegion(false); setNewRegion('') }} className="p-1.5 rounded hover:bg-[var(--line)] text-[var(--ink-faint)]"><X className="h-3.5 w-3.5" /></button>
-          </div>
-        ) : (
-          <button onClick={() => setAddingRegion(true)} className="mt-2 w-full flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-3 py-1.5 text-[12px] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--ink-faint)] transition-colors">
-            <Plus className="h-3.5 w-3.5" /> Add region
-          </button>
-        )}
+        <p className="mt-2 text-[11px] text-[var(--ink-faint)] px-1 leading-4">
+          Cities are managed in the Cities tab.
+        </p>
       </div>
 
       {/* Districts list */}
       <div className="flex-1 min-w-0">
-        {selectedRegion ? (
+        {selectedCity ? (
           <>
             <div className="text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-2 px-1">
-              Districts in {selectedRegion} ({currentDistricts.length})
+              Districts in {selectedCity} ({currentDistricts.length})
             </div>
             <div className="rounded-lg border border-[var(--line)] overflow-hidden bg-[var(--surface)]">
               {currentDistricts.length === 0 && (
-                <div className="py-8 text-center text-[13px] text-[var(--ink-faint)]">No districts yet</div>
+                <div className="py-8 text-center text-[13px] text-[var(--ink-faint)]">No districts yet — add one below</div>
               )}
               {currentDistricts.map((d, idx) => (
                 <div key={idx} className="group flex items-center gap-2 border-b border-[var(--line)] last:border-0 px-4 py-2.5">
@@ -300,11 +267,18 @@ function DistrictsPanel({
                         autoFocus
                         value={editingDistrict.val}
                         onChange={(e) => setEditingDistrict({ idx, val: e.target.value })}
-                        onKeyDown={(e) => { if (e.key === 'Enter') saveDistrict(idx, editingDistrict.val); if (e.key === 'Escape') setEditingDistrict(null) }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveDistrict(idx, editingDistrict.val)
+                          if (e.key === 'Escape') setEditingDistrict(null)
+                        }}
                         className="flex-1 rounded border border-[var(--line)] bg-[var(--canvas)] px-2 py-0.5 text-[13px] text-[var(--ink)]"
                       />
-                      <button onClick={() => saveDistrict(idx, editingDistrict.val)} className="p-1 rounded bg-[var(--accent-soft)] text-[var(--accent)]"><Check className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => setEditingDistrict(null)} className="p-1 rounded hover:bg-[var(--line)] text-[var(--ink-faint)]"><X className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => saveDistrict(idx, editingDistrict.val)} className="p-1 rounded bg-[var(--accent-soft)] text-[var(--accent)]">
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => setEditingDistrict(null)} className="p-1 rounded hover:bg-[var(--line)] text-[var(--ink-faint)]">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </>
                   ) : (
                     <>
@@ -343,7 +317,7 @@ function DistrictsPanel({
             )}
           </>
         ) : (
-          <div className="py-16 text-center text-[13px] text-[var(--ink-faint)]">Select a region to manage its districts</div>
+          <div className="py-16 text-center text-[13px] text-[var(--ink-faint)]">Select a city to manage its districts</div>
         )}
       </div>
     </div>
@@ -449,7 +423,7 @@ export default function LookupsPage() {
   const tabs: { id: Tab; label: string; icon: typeof Building2; count: number }[] = local ? [
     { id: 'business_types', label: 'Business Types', icon: Building2, count: local.businessTypes.length },
     { id: 'cities',         label: 'Cities',         icon: MapPin,    count: local.cities.length },
-    { id: 'districts',      label: 'Districts',      icon: Clock,     count: Object.keys(local.districts).length },
+    { id: 'districts',      label: 'Districts',      icon: Map,       count: Object.values(local.districts).reduce((sum, arr) => sum + arr.length, 0) },
   ] : []
 
   return (
@@ -598,7 +572,7 @@ export default function LookupsPage() {
 
         {/* ── Districts ── */}
         {activeTab === 'districts' && (
-          <DistrictsPanel districts={local.districts} onChange={updateDistricts} />
+          <DistrictsPanel cities={local.cities} districts={local.districts} onChange={updateDistricts} />
         )}
       </>)}
     </div>
