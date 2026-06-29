@@ -21,21 +21,12 @@ export async function GET(request: Request) {
   const statusFilter = searchParams.get('status') // optional: pending|approved|rejected|pushed
 
   try {
-    let query = adminFirestore
+    // Fetch all, sort + filter in memory to avoid composite index requirement
+    const snap = await adminFirestore
       .collection('catalog_community_submissions')
       .orderBy('submissionCount', 'desc')
-      .limit(300)
-
-    if (statusFilter) {
-      // Firestore requires a separate query for filtered results
-      query = adminFirestore
-        .collection('catalog_community_submissions')
-        .where('status', '==', statusFilter)
-        .orderBy('submissionCount', 'desc')
-        .limit(300)
-    }
-
-    const snap = await query.get()
+      .limit(500)
+      .get()
 
     const submissions: CommunitySubmission[] = snap.docs.map((doc) => {
       const d = doc.data()
@@ -62,7 +53,11 @@ export async function GET(request: Request) {
       }
     })
 
-    return NextResponse.json({ submissions })
+    const filtered = statusFilter
+      ? submissions.filter((s) => s.status === statusFilter)
+      : submissions
+
+    return NextResponse.json({ submissions: filtered })
   } catch (err) {
     console.error('[GET /api/admin/catalog/submissions]', err)
     return NextResponse.json({ error: 'Failed to fetch submissions' }, { status: 500 })
