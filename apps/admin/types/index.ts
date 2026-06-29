@@ -175,27 +175,32 @@ export interface MasterProduct {
 /** Real Firestore master catalog product (master_products collection) */
 export interface CatalogProduct {
   id: string
-  businessTypeId: string
-  categoryId: string
-  categoryName: string
+  businessType: string
+  categorySlug: string
   productName: string
-  skuTemplate: string
-  barcode: string
-  defaultUnit: string
-  suggestedCostPrice: number
-  suggestedSellingPrice: number
-  searchableKeywords: string[]
-  source: 'admin' | 'community' | string
+  productNameSw: string
+  productSlug: string
+  genericName: string
+  brandNames: string[]
+  unit: string
+  unitAlternatives: string[]
+  commonBarcodes: string[]
+  searchKeywords: string[]
+  prescriptionRequired: boolean
+  coldStorage: boolean
+  tags: string[]
+  // legacy fields kept for read compatibility during transition
+  categoryName?: string
 }
 
-/** Real Firestore master category (master_categories collection) */
 export interface CatalogCategory {
   id: string
-  businessTypeId: string
+  businessType: string
   categoryName: string
-  description: string
+  categoryNameSw: string
+  categorySlug: string
   icon: string
-  source: 'admin' | 'community' | string
+  displayOrder: number
   productCount: number
 }
 
