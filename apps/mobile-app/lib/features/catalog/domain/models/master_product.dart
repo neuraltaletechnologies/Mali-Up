@@ -1,76 +1,80 @@
 class MasterProduct {
   final String id;
-  final String businessTypeId;
-  final String categoryId;
-  final String categoryName;
+  final String businessType; // normalised key
+  final String categorySlug;
   final String productName;
-  final String skuTemplate;
-  final String barcode;
-  final String defaultUnit;
-  final double suggestedCostPrice;
-  final double suggestedSellingPrice;
-  final List<String> searchableKeywords;
-  final bool isActive;
+  final String productNameSw;
+  final String productSlug;
+  final String genericName;
+  final List<String> brandNames;
+  final String unit;
+  final List<String> unitAlternatives;
+  final List<String> commonBarcodes;
+  final List<String> searchKeywords;
+  final List<String> tags;
+  final bool prescriptionRequired;
+  final bool coldStorage;
 
   const MasterProduct({
     required this.id,
-    required this.businessTypeId,
-    required this.categoryId,
-    required this.categoryName,
+    required this.businessType,
+    this.categorySlug = '',
     required this.productName,
-    this.skuTemplate = '',
-    this.barcode = '',
-    this.defaultUnit = 'pcs',
-    this.suggestedCostPrice = 0,
-    this.suggestedSellingPrice = 0,
-    this.searchableKeywords = const [],
-    this.isActive = true,
+    this.productNameSw = '',
+    this.productSlug = '',
+    this.genericName = '',
+    this.brandNames = const [],
+    this.unit = 'Piece',
+    this.unitAlternatives = const [],
+    this.commonBarcodes = const [],
+    this.searchKeywords = const [],
+    this.tags = const [],
+    this.prescriptionRequired = false,
+    this.coldStorage = false,
   });
 
-  factory MasterProduct.fromFirestore(Map<String, dynamic> data, String id) {
-    final rawKeywords = data['searchableKeywords'];
-    final keywords = rawKeywords is List
-        ? rawKeywords.map((k) => k.toString()).toList()
-        : <String>[];
+  factory MasterProduct.fromFirestore(
+    Map<String, dynamic> data,
+    String id,
+    String normalizedBizType,
+  ) {
+    List<String> strList(dynamic v) =>
+        v is List ? v.map((e) => e.toString()).toList() : <String>[];
+
     return MasterProduct(
       id: id,
-      businessTypeId: data['businessTypeId'] as String? ?? '',
-      categoryId: data['categoryId'] as String? ?? '',
-      categoryName: data['categoryName'] as String? ?? '',
+      businessType: normalizedBizType,
+      // Support both new schema and legacy field names
+      categorySlug: data['categorySlug'] as String? ??
+          data['categoryId'] as String? ?? '',
       productName: data['productName'] as String? ?? '',
-      skuTemplate: data['skuTemplate'] as String? ?? '',
-      barcode: data['barcode'] as String? ?? '',
-      defaultUnit: data['defaultUnit'] as String? ?? 'pcs',
-      suggestedCostPrice:
-          (data['suggestedCostPrice'] as num?)?.toDouble() ?? 0,
-      suggestedSellingPrice:
-          (data['suggestedSellingPrice'] as num?)?.toDouble() ?? 0,
-      searchableKeywords: keywords,
-      isActive: data['isActive'] as bool? ?? true,
+      productNameSw: data['productNameSw'] as String? ?? '',
+      productSlug: data['productSlug'] as String? ?? id,
+      genericName: data['genericName'] as String? ?? '',
+      brandNames: strList(data['brandNames']),
+      unit: data['unit'] as String? ??
+          data['defaultUnit'] as String? ?? 'Piece',
+      unitAlternatives: strList(data['unitAlternatives']),
+      commonBarcodes: strList(data['commonBarcodes']),
+      searchKeywords: strList(data['searchKeywords'] ?? data['searchableKeywords']),
+      tags: strList(data['tags']),
+      prescriptionRequired: data['prescriptionRequired'] as bool? ?? false,
+      coldStorage: data['coldStorage'] as bool? ?? false,
     );
   }
-
-  Map<String, dynamic> toFirestore() => {
-        'businessTypeId': businessTypeId,
-        'categoryId': categoryId,
-        'categoryName': categoryName,
-        'productName': productName,
-        'skuTemplate': skuTemplate,
-        'barcode': barcode,
-        'defaultUnit': defaultUnit,
-        'suggestedCostPrice': suggestedCostPrice,
-        'suggestedSellingPrice': suggestedSellingPrice,
-        'searchableKeywords': searchableKeywords,
-        'isActive': isActive,
-      };
 
   bool matchesQuery(String query) {
     if (query.isEmpty) return true;
     final q = query.toLowerCase();
     if (productName.toLowerCase().contains(q)) return true;
-    if (categoryName.toLowerCase().contains(q)) return true;
-    if (barcode.contains(q)) return true;
-    if (searchableKeywords.any((k) => k.toLowerCase().contains(q))) return true;
+    if (productNameSw.toLowerCase().contains(q)) return true;
+    if (genericName.toLowerCase().contains(q)) return true;
+    if (brandNames.any((b) => b.toLowerCase().contains(q))) return true;
+    if (commonBarcodes.any((b) => b.contains(q))) return true;
+    if (searchKeywords.any((k) => k.toLowerCase().contains(q))) return true;
     return false;
   }
+
+  bool get isFmcg => tags.contains('fmcg');
+  bool get isCommon => tags.contains('common');
 }

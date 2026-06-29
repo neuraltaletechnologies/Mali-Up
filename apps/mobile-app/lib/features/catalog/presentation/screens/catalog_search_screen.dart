@@ -49,10 +49,10 @@ class _CatalogSearchScreenState extends ConsumerState<CatalogSearchScreen> {
     ref.read(catalogSearchQueryProvider.notifier).state = value;
   }
 
-  void _onCategorySelected(String categoryId) {
+  void _onCategorySelected(String categorySlug) {
     final current = ref.read(catalogSelectedCategoryProvider);
     ref.read(catalogSelectedCategoryProvider.notifier).state =
-        current == categoryId ? '' : categoryId;
+        current == categorySlug ? '' : categorySlug;
   }
 
   void _openImport(MasterProduct product) {
@@ -140,7 +140,7 @@ class _CatalogSearchScreenState extends ConsumerState<CatalogSearchScreen> {
               selectedCatName: selectedCatId.isEmpty
                   ? ''
                   : (categoriesAsync.valueOrNull
-                          ?.where((c) => c.id == selectedCatId)
+                          ?.where((c) => c.categorySlug == selectedCatId)
                           .firstOrNull
                           ?.categoryName ??
                       ''),
@@ -259,9 +259,9 @@ class _CategoryChips extends StatelessWidget {
         separatorBuilder: (context, i) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final cat = categories[i];
-          final selected = cat.id == selectedId;
+          final selected = cat.categorySlug == selectedId;
           return GestureDetector(
-            onTap: () => onSelected(cat.id),
+            onTap: () => onSelected(cat.categorySlug),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               padding:
@@ -400,38 +400,60 @@ class _ProductCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: AppColors.navyPrimary,
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
+                  if (product.productNameSw.isNotEmpty &&
+                      product.productNameSw != product.productName) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      product.productNameSw,
+                      style: GoogleFonts.inter(
+                          fontSize: 12, color: AppColors.textMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: 4),
                   Row(
                     children: [
+                      if (product.categorySlug.isNotEmpty)
+                        _Pill(
+                          label: product.categorySlug
+                              .replaceAll('-', ' ')
+                              .split(' ')
+                              .map((w) => w.isEmpty
+                                  ? ''
+                                  : '${w[0].toUpperCase()}${w.substring(1)}')
+                              .join(' '),
+                          color: AppColors.tealAccent,
+                          bg: const Color(0xFFE0F2F7),
+                        ),
+                      if (product.categorySlug.isNotEmpty)
+                        const SizedBox(width: 6),
                       _Pill(
-                        label: product.categoryName,
-                        color: AppColors.tealAccent,
-                        bg: const Color(0xFFE0F2F7),
-                      ),
-                      const SizedBox(width: 6),
-                      _Pill(
-                        label: product.defaultUnit,
+                        label: product.unit,
                         color: AppColors.textMuted,
                         bg: const Color(0xFFF1F5F9),
                       ),
+                      if (product.prescriptionRequired) ...[
+                        const SizedBox(width: 6),
+                        _Pill(
+                          label: _tr('Rx', 'Rx'),
+                          color: const Color(0xFFD97706),
+                          bg: const Color(0xFFFEF3C7),
+                        ),
+                      ],
+                      if (product.coldStorage) ...[
+                        const SizedBox(width: 6),
+                        _Pill(
+                          label: _tr('Cold', 'Baridi'),
+                          color: const Color(0xFF0284C7),
+                          bg: const Color(0xFFE0F2FE),
+                        ),
+                      ],
                     ],
                   ),
-                  if (product.suggestedSellingPrice > 0) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      _tr(
-                        'Suggested: TSh ${_fmt(product.suggestedSellingPrice)}',
-                        'Iliyopendekezwa: TSh ${_fmt(product.suggestedSellingPrice)}',
-                      ),
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -445,11 +467,6 @@ class _ProductCard extends StatelessWidget {
     );
   }
 
-  String _fmt(double v) {
-    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(0)}K';
-    return v.toStringAsFixed(0);
-  }
 }
 
 class _Pill extends StatelessWidget {

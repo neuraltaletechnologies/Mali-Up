@@ -5204,7 +5204,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
           ref.read(currentBusinessTypeProvider).valueOrNull ?? 'retail';
       final repo = ref.read(masterCatalogRepositoryProvider);
       final newCat = await repo.addCommunityCategory(
-        businessTypeId: bizType,
+        businessType: bizType,
         categoryName: name,
         addedByUid: user.uid,
       );

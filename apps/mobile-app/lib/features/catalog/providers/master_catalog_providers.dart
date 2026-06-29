@@ -61,9 +61,9 @@ final masterProductsProvider =
   return repo.getProductsForType(bizType);
 });
 
-/// Master products filtered by category.
+/// Master products filtered by category slug.
 final masterProductsByCategoryProvider =
-    FutureProvider.family<List<MasterProduct>, String>((ref, categoryId) async {
+    FutureProvider.family<List<MasterProduct>, String>((ref, categorySlug) async {
   final repo = ref.watch(masterCatalogRepositoryProvider);
   final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
   String bizType;
@@ -74,8 +74,8 @@ final masterProductsByCategoryProvider =
   }
   if (bizType.isEmpty) bizType = 'retail';
 
-  if (categoryId.isEmpty) return repo.getProductsForType(bizType);
-  return repo.getProductsForCategory(bizType, categoryId);
+  if (categorySlug.isEmpty) return repo.getProductsForType(bizType);
+  return repo.getProductsForCategory(bizType, categorySlug);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ final masterProductsByCategoryProvider =
 /// Holds the current catalog search query.
 final catalogSearchQueryProvider = StateProvider<String>((ref) => '');
 
-/// Holds the currently selected category filter ('': all).
+/// Holds the currently selected category slug filter ('' = all).
 final catalogSelectedCategoryProvider = StateProvider<String>((ref) => '');
 
 /// Filtered + searched master products based on query and category filter.
@@ -94,7 +94,7 @@ final catalogSearchResultsProvider =
   final repo = ref.watch(masterCatalogRepositoryProvider);
   final bizTypeFuture = ref.watch(currentBusinessTypeProvider.future);
   final query = ref.watch(catalogSearchQueryProvider);
-  final categoryId = ref.watch(catalogSelectedCategoryProvider);
+  final categorySlug = ref.watch(catalogSelectedCategoryProvider);
 
   String bizType;
   try {
@@ -104,15 +104,15 @@ final catalogSearchResultsProvider =
   }
   if (bizType.isEmpty) bizType = 'retail';
 
-  if (query.isEmpty && categoryId.isEmpty) {
+  if (query.isEmpty && categorySlug.isEmpty) {
     return repo.getProductsForType(bizType);
   }
-  if (query.isEmpty && categoryId.isNotEmpty) {
-    return repo.getProductsForCategory(bizType, categoryId);
+  if (query.isEmpty && categorySlug.isNotEmpty) {
+    return repo.getProductsForCategory(bizType, categorySlug);
   }
 
   // Search across all products first, then optionally filter by category
   final results = await repo.searchProducts(bizType, query);
-  if (categoryId.isEmpty) return results;
-  return results.where((p) => p.categoryId == categoryId).toList();
+  if (categorySlug.isEmpty) return results;
+  return results.where((p) => p.categorySlug == categorySlug).toList();
 });

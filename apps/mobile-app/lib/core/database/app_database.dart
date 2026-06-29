@@ -66,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -126,7 +126,19 @@ class AppDatabase extends _$AppDatabase {
             // Industry Master Catalog: global read-only product/category cache.
             await m.createTable(masterCategoriesTable);
             await m.createTable(masterProductsTable);
-            await _createV7Indexes();
+            // v8 will drop+recreate with the new schema, so skip v7 indexes
+          }
+          if (from < 8) {
+            // New master catalog schema: businessType (human-readable name),
+            // categorySlug, productNameSw, genericName, brandNames, unit,
+            // unitAlternatives, commonBarcodes, searchKeywords, tags,
+            // prescriptionRequired, coldStorage. Pricing fields removed.
+            // Cache tables are read-only so a drop+recreate is safe.
+            await customStatement('DROP TABLE IF EXISTS master_categories');
+            await customStatement('DROP TABLE IF EXISTS master_products');
+            await m.createTable(masterCategoriesTable);
+            await m.createTable(masterProductsTable);
+            await _createV8Indexes();
           }
         },
         beforeOpen: (details) async {
@@ -135,18 +147,18 @@ class AppDatabase extends _$AppDatabase {
         },
       );
 
-  Future<void> _createV7Indexes() async {
+  Future<void> _createV8Indexes() async {
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_master_categories_type '
-      'ON master_categories(business_type_id)',
+      'ON master_categories(business_type)',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_master_products_type '
-      'ON master_products(business_type_id)',
+      'ON master_products(business_type)',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_master_products_category '
-      'ON master_products(business_type_id, category_id)',
+      'ON master_products(business_type, category_slug)',
     );
   }
 
@@ -185,7 +197,7 @@ class AppDatabase extends _$AppDatabase {
     );
     await _createV3Indexes();
     await _createV5Indexes();
-    await _createV7Indexes();
+    await _createV8Indexes();
   }
 
   Future<void> _createV3Indexes() async {

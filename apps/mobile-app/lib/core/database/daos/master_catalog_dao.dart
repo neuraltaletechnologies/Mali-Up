@@ -15,18 +15,20 @@ class MasterCatalogDao extends DatabaseAccessor<AppDatabase>
   // ─── Categories ────────────────────────────────────────────────────────────
 
   Future<List<MasterCategoriesTableData>> getCategoriesForType(
-    String businessTypeId,
+    String businessType,
   ) {
     return (select(masterCategoriesTable)
-          ..where((t) =>
-              t.businessTypeId.equals(businessTypeId) & t.isActive.equals(1))
-          ..orderBy([(t) => OrderingTerm.asc(t.categoryName)]))
+          ..where((t) => t.businessType.equals(businessType))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.displayOrder),
+            (t) => OrderingTerm.asc(t.categoryName),
+          ]))
         .get();
   }
 
-  Future<int> categoryCount(String businessTypeId) async {
+  Future<int> categoryCount(String businessType) async {
     final rows = await (select(masterCategoriesTable)
-          ..where((t) => t.businessTypeId.equals(businessTypeId)))
+          ..where((t) => t.businessType.equals(businessType)))
         .get();
     return rows.length;
   }
@@ -46,49 +48,54 @@ class MasterCatalogDao extends DatabaseAccessor<AppDatabase>
   // ─── Products ──────────────────────────────────────────────────────────────
 
   Future<List<MasterProductsTableData>> getProductsForType(
-    String businessTypeId,
+    String businessType,
   ) {
     return (select(masterProductsTable)
-          ..where((t) =>
-              t.businessTypeId.equals(businessTypeId) & t.isActive.equals(1))
+          ..where((t) => t.businessType.equals(businessType))
           ..orderBy([(t) => OrderingTerm.asc(t.productName)]))
         .get();
   }
 
   Future<List<MasterProductsTableData>> getProductsForCategory(
-    String businessTypeId,
-    String categoryId,
+    String businessType,
+    String categorySlug,
   ) {
     return (select(masterProductsTable)
           ..where((t) =>
-              t.businessTypeId.equals(businessTypeId) &
-              t.categoryId.equals(categoryId) &
-              t.isActive.equals(1))
+              t.businessType.equals(businessType) &
+              t.categorySlug.equals(categorySlug))
           ..orderBy([(t) => OrderingTerm.asc(t.productName)]))
         .get();
   }
 
   Future<List<MasterProductsTableData>> searchProducts(
-    String businessTypeId,
+    String businessType,
     String query,
   ) async {
     final q = query.toLowerCase();
     final rows = await (select(masterProductsTable)
-          ..where((t) =>
-              t.businessTypeId.equals(businessTypeId) & t.isActive.equals(1)))
+          ..where((t) => t.businessType.equals(businessType)))
         .get();
     return rows.where((r) {
       if (r.productName.toLowerCase().contains(q)) return true;
-      if (r.categoryName.toLowerCase().contains(q)) return true;
-      if (r.barcode.contains(q)) return true;
-      final kw = jsonDecode(r.searchableKeywords) as List;
-      return kw.any((k) => k.toString().toLowerCase().contains(q));
+      if (r.productNameSw.toLowerCase().contains(q)) return true;
+      if (r.genericName.toLowerCase().contains(q)) return true;
+      // Search JSON arrays
+      for (final json in [r.searchKeywords, r.brandNames, r.commonBarcodes]) {
+        try {
+          final list = jsonDecode(json) as List;
+          if (list.any((k) => k.toString().toLowerCase().contains(q))) {
+            return true;
+          }
+        } catch (_) {}
+      }
+      return false;
     }).toList();
   }
 
-  Future<int> productCount(String businessTypeId) async {
+  Future<int> productCount(String businessType) async {
     final rows = await (select(masterProductsTable)
-          ..where((t) => t.businessTypeId.equals(businessTypeId)))
+          ..where((t) => t.businessType.equals(businessType)))
         .get();
     return rows.length;
   }
