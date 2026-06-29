@@ -6,7 +6,12 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../../catalog/data/catalog_submission_service.dart';
 import '../../../catalog/domain/models/master_category.dart';
+import '../../../product/data/category_providers.dart';
+import '../../../customer/data/customer_providers.dart';
 import '../../data/inventory_providers.dart';
 import '../../domain/models/inventory_item.dart';
 import '../providers/inventory_providers.dart';
@@ -811,6 +816,14 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
         updatedAt: now,
       ));
 
+      // Submit to community catalog for admin review — fire and forget
+      _submitToCatalog(
+        productName: name,
+        categorySlug: _selectedCategory?.categorySlug ?? '',
+        unit: _selectedUnit,
+        description: _descCtrl.text.trim(),
+      );
+
       if (mounted) {
         navigator.pop();
         messenger.showSnackBar(
@@ -839,6 +852,46 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _submitToCatalog({
+    required String productName,
+    required String categorySlug,
+    required String unit,
+    required String description,
+  }) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final bizId = ref.read(currentBusinessIdProvider).valueOrNull ?? '';
+    final bizType = ref.read(currentBusinessTypeProvider).valueOrNull ?? 'retail';
+    final bizTypeName = _catalogTypeName(bizType);
+    ref.read(catalogSubmissionServiceProvider).submitProduct(
+      productName: productName,
+      businessType: bizType,
+      businessTypeName: bizTypeName,
+      submittedByUid: uid,
+      submittedByBusinessId: bizId,
+      categorySlug: categorySlug,
+      unit: unit,
+      description: description,
+    ).ignore();
+  }
+
+  String _catalogTypeName(String normalizedKey) {
+    const map = <String, String>{
+      'retail': 'Retail',
+      'wholesale': 'Wholesale',
+      'restaurant': 'Restaurant',
+      'electronics': 'Electronics & Mobile Phones',
+      'tailoring': 'Fashion & Boutique',
+      'salon': 'Beauty & Cosmetics',
+      'hardware': 'Hardware & Building Materials',
+      'construction': 'Construction',
+      'pharmacy': 'Pharmacy & Healthcare',
+      'agriculture': 'Agriculture',
+      'transport': 'Transportation & Logistics',
+      'service': 'Education & Training',
+    };
+    return map[normalizedKey] ?? 'Retail';
   }
 }
 

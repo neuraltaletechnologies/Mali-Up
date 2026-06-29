@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 
 // Runs on Cloudflare Edge — pure Web API, no Node.js dependencies.
 // Full JWT verification happens in each protected route via NextAuth auth().
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (!pathname.startsWith("/admin")) return NextResponse.next()

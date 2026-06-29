@@ -222,12 +222,24 @@ export interface AnalyticsOverview {
 
 export interface CommunitySubmission {
   id: string
-  productName: string
+  type: 'product' | 'category'
+  productName: string       // also used for categoryName when type='category'
+  categoryName?: string
+  businessType: string      // normalised key ("retail", "pharmacy"…)
+  businessTypeName: string  // human-readable ("Retail", "Pharmacy & Healthcare"…)
+  categorySlug: string
+  unit: string
+  description: string
+  submittedByUid: string
+  submittedByBusinessId: string
   businessName: string
-  businessType: string
   submissionCount: number
   firstSeenAt: string
-  status: 'pending' | 'approved' | 'rejected'
+  lastSeenAt: string
+  status: 'pending' | 'approved' | 'rejected' | 'pushed'
+  adminNotes: string
+  masterDocId: string
+  pushedAt: string
 }
 
 export interface PlanDefinition {

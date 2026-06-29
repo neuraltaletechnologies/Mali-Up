@@ -206,10 +206,12 @@ export const mockProducts: MasterProduct[] = [
 
 // ─── Community Submissions ────────────────────────────────────────────────────
 
+const defSub = { type: 'product' as const, categoryName: '', businessTypeName: '', categorySlug: '', unit: 'Piece', description: '', submittedByUid: '', submittedByBusinessId: '', lastSeenAt: '2026-06-01T00:00:00Z', adminNotes: '', masterDocId: '', pushedAt: '' }
+
 export const mockSubmissions: CommunitySubmission[] = [
-  { id: 'cs1', productName: 'Dawa ya Malaria (AL 20/120)', businessName: 'Karibu Duka la Dawa', businessType: 'Pharmacy', submissionCount: 156, firstSeenAt: '2026-05-01T00:00:00Z', status: 'pending' },
-  { id: 'cs2', productName: 'Mafuta ya Alizeti 2L', businessName: 'Hassan Supermarket', businessType: 'Supermarket', submissionCount: 89, firstSeenAt: '2026-05-15T00:00:00Z', status: 'pending' },
-  { id: 'cs3', productName: 'Wire Mesh 2m x 1m', businessName: 'Biashara Vifaa', businessType: 'Hardware', submissionCount: 34, firstSeenAt: '2026-06-01T00:00:00Z', status: 'pending' },
+  { ...defSub, id: 'cs1', productName: 'Dawa ya Malaria (AL 20/120)', businessName: 'Karibu Duka la Dawa', businessType: 'pharmacy', businessTypeName: 'Pharmacy & Healthcare', submissionCount: 156, firstSeenAt: '2026-05-01T00:00:00Z', status: 'pending' },
+  { ...defSub, id: 'cs2', productName: 'Mafuta ya Alizeti 2L', businessName: 'Hassan Supermarket', businessType: 'wholesale', businessTypeName: 'Supermarket', submissionCount: 89, firstSeenAt: '2026-05-15T00:00:00Z', status: 'pending' },
+  { ...defSub, id: 'cs3', productName: 'Wire Mesh 2m x 1m', businessName: 'Biashara Vifaa', businessType: 'hardware', businessTypeName: 'Hardware & Building Materials', submissionCount: 34, firstSeenAt: '2026-06-01T00:00:00Z', status: 'pending' },
 ]
 
 // ─── Platform Config ──────────────────────────────────────────────────────────
