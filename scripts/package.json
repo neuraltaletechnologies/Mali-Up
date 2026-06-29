@@ -4,9 +4,17 @@
   "description": "One-time admin scripts for Mali Up",
   "main": "seed-master-catalog.js",
   "scripts": {
-    "seed": "node seed-master-catalog.js"
+    "seed": "node seed-master-catalog.js",
+    "seed:catalog": "ts-node seed-master-catalog.ts",
+    "seed:catalog:force": "ts-node seed-master-catalog.ts --force",
+    "seed:dry-run": "ts-node seed-master-catalog.ts --dry-run"
   },
   "dependencies": {
     "firebase-admin": "^13.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
   }
 }

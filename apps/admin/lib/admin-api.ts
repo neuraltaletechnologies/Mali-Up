@@ -82,13 +82,13 @@ export async function fetchAnalytics(): Promise<AnalyticsOverview> {
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
-export async function fetchCatalog(businessTypeId?: string): Promise<{
+export async function fetchCatalog(businessType?: string): Promise<{
   categories: CatalogCategory[]
   products: CatalogProduct[]
-  businessTypeIds: string[]
+  businessTypes: string[]
   total: number
 }> {
-  const qs = businessTypeId ? `?businessTypeId=${encodeURIComponent(businessTypeId)}` : ''
+  const qs = businessType ? `?businessType=${encodeURIComponent(businessType)}` : ''
   return apiFetch(`/api/admin/catalog${qs}`)
 }
 
@@ -270,19 +270,6 @@ export async function saveLookupDistricts(items: AppLookups['districts']): Promi
   await apiFetch('/api/admin/lookups?type=districts', {
     method: 'PATCH',
     body: JSON.stringify({ items }),
-  })
-}
-
-// ─── AI Catalog Generation ────────────────────────────────────────────────────
-
-export async function generateCatalogForIndustry(
-  businessTypeId: string,
-  businessTypeEn: string,
-  businessTypeSw: string,
-): Promise<{ categoriesAdded: number; productsAdded: number }> {
-  return apiFetch('/api/admin/catalog/generate', {
-    method: 'POST',
-    body: JSON.stringify({ businessTypeId, businessTypeEn, businessTypeSw }),
   })
 }
 
