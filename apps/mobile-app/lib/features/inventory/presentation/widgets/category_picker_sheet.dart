@@ -84,7 +84,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
           ref.read(currentBusinessTypeProvider).valueOrNull ?? 'retail';
       final repo = ref.read(masterCatalogRepositoryProvider);
       final newCat = await repo.addCommunityCategory(
-        businessTypeId: bizType,
+        businessType: bizType,
         categoryName: name,
         addedByUid: user.uid,
       );
@@ -307,7 +307,9 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                       itemCount: filtered.length,
                       itemBuilder: (_, i) {
                         final cat = filtered[i];
-                        final isSelected = cat.id == widget.selected?.id;
+                        final isSelected = cat.categorySlug.isNotEmpty
+                            ? cat.categorySlug == widget.selected?.categorySlug
+                            : cat.id == widget.selected?.id;
                         return _CategoryTile(
                           category: cat,
                           isSelected: isSelected,

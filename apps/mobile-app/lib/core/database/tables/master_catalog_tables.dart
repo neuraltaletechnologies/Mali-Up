@@ -1,17 +1,18 @@
 import 'package:drift/drift.dart';
 
 /// Local cache of global Firestore `master_categories` collection.
-/// Read-only from the business side — no sync queue needed.
+/// Keyed internally by the app's normalised business-type token (e.g. "retail").
 class MasterCategoriesTable extends Table {
   @override
   String get tableName => 'master_categories';
 
   TextColumn get id => text()();
-  TextColumn get businessTypeId => text()();
+  TextColumn get businessType => text()(); // normalised key ("retail", "pharmacy" …)
   TextColumn get categoryName => text()();
-  TextColumn get description => text().withDefault(const Constant(''))();
+  TextColumn get categoryNameSw => text().withDefault(const Constant(''))();
+  TextColumn get categorySlug => text().withDefault(const Constant(''))();
   TextColumn get icon => text().withDefault(const Constant(''))();
-  IntColumn get isActive => integer().withDefault(const Constant(1))();
+  IntColumn get displayOrder => integer().withDefault(const Constant(0))();
   IntColumn get cachedAt => integer().withDefault(const Constant(0))();
 
   @override
@@ -19,27 +20,26 @@ class MasterCategoriesTable extends Table {
 }
 
 /// Local cache of global Firestore `master_products` collection.
-/// Read-only from the business side — no sync queue needed.
 class MasterProductsTable extends Table {
   @override
   String get tableName => 'master_products';
 
   TextColumn get id => text()();
-  TextColumn get businessTypeId => text()();
-  TextColumn get categoryId => text()();
-  TextColumn get categoryName => text().withDefault(const Constant(''))();
+  TextColumn get businessType => text()(); // normalised key
+  TextColumn get categorySlug => text().withDefault(const Constant(''))();
   TextColumn get productName => text()();
-  TextColumn get skuTemplate => text().withDefault(const Constant(''))();
-  TextColumn get barcode => text().withDefault(const Constant(''))();
-  TextColumn get defaultUnit => text().withDefault(const Constant('pcs'))();
-  RealColumn get suggestedCostPrice =>
-      real().withDefault(const Constant(0))();
-  RealColumn get suggestedSellingPrice =>
-      real().withDefault(const Constant(0))();
-  // JSON array of keyword strings for offline full-text search
-  TextColumn get searchableKeywords =>
-      text().withDefault(const Constant('[]'))();
-  IntColumn get isActive => integer().withDefault(const Constant(1))();
+  TextColumn get productNameSw => text().withDefault(const Constant(''))();
+  TextColumn get productSlug => text().withDefault(const Constant(''))();
+  TextColumn get genericName => text().withDefault(const Constant(''))();
+  // JSON arrays stored as TEXT
+  TextColumn get brandNames => text().withDefault(const Constant('[]'))();
+  TextColumn get unit => text().withDefault(const Constant('Piece'))();
+  TextColumn get unitAlternatives => text().withDefault(const Constant('[]'))();
+  TextColumn get commonBarcodes => text().withDefault(const Constant('[]'))();
+  TextColumn get searchKeywords => text().withDefault(const Constant('[]'))();
+  TextColumn get tags => text().withDefault(const Constant('[]'))();
+  IntColumn get prescriptionRequired => integer().withDefault(const Constant(0))();
+  IntColumn get coldStorage => integer().withDefault(const Constant(0))();
   IntColumn get cachedAt => integer().withDefault(const Constant(0))();
 
   @override

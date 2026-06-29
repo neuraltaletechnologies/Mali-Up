@@ -13,6 +13,25 @@ binding = "ASSETS"
 [vars]
 NEXT_PUBLIC_BASE_URL = "https://maliup.neuraltale.com"
 
-# All secret env vars (AUTH_SECRET, FIREBASE_*, NEXT_PUBLIC_FIREBASE_*)
-# are set in the Cloudflare dashboard under:
+# Public Firebase client SDK config — safe to commit (project identifiers only).
+# These are embedded at build time by Next.js, so they must be present in the
+# environment when `pnpm cf:build` runs. Putting them here ensures that.
+NEXT_PUBLIC_FIREBASE_PROJECT_ID       = "neuraltale-mali-up"
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN      = "neuraltale-mali-up.firebaseapp.com"
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET   = "neuraltale-mali-up.firebasestorage.app"
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "596683133951"
+NEXT_PUBLIC_FIREBASE_APP_ID           = "1:596683133951:web:1430c6e5bcb28bb5a6cdca"
+
+# NextAuth: required on non-Vercel / Cloudflare Workers deployments.
+AUTH_TRUST_HOST = "true"
+
+# Secret env vars set in the Cloudflare dashboard under:
 # Workers & Pages → maliup → Settings → Variables and Secrets
+#
+# Secrets required (never commit these):
+#   AUTH_SECRET                — NextAuth signing secret (openssl rand -base64 32)
+#   AUTH_URL                   — https://maliup.neuraltale.com   ← NOT localhost
+#   FIREBASE_PROJECT_ID        — neuraltale-mali-up
+#   FIREBASE_CLIENT_EMAIL      — firebase-adminsdk-fbsvc@neuraltale-mali-up.iam.gserviceaccount.com
+#   FIREBASE_PRIVATE_KEY       — paste full PEM with literal \n, not real newlines
+#   NEXT_PUBLIC_FIREBASE_API_KEY — AIzaSyCXqDCD9aSPQBSN4RIhAdhWAZ9XFLeuee0

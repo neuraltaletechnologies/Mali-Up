@@ -53,18 +53,10 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
     super.initState();
     final p = widget.product;
     _nameCtrl = TextEditingController(text: p.productName);
-    _costCtrl = TextEditingController(
-      text: p.suggestedCostPrice > 0
-          ? p.suggestedCostPrice.toStringAsFixed(0)
-          : '',
-    );
-    _sellCtrl = TextEditingController(
-      text: p.suggestedSellingPrice > 0
-          ? p.suggestedSellingPrice.toStringAsFixed(0)
-          : '',
-    );
+    _costCtrl = TextEditingController();
+    _sellCtrl = TextEditingController();
     _stockCtrl = TextEditingController(text: '1');
-    _skuCtrl = TextEditingController(text: p.skuTemplate);
+    _skuCtrl = TextEditingController();
   }
 
   @override
@@ -108,14 +100,14 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
       final item = InventoryItem(
         id: '',
         name: name,
-        category: widget.product.categoryName,
-        categoryName: widget.product.categoryName,
+        category: widget.product.categorySlug,
+        categoryName: widget.product.categorySlug,
         sku: _skuCtrl.text.trim(),
         currentStock: _stockVal,
         reorderPoint: 5,
         unitPrice: _sellVal,
         costPrice: _costVal,
-        unit: widget.product.defaultUnit,
+        unit: widget.product.unit,
         createdAt: now,
         updatedAt: now,
       );
@@ -258,8 +250,8 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
             const SizedBox(height: 4),
             Text(
               _tr(
-                'Suggested prices are pre-filled. You must set your own prices.',
-                'Bei iliyopendekezwa imejazwa. Lazima uweke bei yako mwenyewe.',
+                'Set your own cost and selling prices for this product.',
+                'Weka bei yako ya kununua na kuuza kwa bidhaa hii.',
               ),
               style:
                   GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted),
@@ -320,8 +312,8 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                     children: [
                       _FieldLabel(
                         _tr(
-                          'Quantity (${widget.product.defaultUnit})',
-                          'Idadi (${widget.product.defaultUnit})',
+                          'Quantity (${widget.product.unit})',
+                          'Idadi (${widget.product.unit})',
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -350,7 +342,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Text(
-                          widget.product.defaultUnit,
+                          widget.product.unit,
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             color: AppColors.navyPrimary,
@@ -720,11 +712,33 @@ class _SourceCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  product.categoryName,
-                  style: GoogleFonts.inter(
-                      fontSize: 12, color: AppColors.textMuted),
-                ),
+                if (product.productNameSw.isNotEmpty &&
+                    product.productNameSw != product.productName)
+                  Text(
+                    product.productNameSw,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                if (product.genericName.isNotEmpty)
+                  Text(
+                    product.genericName,
+                    style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                        fontStyle: FontStyle.italic),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                if (product.brandNames.isNotEmpty)
+                  Text(
+                    product.brandNames.take(3).join(', '),
+                    style: GoogleFonts.inter(
+                        fontSize: 11, color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
