@@ -13,27 +13,52 @@ function toIso(value: unknown): string {
   return new Date().toISOString()
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const denied = await requireAdminSession()
   if (denied) return denied
 
+  const { searchParams } = new URL(request.url)
+  const statusFilter = searchParams.get('status') // optional: pending|approved|rejected|pushed
+
   try {
-    const snap = await adminFirestore
+    let query = adminFirestore
       .collection('catalog_community_submissions')
       .orderBy('submissionCount', 'desc')
-      .limit(200)
-      .get()
+      .limit(300)
+
+    if (statusFilter) {
+      // Firestore requires a separate query for filtered results
+      query = adminFirestore
+        .collection('catalog_community_submissions')
+        .where('status', '==', statusFilter)
+        .orderBy('submissionCount', 'desc')
+        .limit(300)
+    }
+
+    const snap = await query.get()
 
     const submissions: CommunitySubmission[] = snap.docs.map((doc) => {
       const d = doc.data()
       return {
-        id:              doc.id,
-        productName:     (d.productName as string)    || '',
-        businessName:    (d.businessName as string)   || '',
-        businessType:    (d.businessType as string)   || '',
-        submissionCount: (d.submissionCount as number) || 1,
-        firstSeenAt:     toIso(d.firstSeenAt ?? d.createdAt),
-        status:          (d.status as CommunitySubmission['status']) || 'pending',
+        id:                    doc.id,
+        type:                  (d.type as CommunitySubmission['type']) || 'product',
+        productName:           (d.productName  as string) || '',
+        categoryName:          (d.categoryName as string) || (d.productName as string) || '',
+        businessType:          (d.businessType as string) || '',
+        businessTypeName:      (d.businessTypeName as string) || (d.businessType as string) || '',
+        categorySlug:          (d.categorySlug as string) || '',
+        unit:                  (d.unit as string) || 'Piece',
+        description:           (d.description as string) || '',
+        submittedByUid:        (d.submittedByUid as string) || '',
+        submittedByBusinessId: (d.submittedByBusinessId as string) || '',
+        businessName:          (d.businessName as string) || '',
+        submissionCount:       (d.submissionCount as number) || 1,
+        firstSeenAt:           toIso(d.firstSeenAt ?? d.createdAt),
+        lastSeenAt:            toIso(d.lastSeenAt  ?? d.createdAt),
+        status:                (d.status as CommunitySubmission['status']) || 'pending',
+        adminNotes:            (d.adminNotes as string) || '',
+        masterDocId:           (d.masterDocId as string) || '',
+        pushedAt:              toIso(d.pushedAt),
       }
     })
 

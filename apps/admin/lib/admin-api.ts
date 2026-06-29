@@ -180,14 +180,19 @@ export async function fetchSystemHealth(): Promise<{ services: ServiceHealth[]; 
 
 // ─── Catalog Submissions ──────────────────────────────────────────────────────
 
-export async function fetchSubmissions(): Promise<{ submissions: CommunitySubmission[] }> {
-  return apiFetch('/api/admin/catalog/submissions')
+export async function fetchSubmissions(status?: string): Promise<{ submissions: CommunitySubmission[] }> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : ''
+  return apiFetch(`/api/admin/catalog/submissions${q}`)
 }
 
-export async function patchSubmission(id: string, status: 'approved' | 'rejected'): Promise<void> {
-  await apiFetch(`/api/admin/catalog/submissions/${id}`, {
+export async function patchSubmission(
+  id: string,
+  action: 'approve' | 'reject' | 'push',
+  payload?: Record<string, unknown>,
+): Promise<{ masterDocId?: string; collection?: string }> {
+  return apiFetch(`/api/admin/catalog/submissions/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ action, ...payload }),
   })
 }
 

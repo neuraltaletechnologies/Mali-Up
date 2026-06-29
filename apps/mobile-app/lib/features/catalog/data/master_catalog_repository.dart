@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
+import 'catalog_submission_service.dart';
+
 import '../../../core/database/app_database.dart';
 import '../domain/models/master_category.dart';
 import '../domain/models/master_product.dart';
@@ -115,12 +117,15 @@ List<String> _catalogTypeNames(String normalizedKey) {
 class MasterCatalogRepository {
   final AppDatabase _db;
   final FirebaseFirestore _firestore;
+  final CatalogSubmissionService _submissions;
 
   MasterCatalogRepository({
     required AppDatabase db,
     FirebaseFirestore? firestore,
+    CatalogSubmissionService? submissions,
   })  : _db = db,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _submissions = submissions ?? CatalogSubmissionService();
 
   // ── Public read API ────────────────────────────────────────────────────────
 
@@ -296,6 +301,7 @@ class MasterCatalogRepository {
     required String businessType, // normalised key
     required String categoryName,
     required String addedByUid,
+    String? businessId,
   }) async {
     final trimmed = categoryName.trim();
     final slug = _slugify(trimmed);
@@ -327,6 +333,15 @@ class MasterCatalogRepository {
         cachedAt: Value(now),
       ),
     ]);
+
+    // Submit to community submissions for admin awareness — fire and forget
+    _submissions.submitCategory(
+      categoryName: trimmed,
+      businessType: businessType,
+      businessTypeName: catalogName,
+      submittedByUid: addedByUid,
+      submittedByBusinessId: businessId ?? '',
+    ).ignore();
 
     return MasterCategory(
       id: id,
