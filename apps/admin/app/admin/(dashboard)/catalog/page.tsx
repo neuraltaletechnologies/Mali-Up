@@ -5,40 +5,78 @@ import { PageHeader } from '@/components/ui/page-header'
 import { DataTable } from '@/components/ui/data-table'
 import { DetailDrawer } from '@/components/ui/detail-drawer'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { Skeleton, SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
+import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import {
-  fetchCatalog, fetchLookups,
+  fetchCatalog,
   postCatalogProduct, patchCatalogProduct, deleteCatalogProduct,
   postCatalogCategory, patchCatalogCategory, deleteCatalogCategory,
 } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import type { CatalogProduct, CatalogCategory } from '@/types'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, Pencil, Trash2, AlertCircle, Tag, Package } from 'lucide-react'
-import { formatTZS } from '@/lib/format'
+import { Plus, Pencil, Trash2, AlertCircle, Tag, Package, Snowflake, Pill } from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const UNITS = ['pcs', 'kg', 'g', 'litre', 'ml', 'pack', 'box', 'tablet', 'bottle', 'dozen', 'pair', 'roll', 'bag', 'carton']
+const BUSINESS_TYPES = [
+  'Retail','Wholesale','Supermarket','Grocery & Convenience',
+  'Electronics & Mobile Phones','Fashion & Boutique','Tailoring & Textiles',
+  'Beauty & Cosmetics','Salon & Barber','Restaurant','Cafe & Bakery',
+  'Street Food','Catering','Agriculture','Agribusiness','Livestock & Poultry',
+  'Fishing','Manufacturing','Construction','Hardware & Building Materials',
+  'Transportation & Logistics','Travel & Tours','Hotel & Accommodation',
+  'Pharmacy & Healthcare','Clinic & Laboratory','Education & Training',
+  'Real Estate','Financial Services','ICT & Software','Printing & Stationery',
+  'Automotive & Spare Parts','Fuel & Lubricants','E-Commerce',
+  'Entertainment & Events','Cleaning Services','Security Services',
+  'NGO & Community Services','Export & Import','Agricultural Inputs',
+  'Media & Communications','Jewelry & Crafts','Furniture & Carpentry',
+  'Water & Beverages','Auto Repair','Other',
+]
+
+const UNITS = [
+  'Piece','Kg','g','Litre','ml','Pack','Box','Tablet','Bottle','Dozen',
+  'Pair','Roll','Bag','Carton','Case','Sachet','Tube','Can','Jar','Bucket',
+  'Sheet','Metre','Set','Kit','Load','Ton','Ream','Book',
+  'Plate','Gram','Vial','Inhaler','Cartridge',
+]
+
+const TAGS = ['common','fmcg','seasonal','imported','local','prescription']
+
+const ICONS = [
+  'inventory_2','store','storefront','shopping_bag','phone_android','checkroom',
+  'content_cut','face','restaurant','bakery_dining','lunch_dining','agriculture',
+  'pets','build','construction','handyman','local_shipping','travel_explore',
+  'hotel','medical_services','school','real_estate_agent','account_balance',
+  'computer','print','directions_car','local_gas_station','campaign',
+  'cleaning_services','security','category','sell','home','local_drink',
+  'science','box','medication','nutrition','format_paint','hardware',
+  'forest','engineering','floor_lamp','roofing','foundation','wifi',
+  'water_drop','diamond','brush','videocam','event','music_note','factory',
+]
 
 const EMPTY_PRODUCT = {
-  productName: '',
-  businessTypeId: '',
-  categoryId: '',
-  categoryName: '',
-  defaultUnit: 'pcs',
-  skuTemplate: '',
-  barcode: '',
-  suggestedCostPrice: '',
-  suggestedSellingPrice: '',
-  searchableKeywords: '',
+  businessType:        '',
+  categorySlug:        '',
+  productName:         '',
+  productNameSw:       '',
+  genericName:         '',
+  brandNames:          '',
+  unit:                'Piece',
+  unitAlternatives:    '',
+  commonBarcodes:      '',
+  searchKeywords:      '',
+  prescriptionRequired: false,
+  coldStorage:         false,
+  tags:                [] as string[],
 }
 
 const EMPTY_CATEGORY = {
-  categoryName: '',
-  businessTypeId: '',
-  description: '',
-  icon: '',
+  businessType:   '',
+  categoryName:   '',
+  categoryNameSw: '',
+  icon:           'inventory_2',
+  displayOrder:   0,
 }
 
 type ProductForm  = typeof EMPTY_PRODUCT
@@ -48,119 +86,123 @@ type CategoryForm = typeof EMPTY_CATEGORY
 
 function productToForm(p: CatalogProduct): ProductForm {
   return {
-    productName:           p.productName,
-    businessTypeId:        p.businessTypeId,
-    categoryId:            p.categoryId,
-    categoryName:          p.categoryName,
-    defaultUnit:           p.defaultUnit || 'pcs',
-    skuTemplate:           p.skuTemplate ?? '',
-    barcode:               p.barcode ?? '',
-    suggestedCostPrice:    String(p.suggestedCostPrice ?? ''),
-    suggestedSellingPrice: String(p.suggestedSellingPrice ?? ''),
-    searchableKeywords:    (p.searchableKeywords ?? []).join(', '),
+    businessType:        p.businessType,
+    categorySlug:        p.categorySlug,
+    productName:         p.productName,
+    productNameSw:       p.productNameSw,
+    genericName:         p.genericName,
+    brandNames:          p.brandNames.join(', '),
+    unit:                p.unit,
+    unitAlternatives:    p.unitAlternatives.join(', '),
+    commonBarcodes:      p.commonBarcodes.join(', '),
+    searchKeywords:      p.searchKeywords.join(', '),
+    prescriptionRequired: p.prescriptionRequired,
+    coldStorage:         p.coldStorage,
+    tags:                [...p.tags],
   }
 }
 
 function productFormToPayload(form: ProductForm) {
   return {
-    ...form,
-    suggestedCostPrice:    Number(form.suggestedCostPrice)    || 0,
-    suggestedSellingPrice: Number(form.suggestedSellingPrice) || 0,
-    searchableKeywords:    form.searchableKeywords.split(',').map((k) => k.trim()).filter(Boolean),
+    businessType:         form.businessType,
+    categorySlug:         form.categorySlug,
+    productName:          form.productName,
+    productNameSw:        form.productNameSw,
+    genericName:          form.genericName,
+    brandNames:           form.brandNames.split(',').map((s) => s.trim()).filter(Boolean),
+    unit:                 form.unit,
+    unitAlternatives:     form.unitAlternatives.split(',').map((s) => s.trim()).filter(Boolean),
+    commonBarcodes:       form.commonBarcodes.split(',').map((s) => s.trim()).filter(Boolean),
+    searchKeywords:       form.searchKeywords.split(',').map((s) => s.trim()).filter(Boolean),
+    prescriptionRequired: form.prescriptionRequired,
+    coldStorage:          form.coldStorage,
+    tags:                 form.tags,
   }
 }
 
 function categoryToForm(c: CatalogCategory): CategoryForm {
   return {
+    businessType:   c.businessType,
     categoryName:   c.categoryName,
-    businessTypeId: c.businessTypeId,
-    description:    c.description ?? '',
-    icon:           c.icon ?? '',
+    categoryNameSw: c.categoryNameSw,
+    icon:           c.icon || 'inventory_2',
+    displayOrder:   c.displayOrder,
   }
 }
 
-// ─── Shared field styles ──────────────────────────────────────────────────────
+// ─── Shared styles ────────────────────────────────────────────────────────────
 
 const inputCls = 'w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]'
 const labelCls = 'text-[12px] font-medium text-[var(--ink-muted)]'
 const selectCls = `${inputCls} appearance-none`
+const sectionHeading = 'text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-3'
+const checkboxRowCls = 'flex items-center gap-2.5 rounded-md border border-[var(--line)] px-3 py-2.5 hover:bg-[var(--canvas)] cursor-pointer'
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CatalogPage() {
-  const [activeTab,       setActiveTab]       = useState<'categories' | 'products'>('categories')
-  const [selectedTypeId,  setSelectedTypeId]  = useState('')
+  const [activeTab,      setActiveTab]      = useState<'categories' | 'products'>('categories')
+  const [selectedType,   setSelectedType]   = useState('')
 
   // Product state
-  const [showAddProduct,  setShowAddProduct]  = useState(false)
-  const [editProduct,     setEditProduct]     = useState<CatalogProduct | null>(null)
-  const [deleteProduct,   setDeleteProduct]   = useState<CatalogProduct | null>(null)
-  const [productForm,     setProductForm]     = useState<ProductForm>(EMPTY_PRODUCT)
+  const [showAddProduct, setShowAddProduct] = useState(false)
+  const [editProduct,    setEditProduct]    = useState<CatalogProduct | null>(null)
+  const [deleteProduct,  setDeleteProduct]  = useState<CatalogProduct | null>(null)
+  const [productForm,    setProductForm]    = useState<ProductForm>(EMPTY_PRODUCT)
 
   // Category state
-  const [showAddCategory, setShowAddCategory] = useState(false)
-  const [editCategory,    setEditCategory]    = useState<CatalogCategory | null>(null)
-  const [deleteCategory,  setDeleteCategory]  = useState<CatalogCategory | null>(null)
-  const [categoryForm,    setCategoryForm]    = useState<CategoryForm>(EMPTY_CATEGORY)
+  const [showAddCat,     setShowAddCat]     = useState(false)
+  const [editCat,        setEditCat]        = useState<CatalogCategory | null>(null)
+  const [deleteCat,      setDeleteCat]      = useState<CatalogCategory | null>(null)
+  const [catForm,        setCatForm]        = useState<CategoryForm>(EMPTY_CATEGORY)
 
   const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
 
   const { data, loading, revalidating, error, refetch } = useAdminFetch(
-    useCallback(() => fetchCatalog(selectedTypeId || undefined), [selectedTypeId]),
-    { key: `catalog-${selectedTypeId ?? 'all'}` },
+    useCallback(() => fetchCatalog(selectedType || undefined), [selectedType]),
+    { key: `catalog-${selectedType || 'all'}` },
   )
 
-  const { data: lookups } = useAdminFetch(
-    useCallback(() => fetchLookups(), []),
-    { key: 'lookups' },
-  )
+  const categories     = data?.categories ?? []
+  const products       = data?.products   ?? []
+  const dbTypes        = data?.businessTypes ?? []
 
-  // All 45 business types from lookup service; fall back to types already in catalog
-  const allBusinessTypes = lookups?.businessTypes ?? []
-  const businessTypeIds = allBusinessTypes.length > 0
-    ? allBusinessTypes.map((bt) => bt.value)
-    : (data?.businessTypeIds ?? [])
+  const allTypes = [...new Set([...BUSINESS_TYPES, ...dbTypes])].sort()
 
-  const products        = data?.products        ?? []
-  const categories      = data?.categories      ?? []
+  const visibleCats  = selectedType ? categories.filter((c) => c.businessType === selectedType) : categories
+  const visibleProds = selectedType ? products.filter((p) => p.businessType === selectedType)   : products
 
-  // Categories visible for selected type filter
-  const visibleCategories = selectedTypeId
-    ? categories.filter((c) => c.businessTypeId === selectedTypeId)
-    : categories
+  const formCats = categories.filter((c) => c.businessType === productForm.businessType)
 
-  // Products visible for selected type filter
-  const visibleProducts = selectedTypeId
-    ? products.filter((p) => p.businessTypeId === selectedTypeId)
-    : products
-
-  // Categories for selected business type in product form
-  const formCategories = categories.filter(
-    (c) => c.businessTypeId === productForm.businessTypeId
-  )
-
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────────
 
   async function handleAddProduct(e: React.FormEvent) {
     e.preventDefault()
+    setFormError('')
     setSaving(true)
     try {
       await postCatalogProduct(productFormToPayload(productForm))
       setShowAddProduct(false)
       setProductForm(EMPTY_PRODUCT)
       refetch()
+    } catch (err) {
+      setFormError((err as Error).message ?? 'Save failed')
     } finally { setSaving(false) }
   }
 
   async function handleEditProduct(e: React.FormEvent) {
     e.preventDefault()
     if (!editProduct) return
+    setFormError('')
     setSaving(true)
     try {
       await patchCatalogProduct(editProduct.id, productFormToPayload(productForm))
       setEditProduct(null)
       setProductForm(EMPTY_PRODUCT)
       refetch()
+    } catch (err) {
+      setFormError((err as Error).message ?? 'Save failed')
     } finally { setSaving(false) }
   }
 
@@ -171,44 +213,58 @@ export default function CatalogPage() {
     refetch()
   }
 
-  async function handleAddCategory(e: React.FormEvent) {
+  async function handleAddCat(e: React.FormEvent) {
     e.preventDefault()
+    setFormError('')
     setSaving(true)
     try {
-      await postCatalogCategory(categoryForm)
-      setShowAddCategory(false)
-      setCategoryForm(EMPTY_CATEGORY)
+      await postCatalogCategory(catForm)
+      setShowAddCat(false)
+      setCatForm(EMPTY_CATEGORY)
       refetch()
+    } catch (err) {
+      setFormError((err as Error).message ?? 'Save failed')
     } finally { setSaving(false) }
   }
 
-  async function handleEditCategory(e: React.FormEvent) {
+  async function handleEditCat(e: React.FormEvent) {
     e.preventDefault()
-    if (!editCategory) return
+    if (!editCat) return
+    setFormError('')
     setSaving(true)
     try {
-      await patchCatalogCategory(editCategory.id, categoryForm)
-      setEditCategory(null)
-      setCategoryForm(EMPTY_CATEGORY)
+      await patchCatalogCategory(editCat.id, catForm)
+      setEditCat(null)
+      setCatForm(EMPTY_CATEGORY)
       refetch()
+    } catch (err) {
+      setFormError((err as Error).message ?? 'Save failed')
     } finally { setSaving(false) }
   }
 
-  async function handleDeleteCategory() {
-    if (!deleteCategory) return
-    await deleteCatalogCategory(deleteCategory.id)
-    setDeleteCategory(null)
+  async function handleDeleteCat() {
+    if (!deleteCat) return
+    await deleteCatalogCategory(deleteCat.id)
+    setDeleteCat(null)
     refetch()
   }
 
-  // ── Column defs ──────────────────────────────────────────────────────────────
+  function toggleTag(tag: string) {
+    setProductForm((f) => ({
+      ...f,
+      tags: f.tags.includes(tag) ? f.tags.filter((t) => t !== tag) : [...f.tags, tag],
+    }))
+  }
+
+  // ── Column defs ───────────────────────────────────────────────────────────────
 
   const categoryColumns: ColumnDef<CatalogCategory, unknown>[] = [
     {
       accessorKey: 'icon',
       header: '',
+      size: 48,
       cell: ({ row }) => (
-        <span className="text-[18px]">{row.original.icon || '📦'}</span>
+        <span className="text-[15px] font-mono text-[var(--ink-muted)]">{row.original.icon || '—'}</span>
       ),
     },
     {
@@ -217,62 +273,58 @@ export default function CatalogPage() {
       cell: ({ row }) => (
         <div>
           <div className="font-medium text-[var(--ink)]">{row.original.categoryName}</div>
-          {row.original.description && (
-            <div className="text-[11px] text-[var(--ink-faint)] mt-0.5">{row.original.description}</div>
+          {row.original.categoryNameSw && (
+            <div className="text-[11px] text-[var(--ink-faint)] mt-0.5">{row.original.categoryNameSw}</div>
           )}
         </div>
       ),
     },
     {
-      accessorKey: 'businessTypeId',
+      accessorKey: 'businessType',
       header: 'Business Type',
       cell: ({ row }) => (
-        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)] capitalize">
-          {row.original.businessTypeId}
+        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+          {row.original.businessType}
         </span>
+      ),
+    },
+    {
+      accessorKey: 'categorySlug',
+      header: 'Slug',
+      cell: ({ row }) => (
+        <span className="font-mono text-[11px] text-[var(--ink-faint)]">{row.original.categorySlug}</span>
+      ),
+    },
+    {
+      accessorKey: 'displayOrder',
+      header: 'Order',
+      size: 64,
+      cell: ({ row }) => (
+        <span className="font-mono text-[var(--ink-muted)]">{row.original.displayOrder}</span>
       ),
     },
     {
       accessorKey: 'productCount',
       header: 'Products',
+      size: 80,
       cell: ({ row }) => (
         <span className="font-mono text-[var(--ink-muted)]">{row.original.productCount}</span>
       ),
     },
     {
-      accessorKey: 'source',
-      header: 'Source',
-      cell: ({ row }) => (
-        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-          row.original.source === 'community'
-            ? 'bg-[var(--status-warn-bg)] text-[var(--status-warn)]'
-            : 'bg-[var(--line)] text-[var(--ink-muted)]'
-        }`}>
-          {row.original.source === 'community' ? 'Community' : 'Admin'}
-        </span>
-      ),
-    },
-    {
       id: 'actions',
       header: '',
+      size: 72,
       cell: ({ row }) => (
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setCategoryForm(categoryToForm(row.original))
-              setEditCategory(row.original)
-            }}
+            onClick={(e) => { e.stopPropagation(); setCatForm(categoryToForm(row.original)); setEditCat(row.original) }}
             className="p-1 rounded hover:bg-[var(--canvas)] text-[var(--ink-faint)] hover:text-[var(--ink)]"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
+          ><Pencil className="h-3.5 w-3.5" /></button>
           <button
-            onClick={(e) => { e.stopPropagation(); setDeleteCategory(row.original) }}
+            onClick={(e) => { e.stopPropagation(); setDeleteCat(row.original) }}
             className="p-1 rounded hover:bg-[var(--status-bad-bg)] text-[var(--ink-faint)] hover:text-[var(--status-bad)]"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          ><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       ),
     },
@@ -285,539 +337,269 @@ export default function CatalogPage() {
       cell: ({ row }) => (
         <div>
           <div className="font-medium text-[var(--ink)]">{row.original.productName}</div>
-          {row.original.skuTemplate && (
-            <div className="text-[11px] text-[var(--ink-faint)] font-mono">{row.original.skuTemplate}</div>
+          {row.original.productNameSw && (
+            <div className="text-[11px] text-[var(--ink-faint)] mt-0.5">{row.original.productNameSw}</div>
           )}
         </div>
       ),
     },
     {
-      accessorKey: 'categoryName',
+      accessorKey: 'categorySlug',
       header: 'Category',
       cell: ({ row }) => (
-        <span className="text-[var(--ink-muted)]">{row.original.categoryName || '—'}</span>
-      ),
-    },
-    {
-      accessorKey: 'businessTypeId',
-      header: 'Business Type',
-      cell: ({ row }) => (
-        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)] capitalize">
-          {row.original.businessTypeId}
+        <span className="font-mono text-[11px] text-[var(--ink-muted)]">
+          {row.original.categoryName || row.original.categorySlug || '—'}
         </span>
       ),
     },
     {
-      accessorKey: 'defaultUnit',
+      accessorKey: 'businessType',
+      header: 'Type',
+      cell: ({ row }) => (
+        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+          {row.original.businessType}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'unit',
       header: 'Unit',
+      size: 80,
       cell: ({ row }) => (
-        <span className="font-mono text-[var(--ink-muted)]">{row.original.defaultUnit}</span>
+        <span className="text-[var(--ink-muted)]">{row.original.unit}</span>
       ),
     },
     {
-      accessorKey: 'suggestedSellingPrice',
-      header: 'Selling Price',
+      id: 'flags',
+      header: 'Flags',
+      size: 80,
       cell: ({ row }) => (
-        <span className="font-mono tabular-nums text-[var(--ink)]">
-          {row.original.suggestedSellingPrice > 0
-            ? formatTZS(row.original.suggestedSellingPrice)
-            : <span className="text-[var(--ink-faint)]">—</span>}
-        </span>
+        <div className="flex gap-1">
+          {row.original.prescriptionRequired && (
+            <span title="Prescription required"><Pill className="h-3.5 w-3.5 text-[var(--status-warn)]" /></span>
+          )}
+          {row.original.coldStorage && (
+            <span title="Cold storage"><Snowflake className="h-3.5 w-3.5 text-blue-400" /></span>
+          )}
+        </div>
       ),
     },
     {
-      accessorKey: 'suggestedCostPrice',
-      header: 'Cost Price',
+      accessorKey: 'tags',
+      header: 'Tags',
       cell: ({ row }) => (
-        <span className="font-mono tabular-nums text-[var(--ink-muted)]">
-          {row.original.suggestedCostPrice > 0
-            ? formatTZS(row.original.suggestedCostPrice)
-            : <span className="text-[var(--ink-faint)]">—</span>}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'barcode',
-      header: 'Barcode',
-      cell: ({ row }) => (
-        <span className="font-mono text-[11px] text-[var(--ink-faint)]">{row.original.barcode || '—'}</span>
+        <div className="flex flex-wrap gap-1">
+          {row.original.tags.map((t) => (
+            <span key={t} className="rounded bg-[var(--line)] px-1.5 py-0.5 text-[10px] text-[var(--ink-muted)]">{t}</span>
+          ))}
+        </div>
       ),
     },
     {
       id: 'actions',
       header: '',
+      size: 72,
       cell: ({ row }) => (
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setProductForm(productToForm(row.original))
-              setEditProduct(row.original)
-            }}
+            onClick={(e) => { e.stopPropagation(); setProductForm(productToForm(row.original)); setEditProduct(row.original) }}
             className="p-1 rounded hover:bg-[var(--canvas)] text-[var(--ink-faint)] hover:text-[var(--ink)]"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
+          ><Pencil className="h-3.5 w-3.5" /></button>
           <button
             onClick={(e) => { e.stopPropagation(); setDeleteProduct(row.original) }}
             className="p-1 rounded hover:bg-[var(--status-bad-bg)] text-[var(--ink-faint)] hover:text-[var(--status-bad)]"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          ><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       ),
     },
   ]
 
-  // ── Loading / error states ───────────────────────────────────────────────────
-
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <div>
+      <PageHeader title="Master Catalog" description="Global product & category catalog seeded into the mobile app">
+        {activeTab === 'categories' ? (
+          <button
+            onClick={() => { setCatForm(EMPTY_CATEGORY); setFormError(''); setShowAddCat(true) }}
+            style={{ backgroundColor: '#0D1B3E' }}
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Category
+          </button>
+        ) : (
+          <button
+            onClick={() => { setProductForm(EMPTY_PRODUCT); setFormError(''); setShowAddProduct(true) }}
+            style={{ backgroundColor: '#0D1B3E' }}
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Product
+          </button>
+        )}
+      </PageHeader>
+
       {revalidating && <RevalidatingBar />}
-      {loading && (
-        <div className="flex gap-4 mt-4">
-          <Skeleton className="w-44 h-64 rounded-lg shrink-0" />
-          <SkeletonTable rows={6} cols={5} />
+
+      {/* Filter bar */}
+      <div className="mb-5 flex items-center gap-3 flex-wrap">
+        <div className="flex gap-0.5 border-b border-[var(--line)] flex-1">
+          {([
+            ['categories', Tag, visibleCats.length] as const,
+            ['products', Package, visibleProds.length] as const,
+          ]).map(([id, Icon, count]) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors -mb-px capitalize ${
+                activeTab === id
+                  ? 'border-[var(--accent)] text-[var(--accent)]'
+                  : 'border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {id}
+              <span className="ml-1 rounded-full bg-[var(--line)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--ink-faint)]">
+                {count}
+              </span>
+            </button>
+          ))}
         </div>
-      )}
-      {error && !data && (
+
+        <div className="shrink-0">
+          <select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[12px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] appearance-none"
+          >
+            <option value="">All business types</option>
+            {allTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {loading && <SkeletonTable rows={8} cols={5} />}
+
+      {error && (
         <div className="mt-4 flex items-center gap-3 rounded-lg border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-4 text-[var(--status-bad)]">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span className="text-[13px]">{error}</span>
         </div>
       )}
-      {!loading && (<>
-      <PageHeader
-        title="Master Catalog"
-        description={`${categories.length} categories · ${data?.total ?? 0} products`}
-      >
-        {activeTab === 'categories' ? (
-          <button
-            onClick={() => { setCategoryForm(EMPTY_CATEGORY); setShowAddCategory(true) }}
-            style={{ backgroundColor: '#0D1B3E' }}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add category
-          </button>
-        ) : (
-          <button
-            onClick={() => { setProductForm(EMPTY_PRODUCT); setShowAddProduct(true) }}
-            style={{ backgroundColor: '#0D1B3E' }}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add product
-          </button>
-        )}
-      </PageHeader>
 
-      {/* Tabs */}
-      <div className="flex gap-0.5 mb-5 border-b border-[var(--line)]">
-        {([
-          { id: 'categories', label: 'Categories', icon: Tag,     count: categories.length },
-          { id: 'products',   label: 'Products',   icon: Package,  count: data?.total ?? 0  },
-        ] as const).map(({ id, label, icon: Icon, count }) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors -mb-px ${
-              activeTab === id
-                ? 'border-[var(--accent)] text-[var(--accent)]'
-                : 'border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]'
-            }`}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            {label}
-            <span className="ml-1 rounded-full bg-[var(--line)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--ink-faint)]">
-              {count}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="flex gap-5">
-        {/* Business type sidebar */}
-        <div className="w-44 shrink-0">
-          <div className="text-[11px] uppercase tracking-wide font-medium text-[var(--ink-faint)] mb-2 px-1">
-            Business Type
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <button
-              onClick={() => setSelectedTypeId('')}
-              className={`w-full text-left rounded-md px-3 py-2 text-[12.5px] transition-colors ${
-                selectedTypeId === ''
-                  ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-medium'
-                  : 'text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--canvas)]'
-              }`}
-            >
-              All types
-            </button>
-            {businessTypeIds.map((typeId) => (
-              <button
-                key={typeId}
-                onClick={() => setSelectedTypeId(typeId)}
-                className={`w-full text-left rounded-md px-3 py-2 text-[12.5px] transition-colors capitalize ${
-                  selectedTypeId === typeId
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-medium'
-                    : 'text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--canvas)]'
-                }`}
-              >
-                {typeId}
-                <span className="ml-1.5 text-[11px] text-[var(--ink-faint)]">
-                  ({activeTab === 'categories'
-                    ? categories.filter((c) => c.businessTypeId === typeId).length
-                    : products.filter((p) => p.businessTypeId === typeId).length
-                  })
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Main content */}
-        <div className="flex-1 min-w-0">
-          {activeTab === 'categories' ? (
-            visibleCategories.length === 0 ? (
-              <div className="text-center py-16 text-[var(--ink-faint)] text-[13px]">
-                No categories yet.{' '}
-                <button
-                  onClick={() => { setCategoryForm(EMPTY_CATEGORY); setShowAddCategory(true) }}
-                  className="text-[var(--accent)] hover:underline"
-                >
-                  Add the first one →
-                </button>
-              </div>
-            ) : (
-              <DataTable
-                data={visibleCategories}
-                columns={categoryColumns}
-                searchPlaceholder="Search categories…"
-                exportFilename="categories"
-                emptyState={<p className="text-[var(--ink-faint)] text-[13px]">No categories found</p>}
-              />
-            )
-          ) : (
-            visibleProducts.length === 0 ? (
-              <div className="text-center py-16 text-[var(--ink-faint)] text-[13px]">
-                No products yet.{' '}
-                <button
-                  onClick={() => { setProductForm(EMPTY_PRODUCT); setShowAddProduct(true) }}
-                  className="text-[var(--accent)] hover:underline"
-                >
-                  Add the first one →
-                </button>
-              </div>
-            ) : (
-              <DataTable
-                data={visibleProducts}
-                columns={productColumns}
-                searchPlaceholder="Search products…"
-                exportFilename="products"
-                emptyState={<p className="text-[var(--ink-faint)] text-[13px]">No products found</p>}
-              />
-            )
+      {!loading && (
+        <>
+          {activeTab === 'categories' && (
+            <DataTable
+              data={visibleCats}
+              columns={categoryColumns}
+              searchPlaceholder="Search categories…"
+              searchColumn="categoryName"
+              pageSize={25}
+              exportFilename="master-categories"
+            />
           )}
-        </div>
-      </div>
+          {activeTab === 'products' && (
+            <DataTable
+              data={visibleProds}
+              columns={productColumns}
+              searchPlaceholder="Search products…"
+              searchColumn="productName"
+              pageSize={25}
+              exportFilename="master-products"
+            />
+          )}
+        </>
+      )}
 
-      {/* ── Add / Edit Category Drawer ─────────────────────────────────────── */}
-      {[
-        { open: showAddCategory, title: 'Add Category', desc: 'Create a new product category', onSubmit: handleAddCategory, onClose: () => { setShowAddCategory(false); setCategoryForm(EMPTY_CATEGORY) } },
-        { open: !!editCategory,  title: 'Edit Category', desc: editCategory?.categoryName ?? '', onSubmit: handleEditCategory, onClose: () => { setEditCategory(null); setCategoryForm(EMPTY_CATEGORY) } },
-      ].map(({ open, title, desc, onSubmit, onClose }) => (
-        <DetailDrawer key={title} open={open} onClose={onClose} title={title} description={desc} width="w-[480px]">
-          <form onSubmit={onSubmit} className="flex flex-col gap-5">
-            {/* Category Name */}
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>Category Name <span className="text-[var(--status-bad)]">*</span></label>
-              <input
-                required
-                value={categoryForm.categoryName}
-                onChange={(e) => setCategoryForm((f) => ({ ...f, categoryName: e.target.value }))}
-                placeholder="e.g. Analgesics, Beverages, Electronics"
-                className={inputCls}
-              />
-            </div>
+      {/* ── Add Category Drawer ────────────────────────────────────────────── */}
+      <DetailDrawer
+        open={showAddCat}
+        onClose={() => { setShowAddCat(false); setCatForm(EMPTY_CATEGORY) }}
+        title="Add Category"
+        description="Add a category to the master catalog"
+      >
+        <CategoryForm
+          form={catForm}
+          setForm={setCatForm}
+          allTypes={allTypes}
+          saving={saving}
+          formError={formError}
+          onSubmit={handleAddCat}
+          onCancel={() => { setShowAddCat(false); setCatForm(EMPTY_CATEGORY) }}
+          submitLabel="Add Category"
+        />
+      </DetailDrawer>
 
-            {/* Business Type */}
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>Business Type <span className="text-[var(--status-bad)]">*</span></label>
-              {businessTypeIds.length > 0 ? (
-                <select
-                  required
-                  value={categoryForm.businessTypeId}
-                  onChange={(e) => setCategoryForm((f) => ({ ...f, businessTypeId: e.target.value }))}
-                  className={selectCls}
-                >
-                  <option value="">Select business type…</option>
-                  {businessTypeIds.map((t) => (
-                    <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                  ))}
-                  <option value="__new__" disabled>─── or type below ───</option>
-                </select>
-              ) : (
-                <input
-                  required
-                  value={categoryForm.businessTypeId}
-                  onChange={(e) => setCategoryForm((f) => ({ ...f, businessTypeId: e.target.value.toLowerCase() }))}
-                  placeholder="e.g. pharmacy, supermarket, restaurant"
-                  className={inputCls}
-                />
-              )}
-              {businessTypeIds.length > 0 && (
-                <input
-                  value={categoryForm.businessTypeId && !businessTypeIds.includes(categoryForm.businessTypeId) ? categoryForm.businessTypeId : ''}
-                  onChange={(e) => { if (e.target.value) setCategoryForm((f) => ({ ...f, businessTypeId: e.target.value.toLowerCase() })) }}
-                  placeholder="Or type a new business type…"
-                  className={`${inputCls} mt-1`}
-                />
-              )}
-            </div>
+      {/* ── Edit Category Drawer ───────────────────────────────────────────── */}
+      <DetailDrawer
+        open={!!editCat}
+        onClose={() => { setEditCat(null); setCatForm(EMPTY_CATEGORY) }}
+        title="Edit Category"
+        description={editCat?.categoryName ?? ''}
+      >
+        <CategoryForm
+          form={catForm}
+          setForm={setCatForm}
+          allTypes={allTypes}
+          saving={saving}
+          formError={formError}
+          onSubmit={handleEditCat}
+          onCancel={() => { setEditCat(null); setCatForm(EMPTY_CATEGORY) }}
+          submitLabel="Save Changes"
+        />
+      </DetailDrawer>
 
-            {/* Description */}
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>Description</label>
-              <textarea
-                value={categoryForm.description}
-                onChange={(e) => setCategoryForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Short description of this category"
-                rows={2}
-                className={`${inputCls} resize-none`}
-              />
-            </div>
+      {/* ── Add Product Drawer ─────────────────────────────────────────────── */}
+      <DetailDrawer
+        open={showAddProduct}
+        onClose={() => { setShowAddProduct(false); setProductForm(EMPTY_PRODUCT) }}
+        title="Add Product"
+        description="Add a product to the master catalog"
+        width="w-[560px]"
+      >
+        <ProductForm
+          form={productForm}
+          setForm={setProductForm}
+          allTypes={allTypes}
+          formCats={formCats}
+          saving={saving}
+          formError={formError}
+          onSubmit={handleAddProduct}
+          onCancel={() => { setShowAddProduct(false); setProductForm(EMPTY_PRODUCT) }}
+          submitLabel="Add Product"
+          toggleTag={toggleTag}
+        />
+      </DetailDrawer>
 
-            {/* Icon */}
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>Icon (emoji)</label>
-              <input
-                value={categoryForm.icon}
-                onChange={(e) => setCategoryForm((f) => ({ ...f, icon: e.target.value }))}
-                placeholder="e.g. 💊 🛒 🍽️"
-                className={inputCls}
-                maxLength={4}
-              />
-              <p className="text-[11px] text-[var(--ink-faint)]">Single emoji shown in the category list</p>
-            </div>
-
-            <div className="mt-2 flex gap-2 justify-end border-t border-[var(--line)] pt-4">
-              <button type="button" onClick={onClose}
-                className="rounded-md border border-[var(--line)] px-4 py-2 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]">
-                Cancel
-              </button>
-              <button type="submit" disabled={saving}
-                style={{ backgroundColor: '#0D1B3E' }}
-                className="rounded-md px-4 py-2 text-[12px] font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50">
-                {saving ? 'Saving…' : title}
-              </button>
-            </div>
-          </form>
-        </DetailDrawer>
-      ))}
-
-      {/* ── Add / Edit Product Drawer ──────────────────────────────────────── */}
-      {[
-        { open: showAddProduct, title: 'Add Product', desc: 'Add a product to the master catalog', onSubmit: handleAddProduct, onClose: () => { setShowAddProduct(false); setProductForm(EMPTY_PRODUCT) } },
-        { open: !!editProduct,  title: 'Edit Product', desc: editProduct?.productName ?? '', onSubmit: handleEditProduct, onClose: () => { setEditProduct(null); setProductForm(EMPTY_PRODUCT) } },
-      ].map(({ open, title, desc, onSubmit, onClose }) => (
-        <DetailDrawer key={title} open={open} onClose={onClose} title={title} description={desc} width="w-[540px]">
-          <form onSubmit={onSubmit} className="flex flex-col gap-5">
-
-            {/* Section: Identity */}
-            <div>
-              <div className="text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-3">Product details</div>
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelCls}>Product Name <span className="text-[var(--status-bad)]">*</span></label>
-                  <input
-                    required
-                    value={productForm.productName}
-                    onChange={(e) => setProductForm((f) => ({ ...f, productName: e.target.value }))}
-                    placeholder="e.g. Paracetamol 500mg, Coca-Cola 500ml"
-                    className={inputCls}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Business Type */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className={labelCls}>Business Type <span className="text-[var(--status-bad)]">*</span></label>
-                    {businessTypeIds.length > 0 ? (
-                      <select
-                        required
-                        value={productForm.businessTypeId}
-                        onChange={(e) => setProductForm((f) => ({ ...f, businessTypeId: e.target.value, categoryId: '', categoryName: '' }))}
-                        className={selectCls}
-                      >
-                        <option value="">Select…</option>
-                        {businessTypeIds.map((t) => (
-                          <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        required
-                        value={productForm.businessTypeId}
-                        onChange={(e) => setProductForm((f) => ({ ...f, businessTypeId: e.target.value.toLowerCase() }))}
-                        placeholder="e.g. pharmacy"
-                        className={inputCls}
-                      />
-                    )}
-                  </div>
-
-                  {/* Unit */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className={labelCls}>Default Unit <span className="text-[var(--status-bad)]">*</span></label>
-                    <select
-                      required
-                      value={productForm.defaultUnit}
-                      onChange={(e) => setProductForm((f) => ({ ...f, defaultUnit: e.target.value }))}
-                      className={selectCls}
-                    >
-                      {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Category */}
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelCls}>Category</label>
-                  {formCategories.length > 0 ? (
-                    <select
-                      value={productForm.categoryId}
-                      onChange={(e) => {
-                        const cat = formCategories.find((c) => c.id === e.target.value)
-                        setProductForm((f) => ({
-                          ...f,
-                          categoryId:   cat?.id   ?? '',
-                          categoryName: cat?.categoryName ?? '',
-                        }))
-                      }}
-                      className={selectCls}
-                    >
-                      <option value="">No category</option>
-                      {formCategories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.categoryName}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      value={productForm.categoryName}
-                      onChange={(e) => setProductForm((f) => ({ ...f, categoryName: e.target.value }))}
-                      placeholder={productForm.businessTypeId ? 'No categories yet — type name' : 'Select a business type first'}
-                      disabled={!productForm.businessTypeId}
-                      className={inputCls}
-                    />
-                  )}
-                  {formCategories.length > 0 && (
-                    <p className="text-[11px] text-[var(--ink-faint)]">
-                      {formCategories.length} categories for {productForm.businessTypeId} ·
-                      <button type="button" onClick={() => { setCategoryForm({ ...EMPTY_CATEGORY, businessTypeId: productForm.businessTypeId }); setShowAddCategory(true) }}
-                        className="ml-1 text-[var(--accent)] hover:underline">
-                        Add new
-                      </button>
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Section: Pricing */}
-            <div>
-              <div className="text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-3">Pricing (TZS)</div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelCls}>Cost Price</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-[var(--ink-faint)]">TZS</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={productForm.suggestedCostPrice}
-                      onChange={(e) => setProductForm((f) => ({ ...f, suggestedCostPrice: e.target.value }))}
-                      placeholder="0"
-                      className={`${inputCls} pl-10`}
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelCls}>Selling Price</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-[var(--ink-faint)]">TZS</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={productForm.suggestedSellingPrice}
-                      onChange={(e) => setProductForm((f) => ({ ...f, suggestedSellingPrice: e.target.value }))}
-                      placeholder="0"
-                      className={`${inputCls} pl-10`}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Section: Identifiers */}
-            <div>
-              <div className="text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-3">Identifiers (optional)</div>
-              <div className="flex flex-col gap-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className={labelCls}>Barcode</label>
-                    <input
-                      value={productForm.barcode}
-                      onChange={(e) => setProductForm((f) => ({ ...f, barcode: e.target.value }))}
-                      placeholder="e.g. 5010119013458"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className={labelCls}>SKU Template</label>
-                    <input
-                      value={productForm.skuTemplate}
-                      onChange={(e) => setProductForm((f) => ({ ...f, skuTemplate: e.target.value }))}
-                      placeholder="e.g. PARA-500-{n}"
-                      className={inputCls}
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelCls}>Search Keywords</label>
-                  <input
-                    value={productForm.searchableKeywords}
-                    onChange={(e) => setProductForm((f) => ({ ...f, searchableKeywords: e.target.value }))}
-                    placeholder="e.g. panadol, pain relief, fever — comma separated"
-                    className={inputCls}
-                  />
-                  <p className="text-[11px] text-[var(--ink-faint)]">Helps mobile app users find this product by alternate names</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end border-t border-[var(--line)] pt-4">
-              <button type="button" onClick={onClose}
-                className="rounded-md border border-[var(--line)] px-4 py-2 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]">
-                Cancel
-              </button>
-              <button type="submit" disabled={saving}
-                style={{ backgroundColor: '#0D1B3E' }}
-                className="rounded-md px-4 py-2 text-[12px] font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50">
-                {saving ? 'Saving…' : title}
-              </button>
-            </div>
-          </form>
-        </DetailDrawer>
-      ))}
+      {/* ── Edit Product Drawer ────────────────────────────────────────────── */}
+      <DetailDrawer
+        open={!!editProduct}
+        onClose={() => { setEditProduct(null); setProductForm(EMPTY_PRODUCT) }}
+        title="Edit Product"
+        description={editProduct?.productName ?? ''}
+        width="w-[560px]"
+      >
+        <ProductForm
+          form={productForm}
+          setForm={setProductForm}
+          allTypes={allTypes}
+          formCats={formCats}
+          saving={saving}
+          formError={formError}
+          onSubmit={handleEditProduct}
+          onCancel={() => { setEditProduct(null); setProductForm(EMPTY_PRODUCT) }}
+          submitLabel="Save Changes"
+          toggleTag={toggleTag}
+        />
+      </DetailDrawer>
 
       {/* Delete confirmations */}
       <ConfirmDialog
-        open={!!deleteCategory}
-        onClose={() => setDeleteCategory(null)}
-        onConfirm={handleDeleteCategory}
+        open={!!deleteCat}
+        onClose={() => setDeleteCat(null)}
+        onConfirm={handleDeleteCat}
         title="Delete category"
-        description={`Remove "${deleteCategory?.categoryName}"? Products assigned to this category will keep their category name but lose the link.`}
+        description={`Remove "${deleteCat?.categoryName}" from the master catalog? Products using this category slug will keep their slug value but lose the category link.`}
         confirmLabel="Delete"
         destructive
       />
@@ -830,7 +612,290 @@ export default function CatalogPage() {
         confirmLabel="Delete"
         destructive
       />
-      </>)}
     </div>
+  )
+}
+
+// ─── Category form component ─────────────────────────────────────────────────
+
+function CategoryForm({
+  form, setForm, allTypes, saving, formError, onSubmit, onCancel, submitLabel,
+}: {
+  form: CategoryForm
+  setForm: React.Dispatch<React.SetStateAction<CategoryForm>>
+  allTypes: string[]
+  saving: boolean
+  formError: string
+  onSubmit: (e: React.FormEvent) => void
+  onCancel: () => void
+  submitLabel: string
+}) {
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-5">
+      {formError && (
+        <div className="flex items-center gap-2 rounded-md border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-3 text-[12px] text-[var(--status-bad)]">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {formError}
+        </div>
+      )}
+
+      <div>
+        <div className={sectionHeading}>Names</div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Category Name (English) <span className="text-[var(--status-bad)]">*</span></label>
+            <input required value={form.categoryName}
+              onChange={(e) => setForm((f) => ({ ...f, categoryName: e.target.value }))}
+              placeholder="e.g. Painkillers & Antipyretics" className={inputCls} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Category Name (Kiswahili)</label>
+            <input value={form.categoryNameSw}
+              onChange={(e) => setForm((f) => ({ ...f, categoryNameSw: e.target.value }))}
+              placeholder="e.g. Dawa za Maumivu na Homa" className={inputCls} />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div className={sectionHeading}>Classification</div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Business Type <span className="text-[var(--status-bad)]">*</span></label>
+            <select required value={form.businessType}
+              onChange={(e) => setForm((f) => ({ ...f, businessType: e.target.value }))}
+              className={selectCls}>
+              <option value="">Select business type…</option>
+              {allTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>Icon (Material symbol)</label>
+              <select value={form.icon}
+                onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
+                className={selectCls}>
+                {ICONS.map((ic) => <option key={ic} value={ic}>{ic}</option>)}
+              </select>
+              <p className="text-[11px] text-[var(--ink-faint)] font-mono">{form.icon}</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>Display Order</label>
+              <input type="number" min="0" value={form.displayOrder}
+                onChange={(e) => setForm((f) => ({ ...f, displayOrder: Number(e.target.value) }))}
+                className={inputCls} />
+              <p className="text-[11px] text-[var(--ink-faint)]">Lower = shown first</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2 justify-end border-t border-[var(--line)] pt-4">
+        <button type="button" onClick={onCancel}
+          className="rounded-md border border-[var(--line)] px-4 py-2 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]">
+          Cancel
+        </button>
+        <button type="submit" disabled={saving}
+          style={{ backgroundColor: '#0D1B3E' }}
+          className="rounded-md px-4 py-2 text-[12px] font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50">
+          {saving ? 'Saving…' : submitLabel}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// ─── Product form component ──────────────────────────────────────────────────
+
+function ProductForm({
+  form, setForm, allTypes, formCats, saving, formError,
+  onSubmit, onCancel, submitLabel, toggleTag,
+}: {
+  form: ProductForm
+  setForm: React.Dispatch<React.SetStateAction<ProductForm>>
+  allTypes: string[]
+  formCats: CatalogCategory[]
+  saving: boolean
+  formError: string
+  onSubmit: (e: React.FormEvent) => void
+  onCancel: () => void
+  submitLabel: string
+  toggleTag: (tag: string) => void
+}) {
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-5">
+      {formError && (
+        <div className="flex items-center gap-2 rounded-md border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-3 text-[12px] text-[var(--status-bad)]">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {formError}
+        </div>
+      )}
+
+      {/* Names */}
+      <div>
+        <div className={sectionHeading}>Names</div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Product Name (English) <span className="text-[var(--status-bad)]">*</span></label>
+            <input required value={form.productName}
+              onChange={(e) => setForm((f) => ({ ...f, productName: e.target.value }))}
+              placeholder="e.g. Paracetamol 500mg, Coca-Cola 500ml" className={inputCls} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Product Name (Kiswahili)</label>
+            <input value={form.productNameSw}
+              onChange={(e) => setForm((f) => ({ ...f, productNameSw: e.target.value }))}
+              placeholder="e.g. Paracetamol 500mg, Koka-Kola 500ml" className={inputCls} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Generic / Scientific Name</label>
+            <input value={form.genericName}
+              onChange={(e) => setForm((f) => ({ ...f, genericName: e.target.value }))}
+              placeholder="e.g. Acetaminophen, Sodium Chloride" className={inputCls} />
+          </div>
+        </div>
+      </div>
+
+      {/* Classification */}
+      <div>
+        <div className={sectionHeading}>Classification</div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Business Type <span className="text-[var(--status-bad)]">*</span></label>
+            <select required value={form.businessType}
+              onChange={(e) => setForm((f) => ({ ...f, businessType: e.target.value, categorySlug: '' }))}
+              className={selectCls}>
+              <option value="">Select…</option>
+              {allTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Category</label>
+            {formCats.length > 0 ? (
+              <select value={form.categorySlug}
+                onChange={(e) => setForm((f) => ({ ...f, categorySlug: e.target.value }))}
+                className={selectCls}>
+                <option value="">No category</option>
+                {formCats.map((c) => (
+                  <option key={c.categorySlug} value={c.categorySlug}>
+                    {c.categoryName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input value={form.categorySlug}
+                onChange={(e) => setForm((f) => ({ ...f, categorySlug: e.target.value }))}
+                placeholder={form.businessType ? 'Category slug' : 'Select type first'}
+                disabled={!form.businessType} className={inputCls} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Units */}
+      <div>
+        <div className={sectionHeading}>Units</div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Primary Unit <span className="text-[var(--status-bad)]">*</span></label>
+            <select required value={form.unit}
+              onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+              className={selectCls}>
+              {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Alternative Units</label>
+            <input value={form.unitAlternatives}
+              onChange={(e) => setForm((f) => ({ ...f, unitAlternatives: e.target.value }))}
+              placeholder="Box, Carton — comma separated" className={inputCls} />
+          </div>
+        </div>
+      </div>
+
+      {/* Identifiers */}
+      <div>
+        <div className={sectionHeading}>Identifiers</div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Brand Names</label>
+            <input value={form.brandNames}
+              onChange={(e) => setForm((f) => ({ ...f, brandNames: e.target.value }))}
+              placeholder="e.g. Panadol, Calpol — comma separated" className={inputCls} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Common Barcodes</label>
+            <input value={form.commonBarcodes}
+              onChange={(e) => setForm((f) => ({ ...f, commonBarcodes: e.target.value }))}
+              placeholder="e.g. 5010119013458 — comma separated" className={inputCls} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Search Keywords</label>
+            <input value={form.searchKeywords}
+              onChange={(e) => setForm((f) => ({ ...f, searchKeywords: e.target.value }))}
+              placeholder="Mix English and Swahili, comma separated" className={inputCls} />
+            <p className="text-[11px] text-[var(--ink-faint)]">Min 5 recommended for good search coverage.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Flags */}
+      <div>
+        <div className={sectionHeading}>Special Flags</div>
+        <div className="flex flex-col gap-2">
+          <label className={checkboxRowCls}>
+            <input type="checkbox" checked={form.prescriptionRequired}
+              onChange={(e) => setForm((f) => ({ ...f, prescriptionRequired: e.target.checked }))}
+              className="rounded border-[var(--line)]" />
+            <Pill className="h-3.5 w-3.5 text-[var(--status-warn)] shrink-0" />
+            <div>
+              <div className="text-[13px] font-medium text-[var(--ink)]">Prescription Required</div>
+              <div className="text-[11px] text-[var(--ink-faint)]">Antibiotics, controlled drugs, Schedule III/IV</div>
+            </div>
+          </label>
+          <label className={checkboxRowCls}>
+            <input type="checkbox" checked={form.coldStorage}
+              onChange={(e) => setForm((f) => ({ ...f, coldStorage: e.target.checked }))}
+              className="rounded border-[var(--line)]" />
+            <Snowflake className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+            <div>
+              <div className="text-[13px] font-medium text-[var(--ink)]">Cold Storage Required</div>
+              <div className="text-[11px] text-[var(--ink-faint)]">Insulin, vaccines, fresh dairy/meat/fish</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div>
+        <div className={sectionHeading}>Tags</div>
+        <div className="flex flex-wrap gap-2">
+          {TAGS.map((tag) => (
+            <button key={tag} type="button" onClick={() => toggleTag(tag)}
+              className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors border ${
+                form.tags.includes(tag)
+                  ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
+                  : 'border-[var(--line)] text-[var(--ink-muted)] hover:text-[var(--ink)]'
+              }`}>
+              {tag}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[11px] text-[var(--ink-faint)]">
+          <strong>common</strong> = top 20% sellers · <strong>fmcg</strong> = fast-moving consumer goods
+        </p>
+      </div>
+
+      <div className="flex gap-2 justify-end border-t border-[var(--line)] pt-4">
+        <button type="button" onClick={onCancel}
+          className="rounded-md border border-[var(--line)] px-4 py-2 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]">
+          Cancel
+        </button>
+        <button type="submit" disabled={saving}
+          style={{ backgroundColor: '#0D1B3E' }}
+          className="rounded-md px-4 py-2 text-[12px] font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50">
+          {saving ? 'Saving…' : submitLabel}
+        </button>
+      </div>
+    </form>
   )
 }
