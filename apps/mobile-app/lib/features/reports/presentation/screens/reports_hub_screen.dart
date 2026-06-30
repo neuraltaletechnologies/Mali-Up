@@ -27,7 +27,7 @@ class ReportsHubScreen extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 54, 20, 0),
+              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 50, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

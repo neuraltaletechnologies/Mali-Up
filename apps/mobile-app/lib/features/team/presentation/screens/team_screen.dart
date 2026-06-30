@@ -392,7 +392,7 @@ class _TeamDarkHeaderState extends State<_TeamDarkHeader> {
             ),
           ),
           padding: EdgeInsets.fromLTRB(
-              20, top + 62, 20, _TeamDarkHeader._pillHalf + 8),
+              20, top + 50, 20, _TeamDarkHeader._pillHalf + 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

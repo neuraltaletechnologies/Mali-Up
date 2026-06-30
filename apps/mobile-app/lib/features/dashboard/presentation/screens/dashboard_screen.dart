@@ -368,7 +368,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   20,
-                  MediaQuery.of(context).padding.top + 54,
+                  MediaQuery.of(context).padding.top + 50,
                   20,
                   32,
                 ),
