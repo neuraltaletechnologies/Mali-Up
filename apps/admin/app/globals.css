@@ -6,12 +6,12 @@
 @theme inline {
   --color-navy:              #0D1B3E;
   --color-navy-soft:         #1C3A7A;
-  --color-ink:               #E2EAFF;
-  --color-ink-muted:         #7B8FBD;
-  --color-ink-faint:         #3A4E74;
-  --color-canvas:            #040C18;
-  --color-surface:           #091422;
-  --color-line:              rgba(255,255,255,0.09);
+  --color-ink:               #0F172A;
+  --color-ink-muted:         #475569;
+  --color-ink-faint:         #94A3B8;
+  --color-canvas:            #F1F5F9;
+  --color-surface:           #FFFFFF;
+  --color-line:              rgba(0,0,0,0.08);
   --color-accent:            #1E90AA;
   --color-accent-soft:       rgba(30,144,170,0.15);
   --color-brand:             #FFC107;
@@ -20,10 +20,10 @@
   --color-status-good-bg:    rgba(16,185,129,0.12);
   --color-status-warn:       #F59E0B;
   --color-status-warn-bg:    rgba(245,158,11,0.12);
-  --color-status-bad:        #F87171;
-  --color-status-bad-bg:     rgba(248,113,113,0.12);
-  --color-status-neutral:    #94A3B8;
-  --color-status-neutral-bg: rgba(148,163,184,0.12);
+  --color-status-bad:        #EF4444;
+  --color-status-bad-bg:     rgba(239,68,68,0.1);
+  --color-status-neutral:    #64748B;
+  --color-status-neutral-bg: rgba(100,116,139,0.1);
 
   --font-sans: 'Inter', 'Geist Sans', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace;
@@ -35,15 +35,15 @@
 }
 
 :root {
-  /* ── Mali Up Admin — Dark Navy Theme (matches landing page) ── */
+  /* ── Mali Up Admin — Light Theme (default) ── */
   --navy:              #0D1B3E;
   --navy-soft:         #1C3A7A;
-  --canvas:            #040C18;
-  --surface:           #091422;
-  --line:              rgba(255, 255, 255, 0.09);
-  --ink:               #E2EAFF;
-  --ink-muted:         #7B8FBD;
-  --ink-faint:         #3A4E74;
+  --canvas:            #F1F5F9;
+  --surface:           #FFFFFF;
+  --line:              rgba(0, 0, 0, 0.08);
+  --ink:               #0F172A;
+  --ink-muted:         #475569;
+  --ink-faint:         #94A3B8;
   --accent:            #1E90AA;
   --accent-soft:       rgba(30, 144, 170, 0.15);
   --brand:             #FFC107;
@@ -52,10 +52,40 @@
   --status-good-bg:    rgba(16, 185, 129, 0.12);
   --status-warn:       #F59E0B;
   --status-warn-bg:    rgba(245, 158, 11, 0.12);
+  --status-bad:        #EF4444;
+  --status-bad-bg:     rgba(239, 68, 68, 0.1);
+  --status-neutral:    #64748B;
+  --status-neutral-bg: rgba(100, 116, 139, 0.1);
+  /* topbar chrome */
+  --topbar-bg:         #FFFFFF;
+  --topbar-border:     rgba(0, 0, 0, 0.08);
+  --topbar-text:       #0F172A;
+  --topbar-text-muted: #64748B;
+  --topbar-text-faint: #CBD5E1;
+  /* card shadow */
+  --card-shadow:       0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.dark {
+  /* ── Mali Up Admin — Dark Theme ── */
+  --canvas:            #040C18;
+  --surface:           #091422;
+  --line:              rgba(255, 255, 255, 0.09);
+  --ink:               #E2EAFF;
+  --ink-muted:         #7B8FBD;
+  --ink-faint:         #3A4E74;
   --status-bad:        #F87171;
   --status-bad-bg:     rgba(248, 113, 113, 0.12);
   --status-neutral:    #94A3B8;
   --status-neutral-bg: rgba(148, 163, 184, 0.12);
+  /* topbar chrome */
+  --topbar-bg:         #0D1B3E;
+  --topbar-border:     rgba(255, 255, 255, 0.07);
+  --topbar-text:       #E2EAFF;
+  --topbar-text-muted: rgba(255, 255, 255, 0.5);
+  --topbar-text-faint: rgba(255, 255, 255, 0.2);
+  /* card shadow */
+  --card-shadow:       0 1px 12px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -93,10 +123,16 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 193, 7, 0.18);
+  background: rgba(30, 144, 170, 0.2);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 144, 170, 0.38);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 193, 7, 0.18);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 193, 7, 0.35);
 }
 

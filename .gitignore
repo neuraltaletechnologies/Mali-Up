@@ -1,3 +1,8 @@
+# Large binary archives
+*.rar
+*.zip
+*.tar.gz
+
 # Node.js
 node_modules/
 dist/
