@@ -14,13 +14,17 @@ binding = "ASSETS"
 NEXT_PUBLIC_BASE_URL = "https://maliup.neuraltale.com"
 
 # Public Firebase client SDK config — safe to commit (project identifiers only).
-# These are embedded at build time by Next.js, so they must be present in the
-# environment when `pnpm cf:build` runs. Putting them here ensures that.
-NEXT_PUBLIC_FIREBASE_PROJECT_ID       = "neuraltale-mali-up"
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN      = "neuraltale-mali-up.firebaseapp.com"
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET   = "neuraltale-mali-up.firebasestorage.app"
+# NOTE: NEXT_PUBLIC_* vars are embedded by Next.js at BUILD TIME, not at Worker
+# runtime. These [vars] entries do NOT affect the build — they're here only so
+# `wrangler dev` (local preview) has them. For production builds you must have
+# these in .env.local (or CI env vars) when running `pnpm cf:build`.
+# The one exception: NEXT_PUBLIC_FIREBASE_API_KEY is intentionally omitted here
+# because it is already in .env.local. Do not commit it.
+NEXT_PUBLIC_FIREBASE_PROJECT_ID          = "neuraltale-mali-up"
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN         = "neuraltale-mali-up.firebaseapp.com"
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET      = "neuraltale-mali-up.firebasestorage.app"
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "596683133951"
-NEXT_PUBLIC_FIREBASE_APP_ID           = "1:596683133951:web:1430c6e5bcb28bb5a6cdca"
+NEXT_PUBLIC_FIREBASE_APP_ID              = "1:596683133951:web:1430c6e5bcb28bb5a6cdca"
 
 # NextAuth: required on non-Vercel / Cloudflare Workers deployments.
 AUTH_TRUST_HOST = "true"
@@ -34,4 +38,8 @@ AUTH_TRUST_HOST = "true"
 #   FIREBASE_PROJECT_ID        — neuraltale-mali-up
 #   FIREBASE_CLIENT_EMAIL      — firebase-adminsdk-fbsvc@neuraltale-mali-up.iam.gserviceaccount.com
 #   FIREBASE_PRIVATE_KEY       — paste full PEM with literal \n, not real newlines
-#   NEXT_PUBLIC_FIREBASE_API_KEY — AIzaSyCXqDCD9aSPQBSN4RIhAdhWAZ9XFLeuee0
+#
+# NOTE: NEXT_PUBLIC_FIREBASE_API_KEY is a BUILD-TIME var (embedded by next build),
+# not a Worker runtime secret. Keep it in .env.local only — Cloudflare Secrets
+# cannot inject it into already-built JS bundles. Run `pnpm cf:build` locally
+# (where .env.local exists) before deploying.

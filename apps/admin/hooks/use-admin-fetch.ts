@@ -10,6 +10,17 @@ export function clearAdminCache() {
   _cache.clear()
 }
 
+/** Remove specific keys so the next mount fetches fresh data */
+export function invalidateAdminCache(keys: string[]) {
+  for (const key of keys) _cache.delete(key)
+}
+
+interface FetchOptions {
+  key?: string
+  /** Auto-refetch on this interval (ms). Useful for live dashboard panels. */
+  pollingInterval?: number
+}
+
 interface FetchState<T> {
   data: T | null
   loading: boolean       // true only on first load when no cached data exists
@@ -20,9 +31,10 @@ interface FetchState<T> {
 
 export function useAdminFetch<T>(
   fetcher: () => Promise<T>,
-  options?: { key?: string },
+  options?: FetchOptions,
 ): FetchState<T> {
   const key = options?.key
+  const pollingInterval = options?.pollingInterval
   const initial = key ? (_cache.get(key) as T | undefined) ?? null : null
 
   const [data, setData] = useState<T | null>(initial)
@@ -32,6 +44,20 @@ export function useAdminFetch<T>(
   const [tick, setTick] = useState(0)
 
   const refetch = useCallback(() => setTick((t) => t + 1), [])
+
+  // Revalidate whenever the browser tab gains focus
+  useEffect(() => {
+    function onFocus() { setTick((t) => t + 1) }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
+
+  // Optional polling
+  useEffect(() => {
+    if (!pollingInterval) return
+    const id = setInterval(() => setTick((t) => t + 1), pollingInterval)
+    return () => clearInterval(id)
+  }, [pollingInterval])
 
   useEffect(() => {
     let cancelled = false

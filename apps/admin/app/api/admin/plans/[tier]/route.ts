@@ -28,8 +28,9 @@ export async function PATCH(
     const patch: Partial<PlanDefinition> = {}
     const numFields = ['pricePerCycle', 'cycleMonths', 'maxUsers', 'monthlyInvoices'] as const
     const boolFields = [
-      'fullReports', 'mpesaImport', 'smsReminders', 'multiLocation',
-      'apiAccess', 'allExports', 'prioritySupport',
+      'cashFlow', 'expenseTracking', 'manualDebt',
+      'fullReports', 'mpesaImport', 'smsReminders', 'allExports',
+      'multiLocation', 'apiAccess', 'prioritySupport',
       'customIntegrations', 'whiteLabel', 'dedicatedOnboarding',
     ] as const
 

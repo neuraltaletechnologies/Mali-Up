@@ -50,6 +50,9 @@ class PlanLimits {
   final bool customIntegrations;
   final bool whiteLabel;
   final bool dedicatedOnboarding;
+  final bool cashFlow;
+  final bool expenseTracking;
+  final bool manualDebt;
 
   const PlanLimits({
     required this.monthlyInvoices,
@@ -66,6 +69,9 @@ class PlanLimits {
     this.customIntegrations = false,
     this.whiteLabel = false,
     this.dedicatedOnboarding = false,
+    this.cashFlow = false,
+    this.expenseTracking = false,
+    this.manualDebt = false,
   });
 
   factory PlanLimits.fromFirestore(Map<String, dynamic> data, PlanLimits fallback) {
@@ -95,6 +101,9 @@ class PlanLimits {
       customIntegrations:  asBool('customIntegrations', fallback.customIntegrations),
       whiteLabel:          asBool('whiteLabel',         fallback.whiteLabel),
       dedicatedOnboarding: asBool('dedicatedOnboarding', fallback.dedicatedOnboarding),
+      cashFlow:            asBool('cashFlow',           fallback.cashFlow),
+      expenseTracking:     asBool('expenseTracking',    fallback.expenseTracking),
+      manualDebt:          asBool('manualDebt',         fallback.manualDebt),
     );
   }
 
@@ -116,6 +125,9 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     apiAccess: false,
     allExports: false,
     prioritySupport: false,
+    cashFlow: false,
+    expenseTracking: false,
+    manualDebt: false,
   ),
   PlanTier.growth: PlanLimits(
     monthlyInvoices: -1,
@@ -128,6 +140,9 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     apiAccess: false,
     allExports: false,
     prioritySupport: false,
+    cashFlow: true,
+    expenseTracking: true,
+    manualDebt: true,
   ),
   PlanTier.business: PlanLimits(
     monthlyInvoices: -1,
@@ -140,6 +155,9 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     apiAccess: true,
     allExports: true,
     prioritySupport: true,
+    cashFlow: true,
+    expenseTracking: true,
+    manualDebt: true,
   ),
   PlanTier.enterprise: PlanLimits(
     monthlyInvoices: -1,
@@ -154,6 +172,9 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     customIntegrations: true,
     whiteLabel: true,
     dedicatedOnboarding: true,
+    cashFlow: true,
+    expenseTracking: true,
+    manualDebt: true,
   ),
 };
 

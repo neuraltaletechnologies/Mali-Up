@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { fetchUser, patchUser, editUser, assignPlan, fetchUserActivity } from '@/lib/admin-api'
 import type { ActivityEntry } from '@/lib/admin-api'
-import { useAdminFetch } from '@/hooks/use-admin-fetch'
+import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatDate, timeAgo } from '@/lib/format'
 import { ArrowLeft, Ban, RotateCcw, AlertCircle, Pencil, X, Loader2, Building2,
   ShoppingCart, FileText, CreditCard, RefreshCw, XCircle, Trash2, Users, UserPlus,
@@ -241,6 +241,7 @@ export default function UserDetailPage() {
     setActionPending(true)
     try {
       await patchUser(user.id, isSuspended)
+      invalidateAdminCache(['analytics', 'users'])
       refetch()
     } finally {
       setActionPending(false)
@@ -414,7 +415,7 @@ export default function UserDetailPage() {
           businesses={businesses}
           open={showEdit}
           onClose={() => setShowEdit(false)}
-          onSaved={() => { setShowEdit(false); refetch() }}
+          onSaved={() => { setShowEdit(false); invalidateAdminCache(['users', 'analytics']); refetch() }}
         />
       )}
     </div>

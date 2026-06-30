@@ -18,6 +18,10 @@ const FIREBASE_ERROR_MESSAGES: Record<string, string> = {
   'auth/too-many-requests':      'Too many failed attempts. Try again later or reset your password.',
   'auth/user-disabled':          'This account has been disabled.',
   'auth/network-request-failed': 'Network error. Check your connection and try again.',
+  'auth/unauthorized-domain':    'This domain is not authorized for Firebase Authentication. Add it in the Firebase Console → Authentication → Settings → Authorized domains.',
+  'auth/invalid-api-key':        'Firebase API key is missing or invalid. Check NEXT_PUBLIC_FIREBASE_API_KEY in your build environment.',
+  'auth/configuration-not-found': 'Firebase project configuration not found. Verify the project ID and API key.',
+  'auth/operation-not-allowed':  'Email/password sign-in is not enabled. Enable it in the Firebase Console → Authentication → Sign-in methods.',
 }
 
 function getFirebaseErrorMessage(err: unknown): string {

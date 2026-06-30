@@ -19,11 +19,33 @@ export async function GET(request: Request) {
       .limit(limitParam)
       .get()
 
-    const users = snapshot.docs.map((doc) =>
+    const rawDocs = snapshot.docs
+    const users = rawDocs.map((doc) =>
       mapUser(doc.id, doc.data() as Record<string, unknown>)
     )
 
-    return NextResponse.json({ users, total: users.length })
+    // Batch-fetch primary business name for each user
+    const primaryBizIds = rawDocs.map((doc) => {
+      const d = doc.data()
+      return (d.selectedBusinessId as string | undefined)
+        ?? (Array.isArray(d.businesses) ? (d.businesses[0] as string | undefined) : undefined)
+    })
+    const uniqueBizIds = [...new Set(primaryBizIds.filter((id): id is string => !!id))]
+    const bizNameMap = new Map<string, string>()
+    if (uniqueBizIds.length > 0) {
+      const refs = uniqueBizIds.map((id) => adminFirestore.collection('businesses').doc(id))
+      const bizDocs = await adminFirestore.getAll(...refs)
+      bizDocs.forEach((d) => {
+        if (d.exists) bizNameMap.set(d.id, (d.data()?.businessName as string) || '')
+      })
+    }
+
+    const result = users.map((u, i) => {
+      const bizId = primaryBizIds[i]
+      return bizId ? { ...u, businessName: bizNameMap.get(bizId) || '' } : u
+    })
+
+    return NextResponse.json({ users: result, total: result.length })
   } catch (err) {
     console.error('[GET /api/admin/users]', err)
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })

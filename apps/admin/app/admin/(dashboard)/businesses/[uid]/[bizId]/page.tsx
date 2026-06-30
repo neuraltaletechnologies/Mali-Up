@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KPICard } from '@/components/ui/kpi-card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { fetchBusiness, patchBusiness, postBusinessNote, editBusiness } from '@/lib/admin-api'
-import { useAdminFetch } from '@/hooks/use-admin-fetch'
+import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatDate, timeAgo } from '@/lib/format'
 import {
   ArrowLeft, Ban, RotateCcw, MessageSquarePlus, AlertCircle,
@@ -179,6 +179,7 @@ export default function BusinessDetailPage() {
     setActionPending(true)
     try {
       await patchBusiness(uid, bizId, isSuspended)
+      invalidateAdminCache(['analytics', 'businesses'])
       refetch()
     } finally {
       setActionPending(false)
@@ -500,7 +501,7 @@ export default function BusinessDetailPage() {
         bizId={bizId}
         open={showEdit}
         onClose={() => setShowEdit(false)}
-        onSaved={() => { setShowEdit(false); refetch() }}
+        onSaved={() => { setShowEdit(false); invalidateAdminCache(['businesses', 'analytics']); refetch() }}
       />
     </div>
   )

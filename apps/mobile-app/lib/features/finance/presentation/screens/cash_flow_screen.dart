@@ -92,7 +92,7 @@ class _CashFlowDarkHeader extends ConsumerWidget {
     Future<void> onAddAccount() async {
       final plan = await ref.read(planStatusProvider.future);
       if (!context.mounted) return;
-      if (plan.isStarter) {
+      if (!plan.limits.cashFlow) {
         await showUpgradeSheet(
           context,
           currentStatus: plan,
@@ -309,7 +309,7 @@ class _CashFlowFab extends ConsumerWidget {
     Future<void> onTap() async {
       final plan = await ref.read(planStatusProvider.future);
       if (!context.mounted) return;
-      if (plan.isStarter) {
+      if (!plan.limits.cashFlow) {
         await showUpgradeSheet(
           context,
           currentStatus: plan,
