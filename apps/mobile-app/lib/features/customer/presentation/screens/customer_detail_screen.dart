@@ -12,6 +12,8 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/skeleton_widgets.dart';
+import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../../sales/data/sales_providers.dart';
@@ -1218,7 +1220,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.credit_score_rounded,
+                          const Icon(Icons.credit_score_rounded,
                               size: 16, color: AppColors.tealAccent),
                           const SizedBox(width: 8),
                           Text(
@@ -2026,11 +2028,16 @@ class _InvoicesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final invoicesAsync = ref.watch(customerInvoicesProvider(customerId));
 
-    return invoicesAsync.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(
-              color: AppColors.navyPrimary, strokeWidth: 2)),
-      error: (e, _) => Center(child: Text('$e')),
+    return invoicesAsync.smartWhen(
+      skeleton: () => const Column(
+        children: [
+          SkeletonListTile(),
+          SkeletonListTile(),
+          SkeletonListTile(),
+          SkeletonListTile(),
+        ],
+      ),
+      onError: (e, _) => Center(child: Text('$e')),
       data: (invoices) {
         if (invoices.isEmpty) {
           return EmptyState(
@@ -2330,11 +2337,16 @@ class _NotesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final notesAsync = ref.watch(customerNotesProvider(customerId));
 
-    return notesAsync.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(
-              color: AppColors.navyPrimary, strokeWidth: 2)),
-      error: (e, _) => Center(child: Text('$e')),
+    return notesAsync.smartWhen(
+      skeleton: () => const Column(
+        children: [
+          SkeletonListTile(),
+          SkeletonListTile(),
+          SkeletonListTile(),
+          SkeletonListTile(),
+        ],
+      ),
+      onError: (e, _) => Center(child: Text('$e')),
       data: (notes) => Stack(
         children: [
           notes.isEmpty

@@ -37,14 +37,22 @@ const bool _sentryTestEvent = bool.fromEnvironment(
 Future<void> _startApp() async {
   // SharedPreferences and Firebase init are independent — kick both off now.
   final prefsFuture = SharedPreferences.getInstance();
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (error) {
-    final message = error.toString();
-    if (!message.contains('duplicate-app')) {
-      rethrow;
+  // Guard: if env vars weren't injected (e.g. --dart-define-from-file missing),
+  // the options will have empty strings, which causes a native NSException crash on
+  // iOS rather than a catchable Dart error. Fail fast with a readable message.
+  final firebaseOptions = DefaultFirebaseOptions.currentPlatform;
+  assert(
+    firebaseOptions.projectId.isNotEmpty,
+    'Firebase options are empty. Run with: flutter run --dart-define-from-file=.env.json',
+  );
+  if (Firebase.apps.isEmpty) {
+    try {
+      await Firebase.initializeApp(options: firebaseOptions);
+    } catch (error) {
+      final message = error.toString();
+      if (!message.contains('duplicate-app')) {
+        rethrow;
+      }
     }
   }
 

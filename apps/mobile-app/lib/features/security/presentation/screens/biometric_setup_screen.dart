@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/skeleton_widgets.dart';
+import '../../../../shared/widgets/smart_skeleton.dart';
 
 /// Biometric App Lock Setup Screen
 /// Allows fingerprint and face recognition unlock
@@ -48,24 +50,21 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Security Settings')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
+    final appBar = AppBar(title: const Text('App Security'));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('App Security'),
-      ),
+      appBar: appBar,
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: SmartSkeleton(
+          isLoading: isLoading,
+          skeleton: const SkeletonBiometricContent(),
+          child: isLoading
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Biometric Section
               Text(
                 'Biometric Lock',
                 style: Theme.of(context).textTheme.headlineSmall,
@@ -112,7 +111,6 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
 
               const SizedBox(height: 32),
 
-              // PIN Section
               Text(
                 'PIN Lock',
                 style: Theme.of(context).textTheme.headlineSmall,
@@ -128,7 +126,8 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/security/pin-setup'),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/security/pin-setup'),
                   icon: const Icon(Icons.vpn_key),
                   label: const Text('Set PIN Code'),
                 ),
@@ -136,7 +135,6 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
 
               const SizedBox(height: 32),
 
-              // Info
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -166,6 +164,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

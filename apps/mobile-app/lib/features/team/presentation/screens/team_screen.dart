@@ -24,6 +24,8 @@ import '../../../rbac/data/rbac_providers.dart';
 import '../../data/mappers/team_member_mapper.dart';
 import '../../data/team_providers.dart';
 import '../../domain/models/team_member.dart';
+import '../../../../shared/widgets/skeleton_widgets.dart';
+import '../../../../shared/widgets/smart_skeleton.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -123,9 +125,17 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
               ),
             )
           : null,
-      body: membersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => Center(
+      body: membersAsync.smartWhen(
+        skeleton: () => const Column(
+          children: [
+            SkeletonListTile(),
+            SkeletonListTile(),
+            SkeletonListTile(),
+            SkeletonListTile(),
+            SkeletonListTile(),
+          ],
+        ),
+        onError: (_, _) => Center(
           child: Text(_tr('Failed to load team', 'Imeshindikana kupakia timu')),
         ),
         data: (members) {
@@ -382,7 +392,7 @@ class _TeamDarkHeaderState extends State<_TeamDarkHeader> {
             ),
           ),
           padding: EdgeInsets.fromLTRB(
-              20, top + 16, 20, _TeamDarkHeader._pillHalf + 24),
+              20, top + 70, 20, _TeamDarkHeader._pillHalf + 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

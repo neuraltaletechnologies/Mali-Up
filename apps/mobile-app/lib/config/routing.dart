@@ -19,6 +19,8 @@ import '../features/onboarding/providers/onboarding_notifier.dart';
 import '../features/onboarding/domain/models/onboarding_state.dart';
 import '../shared/widgets/main_shell_page.dart';
 import '../shared/widgets/app_sheet.dart';
+import '../shared/widgets/shimmer.dart';
+import '../core/theme/app_colors.dart';
 
 // Deferred imports — loaded on first navigation to avoid bundling everything upfront.
 import '../features/onboarding/presentation/screens/language_selection_screen.dart'
@@ -644,7 +646,35 @@ Widget _deferred({
     future: load(),
     builder: (context, snap) {
       if (snap.connectionState == ConnectionState.done) return build();
-      return const Scaffold();
+      // Deferred library is loading — show a branded shimmer placeholder
+      // instead of a blank white page with a fullscreen spinner.
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Padding(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            MediaQuery.of(context).padding.top + 24,
+            24,
+            24,
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ShimmerBox(
+                width: 160,
+                height: 20,
+                borderRadius: BorderRadius.all(Radius.circular(999)),
+              ),
+              SizedBox(height: 24),
+              ShimmerBox(height: 120),
+              SizedBox(height: 16),
+              ShimmerBox(height: 72),
+              SizedBox(height: 16),
+              ShimmerBox(height: 72),
+            ],
+          ),
+        ),
+      );
     },
   );
 }

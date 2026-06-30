@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/services/default_context_routing_service.dart';
+import '../../core/services/live_activity_service.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -29,23 +30,35 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
   User? _currentUser;
   late Future<Map<String, dynamic>?> _profileFuture;
   late final VoidCallback _languageListener;
+  final _liveActivity = LiveActivityService();
+  String _currentBusinessName = '';
 
   @override
   void initState() {
     super.initState();
     _currentUser = FirebaseAuth.instance.currentUser;
     _profileFuture = _fetchUserProfile(_currentUser);
+    _profileFuture.then((profile) {
+      if (!mounted) return;
+      final businesses = _businessesFromProfile(profile);
+      final selectedId = _selectedBusinessId(profile);
+      final biz = businesses.firstWhere(
+        (b) => b['id'] == selectedId,
+        orElse: () => businesses.isNotEmpty ? businesses.first : {},
+      );
+      _currentBusinessName = (biz['name'] as String?)?.trim() ?? '';
+    });
     _languageListener = () {
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
+    _liveActivity.initialize();
   }
 
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
+    _liveActivity.dispose();
     super.dispose();
   }
 
@@ -237,6 +250,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
         return Align(
           alignment: Alignment.centerLeft,
           child: SafeArea(
+            bottom: false,
             child: ClipRRect(
               borderRadius: const BorderRadius.only(
                 topRight: Radius.circular(24),
@@ -624,6 +638,12 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     final location = GoRouterState.of(context).uri.toString();
     final currentUser = _currentUser;
     ref.watch(syncServiceProvider); // starts SyncService (local→Firestore push) when uid + bizId are ready
+    // Drive the Dynamic Island Live Activity whenever the sync state changes.
+    ref.listen<SyncState>(syncStateProvider, (prev, next) {
+      if (prev == next) return;
+      final bizName = _currentBusinessName;
+      _liveActivity.onSyncStateChanged(next, businessName: bizName);
+    });
     // Select only the bool we need so the shell doesn't rebuild on every
     // intermediate SyncState transition (e.g. idle→syncing→idle).
     final isOnline = ref.watch(syncStateProvider.select(
@@ -661,7 +681,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
           extendBodyBehindAppBar: true,
           drawerScrimColor: Colors.transparent,
           appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(kToolbarHeight),
+            preferredSize: Size.fromHeight(54 + MediaQuery.of(context).padding.top),
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
@@ -731,7 +751,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     24, 0, 24,
-                    MediaQuery.of(context).padding.bottom + 16,
+                    MediaQuery.of(context).padding.bottom > 0
+                        ? MediaQuery.of(context).padding.bottom
+                        : 16.0,
                   ),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -768,27 +790,42 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     return GestureDetector(
       onTap: () => context.go(destination.route),
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
+      child: SizedBox(
         width: 48,
         height: 48,
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white.withValues(alpha: 0.18) : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Center(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            transitionBuilder: (child, animation) =>
-                ScaleTransition(scale: animation, child: child),
-            child: Icon(
-              isSelected ? destination.activeIcon : destination.icon,
-              key: ValueKey<bool>(isSelected),
-              color: isSelected ? Colors.white : Colors.white54,
-              size: 22,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedSlide(
+              offset: isSelected ? const Offset(0, -0.2) : Offset.zero,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (child, animation) =>
+                    ScaleTransition(scale: animation, child: child),
+                child: Icon(
+                  isSelected ? destination.activeIcon : destination.icon,
+                  key: ValueKey<bool>(isSelected),
+                  color: isSelected ? AppColors.yellowBrand : Colors.white54,
+                  size: 22,
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 3),
+            AnimatedOpacity(
+              opacity: isSelected ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: Container(
+                width: 5,
+                height: 5,
+                decoration: const BoxDecoration(
+                  color: AppColors.yellowBrand,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

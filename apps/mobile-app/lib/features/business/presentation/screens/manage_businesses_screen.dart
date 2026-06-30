@@ -15,6 +15,8 @@ import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/skeleton_widgets.dart';
+import '../../../../shared/widgets/smart_skeleton.dart';
 
 class ManageBusinessesScreen extends StatefulWidget {
   const ManageBusinessesScreen({super.key});
@@ -1519,10 +1521,14 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.background,
-          body: isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 62, 20, 40),
+          body: SmartSkeleton(
+            isLoading: isLoading,
+            hasExistingData: profile != null,
+            skeleton: const SkeletonBusinessList(),
+            child: isLoading
+                ? const SizedBox.shrink()
+                : ListView(
+                    padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 62, 20, 40),
                   children: [
                     _buildAddHero(profile),
                     if (businesses.isNotEmpty) ...[
@@ -1607,6 +1613,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                     ],
                   ],
                 ),
+          ),
         );
       },
     );

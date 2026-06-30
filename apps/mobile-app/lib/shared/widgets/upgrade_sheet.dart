@@ -7,6 +7,8 @@ import '../../core/services/plan_service.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_sheet.dart';
 import 'mali_components.dart';
+import 'skeleton_widgets.dart';
+import 'smart_skeleton.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Feature keys — lets the sheet show context-aware locked-feature notice.
@@ -102,12 +104,24 @@ class _UpgradeSheetWrapper extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final defsAsync = ref.watch(planDefinitionsProvider);
-    return defsAsync.when(
-      loading: () => const SizedBox(
+    return defsAsync.smartWhen(
+      skeleton: () => const SizedBox(
         height: 300,
-        child: Center(child: CircularProgressIndicator()),
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonPlanCard(),
+              SizedBox(height: 16),
+              SkeletonCard(height: 56),
+              SizedBox(height: 8),
+              SkeletonCard(height: 56),
+            ],
+          ),
+        ),
       ),
-      error: (e, _) => _UpgradeSheet(
+      onError: (e, _) => _UpgradeSheet(
         currentStatus: currentStatus,
         triggerReason: triggerReason,
         featureKey: featureKey,

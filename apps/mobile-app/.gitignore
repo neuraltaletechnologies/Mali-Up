@@ -50,6 +50,7 @@ android/app/google-services.json
 
 # Environment variables and secrets
 .env
+.env.json
 .env.local
 .env.*.local
 sentry.local.json

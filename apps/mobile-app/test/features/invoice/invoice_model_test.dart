@@ -28,7 +28,7 @@ void main() {
         'totalAmount': 566400,
         'amountPaid': 200000,
         'paymentMethod': 'mpesa',
-        'dueDate': Timestamp.fromDate(DateTime(2026, 7, 1)),
+        'dueDate': Timestamp.fromDate(DateTime(2026, 7)),
         'createdAt': Timestamp.fromDate(DateTime(2026, 6, 12)),
       };
 
@@ -41,7 +41,7 @@ void main() {
       expect(inv.discountAmount, 20000);
       expect(inv.paymentMethod, 'mpesa');
       expect(inv.status, 'partial');
-      expect(inv.dueDate, DateTime(2026, 7, 1).toIso8601String());
+      expect(inv.dueDate, DateTime(2026, 7).toIso8601String());
       expect(inv.items, hasLength(1));
       expect(inv.items.first.name, 'Samsung A25');
       expect(inv.items.first.quantity, 2);

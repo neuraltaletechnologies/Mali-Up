@@ -233,7 +233,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 40),
+        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 70, 20, 40),
         children: [
           // ── Page title ───────────────────────────────────────
           Text(
@@ -994,7 +994,6 @@ class _PlanCardBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(
           isStarter ? Icons.workspace_premium_outlined : Icons.stars_rounded,

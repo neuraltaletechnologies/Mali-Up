@@ -104,8 +104,9 @@ class PermissionLoadingGuard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ready = ref.watch(permissionsLoadedProvider);
     if (!ready) {
-      return loading ??
-          const Center(child: CircularProgressIndicator.adaptive());
+      // Permissions resolve in < 200 ms on first frame; show nothing rather
+      // than a fullscreen spinner that blocks the entire screen.
+      return loading ?? const SizedBox.shrink();
     }
     return child;
   }

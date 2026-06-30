@@ -125,9 +125,6 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     apiAccess: false,
     allExports: false,
     prioritySupport: false,
-    cashFlow: false,
-    expenseTracking: false,
-    manualDebt: false,
   ),
   PlanTier.growth: PlanLimits(
     monthlyInvoices: -1,

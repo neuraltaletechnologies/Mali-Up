@@ -38,28 +38,89 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   static const _firstRewardSeenKey = 'dashboard_first_reward_seen';
 
+  // Profile cache keys (SharedPreferences).
+  static const _kDisplayName  = 'cached_profile_display_name';
+  static const _kBizName      = 'cached_business_name';
+  static const _kLogoUrl      = 'cached_business_logo_url';
+  static const _kPlan         = 'cached_business_plan';
+  static const _kFetchedAt    = 'cached_profile_fetched_at';
+  // Only hit Firestore once per day — profile data (name, plan, logo) rarely changes.
+  static const _kTtl = Duration(hours: 24);
+
   int _entryRewardTrigger = 0;
   bool _showEntryReward = false;
   bool _showHeavyContent = false;
   _DashPeriod _selectedPeriod = _DashPeriod.week;
   Timer? _clockTimer;
-  Future<Map<String, dynamic>?> _profileFuture = Future.value();
+
+  // Non-null once the cache has been read (even if fields are empty).
+  Map<String, dynamic>? _profile;
 
   @override
   void initState() {
     super.initState();
+    _loadCachedProfile();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() {
-        _profileFuture = _fetchUserProfile();
-        _showHeavyContent = true;
-      });
+      setState(() => _showHeavyContent = true);
+      _maybeRefreshFromFirestore();
       _showFirstEntryRewardIfNeeded();
       _checkWebsiteInterestNudge();
       _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
         if (mounted) setState(() {});
       });
     });
+  }
+
+  // ── Profile cache helpers ────────────────────────────────────────────────────
+
+  /// Reads cached profile fields from SharedPreferences and shows them instantly.
+  void _loadCachedProfile() {
+    SharedPreferences.getInstance().then((prefs) {
+      if (!mounted) return;
+      setState(() {
+        _profile = {
+          'displayName': prefs.getString(_kDisplayName),
+          'businesses': [
+            {
+              'businessName': prefs.getString(_kBizName),
+              'logoUrl':      prefs.getString(_kLogoUrl),
+              'plan':         prefs.getString(_kPlan),
+            }
+          ],
+        };
+      });
+    });
+  }
+
+  /// Fetches fresh profile data from Firestore only if the cache is older than
+  /// [_kTtl] (default 24 h). Skips the network call entirely on most opens.
+  Future<void> _maybeRefreshFromFirestore() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastFetchMs = prefs.getInt(_kFetchedAt) ?? 0;
+    final cacheAge = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(lastFetchMs),
+    );
+    if (lastFetchMs > 0 && cacheAge < _kTtl) return; // cache is fresh, skip
+
+    final fresh = await _fetchUserProfile();
+    if (!mounted || fresh == null) return;
+    setState(() => _profile = fresh);
+    _saveProfileToPrefs(prefs, fresh);
+    await prefs.setInt(_kFetchedAt, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  void _saveProfileToPrefs(SharedPreferences prefs, Map<String, dynamic> profile) {
+    final name = profile['displayName'] as String? ??
+        profile['name'] as String? ??
+        profile['fullName'] as String?;
+    if (name != null && name.isNotEmpty) prefs.setString(_kDisplayName, name);
+    final bizName = _getBusinessName(profile);
+    if (bizName != null && bizName.isNotEmpty) prefs.setString(_kBizName, bizName);
+    final logoUrl = _getBusinessLogoUrl(profile);
+    if (logoUrl != null && logoUrl.isNotEmpty) prefs.setString(_kLogoUrl, logoUrl);
+    final plan = _getBusinessPlan(profile);
+    if (plan != null && plan.isNotEmpty) prefs.setString(_kPlan, plan);
   }
 
   String _timeBasedGreeting() {
@@ -304,13 +365,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          FutureBuilder<Map<String, dynamic>?>(
-            future: _profileFuture,
-            builder: (context, snapshot) {
-              return SingleChildScrollView(
+          SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   20,
-                  MediaQuery.of(context).padding.top + 8,
+                  MediaQuery.of(context).padding.top + 62,
                   20,
                   32,
                 ),
@@ -318,7 +376,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Greeting header ──────────────────────────────────
-                    if (snapshot.connectionState != ConnectionState.done)
+                    if (_profile == null)
                       const _DashboardHeaderSkeleton()
                     else
                       Row(
@@ -339,7 +397,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${_timeBasedGreeting()}, ${_displayName(snapshot.data)} 👋',
+                                  '${_timeBasedGreeting()}, ${_displayName(_profile)} 👋',
                                   style: Theme.of(context)
                                       .textTheme
                                       .headlineMedium
@@ -383,9 +441,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         monthExpenses: monthExpenses,
                         yearNetProfit: yearRevenue - yearExpenses,
                         customerCount: customerCount,
-                        businessName: _getBusinessName(snapshot.data),
-                        logoUrl: _getBusinessLogoUrl(snapshot.data),
-                        plan: _getBusinessPlan(snapshot.data),
+                        businessName: _getBusinessName(_profile),
+                        logoUrl: _getBusinessLogoUrl(_profile),
+                        plan: _getBusinessPlan(_profile),
                       )
                     else
                       const _DashboardHeroSkeleton(),
@@ -501,9 +559,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ],
                 ),
-              );
-            },
-          ),
+              ),
           if (_showEntryReward)
             Positioned(
               top: 62,
@@ -1383,7 +1439,6 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                     children: [
                       // ── Top row: chip | name + plan | logo ──────────────
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           const _CardChip(),
                           const SizedBox(width: 14),
@@ -1750,7 +1805,6 @@ class _ModuleGrid extends StatelessWidget {
                       vertical: 10,
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Container(
                           width: 28,

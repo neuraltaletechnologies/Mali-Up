@@ -8,6 +8,8 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/sync/offline_policy_notifier.dart';
 import '../../../../core/sync/sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/skeleton_widgets.dart';
+import '../../../../shared/widgets/smart_skeleton.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -327,12 +329,15 @@ class _QueueSection extends ConsumerWidget {
             ),
           ),
           const Divider(height: 1),
-          async.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          async.smartWhen(
+            skeleton: () => const Column(
+              children: [
+                SkeletonSyncEntry(),
+                SkeletonSyncEntry(),
+                SkeletonSyncEntry(),
+              ],
             ),
-            error: (e, _) => Padding(
+            onError: (e, _) => Padding(
               padding: const EdgeInsets.all(16),
               child: Text('Error: $e',
                   style: const TextStyle(color: AppColors.error)),
