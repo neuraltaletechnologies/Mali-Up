@@ -53,5 +53,9 @@
 		<false/>
 		<key>NSFaceIDUsageDescription</key>
 		<string>Mali Up uses Face ID to unlock the app securely.</string>
+		<key>NSSupportsLiveActivities</key>
+		<true/>
+		<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+		<true/>
 	</dict>
 </plist>

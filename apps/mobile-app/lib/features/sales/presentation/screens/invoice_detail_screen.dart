@@ -245,10 +245,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   Future<void> _openReturn() async {
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       PageRouteBuilder<Map<String, dynamic>>(
-        pageBuilder: (_, __, ___) => SalesReturnScreen(originalInvoice: _inv),
+        pageBuilder: (_, _, _) => SalesReturnScreen(originalInvoice: _inv),
         transitionDuration: const Duration(milliseconds: 380),
-        reverseTransitionDuration: const Duration(milliseconds: 300),
-        transitionsBuilder: (_, animation, __, child) => SlideTransition(
+        transitionsBuilder: (_, animation, _, child) => SlideTransition(
           position: animation.drive(
             Tween(begin: const Offset(0, 1), end: Offset.zero)
                 .chain(CurveTween(curve: Curves.easeOutCubic)),

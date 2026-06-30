@@ -25,6 +25,8 @@ import '../../data/inventory_providers.dart';
 import '../../domain/models/inventory_item.dart';
 import '../providers/inventory_providers.dart';
 import '../widgets/barcode_view_sheet.dart';
+import '../../../../shared/widgets/skeleton_widgets.dart';
+import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
 
@@ -295,11 +297,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         onSaleSelected: (invoice) {
           Navigator.of(ctx, rootNavigator: true).push(
             PageRouteBuilder<void>(
-              pageBuilder: (_, __, ___) =>
+              pageBuilder: (_, _, _) =>
                   SalesReturnScreen(originalInvoice: invoice),
               transitionDuration: const Duration(milliseconds: 380),
-              reverseTransitionDuration: const Duration(milliseconds: 300),
-              transitionsBuilder: (_, animation, __, child) => SlideTransition(
+              transitionsBuilder: (_, animation, _, child) => SlideTransition(
                 position: animation.drive(
                   Tween(begin: const Offset(0, 1), end: Offset.zero)
                       .chain(CurveTween(curve: Curves.easeOutCubic)),
@@ -363,9 +364,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       body: Column(
         children: [
           Expanded(
-            child: inventoryAsync.when(
-              loading: () => const InventoryPageSkeleton(),
-              error: (e, _) => EmptyState(
+            child: inventoryAsync.smartWhen(
+              skeleton: () => const InventoryPageSkeleton(),
+              onError: (e, _) => EmptyState(
                 icon: Icons.wifi_off_rounded,
                 title: _tr('Could not load inventory', 'Imeshindikana kupakia stoo'),
                 subtitle: _tr('Check your connection and try again.', 'Angalia muunganiko wako na ujaribu tena.'),
@@ -520,7 +521,7 @@ class _InventoryDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 16, 20, 20 + _pillHalf),
+          padding: EdgeInsets.fromLTRB(20, top + 70, 20, 20 + _pillHalf),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -5650,9 +5651,16 @@ class _SelectSaleForReturnSheetState
           // Sales list
           SizedBox(
             height: 340,
-            child: invoicesAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
+            child: invoicesAsync.smartWhen(
+              skeleton: () => const Column(
+                children: [
+                  SkeletonListTile(),
+                  SkeletonListTile(),
+                  SkeletonListTile(),
+                  SkeletonListTile(),
+                ],
+              ),
+              onError: (e, _) => Center(
                 child: Text(
                   _tr('Could not load sales', 'Imeshindwa kupakia mauzo'),
                   style: GoogleFonts.dmSans(color: AppColors.textMuted),

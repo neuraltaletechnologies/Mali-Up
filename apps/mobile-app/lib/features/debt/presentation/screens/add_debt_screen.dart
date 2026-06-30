@@ -315,7 +315,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.calendar_today_outlined,
+                                const Icon(Icons.calendar_today_outlined,
                                     size: 16, color: AppColors.navyPrimary),
                                 const SizedBox(width: 10),
                                 Text(

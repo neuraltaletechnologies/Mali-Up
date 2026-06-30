@@ -286,7 +286,7 @@ class _DebtDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 24),
+          padding: EdgeInsets.fromLTRB(20, top + 70, 20, _pillHalf + 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

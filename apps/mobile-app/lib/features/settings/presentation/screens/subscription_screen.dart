@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/skeleton_widgets.dart';
+import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 
 String _fmtPrice(int v) =>
@@ -39,9 +41,9 @@ class SubscriptionScreen extends ConsumerWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: planAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, err) => Center(
+      body: planAsync.smartWhen(
+        skeleton: () => const SkeletonSubscriptionBody(),
+        onError: (_, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
