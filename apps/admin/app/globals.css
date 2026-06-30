@@ -7,23 +7,23 @@
   --color-navy:              #0D1B3E;
   --color-navy-soft:         #1C3A7A;
   --color-ink:               #0F172A;
-  --color-ink-muted:         #475569;
-  --color-ink-faint:         #94A3B8;
-  --color-canvas:            #F1F5F9;
+  --color-ink-muted:         #374151;
+  --color-ink-faint:         #6B7280;
+  --color-canvas:            #EEF2F7;
   --color-surface:           #FFFFFF;
-  --color-line:              rgba(0,0,0,0.08);
-  --color-accent:            #1E90AA;
-  --color-accent-soft:       rgba(30,144,170,0.15);
-  --color-brand:             #FFC107;
-  --color-brand-soft:        rgba(255,193,7,0.12);
-  --color-status-good:       #10B981;
-  --color-status-good-bg:    rgba(16,185,129,0.12);
-  --color-status-warn:       #F59E0B;
-  --color-status-warn-bg:    rgba(245,158,11,0.12);
-  --color-status-bad:        #EF4444;
-  --color-status-bad-bg:     rgba(239,68,68,0.1);
-  --color-status-neutral:    #64748B;
-  --color-status-neutral-bg: rgba(100,116,139,0.1);
+  --color-line:              rgba(0,0,0,0.14);
+  --color-accent:            #1678A0;
+  --color-accent-soft:       rgba(22,120,160,0.1);
+  --color-brand:             #D97706;
+  --color-brand-soft:        rgba(217,119,6,0.1);
+  --color-status-good:       #059669;
+  --color-status-good-bg:    rgba(5,150,105,0.1);
+  --color-status-warn:       #D97706;
+  --color-status-warn-bg:    rgba(217,119,6,0.1);
+  --color-status-bad:        #DC2626;
+  --color-status-bad-bg:     rgba(220,38,38,0.08);
+  --color-status-neutral:    #4B5563;
+  --color-status-neutral-bg: rgba(75,85,99,0.08);
 
   --font-sans: 'Inter', 'Geist Sans', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace;
@@ -38,32 +38,34 @@
   /* ── Mali Up Admin — Light Theme (default) ── */
   --navy:              #0D1B3E;
   --navy-soft:         #1C3A7A;
-  --canvas:            #F1F5F9;
+  --canvas:            #EEF2F7;
   --surface:           #FFFFFF;
-  --line:              rgba(0, 0, 0, 0.08);
+  --line:              rgba(0, 0, 0, 0.14);
   --ink:               #0F172A;
-  --ink-muted:         #475569;
-  --ink-faint:         #94A3B8;
-  --accent:            #1E90AA;
-  --accent-soft:       rgba(30, 144, 170, 0.15);
-  --brand:             #FFC107;
-  --brand-soft:        rgba(255, 193, 7, 0.12);
-  --status-good:       #10B981;
-  --status-good-bg:    rgba(16, 185, 129, 0.12);
-  --status-warn:       #F59E0B;
-  --status-warn-bg:    rgba(245, 158, 11, 0.12);
-  --status-bad:        #EF4444;
-  --status-bad-bg:     rgba(239, 68, 68, 0.1);
-  --status-neutral:    #64748B;
-  --status-neutral-bg: rgba(100, 116, 139, 0.1);
+  --ink-muted:         #374151;
+  --ink-faint:         #6B7280;
+  --accent:            #1678A0;
+  --accent-soft:       rgba(22, 120, 160, 0.1);
+  --brand:             #D97706;
+  --brand-soft:        rgba(217, 119, 6, 0.1);
+  --status-good:       #059669;
+  --status-good-bg:    rgba(5, 150, 105, 0.1);
+  --status-warn:       #D97706;
+  --status-warn-bg:    rgba(217, 119, 6, 0.1);
+  --status-bad:        #DC2626;
+  --status-bad-bg:     rgba(220, 38, 38, 0.08);
+  --status-neutral:    #4B5563;
+  --status-neutral-bg: rgba(75, 85, 99, 0.08);
   /* topbar chrome */
   --topbar-bg:         #FFFFFF;
-  --topbar-border:     rgba(0, 0, 0, 0.08);
+  --topbar-border:     rgba(0, 0, 0, 0.12);
   --topbar-text:       #0F172A;
-  --topbar-text-muted: #64748B;
-  --topbar-text-faint: #CBD5E1;
+  --topbar-text-muted: #4B5563;
+  --topbar-text-faint: #9CA3AF;
   /* card shadow */
-  --card-shadow:       0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --card-shadow:       0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.06);
+  /* subtle hover background for buttons/rows */
+  --hover-bg:          rgba(0, 0, 0, 0.05);
 }
 
 .dark {
@@ -74,6 +76,14 @@
   --ink:               #E2EAFF;
   --ink-muted:         #7B8FBD;
   --ink-faint:         #3A4E74;
+  --accent:            #1E90AA;
+  --accent-soft:       rgba(30, 144, 170, 0.15);
+  --brand:             #FFC107;
+  --brand-soft:        rgba(255, 193, 7, 0.12);
+  --status-good:       #10B981;
+  --status-good-bg:    rgba(16, 185, 129, 0.12);
+  --status-warn:       #F59E0B;
+  --status-warn-bg:    rgba(245, 158, 11, 0.12);
   --status-bad:        #F87171;
   --status-bad-bg:     rgba(248, 113, 113, 0.12);
   --status-neutral:    #94A3B8;
@@ -86,6 +96,8 @@
   --topbar-text-faint: rgba(255, 255, 255, 0.2);
   /* card shadow */
   --card-shadow:       0 1px 12px rgba(0, 0, 0, 0.35);
+  /* subtle hover background for buttons/rows */
+  --hover-bg:          rgba(255, 255, 255, 0.06);
 }
 
 * {

@@ -20,7 +20,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, c
             'rounded px-3 py-1 text-[12px] font-medium transition-all',
             value === opt.value
               ? 'bg-[var(--navy)] text-white shadow-sm'
-              : 'text-[var(--ink-muted)] hover:text-white/80'
+              : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
           )}
         >
           {opt.label}

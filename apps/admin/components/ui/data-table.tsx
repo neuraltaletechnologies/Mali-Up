@@ -180,7 +180,7 @@ export function DataTable<T>({
           <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="rounded p-1 hover:bg-[var(--line)] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded p-1 hover:bg-[var(--hover-bg)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -190,7 +190,7 @@ export function DataTable<T>({
           <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="rounded p-1 hover:bg-[var(--line)] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded p-1 hover:bg-[var(--hover-bg)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ChevronRight className="h-4 w-4" />
           </button>

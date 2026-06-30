@@ -56,7 +56,7 @@ export function DetailDrawer({ open, onClose, title, description, children, widt
           </div>
           <button
             onClick={onClose}
-            className="rounded p-1 text-[var(--ink-faint)] hover:text-[var(--ink)] hover:bg-[var(--line)] transition-colors"
+            className="rounded p-1 text-[var(--ink-faint)] hover:text-[var(--ink)] hover:bg-[var(--hover-bg)] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
