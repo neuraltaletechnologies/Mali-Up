@@ -1,7 +1,7 @@
 # Mali Up — Cloudflare Workers deployment
 # Domain: maliup.neuraltale.com
 
-name = "maliup"
+name = "mali-up"
 main = ".open-next/worker.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
