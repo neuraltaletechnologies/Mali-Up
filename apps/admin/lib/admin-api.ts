@@ -314,6 +314,16 @@ export async function createUser(data: {
   return apiFetch('/api/admin/users', { method: 'POST', body: JSON.stringify(data) })
 }
 
+export async function createBusiness(data: {
+  uid: string
+  businessName: string
+  businessCategory?: string
+  city?: string
+  district?: string
+}): Promise<{ uid: string; businessId: string }> {
+  return apiFetch('/api/admin/businesses', { method: 'POST', body: JSON.stringify(data) })
+}
+
 // ─── Business Notes ───────────────────────────────────────────────────────────
 
 export async function postBusinessNote(

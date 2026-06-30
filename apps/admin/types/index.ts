@@ -14,6 +14,7 @@ export interface AdminUser {
   email?: string
   status: UserStatus
   businessCount: number
+  businessName?: string
   lastLogin: string
   joinedAt: string
 }
@@ -247,12 +248,15 @@ export interface PlanDefinition {
   cycleMonths: number
   maxUsers: number       // -1 = unlimited
   monthlyInvoices: number // -1 = unlimited
+  cashFlow: boolean
+  expenseTracking: boolean
+  manualDebt: boolean
   fullReports: boolean
   mpesaImport: boolean
   smsReminders: boolean
+  allExports: boolean
   multiLocation: boolean
   apiAccess: boolean
-  allExports: boolean
   prioritySupport: boolean
   customIntegrations: boolean
   whiteLabel: boolean

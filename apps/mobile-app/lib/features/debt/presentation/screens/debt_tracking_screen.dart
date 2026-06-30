@@ -132,7 +132,7 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
   void _openAdd({bool isReceivable = true, Debt? edit}) async {
     final plan = await ref.read(planStatusProvider.future);
     if (!mounted) return;
-    if (plan.isStarter) {
+    if (!plan.limits.manualDebt) {
       await showUpgradeSheet(
         context,
         currentStatus: plan,

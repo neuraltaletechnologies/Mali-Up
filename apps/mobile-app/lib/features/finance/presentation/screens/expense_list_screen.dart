@@ -93,7 +93,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   void _openAdd({Expense? edit}) async {
     final plan = await ref.read(planStatusProvider.future);
     if (!mounted) return;
-    if (plan.isStarter) {
+    if (!plan.limits.expenseTracking) {
       await showUpgradeSheet(
         context,
         currentStatus: plan,

@@ -9,7 +9,7 @@ import { KPIRowSkeleton, ChartSkeleton, Skeleton, RevalidatingBar } from '@/comp
 import { fetchAnalytics, fetchSystemHealth } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatTZSCompact, timeAgo } from '@/lib/format'
-import { Building2, Users, DollarSign, AlertCircle } from 'lucide-react'
+import { Building2, Users, DollarSign, AlertCircle, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import { useCallback } from 'react'
 
@@ -19,13 +19,14 @@ export default function DashboardPage() {
     loading: analyticsLoading,
     revalidating: analyticsRefreshing,
     error,
-  } = useAdminFetch(useCallback(() => fetchAnalytics(), []), { key: 'analytics' })
+    refetch: refetchAnalytics,
+  } = useAdminFetch(useCallback(() => fetchAnalytics(), []), { key: 'analytics', pollingInterval: 60_000 })
 
   const {
     data: healthData,
     loading: healthLoading,
     revalidating: healthRefreshing,
-  } = useAdminFetch(useCallback(() => fetchSystemHealth(), []), { key: 'system-health' })
+  } = useAdminFetch(useCallback(() => fetchSystemHealth(), []), { key: 'system-health', pollingInterval: 60_000 })
 
   const total = data?.planDistribution.reduce((s, d) => s + d.value, 0) ?? 0
 
@@ -34,7 +35,16 @@ export default function DashboardPage() {
       <PageHeader
         title="Platform Dashboard"
         description={analyticsLoading ? 'Loading…' : 'Real-time health of the Mali Up platform'}
-      />
+      >
+        <button
+          onClick={refetchAnalytics}
+          disabled={analyticsLoading || analyticsRefreshing}
+          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[12px] text-[var(--ink-muted)] hover:text-[var(--ink)] disabled:opacity-40 transition-colors"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${analyticsRefreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </PageHeader>
 
       {/* KPI Row */}
       {analyticsLoading

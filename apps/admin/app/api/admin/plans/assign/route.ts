@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       action: 'plan.assign',
       resourceType: 'business',
       resourceId: businessId,
-      resourceName: businessId,
+      resourceName: (before.businessName as string) || businessId,
       before: { plan: before.plan, subscriptionStatus: before.subscriptionStatus },
       after: { plan: tier, cycleMonths: months, expiresAt: expiresAt?.toISOString() },
       isDestructive: false,

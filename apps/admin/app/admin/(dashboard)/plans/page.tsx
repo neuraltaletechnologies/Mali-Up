@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { DetailDrawer } from '@/components/ui/detail-drawer'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import { fetchPlans, patchPlan, assignPlan, fetchBusinesses } from '@/lib/admin-api'
-import { useAdminFetch } from '@/hooks/use-admin-fetch'
+import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatTZS } from '@/lib/format'
 import type { PlanTier, PlanDefinition, PlanDefinitions } from '@/types'
 import {
@@ -69,12 +69,15 @@ const TIER_META: Record<PlanTier, {
 }
 
 const FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices'>, string> = {
+  cashFlow:             'Cash flow tracking',
+  expenseTracking:      'Expense tracking',
+  manualDebt:           'Manual debt entry',
   fullReports:          'Full reports',
   mpesaImport:          'M-Pesa import',
   smsReminders:         'SMS reminders',
+  allExports:           'All exports',
   multiLocation:        'Multi-location stock',
   apiAccess:            'API access',
-  allExports:           'All exports',
   prioritySupport:      'Priority support',
   customIntegrations:   'Custom integrations',
   whiteLabel:           'White-label options',
@@ -316,7 +319,8 @@ function EditPlanDrawer({
 // ─── Assign Plan Form ─────────────────────────────────────────────────────────
 
 function AssignPlanSection() {
-  const [uid, setUid]                     = useState('')
+  const [userNameInput, setUserNameInput] = useState('')
+  const [selectedUid, setSelectedUid]     = useState('')
   const [businessId, setBusinessId]       = useState('')
   const [selectedTier, setSelectedTier]   = useState<PlanTier>('growth')
   const [cycleMonths, setCycleMonths]     = useState(6)
@@ -327,22 +331,57 @@ function AssignPlanSection() {
   const { data: bizData } = useAdminFetch(useCallback(() => fetchBusinesses(500), []))
   const businesses = bizData?.businesses ?? []
 
-  // When user types UID, auto-fill first business
-  useEffect(() => {
-    if (!uid) { setBusinessId(''); return }
-    const biz = businesses.find((b) => b.ownerId === uid)
-    if (biz) setBusinessId(biz.id)
-  }, [uid, businesses])
+  // Derive unique owners from the businesses list (sorted alphabetically)
+  const uniqueUsers = useMemo(() => {
+    const seen = new Set<string>()
+    const list: { uid: string; name: string; phone: string }[] = []
+    for (const b of businesses) {
+      if (!seen.has(b.ownerId)) {
+        seen.add(b.ownerId)
+        list.push({ uid: b.ownerId, name: b.ownerName, phone: b.ownerPhone })
+      }
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name))
+  }, [businesses])
 
-  const bizesForUid = businesses.filter((b) => b.ownerId === uid)
+  // Match typed name to a real user
+  useEffect(() => {
+    const matched = uniqueUsers.find(
+      (u) => u.name.toLowerCase() === userNameInput.toLowerCase(),
+    )
+    if (matched) {
+      setSelectedUid(matched.uid)
+    } else {
+      setSelectedUid('')
+      setBusinessId('')
+    }
+  }, [userNameInput, uniqueUsers])
+
+  // Businesses belonging to the matched user
+  const bizesForUser = useMemo(
+    () => businesses.filter((b) => b.ownerId === selectedUid),
+    [businesses, selectedUid],
+  )
+
+  // Auto-select when there is exactly one business
+  useEffect(() => {
+    if (bizesForUser.length === 1) setBusinessId(bizesForUser[0].id)
+    else if (bizesForUser.length === 0) setBusinessId('')
+  }, [selectedUid, bizesForUser])
+
+  const selectedBiz  = businesses.find((b) => b.id === businessId)
+  const selectedUser = uniqueUsers.find((u) => u.uid === selectedUid)
 
   async function handleAssign() {
     setSaving(true)
     setResult(null)
     try {
-      await assignPlan(uid.trim(), businessId.trim(), selectedTier, cycleMonths)
-      setResult({ ok: true, msg: `Plan "${selectedTier}" assigned successfully.` })
-      setUid(''); setBusinessId('')
+      await assignPlan(selectedUid, businessId, selectedTier, cycleMonths)
+      setResult({ ok: true, msg: `Plan "${selectedTier}" assigned to ${selectedBiz?.name ?? businessId} successfully.` })
+      invalidateAdminCache(['analytics', 'businesses'])
+      setUserNameInput('')
+      setSelectedUid('')
+      setBusinessId('')
     } catch (e) {
       setResult({ ok: false, msg: (e as Error).message })
     } finally {
@@ -350,8 +389,6 @@ function AssignPlanSection() {
       setConfirmOpen(false)
     }
   }
-
-  const selectedBiz = businesses.find((b) => b.id === businessId)
 
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-5">
@@ -366,50 +403,62 @@ function AssignPlanSection() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {/* Owner UID */}
+        {/* User name */}
         <div className="flex flex-col gap-1.5">
-          <label className={labelCls}>Owner UID <span className="text-[var(--status-bad)]">*</span></label>
+          <label className={labelCls}>User Name <span className="text-[var(--status-bad)]">*</span></label>
           <input
-            value={uid}
-            onChange={(e) => setUid(e.target.value)}
-            placeholder="Firebase user UID…"
-            list="uid-suggestions"
+            value={userNameInput}
+            onChange={(e) => setUserNameInput(e.target.value)}
+            placeholder="Search by owner name…"
+            list="user-name-suggestions"
             className={inputCls}
           />
-          <datalist id="uid-suggestions">
-            {[...new Set(businesses.map((b) => b.ownerId))].slice(0, 100).map((id) => (
-              <option key={id} value={id} />
+          <datalist id="user-name-suggestions">
+            {uniqueUsers.map((u) => (
+              <option key={u.uid} value={u.name} />
             ))}
           </datalist>
-          {bizesForUid.length > 0 && (
-            <p className="text-[11px] text-[var(--ink-faint)]">{bizesForUid.length} business(es) found for this UID</p>
-          )}
+          {selectedUser ? (
+            <p className="text-[11px] text-[var(--status-good)]">
+              ✓ {selectedUser.name} · {selectedUser.phone}
+            </p>
+          ) : userNameInput ? (
+            <p className="text-[11px] text-[var(--ink-faint)]">No matching user — keep typing</p>
+          ) : null}
         </div>
 
-        {/* Business ID */}
+        {/* Business name */}
         <div className="flex flex-col gap-1.5">
-          <label className={labelCls}>Business ID <span className="text-[var(--status-bad)]">*</span></label>
-          {bizesForUid.length > 1 ? (
+          <label className={labelCls}>Business Name <span className="text-[var(--status-bad)]">*</span></label>
+          {bizesForUser.length > 1 ? (
             <select
               value={businessId}
               onChange={(e) => setBusinessId(e.target.value)}
               className={`${inputCls} appearance-none`}
             >
               <option value="">Select business…</option>
-              {bizesForUid.map((b) => (
-                <option key={b.id} value={b.id}>{b.name} ({b.id.slice(0, 8)}…)</option>
+              {bizesForUser.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
               ))}
             </select>
           ) : (
             <input
-              value={businessId}
-              onChange={(e) => setBusinessId(e.target.value)}
-              placeholder="Business document ID…"
-              className={inputCls}
+              readOnly
+              value={selectedBiz?.name ?? ''}
+              placeholder={
+                !selectedUid
+                  ? 'Select a user first…'
+                  : bizesForUser.length === 0
+                  ? 'No businesses found'
+                  : ''
+              }
+              className={`${inputCls} cursor-default bg-[var(--canvas)] text-[var(--ink-muted)]`}
             />
           )}
           {selectedBiz && (
-            <p className="text-[11px] text-[var(--status-good)]">✓ {selectedBiz.name} — current plan: <strong>{selectedBiz.plan}</strong></p>
+            <p className="text-[11px] text-[var(--status-good)]">
+              ✓ current plan: <strong>{selectedBiz.plan}</strong>
+            </p>
           )}
         </div>
 
@@ -459,7 +508,7 @@ function AssignPlanSection() {
       <div className="mt-4 flex justify-end">
         <button
           onClick={() => setConfirmOpen(true)}
-          disabled={!uid || !businessId || saving}
+          disabled={!selectedUid || !businessId || saving}
           style={{ backgroundColor: '#0D1B3E' }}
           className="inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-[12px] font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-40"
         >
@@ -473,7 +522,7 @@ function AssignPlanSection() {
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleAssign}
         title="Assign plan"
-        description={`Set plan to "${TIER_META[selectedTier]?.label}" for business ${selectedBiz?.name ?? businessId}${
+        description={`Set plan to "${TIER_META[selectedTier]?.label}" for ${selectedBiz?.name ?? businessId} (owner: ${selectedUser?.name ?? selectedUid})${
           selectedTier !== 'starter' ? ` for ${cycleMonths} months` : ''
         }. This takes effect immediately.`}
         confirmLabel={saving ? 'Saving…' : 'Confirm'}
@@ -506,6 +555,7 @@ export default function PlansPage() {
       await patchPlan(tier, patch)
       setLocalPlans((prev) => prev ? { ...prev, [tier]: { ...prev[tier], ...patch } } : prev)
       setEditTier(null)
+      invalidateAdminCache(['analytics', 'plans'])
       refetch()
     } catch (e) {
       setSaveError((e as Error).message)
