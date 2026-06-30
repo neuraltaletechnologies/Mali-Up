@@ -712,7 +712,7 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
               ),
             ),
             padding: EdgeInsets.fromLTRB(
-                20, top + 70, 20, _SalesDarkHeader._pillHalf + 24),
+                20, top + 62, 20, _SalesDarkHeader._pillHalf + 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

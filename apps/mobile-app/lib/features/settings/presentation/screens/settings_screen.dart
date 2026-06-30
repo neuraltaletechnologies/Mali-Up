@@ -233,7 +233,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 70, 20, 40),
+        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 54, 20, 40),
         children: [
           // ── Page title ───────────────────────────────────────
           Text(
