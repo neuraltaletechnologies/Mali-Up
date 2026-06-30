@@ -422,16 +422,16 @@ export default function CatalogPage() {
         {activeTab === 'categories' ? (
           <button
             onClick={() => { setCatForm(EMPTY_CATEGORY); setFormError(''); setShowAddCat(true) }}
-            style={{ backgroundColor: '#0D1B3E' }}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: '#FFC107', color: '#0D1B3E' }}
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium hover:opacity-90 transition-opacity"
           >
             <Plus className="h-3.5 w-3.5" /> Add Category
           </button>
         ) : (
           <button
             onClick={() => { setProductForm(EMPTY_PRODUCT); setFormError(''); setShowAddProduct(true) }}
-            style={{ backgroundColor: '#0D1B3E' }}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: '#FFC107', color: '#0D1B3E' }}
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium hover:opacity-90 transition-opacity"
           >
             <Plus className="h-3.5 w-3.5" /> Add Product
           </button>

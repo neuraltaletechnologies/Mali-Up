@@ -311,7 +311,7 @@ function DistrictsPanel({
                 <button onClick={() => { setAddingDistrict(false); setNewDistrict('') }} className="p-1.5 rounded hover:bg-[var(--line)] text-[var(--ink-faint)]"><X className="h-4 w-4" /></button>
               </div>
             ) : (
-              <button onClick={() => setAddingDistrict(true)} className="mt-2 flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-3 py-1.5 text-[12px] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--ink-faint)] transition-colors">
+              <button onClick={() => setAddingDistrict(true)} style={{ backgroundColor: '#FFC107', color: '#0D1B3E' }} className="mt-2 flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium hover:opacity-90 transition-opacity">
                 <Plus className="h-3.5 w-3.5" /> Add district
               </button>
             )}
@@ -520,7 +520,8 @@ export default function LookupsPage() {
             </div>
             <button
               onClick={() => setAddingBizType(true)}
-              className="mt-3 flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-3 py-2 text-[12.5px] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--ink-faint)] transition-colors"
+              style={{ backgroundColor: '#FFC107', color: '#0D1B3E' }}
+              className="mt-3 flex items-center gap-1.5 rounded-md px-3 py-2 text-[12.5px] font-medium hover:opacity-90 transition-opacity"
             >
               <Plus className="h-3.5 w-3.5" /> Add business type
             </button>
@@ -563,7 +564,8 @@ export default function LookupsPage() {
             </div>
             <button
               onClick={() => setAddingCity(true)}
-              className="mt-3 flex items-center gap-1.5 rounded-md border border-dashed border-[var(--line)] px-3 py-2 text-[12.5px] text-[var(--ink-muted)] hover:text-[var(--ink)] hover:border-[var(--ink-faint)] transition-colors"
+              style={{ backgroundColor: '#FFC107', color: '#0D1B3E' }}
+              className="mt-3 flex items-center gap-1.5 rounded-md px-3 py-2 text-[12.5px] font-medium hover:opacity-90 transition-opacity"
             >
               <Plus className="h-3.5 w-3.5" /> Add city
             </button>

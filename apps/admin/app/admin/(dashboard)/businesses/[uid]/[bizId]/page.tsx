@@ -467,7 +467,8 @@ export default function BusinessDetailPage() {
             <button
               onClick={handleAddNote}
               disabled={savingNote || !noteInput.trim()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--navy)] px-3 py-2 text-[12px] font-medium text-white hover:bg-[var(--navy-soft)] transition-colors disabled:opacity-50"
+              style={{ backgroundColor: '#FFC107', color: '#0D1B3E' }}
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[12px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               <MessageSquarePlus className="h-3.5 w-3.5" />
               {savingNote ? 'Saving…' : 'Add'}
