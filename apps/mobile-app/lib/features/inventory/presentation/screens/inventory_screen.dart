@@ -521,7 +521,7 @@ class _InventoryDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 62, 20, _pillHalf + 8),
+          padding: EdgeInsets.fromLTRB(20, top + 50, 20, _pillHalf + 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -5219,7 +5219,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 62),
+      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 50),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),

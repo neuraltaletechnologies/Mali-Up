@@ -1528,7 +1528,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             child: isLoading
                 ? const SizedBox.shrink()
                 : ListView(
-                    padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 54, 20, 40),
+                    padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 50, 20, 40),
                   children: [
                     _buildAddHero(profile),
                     if (businesses.isNotEmpty) ...[
