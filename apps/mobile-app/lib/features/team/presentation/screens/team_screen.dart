@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -239,7 +239,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(_tr('Remove Member', 'Ondoa Mwanachama'),
-            style: const TextStyle(fontWeight: FontWeight.w700)),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
         content: Text(_tr(
           'Remove ${member.name} from the team? This cannot be undone.',
           'Ondoa ${member.name} kutoka timu? Haiwezi kurejeshwa.',
@@ -1229,14 +1229,14 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
 
-    final headingStyle = GoogleFonts.poppins(
+    final headingStyle = GoogleFonts.dmSans(
       fontSize: 26,
       color: AppColors.navyPrimary,
       fontWeight: FontWeight.w800,
       height: 1.2,
       letterSpacing: -0.4,
     );
-    final subtitleStyle = GoogleFonts.poppins(
+    final subtitleStyle = GoogleFonts.dmSans(
       color: AppColors.textMuted,
       fontSize: 14,
       height: 1.5,
@@ -1437,7 +1437,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                           color: AppColors.navyPrimary))
                                   : Text(
                                       _tr('Add to Team', 'Ongeza kwenye Timu'),
-                                      style: GoogleFonts.poppins(
+                                      style: GoogleFonts.dmSans(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 16,
                                       ),

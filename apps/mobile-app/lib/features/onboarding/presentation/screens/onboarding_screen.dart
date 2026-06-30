@@ -153,7 +153,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                     label: Text(
                       _tr('Help', 'Msaada'),
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: AppColors.navyPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -231,7 +231,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     _isLastSlide
                         ? _tr("Let's get started", 'Tuanze sasa')
                         : _tr('Continue', 'Endelea'),
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
                       letterSpacing: 0.2,
@@ -273,7 +273,7 @@ class _SlidePage extends StatelessWidget {
         children: [
           Text(
             title,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.dmSans(
               fontSize: 36,
               fontWeight: FontWeight.w800,
               color: AppColors.navyPrimary,
@@ -284,7 +284,7 @@ class _SlidePage extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             body,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.dmSans(
               fontSize: 17,
               fontWeight: FontWeight.w400,
               color: AppColors.textSecondary,

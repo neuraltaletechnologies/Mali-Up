@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -466,7 +466,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
-        labelStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+        labelStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       );

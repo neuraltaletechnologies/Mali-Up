@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/sync_provider.dart';
@@ -213,7 +214,7 @@ class _BannerStripState extends State<_BannerStrip>
           Expanded(
             child: Text(
               cfg.label,
-              style: TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 12,
                 color: cfg.textColor,
                 fontWeight: FontWeight.w500,

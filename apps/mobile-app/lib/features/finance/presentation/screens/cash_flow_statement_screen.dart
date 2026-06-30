@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -51,7 +52,7 @@ class CashFlowStatementScreen extends ConsumerWidget {
                       children: [
                         Text(
                           monthLabel,
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                             color: Colors.white70,
                             fontSize: 13,
                           ),
@@ -59,7 +60,7 @@ class CashFlowStatementScreen extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Text(
                           _t('Net Cash Flow', 'Mtiririko Halisi wa Pesa'),
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -70,7 +71,7 @@ class CashFlowStatementScreen extends ConsumerWidget {
                   ),
                   Text(
                     '${netFlow >= 0 ? '+' : ''}${_fmtAmt(netFlow)}',
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                       color: netFlow >= 0 ? const Color(0xFF6EE7B7) : const Color(0xFFFCA5A5),
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
@@ -221,7 +222,7 @@ class _ActivitySectionState extends State<_ActivitySection> {
                     children: [
                       Text(
                         '${net >= 0 ? '+' : '-'}${_fmtAmt(net)}',
-                        style: TextStyle(
+                        style: GoogleFonts.dmSans(
                           color: net >= 0 ? AppColors.success : AppColors.error,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
@@ -375,7 +376,7 @@ class _SummaryTable extends StatelessWidget {
         children: [
           Text(
             _t('Summary', 'Muhtasari'),
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               color: Colors.white,
               fontWeight: FontWeight.w700,
               fontSize: 15,
@@ -426,7 +427,7 @@ class _SummaryRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.dmSans(
             color: Colors.white70,
             fontSize: bold ? 14 : 12,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
@@ -434,7 +435,7 @@ class _SummaryRow extends StatelessWidget {
         ),
         Text(
           _fmtAmt(value),
-          style: TextStyle(
+          style: GoogleFonts.dmSans(
             color: color,
             fontSize: bold ? 16 : 13,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w600,

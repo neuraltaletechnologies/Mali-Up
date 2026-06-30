@@ -254,7 +254,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                 'Weka bei yako ya kununua na kuuza kwa bidhaa hii.',
               ),
               style:
-                  GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted),
+                  GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
             ),
             const SizedBox(height: 12),
 
@@ -343,7 +343,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Text(
                           widget.product.unit,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.dmSans(
                             fontSize: 15,
                             color: AppColors.navyPrimary,
                             fontWeight: FontWeight.w500,
@@ -412,7 +412,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                       padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
                       child: Text(
                         _tr('Payment Status', 'Hali ya Malipo'),
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.dmSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: AppColors.navyPrimary,
@@ -473,7 +473,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                           children: [
                             TextFormField(
                               controller: _supplierNameCtrl,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.dmSans(
                                   fontSize: 14,
                                   color: AppColors.navyPrimary),
                               decoration: InputDecoration(
@@ -492,7 +492,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                             TextFormField(
                               controller: _supplierPhoneCtrl,
                               keyboardType: TextInputType.phone,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.dmSans(
                                   fontSize: 14,
                                   color: AppColors.navyPrimary),
                               decoration: InputDecoration(
@@ -519,7 +519,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                                       RegExp(r'[0-9.]')),
                                 ],
                                 onChanged: (_) => setState(() {}),
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.dmSans(
                                     fontSize: 14,
                                     color: AppColors.navyPrimary,
                                     fontWeight: FontWeight.w600),
@@ -571,7 +571,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                                             'Total: TZS ${total.toStringAsFixed(0)}  |  Paid: TZS ${paid.toStringAsFixed(0)}',
                                             'Jumla: TZS ${total.toStringAsFixed(0)}  |  Ulicholipa: TZS ${paid.toStringAsFixed(0)}',
                                           ),
-                                          style: GoogleFonts.inter(
+                                          style: GoogleFonts.dmSans(
                                               fontSize: 12,
                                               color: AppColors.textMuted),
                                         ),
@@ -634,7 +634,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                           Text(
                             _tr('Import to My Inventory',
                                 'Ingiza kwenye Stoo Yangu'),
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.dmSans(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
@@ -652,7 +652,7 @@ class _ImportProductScreenState extends ConsumerState<ImportProductScreen> {
                 'Hii inaunda bidhaa huru kwenye stoo yako. '
                 'Mabadiliko hapa hayaathiri katalogi kuu.',
               ),
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 12,
                 color: AppColors.textMuted,
                 height: 1.5,
@@ -695,7 +695,7 @@ class _SourceCard extends StatelessWidget {
                 Text(
                   _tr('Importing from Master Catalog',
                       'Inaingizwa kutoka Katalogi Kuu'),
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.tealAccent,
@@ -704,7 +704,7 @@ class _SourceCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   product.productName,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.navyPrimary,
@@ -716,7 +716,7 @@ class _SourceCard extends StatelessWidget {
                     product.productNameSw != product.productName)
                   Text(
                     product.productNameSw,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                         fontSize: 12, color: AppColors.textMuted),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -724,7 +724,7 @@ class _SourceCard extends StatelessWidget {
                 if (product.genericName.isNotEmpty)
                   Text(
                     product.genericName,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                         fontSize: 11,
                         color: AppColors.textMuted,
                         fontStyle: FontStyle.italic),
@@ -734,7 +734,7 @@ class _SourceCard extends StatelessWidget {
                 if (product.brandNames.isNotEmpty)
                   Text(
                     product.brandNames.take(3).join(', '),
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                         fontSize: 11, color: AppColors.textMuted),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -756,7 +756,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.inter(
+      style: GoogleFonts.dmSans(
         fontSize: 15,
         fontWeight: FontWeight.w700,
         color: AppColors.navyPrimary,
@@ -773,7 +773,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.inter(
+      style: GoogleFonts.dmSans(
         fontSize: 13,
         fontWeight: FontWeight.w500,
         color: AppColors.textMuted,
@@ -792,14 +792,14 @@ class _TextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      style: GoogleFonts.inter(
+      style: GoogleFonts.dmSans(
           fontSize: 15,
           color: AppColors.navyPrimary,
           fontWeight: FontWeight.w500),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle:
-            GoogleFonts.inter(fontSize: 14, color: const Color(0xFF94A3B8)),
+            GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF94A3B8)),
         filled: true,
         fillColor: const Color(0xFFF8F9FC),
         contentPadding:
@@ -843,14 +843,14 @@ class _NumericField extends StatelessWidget {
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
       ],
-      style: GoogleFonts.inter(
+      style: GoogleFonts.dmSans(
           fontSize: 15,
           color: AppColors.navyPrimary,
           fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle:
-            GoogleFonts.inter(fontSize: 14, color: const Color(0xFF94A3B8)),
+            GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF94A3B8)),
         filled: true,
         fillColor: const Color(0xFFF8F9FC),
         contentPadding:
@@ -932,7 +932,7 @@ class _OriginOption extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: selected ? iconColor : AppColors.navyPrimary,
@@ -941,7 +941,7 @@ class _OriginOption extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                         fontSize: 12, color: AppColors.textMuted),
                   ),
                 ],
@@ -1001,7 +1001,7 @@ class _PaymentOption extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: selected ? color : AppColors.navyPrimary,
@@ -1009,7 +1009,7 @@ class _PaymentOption extends StatelessWidget {
                   ),
                   Text(
                     subtitle,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                         fontSize: 12, color: AppColors.textMuted),
                   ),
                 ],
@@ -1053,7 +1053,7 @@ class _MarginBadge extends StatelessWidget {
               'Margin: ${margin.toStringAsFixed(1)}%',
               'Faida: ${margin.toStringAsFixed(1)}%',
             ),
-            style: GoogleFonts.inter(
+            style: GoogleFonts.dmSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: color,

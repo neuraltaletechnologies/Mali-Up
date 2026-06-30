@@ -101,14 +101,14 @@ class _OnboardingSuccessScreenState
     final bizName = state.businessName;
     final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    final headingStyle = GoogleFonts.poppins(
+    final headingStyle = GoogleFonts.dmSans(
       fontSize: 28,
       color: AppColors.textPrimary,
       fontWeight: FontWeight.w800,
       height: 1.15,
       letterSpacing: -0.5,
     );
-    final subtitleStyle = GoogleFonts.poppins(
+    final subtitleStyle = GoogleFonts.dmSans(
       color: AppColors.textSecondary,
       fontSize: 14,
       height: 1.5,
@@ -161,7 +161,7 @@ class _OnboardingSuccessScreenState
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -294,7 +294,7 @@ class _OnboardingSuccessScreenState
                                 sw: OnboardingStrings.successWelcomeTagSw,
                               ),
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 12,
                                 color: AppColors.textMuted,
                                 fontStyle: FontStyle.italic,
@@ -328,7 +328,7 @@ class _OnboardingSuccessScreenState
                                           en: OnboardingStrings.successCtaEn,
                                           sw: OnboardingStrings.successCtaSw,
                                         ),
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.dmSans(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 16,
                                         ),
@@ -389,7 +389,7 @@ class _RoundFeatureCard extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           label,
-          style: const TextStyle(
+          style: GoogleFonts.dmSans(
             fontSize: 11,
             fontWeight: FontWeight.w600,
             color: AppColors.navyPrimary,
@@ -447,7 +447,7 @@ class _BusinessReadyCard extends StatelessWidget {
               children: [
                 Text(
                   businessName,
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.navyPrimary,
@@ -460,7 +460,7 @@ class _BusinessReadyCard extends StatelessWidget {
                   isSwahili
                       ? 'Eneo lako liko tayari'
                       : 'Your workspace is ready',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     color: AppColors.textMuted,
                   ),
@@ -476,7 +476,7 @@ class _BusinessReadyCard extends StatelessWidget {
             ),
             child: Text(
               isSwahili ? 'Tayari ✓' : 'Ready ✓',
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: AppColors.success,

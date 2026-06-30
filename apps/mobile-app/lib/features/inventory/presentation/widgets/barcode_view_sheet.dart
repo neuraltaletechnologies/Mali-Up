@@ -1,6 +1,7 @@
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
@@ -95,8 +96,8 @@ class BarcodeViewSheet extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     sku,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontFamily: 'monospace',
+                    style: GoogleFonts.jetBrainsMono(
+                          fontSize: 14,
                           letterSpacing: 1.5,
                           color: AppColors.textSecondary,
                         ),

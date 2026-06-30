@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -100,7 +101,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                 ),
                 child: const Text(
                   'Point camera at barcode or QR code',
-                  style: TextStyle(color: Colors.white, fontSize: 13),
+                  style: GoogleFonts.dmSans(color: Colors.white, fontSize: 13),
                 ),
               ),
             ),
@@ -313,7 +314,7 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                               const SizedBox(width: 6),
                               Text(
                                 widget.title,
-                                style: const TextStyle(
+                                style: GoogleFonts.dmSans(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14),
@@ -367,7 +368,7 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                       Flexible(
                         child: Text(
                           _lastScannedName!,
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
@@ -435,7 +436,7 @@ class _ScanHint extends StatelessWidget {
         ),
         child: const Text(
           'Point camera at barcode or QR code',
-          style: TextStyle(color: Colors.white, fontSize: 13),
+          style: GoogleFonts.dmSans(color: Colors.white, fontSize: 13),
         ),
       ),
     );
@@ -491,7 +492,7 @@ class _MiniCart extends StatelessWidget {
             child: Center(
               child: Text(
                 '$itemCount',
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
@@ -507,7 +508,7 @@ class _MiniCart extends StatelessWidget {
               children: [
                 Text(
                   '$itemCount ${itemCount == 1 ? "item" : "items"} added',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: Colors.white70,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -516,7 +517,7 @@ class _MiniCart extends StatelessWidget {
                 const SizedBox(height: 1),
                 Text(
                   _fmt(subtotal),
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
@@ -536,7 +537,7 @@ class _MiniCart extends StatelessWidget {
               ),
               child: const Text(
                 'Done',
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   color: AppColors.navyPrimary,
                   fontWeight: FontWeight.w800,
                   fontSize: 14,

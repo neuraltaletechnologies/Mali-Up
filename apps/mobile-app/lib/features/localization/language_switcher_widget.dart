@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/translation_manager.dart';
 
@@ -15,7 +16,7 @@ class LanguageSwitcherWidget extends ConsumerWidget {
         children: [
           Text(
             locale.languageCode == 'sw' ? 'Lugha' : 'Language',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.bold),
           ),
           DropdownButton<String>(
             value: locale.languageCode,

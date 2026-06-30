@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -86,7 +87,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
                       Expanded(
                         child: Text(
                           'Biometric lock not available on this device',
-                          style: TextStyle(color: Colors.orange[900]),
+                          style: GoogleFonts.dmSans(color: Colors.orange[900]),
                         ),
                       ),
                     ],
@@ -157,7 +158,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
                       '✓ Device-level encryption\n'
                       '✓ Secure credential storage\n'
                       '✓ Session timeout after inactivity',
-                      style: TextStyle(height: 1.8),
+                      style: GoogleFonts.dmSans(height: 1.8),
                     ),
                   ],
                 ),

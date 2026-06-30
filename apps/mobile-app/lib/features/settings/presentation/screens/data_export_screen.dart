@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 
@@ -95,7 +96,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                       : const Icon(Icons.download),
                   label: Text(
                     isExporting ? 'Exporting...' : 'Download Data',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -153,7 +154,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                       '✓ Inventory items\n'
                       '✓ Account settings\n'
                       '✓ Export timestamp',
-                      style: TextStyle(height: 1.8),
+                      style: GoogleFonts.dmSans(height: 1.8),
                     ),
                   ],
                 ),
@@ -181,7 +182,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                     const Text(
                       'Under Tanzania\'s Personal Data Protection Act, you have the right to export your data. This complies with Article 18 (Right to Portability).\n\n'
                       'You can download your data at any time and transfer it to another service.',
-                      style: TextStyle(height: 1.6),
+                      style: GoogleFonts.dmSans(height: 1.6),
                     ),
                   ],
                 ),

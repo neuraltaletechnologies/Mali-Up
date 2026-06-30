@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -29,7 +30,7 @@ class CashFlowReportScreen extends ConsumerWidget {
         leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Cash Flow Statement', 'Taarifa ya Mtiririko wa Fedha'),
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -75,7 +76,7 @@ class CashFlowReportScreen extends ConsumerWidget {
                   children: [
                     Text(
                       _tr('Net Cash Flow', 'Mtiririko Halisi wa Fedha'),
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: isPositive ? AppColors.success : AppColors.error,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -86,7 +87,7 @@ class CashFlowReportScreen extends ConsumerWidget {
                       isPositive
                           ? _tr('Positive — cash surplus', 'Chanya — ziada ya pesa')
                           : _tr('Negative — cash deficit', 'Hasi — upungufu wa pesa'),
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 11,
                         color: (isPositive ? AppColors.success : AppColors.error).withValues(alpha: 0.8),
                       ),
@@ -95,7 +96,7 @@ class CashFlowReportScreen extends ConsumerWidget {
                 ),
                 Text(
                   '${isPositive ? '+' : ''}${formatCurrency(report.netOperating)}',
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: isPositive ? AppColors.success : AppColors.error,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -226,7 +227,7 @@ class _CashWaterfallCard extends StatelessWidget {
                       if (idx < 0 || idx >= labels.length) return const SizedBox.shrink();
                       return Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(labels[idx], style: const TextStyle(fontSize: 9, color: AppColors.textMuted)),
+                        child: Text(labels[idx], style: GoogleFonts.dmSans(fontSize: 9, color: AppColors.textMuted)),
                       );
                     },
                   ),
@@ -295,10 +296,10 @@ class _CashActivityCardState extends State<_CashActivityCard> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(widget.title,
-                        style: TextStyle(color: widget.color, fontSize: 14, fontWeight: FontWeight.w700)),
+                        style: GoogleFonts.dmSans(color: widget.color, fontSize: 14, fontWeight: FontWeight.w700)),
                   ),
                   Text(formatCurrency(widget.amount),
-                      style: TextStyle(color: widget.color, fontSize: 14, fontWeight: FontWeight.w800)),
+                      style: GoogleFonts.dmSans(color: widget.color, fontSize: 14, fontWeight: FontWeight.w800)),
                   const SizedBox(width: 6),
                   Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
                       color: AppColors.textMuted, size: 20),
@@ -315,13 +316,13 @@ class _CashActivityCardState extends State<_CashActivityCard> {
                 children: [
                   Expanded(
                     child: Text(item.label,
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                   ),
                   Text(
                     formatCurrency(item.amount),
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: item.isInflow ? AppColors.success : AppColors.error,
@@ -335,7 +336,7 @@ class _CashActivityCardState extends State<_CashActivityCard> {
                 padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
                 child: Text(
                   '+ ${widget.items.length - 20} ${_tr('more transactions', 'miamala mingine')}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
                 ),
               ),
           ],

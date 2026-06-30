@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:timer_count_down/timer_count_down.dart';
 import 'package:go_router/go_router.dart';
@@ -291,7 +292,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         const SizedBox(width: 6),
                         Text(
                           _tr('Secure', 'Salama'),
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                           ),
@@ -370,7 +371,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                                 'Your verification code is secure and private.',
                                 'Nambari yako ya uthibitisho ni salama na ya faragha.',
                               ),
-                              style: const TextStyle(
+                              style: GoogleFonts.dmSans(
                                 color: textSecondary,
                                 fontSize: 12.5,
                               ),
@@ -400,7 +401,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                               Expanded(
                                 child: Text(
                                   _errorMessage!,
-                                  style: const TextStyle(
+                                  style: GoogleFonts.dmSans(
                                     color: Colors.red,
                                     fontSize: 14,
                                   ),
@@ -430,7 +431,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                               Expanded(
                                 child: Text(
                                   _successMessage!,
-                                  style: const TextStyle(
+                                  style: GoogleFonts.dmSans(
                                     color: Colors.green,
                                     fontSize: 14,
                                   ),
@@ -508,7 +509,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                                 'Didn\'t receive the code?',
                                 'Hujapokea nambari?',
                               ),
-                              style: const TextStyle(color: textSecondary),
+                              style: GoogleFonts.dmSans(color: textSecondary),
                             ),
                             const SizedBox(height: 8),
                             if (_resendCountdown > 0)
@@ -520,7 +521,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                                         'Resend in ${time.toInt()}s',
                                         'Tuma upya ${time.toInt()}s',
                                       ),
-                                      style: const TextStyle(
+                                      style: GoogleFonts.dmSans(
                                         color: textSecondary,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -546,7 +547,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                                       )
                                     : Text(
                                         _tr('Resend Code', 'Tuma Nambari Upya'),
-                                        style: const TextStyle(
+                                        style: GoogleFonts.dmSans(
                                           color: AppColors.primary,
                                           fontWeight: FontWeight.w600,
                                         ),

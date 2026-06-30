@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -38,7 +39,7 @@ class SalesReportScreen extends ConsumerWidget {
         leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Sales Report', 'Ripoti ya Mauzo'),
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -166,7 +167,7 @@ class _PaymentPieCard extends StatelessWidget {
                       color: _colors[e.key % _colors.length],
                       radius: 44,
                       title: '${pct.toStringAsFixed(0)}%',
-                      titleStyle: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700),
+                      titleStyle: GoogleFonts.dmSans(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700),
                     );
                   }).toList(),
                   sectionsSpace: 2,
@@ -184,8 +185,8 @@ class _PaymentPieCard extends StatelessWidget {
                       child: Row(children: [
                         Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(e.value.key, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary))),
-                        Text(formatCurrency(e.value.value), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                        Expanded(child: Text(e.value.key, style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary))),
+                        Text(formatCurrency(e.value.value), style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600)),
                       ]),
                     );
                   }).toList(),
@@ -248,7 +249,7 @@ class _SalesTrendCard extends StatelessWidget {
                       final idx = v.toInt();
                       if (idx < 0 || idx >= trend.length) return const SizedBox.shrink();
                       return Text(monthLabel(trend[idx].month),
-                          style: const TextStyle(fontSize: 10, color: AppColors.textMuted));
+                          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted));
                     },
                   ),
                 ),
@@ -312,15 +313,15 @@ class _RankedListCard extends StatelessWidget {
                           ),
                           child: Center(
                             child: Text('${e.key + 1}',
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+                                style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.secondary)),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(e.value.key,
-                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                            style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary)),
                       ]),
                       Text(formatCurrency(e.value.value),
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                          style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
                     ],
                   ),
                   const SizedBox(height: 4),

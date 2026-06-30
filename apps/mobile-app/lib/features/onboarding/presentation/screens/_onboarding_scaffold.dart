@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -156,7 +157,7 @@ class _OnboardingFieldState extends State<OnboardingField> {
       children: [
         AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 180),
-          style: TextStyle(
+          style: GoogleFonts.dmSans(
             fontSize: 12,
             fontWeight: FontWeight.w700,
             color: _focused ? AppColors.navyPrimary : AppColors.textMuted,
@@ -179,7 +180,7 @@ class _OnboardingFieldState extends State<OnboardingField> {
           onFieldSubmitted: widget.onFieldSubmitted,
           readOnly: widget.readOnly,
           onTap: widget.onTap,
-          style: const TextStyle(
+          style: GoogleFonts.dmSans(
             fontSize: 15,
             fontWeight: FontWeight.w500,
             color: AppColors.navyPrimary,
@@ -187,7 +188,7 @@ class _OnboardingFieldState extends State<OnboardingField> {
           ),
           decoration: InputDecoration(
             hintText: widget.hint,
-            hintStyle: const TextStyle(
+            hintStyle: GoogleFonts.dmSans(
               color: AppColors.textDisabled,
               fontSize: 14,
               fontWeight: FontWeight.w400,
@@ -309,7 +310,7 @@ class _OnboardingPrimaryButtonState extends State<OnboardingPrimaryButton>
               )
             : Text(
                 widget.label,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: _enabled ? fg : AppColors.textMuted,
@@ -364,7 +365,7 @@ class OnboardingErrorBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 color: AppColors.error,
                 fontSize: 13,
                 height: 1.45,
@@ -546,7 +547,7 @@ class _PinDotsInputState extends State<PinDotsInput>
               maxLength: widget.pinLength,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(border: InputBorder.none),
-              style: const TextStyle(height: 0.01, color: Colors.transparent),
+              style: GoogleFonts.dmSans(height: 0.01, color: Colors.transparent),
               showCursor: false,
               enableInteractiveSelection: false,
               obscureText: true,

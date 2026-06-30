@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -28,7 +29,7 @@ class VatSummaryScreen extends ConsumerWidget {
         leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('VAT Summary', 'Muhtasari wa VAT'),
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -59,7 +60,7 @@ class VatSummaryScreen extends ConsumerWidget {
                       'TRA-compliant VAT report for period: $periodLabel',
                       'Ripoti ya VAT inayofuata TRA kwa kipindi: $periodLabel',
                     ),
-                    style: const TextStyle(fontSize: 12, color: AppColors.secondary, fontWeight: FontWeight.w500),
+                    style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.secondary, fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
@@ -107,7 +108,7 @@ class VatSummaryScreen extends ConsumerWidget {
                   isPayable
                       ? _tr('NET VAT PAYABLE TO TRA', 'VAT HALISI INAYOLIPWA KWA TRA')
                       : _tr('NET VAT REFUNDABLE', 'VAT HALISI INAYORUDISHWA'),
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: isPayable ? AppColors.error : AppColors.success,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -117,7 +118,7 @@ class VatSummaryScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   formatCurrency(report.netVatPayable.abs()),
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: isPayable ? AppColors.error : AppColors.success,
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
@@ -128,7 +129,7 @@ class VatSummaryScreen extends ConsumerWidget {
                   isPayable
                       ? _tr('Amount to remit to TRA this period', 'Kiasi cha kulipa TRA kipindi hiki')
                       : _tr('Excess input VAT — claim refund from TRA', 'VAT ya ziada ya input — dai kurejeshesha kutoka TRA'),
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     color: isPayable ? AppColors.error.withValues(alpha: 0.8) : AppColors.success.withValues(alpha: 0.8),
                   ),
@@ -151,7 +152,7 @@ class VatSummaryScreen extends ConsumerWidget {
                 'Note: This report is based on your recorded transactions. Always verify with your accountant before TRA filing.',
                 'Kumbuka: Ripoti hii inategemea miamala yako iliyorekodiwa. Thibitisha na mhasibu wako kabla ya kuwasilisha TRA.',
               ),
-              style: const TextStyle(fontSize: 11, color: AppColors.secondary),
+              style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.secondary),
             ),
           ),
           const SizedBox(height: 16),
@@ -210,7 +211,7 @@ class _VatSection extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(title, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700)),
+              child: Text(title, style: GoogleFonts.dmSans(color: color, fontSize: 13, fontWeight: FontWeight.w700)),
             ),
           ]),
           const Divider(height: 20, color: AppColors.border),
@@ -238,14 +239,14 @@ class _VatRow extends StatelessWidget {
         children: [
           Expanded(
             child: Text(label,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   color: AppColors.textSecondary,
                   fontSize: 13,
                   fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
                 )),
           ),
           Text(value,
-              style: TextStyle(
+              style: GoogleFonts.dmSans(
                 color: bold ? AppColors.secondary : AppColors.textPrimary,
                 fontSize: 13,
                 fontWeight: bold ? FontWeight.w700 : FontWeight.w500,

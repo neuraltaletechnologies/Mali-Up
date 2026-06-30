@@ -231,14 +231,14 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
             orElse: () => _kBizTypes.last)
         : null;
 
-    final headingStyle = GoogleFonts.poppins(
+    final headingStyle = GoogleFonts.dmSans(
       fontSize: 26,
       color: AppColors.textPrimary,
       fontWeight: FontWeight.w800,
       height: 1.2,
       letterSpacing: -0.4,
     );
-    final subtitleStyle = GoogleFonts.poppins(
+    final subtitleStyle = GoogleFonts.dmSans(
       color: AppColors.textSecondary,
       fontSize: 14,
       height: 1.5,
@@ -294,7 +294,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -451,7 +451,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                 sw
                                     ? 'Saidia wateja kukupata.'
                                     : 'Helps customers and reports stay accurate.',
-                                style: const TextStyle(
+                                style: GoogleFonts.dmSans(
                                     fontSize: 12, color: AppColors.textMuted),
                               ),
                               const SizedBox(height: 12),
@@ -505,7 +505,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                 sw
                                     ? 'Ongeza tovuti yako kama una moja (si lazima).'
                                     : 'Add your website if you have one (optional).',
-                                style: const TextStyle(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 12,
                                   color: AppColors.textMuted,
                                 ),
@@ -516,7 +516,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                 keyboardType: TextInputType.url,
                                 textInputAction: TextInputAction.done,
                                 autocorrect: false,
-                                style: const TextStyle(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 15,
                                   color: AppColors.navyPrimary,
                                 ),
@@ -550,7 +550,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                       width: 1.5,
                                     ),
                                   ),
-                                  labelStyle: const TextStyle(
+                                  labelStyle: GoogleFonts.dmSans(
                                     fontSize: 13,
                                     color: AppColors.textMuted,
                                   ),
@@ -597,7 +597,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                       sw
                                           ? 'Nitengeneze tovuti yangu'
                                           : 'Build me my website',
-                                      style: const TextStyle(
+                                      style: GoogleFonts.dmSans(
                                         fontSize: 13,
                                         color: AppColors.textMuted,
                                         fontWeight: FontWeight.w500,
@@ -636,7 +636,7 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                     OnboardingStrings.s(sw,
                                         en: OnboardingStrings.bizCtaEn,
                                         sw: OnboardingStrings.bizCtaSw),
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.dmSans(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 16,
                                     ),
@@ -669,7 +669,7 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         label,
-        style: const TextStyle(
+        style: GoogleFonts.dmSans(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppColors.navyPrimary,
@@ -690,7 +690,7 @@ class _FieldError extends StatelessWidget {
           const SizedBox(width: 5),
           Expanded(
             child: Text(message,
-                style: const TextStyle(fontSize: 12, color: AppColors.error)),
+                style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.error)),
           ),
         ],
       );
@@ -776,7 +776,7 @@ class _TapSelectorState extends State<_TapSelector>
               Expanded(
                 child: Text(
                   widget.value ?? widget.placeholder,
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 15,
                     fontWeight:
                         hasValue ? FontWeight.w600 : FontWeight.w400,
@@ -858,7 +858,7 @@ class _LocationRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                       color: disabled
@@ -870,7 +870,7 @@ class _LocationRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     value ?? placeholder ?? '',
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight:
                           hasValue ? FontWeight.w600 : FontWeight.w400,
@@ -983,7 +983,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
               OnboardingStrings.s(sw,
                   en: OnboardingStrings.bizTypeLabelEn,
                   sw: OnboardingStrings.bizTypeLabelSw),
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: AppColors.navyPrimary,
@@ -1001,13 +1001,13 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
               ),
               child: TextField(
                 controller: _searchCtrl,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                     fontSize: 14, color: AppColors.navyPrimary),
                 decoration: InputDecoration(
                   hintText: sw
                       ? 'Tafuta aina ya biashara…'
                       : 'Search business type…',
-                  hintStyle: const TextStyle(
+                  hintStyle: GoogleFonts.dmSans(
                       fontSize: 14, color: AppColors.textDisabled),
                   prefixIcon: const Icon(Icons.search_rounded,
                       size: 18, color: AppColors.textMuted),
@@ -1093,7 +1093,7 @@ class _BizTypeTile extends StatelessWidget {
             Expanded(
               child: Text(
                 isSwahili ? type.sw : type.en,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight:
                       selected ? FontWeight.w700 : FontWeight.w500,
@@ -1184,7 +1184,7 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
               widget.title,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: AppColors.navyPrimary,
@@ -1202,11 +1202,11 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
               ),
               child: TextField(
                 controller: _searchCtrl,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                     fontSize: 14, color: AppColors.navyPrimary),
                 decoration: const InputDecoration(
                   hintText: 'Search…',
-                  hintStyle: TextStyle(
+                  hintStyle: GoogleFonts.dmSans(
                       fontSize: 14, color: AppColors.textDisabled),
                   prefixIcon: Icon(Icons.search_rounded,
                       size: 18, color: AppColors.textMuted),
@@ -1236,7 +1236,7 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
                         Expanded(
                           child: Text(
                             item,
-                            style: TextStyle(
+                            style: GoogleFonts.dmSans(
                               fontSize: 14,
                               fontWeight: isSelected
                                   ? FontWeight.w700

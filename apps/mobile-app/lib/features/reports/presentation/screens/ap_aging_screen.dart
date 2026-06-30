@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -27,7 +28,7 @@ class ApAgingScreen extends ConsumerWidget {
         leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('AP Aging', 'Umri wa Madeni'),
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -50,17 +51,17 @@ class ApAgingScreen extends ConsumerWidget {
             child: Column(children: [
               Text(
                 _tr('Total Outstanding Payables', 'Jumla ya Madeni Yanayosubiri'),
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 12),
               ),
               const SizedBox(height: 6),
               Text(
                 formatCurrency(report.grandTotal),
-                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                style: GoogleFonts.dmSans(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 4),
               Text(
                 _tr('Total cash required to clear all payables', 'Jumla ya pesa inayohitajika kulipa madeni yote'),
-                style: const TextStyle(color: Colors.white60, fontSize: 11),
+                style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 11),
               ),
             ]),
           ),
@@ -117,7 +118,7 @@ class ApAgingScreen extends ConsumerWidget {
                     'Prioritize paying 60+ day buckets to maintain supplier relationships.',
                     'Weka kipaumbele kulipa vikundi vya siku 60+ kudumisha uhusiano na wasambazaji.',
                   ),
-                  style: const TextStyle(fontSize: 12, color: AppColors.secondary),
+                  style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.secondary),
                 ),
               ),
             ]),
@@ -193,8 +194,8 @@ class _ApDistributionCard extends StatelessWidget {
             children: buckets.map((b) => Column(children: [
               Container(width: 10, height: 10, decoration: BoxDecoration(color: b.color, borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 4),
-              Text(b.label, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
-              Text('${b.count}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+              Text(b.label, style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
+              Text('${b.count}', style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
             ])).toList(),
           ),
         ],
@@ -257,14 +258,14 @@ class _ApBucketCardState extends State<_ApBucketCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.label, style: TextStyle(color: widget.color, fontSize: 13, fontWeight: FontWeight.w700)),
+                        Text(widget.label, style: GoogleFonts.dmSans(color: widget.color, fontSize: 13, fontWeight: FontWeight.w700)),
                         Text('${widget.bucket.items.length} ${_tr('expenses', 'gharama')}',
-                            style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                            style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11)),
                       ],
                     ),
                   ),
                   Text(formatCurrency(widget.bucket.total),
-                      style: TextStyle(color: widget.color, fontSize: 14, fontWeight: FontWeight.w800)),
+                      style: GoogleFonts.dmSans(color: widget.color, fontSize: 14, fontWeight: FontWeight.w800)),
                   const SizedBox(width: 6),
                   Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
                       color: AppColors.textMuted, size: 20),
@@ -304,9 +305,9 @@ class _ExpenseRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(vendor.isNotEmpty ? vendor : _tr('Unknown', 'Haijulikana'),
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                    style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
                 if (category.isNotEmpty)
-                  Text(category, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                  Text(category, style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted)),
               ],
             ),
           ),
@@ -314,9 +315,9 @@ class _ExpenseRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(formatCurrency(amount),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+                  style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondary)),
               Text('$ageDays ${_tr('days', 'siku')}',
-                  style: TextStyle(fontSize: 11, color: accentColor, fontWeight: FontWeight.w600)),
+                  style: GoogleFonts.dmSans(fontSize: 11, color: accentColor, fontWeight: FontWeight.w600)),
             ],
           ),
         ],

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -36,7 +37,7 @@ class ExpenseReportScreen extends ConsumerWidget {
         leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Expense Report', 'Ripoti ya Gharama'),
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -112,14 +113,14 @@ class ExpenseReportScreen extends ConsumerWidget {
                             ),
                             child: Center(
                               child: Text('${e.key + 1}',
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.error)),
+                                  style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.error)),
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Text(e.value.key, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                          Text(e.value.key, style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary)),
                         ]),
                         Text(formatCurrency(e.value.value),
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                            style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
                       ],
                     ),
                   )),
@@ -188,11 +189,11 @@ class _CategoryBreakdownCard extends StatelessWidget {
                     Row(children: [
                       Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
                       const SizedBox(width: 8),
-                      Text(e.value.key, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text(e.value.key, style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary)),
                     ]),
                     Text(
                       '${formatCurrency(e.value.value)} (${(pct * 100).toStringAsFixed(1)}%)',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                      style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                     ),
                   ]),
                   const SizedBox(height: 4),
@@ -263,7 +264,7 @@ class _ExpenseTrendCard extends StatelessWidget {
                       final idx = v.toInt();
                       if (idx < 0 || idx >= trend.length) return const SizedBox.shrink();
                       return Text(monthLabel(trend[idx].month),
-                          style: const TextStyle(fontSize: 10, color: AppColors.textMuted));
+                          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted));
                     },
                   ),
                 ),
@@ -305,9 +306,9 @@ class _PaymentMethodCard extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text(e.key, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                Text(e.key, style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary)),
                 Text('${formatCurrency(e.value)} · ${pct.toStringAsFixed(1)}%',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondary)),
               ]),
             );
           }),

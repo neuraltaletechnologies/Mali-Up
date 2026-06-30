@@ -203,14 +203,14 @@ class _SearchBar extends StatelessWidget {
     return TextField(
       controller: controller,
       onChanged: onChanged,
-      style: GoogleFonts.inter(fontSize: 15, color: AppColors.navyPrimary),
+      style: GoogleFonts.dmSans(fontSize: 15, color: AppColors.navyPrimary),
       decoration: InputDecoration(
         hintText: _tr(
           'Search by name, barcode or keyword…',
           'Tafuta kwa jina, msimbo au neno…',
         ),
         hintStyle:
-            GoogleFonts.inter(fontSize: 14, color: const Color(0xFF64748B)),
+            GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF64748B)),
         prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
         suffixIcon: controller.text.isNotEmpty
             ? IconButton(
@@ -277,7 +277,7 @@ class _CategoryChips extends StatelessWidget {
               ),
               child: Text(
                 cat.categoryName,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight:
                       selected ? FontWeight.w600 : FontWeight.w400,
@@ -323,7 +323,7 @@ class _ResultsHeader extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textMuted,
@@ -340,7 +340,7 @@ class _ResultsHeader extends StatelessWidget {
             ),
             child: Text(
               '$count',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.navyPrimary,
@@ -395,7 +395,7 @@ class _ProductCard extends StatelessWidget {
                 children: [
                   Text(
                     product.productName,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppColors.navyPrimary,
@@ -408,7 +408,7 @@ class _ProductCard extends StatelessWidget {
                     const SizedBox(height: 1),
                     Text(
                       product.productNameSw,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.dmSans(
                           fontSize: 12, color: AppColors.textMuted),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -484,7 +484,7 @@ class _Pill extends StatelessWidget {
           BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
       child: Text(
         label,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.dmSans(
             fontSize: 11, fontWeight: FontWeight.w500, color: color),
       ),
     );
@@ -507,7 +507,7 @@ class _ImportButton extends StatelessWidget {
         ),
         child: Text(
           _tr('Import', 'Ingiza'),
-          style: GoogleFonts.inter(
+          style: GoogleFonts.dmSans(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: Colors.white,
@@ -602,7 +602,7 @@ class _CatalogError extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               title,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.navyPrimary,
@@ -612,7 +612,7 @@ class _CatalogError extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                   fontSize: 14, color: AppColors.textMuted, height: 1.5),
               textAlign: TextAlign.center,
             ),
@@ -665,7 +665,7 @@ class _EmptyResults extends StatelessWidget {
                       'Hakuna matokeo ya "$query"')
                   : _tr('No products in this category',
                       'Hakuna bidhaa katika kategoria hii'),
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.navyPrimary,
@@ -678,7 +678,7 @@ class _EmptyResults extends StatelessWidget {
                 'Try a different search term or browse all products.',
                 'Jaribu neno tofauti au angalia bidhaa zote.',
               ),
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                   fontSize: 14, color: AppColors.textMuted),
               textAlign: TextAlign.center,
             ),

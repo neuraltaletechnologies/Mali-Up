@@ -278,7 +278,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                                 value: e.$1,
                                 label: Text(
                                   LocalizationService.isSwahili ? e.$3 : e.$2,
-                                  style: const TextStyle(fontSize: 12),
+                                  style: GoogleFonts.dmSans(fontSize: 12),
                                 ),
                               ))
                           .toList(),

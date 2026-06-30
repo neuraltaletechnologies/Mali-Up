@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -40,8 +41,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   AppLanguage _selectedLanguage = LocalizationService.languageNotifier.value;
   bool _reducedMotionEnabled = MotionService.reducedMotionNotifier.value;
   bool _isLoadingLanguage = false;
-  bool _notificationsEnabled = true;
-  bool _emailAlertsEnabled = false;
 
   String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
@@ -182,7 +181,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         children: [
                           Text(
                             lang == AppLanguage.english ? '🇬🇧' : '🇹🇿',
-                            style: const TextStyle(fontSize: 22),
+                            style: GoogleFonts.dmSans(fontSize: 22),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -191,7 +190,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               children: [
                                 Text(
                                   lang.label,
-                                  style: TextStyle(
+                                  style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 15,
                                     color: isSelected
@@ -201,7 +200,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 ),
                                 Text(
                                   lang.nativeLabel,
-                                  style: const TextStyle(
+                                  style: GoogleFonts.dmSans(
                                     fontSize: 12,
                                     color: AppColors.textMuted,
                                   ),
@@ -238,7 +237,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // ── Page title ───────────────────────────────────────
           Text(
             _tr('Settings', 'Mipangilio'),
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 26,
               fontWeight: FontWeight.w800,
               color: AppColors.navyPrimary,
@@ -248,7 +247,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 2),
           Text(
             _tr('Account & preferences', 'Akaunti na mipangilio'),
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 13,
               color: AppColors.textMuted,
             ),
@@ -301,48 +300,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onChanged: (v) {
                     setState(() => _reducedMotionEnabled = v);
                     _toggleReducedMotion(v);
-                  },
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: AppColors.secondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // ── Notifications ────────────────────────────────────
-          _SectionHeader(label: _tr('Notifications', 'Arifa')),
-          const SizedBox(height: 8),
-          _SettingCard(
-            children: [
-              _SettingTile(
-                icon: Icons.notifications_rounded,
-                iconBg: AppColors.warning.withValues(alpha: 0.1),
-                iconColor: AppColors.warning,
-                title: _tr('Push Notifications', 'Arifa za Simu'),
-                subtitle: _tr('Sales, debts and reminders', 'Mauzo, madeni na vikumbusho'),
-                trailing: Switch.adaptive(
-                  value: _notificationsEnabled,
-                  onChanged: (v) {
-                    setState(() => _notificationsEnabled = v);
-                    _showComingSoon(_tr('Push notifications', 'Arifa za simu'));
-                  },
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: AppColors.secondary,
-                ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
-                icon: Icons.mark_email_read_rounded,
-                iconBg: AppColors.info.withValues(alpha: 0.1),
-                iconColor: AppColors.info,
-                title: _tr('Email Alerts', 'Arifa za Barua Pepe'),
-                subtitle: _tr('Weekly reports to your inbox', 'Ripoti ya wiki kwa barua pepe'),
-                trailing: Switch.adaptive(
-                  value: _emailAlertsEnabled,
-                  onChanged: (v) {
-                    setState(() => _emailAlertsEnabled = v);
-                    _showComingSoon(_tr('Email alerts', 'Arifa za barua pepe'));
                   },
                   activeThumbColor: Colors.white,
                   activeTrackColor: AppColors.secondary,
@@ -518,7 +475,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   child: const Text(
                     '1.1.0',
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                       color: AppColors.textMuted,
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
@@ -672,7 +629,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                         child: Center(
                           child: Text(
                             initial,
-                            style: const TextStyle(
+                            style: GoogleFonts.dmSans(
                               color: AppColors.navyPrimary,
                               fontSize: 17,
                               fontWeight: FontWeight.w900,
@@ -689,7 +646,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                               name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: GoogleFonts.dmSans(
                                 color: Colors.white,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -700,7 +657,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                               contact,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
+                              style: GoogleFonts.dmSans(
                                 color: Colors.white.withValues(alpha: 0.50),
                                 fontSize: 11.5,
                               ),
@@ -805,7 +762,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         label.toUpperCase(),
-        style: const TextStyle(
+        style: GoogleFonts.dmSans(
           color: AppColors.textMuted,
           fontSize: 11,
           fontWeight: FontWeight.w700,
@@ -895,7 +852,7 @@ class _SettingTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                       fontSize: 14.5,
@@ -905,7 +862,7 @@ class _SettingTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: AppColors.textMuted,
                         fontSize: 12,
                       ),
@@ -957,7 +914,7 @@ class _SocialIcon extends StatelessWidget {
               ? Icon(icon, size: 22, color: color)
               : Text(
                   label!,
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: color,
                     fontSize: label!.length > 1 ? 12 : 18,
                     fontWeight: FontWeight.w900,
@@ -1010,7 +967,7 @@ class _PlanCardBody extends StatelessWidget {
                 children: [
                   Text(
                     planName,
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -1026,7 +983,7 @@ class _PlanCardBody extends StatelessWidget {
                       ),
                       child: Text(
                         tr('Upgrade', 'Boresha'),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                           color: AppColors.navyPrimary,
@@ -1070,7 +1027,7 @@ class _PlanCardBody extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       '$invoicesUsed/$invoiceLimit',
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         color: pct >= 0.8
@@ -1087,7 +1044,7 @@ class _PlanCardBody extends StatelessWidget {
                     'Valid until ${_fmtDate(expiresAt!)}',
                     'Inakwisha ${_fmtDate(expiresAt!)}',
                   ),
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 11,
                     color: Colors.white.withValues(alpha: 0.45),
                   ),

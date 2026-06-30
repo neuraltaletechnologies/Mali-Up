@@ -190,7 +190,7 @@ class _SecuritySetupScreenState extends ConsumerState<SecuritySetupScreen>
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -356,7 +356,7 @@ class _SetPinBody extends StatelessWidget {
       children: [
         Text(
           sw ? 'Linda akaunti yako 🔐' : 'Secure your account 🔐',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 26,
             fontWeight: FontWeight.w800,
             color: AppColors.navyPrimary,
@@ -369,7 +369,7 @@ class _SetPinBody extends StatelessWidget {
           sw
               ? 'Tengeneza PIN ya tarakimu 4 utakayotumia kufikia Mali Up.'
               : 'Create a 4-digit PIN you\'ll use to access Mali Up.',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 14,
             color: AppColors.textMuted,
             height: 1.5,
@@ -382,7 +382,7 @@ class _SetPinBody extends StatelessWidget {
             children: [
               Text(
                 sw ? 'Ingiza PIN mpya' : 'Enter new PIN',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textMuted,
@@ -426,7 +426,7 @@ class _SetPinBody extends StatelessWidget {
             onPressed: onSubmit,
             child: Text(
               sw ? 'Endelea' : 'Continue',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.dmSans(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
@@ -474,7 +474,7 @@ class _ConfirmPinBody extends StatelessWidget {
       children: [
         Text(
           sw ? 'Thibitisha PIN yako ✓' : 'Confirm your PIN ✓',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 26,
             fontWeight: FontWeight.w800,
             color: AppColors.navyPrimary,
@@ -487,7 +487,7 @@ class _ConfirmPinBody extends StatelessWidget {
           sw
               ? 'Ingiza tena PIN yako ili ithibitishwe.'
               : 'Enter your PIN once more to confirm it.',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 14,
             color: AppColors.textMuted,
             height: 1.5,
@@ -500,7 +500,7 @@ class _ConfirmPinBody extends StatelessWidget {
             children: [
               Text(
                 sw ? 'Thibitisha PIN' : 'Confirm PIN',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textMuted,
@@ -567,7 +567,7 @@ class _ConfirmPinBody extends StatelessWidget {
                   )
                 : Text(
                     sw ? 'Hifadhi & Endelea' : 'Save & Continue',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w700,
                       fontSize: 16,
                     ),
@@ -608,7 +608,7 @@ class _OnboardingOfflineBanner extends StatelessWidget {
               children: [
                 Text(
                   sw ? 'Hakuna mtandao' : 'No internet connection',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF856404),
@@ -619,7 +619,7 @@ class _OnboardingOfflineBanner extends StatelessWidget {
                   sw
                       ? 'Tafadhali unganisha mtandao na ujaribu tena.'
                       : 'Please connect to the internet and try again.',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     color: Color(0xFF856404),
                     height: 1.4,

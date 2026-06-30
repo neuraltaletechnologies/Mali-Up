@@ -240,14 +240,14 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
     final mediaQuery = MediaQuery.of(context);
     final topHeight = mediaQuery.size.height * 0.35;
 
-    final headingStyle = GoogleFonts.poppins(
+    final headingStyle = GoogleFonts.dmSans(
       fontSize: 28,
       color: AppColors.textPrimary,
       fontWeight: FontWeight.w800,
       height: 1.15,
       letterSpacing: -0.5,
     );
-    final subtitleStyle = GoogleFonts.poppins(
+    final subtitleStyle = GoogleFonts.dmSans(
       color: AppColors.textSecondary,
       fontSize: 14,
       height: 1.5,
@@ -306,7 +306,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -420,7 +420,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                     OnboardingStrings.s(sw,
                                         en: OnboardingStrings.phoneHelperEn,
                                         sw: OnboardingStrings.phoneHelperSw),
-                                    style: const TextStyle(
+                                    style: GoogleFonts.dmSans(
                                         fontSize: 12, color: AppColors.textMuted),
                                   ),
                                 ],
@@ -474,7 +474,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                                   .phoneSendCtaEn,
                                               sw: OnboardingStrings
                                                   .phoneSendCtaSw),
-                                          style: GoogleFonts.poppins(
+                                          style: GoogleFonts.dmSans(
                                             fontWeight: FontWeight.w700,
                                             fontSize: 16,
                                           ),
@@ -558,7 +558,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
             // Label
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 180),
-              style: TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: _focused
@@ -612,12 +612,12 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                         children: [
                           Text(
                             widget.country.flag,
-                            style: const TextStyle(fontSize: 20),
+                            style: GoogleFonts.dmSans(fontSize: 20),
                           ),
                           const SizedBox(width: 6),
                           Text(
                             widget.country.dial,
-                            style: const TextStyle(
+                            style: GoogleFonts.dmSans(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: AppColors.navyPrimary,
@@ -651,14 +651,14 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                       onChanged: (_) {
                         if (_error != null) setState(() => _error = null);
                       },
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: AppColors.navyPrimary,
                       ),
                       decoration: const InputDecoration(
                         hintText: '7XX XXX XXX',
-                        hintStyle: TextStyle(
+                        hintStyle: GoogleFonts.dmSans(
                           fontSize: 15,
                           color: AppColors.textDisabled,
                         ),
@@ -683,7 +683,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                   Expanded(
                     child: Text(
                       _error!,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                           fontSize: 12, color: AppColors.error),
                     ),
                   ),
@@ -774,7 +774,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
               children: [
                 Text(
                   widget.isSwahili ? 'Chagua nchi' : 'Select country',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: AppColors.navyPrimary,
@@ -797,13 +797,13 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
               child: TextField(
                 controller: _searchCtrl,
                 autofocus: true,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: AppColors.navyPrimary,
                 ),
                 decoration: InputDecoration(
                   hintText: widget.isSwahili ? 'Tafuta nchi au nambari…' : 'Search country or code…',
-                  hintStyle: const TextStyle(
+                  hintStyle: GoogleFonts.dmSans(
                     fontSize: 14,
                     color: AppColors.textDisabled,
                   ),
@@ -852,12 +852,12 @@ class _CountryTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
         child: Row(
           children: [
-            Text(country.flag, style: const TextStyle(fontSize: 22)),
+            Text(country.flag, style: GoogleFonts.dmSans(fontSize: 22)),
             const SizedBox(width: 14),
             Expanded(
               child: Text(
                 country.name,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppColors.navyPrimary,
@@ -866,7 +866,7 @@ class _CountryTile extends StatelessWidget {
             ),
             Text(
               country.dial,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textMuted,
@@ -905,7 +905,7 @@ class _OfflineBanner extends StatelessWidget {
               children: [
                 Text(
                   sw ? 'Hakuna mtandao' : 'No internet connection',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF856404),
@@ -916,7 +916,7 @@ class _OfflineBanner extends StatelessWidget {
                   sw
                       ? 'Tafadhali unganisha mtandao na ujaribu tena.'
                       : 'Please connect to the internet and try again.',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     color: Color(0xFF856404),
                     height: 1.4,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -49,7 +50,7 @@ class SyncDiagnosticsScreen extends ConsumerWidget {
         foregroundColor: Colors.white,
         title: Text(
           _tr('Sync Diagnostics', 'Uchunguzi wa Usawazishaji'),
-          style: const TextStyle(
+          style: GoogleFonts.dmSans(
             color: Colors.white,
             fontWeight: FontWeight.w600,
             fontSize: 18,
@@ -180,7 +181,7 @@ class _SyncHealthCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 statusLabel,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontWeight: FontWeight.w700,
                   color: statusColor,
                   fontSize: 15,
@@ -255,13 +256,13 @@ class _Row extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(label,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                     fontSize: 13, color: AppColors.textMuted)),
           ),
           Expanded(
             flex: 3,
             child: Text(value,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary)),
@@ -310,7 +311,7 @@ class _QueueSection extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                     color: color,
@@ -319,7 +320,7 @@ class _QueueSection extends ConsumerWidget {
                 const Spacer(),
                 async.whenData((list) => Text(
                       '${list.length}',
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: color),
@@ -340,13 +341,13 @@ class _QueueSection extends ConsumerWidget {
             onError: (e, _) => Padding(
               padding: const EdgeInsets.all(16),
               child: Text('Error: $e',
-                  style: const TextStyle(color: AppColors.error)),
+                  style: GoogleFonts.dmSans(color: AppColors.error)),
             ),
             data: (entries) => entries.isEmpty
                 ? Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(emptyLabel,
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                             color: AppColors.textMuted, fontSize: 13)),
                   )
                 : ListView.separated(
@@ -388,7 +389,7 @@ class _QueueEntryTile extends StatelessWidget {
                   children: [
                     Text(
                       '${entry.entityType} · ${entry.operation}',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                         color: AppColors.textPrimary,
@@ -401,17 +402,16 @@ class _QueueEntryTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   entry.entityId,
-                  style: const TextStyle(
+                  style: GoogleFonts.jetBrainsMono(
                       fontSize: 11,
-                      color: AppColors.textMuted,
-                      fontFamily: 'monospace'),
+                      color: AppColors.textMuted),
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (entry.errorMessage.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
                     entry.errorMessage,
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                         fontSize: 11, color: AppColors.error),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -421,7 +421,7 @@ class _QueueEntryTile extends StatelessWidget {
                 Text(
                   '${_tr('Created', 'Iliundwa')} $created · '
                   '${_tr('Attempts', 'Majaribio')} ${entry.attempts}/${entry.maxAttempts}',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                       fontSize: 11, color: AppColors.textDisabled),
                 ),
               ],
@@ -486,7 +486,7 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(label,
-          style: TextStyle(
+          style: GoogleFonts.dmSans(
               fontSize: 10, fontWeight: FontWeight.w700, color: fg)),
     );
   }
@@ -514,7 +514,7 @@ class _ActionButtons extends StatelessWidget {
             onPressed: onClearCompleted,
             icon: const Icon(Icons.delete_sweep_rounded, size: 16),
             label: Text(_tr('Clear completed', 'Futa zilizomalizika'),
-                style: const TextStyle(fontSize: 13)),
+                style: GoogleFonts.dmSans(fontSize: 13)),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.textSecondary,
               side: const BorderSide(color: AppColors.border),
@@ -540,7 +540,7 @@ class _ActionButtons extends StatelessWidget {
               syncing
                   ? _tr('Syncing...', 'Inasawazisha...')
                   : _tr('Sync now', 'Sawazisha sasa'),
-              style: const TextStyle(fontSize: 13),
+              style: GoogleFonts.dmSans(fontSize: 13),
             ),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.navyPrimary,

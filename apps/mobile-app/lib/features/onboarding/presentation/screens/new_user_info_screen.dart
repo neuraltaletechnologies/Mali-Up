@@ -93,14 +93,14 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
     final sw    = state.isSwahili;
     final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    final headingStyle = GoogleFonts.poppins(
+    final headingStyle = GoogleFonts.dmSans(
       fontSize: 28,
       color: AppColors.textPrimary,
       fontWeight: FontWeight.w800,
       height: 1.15,
       letterSpacing: -0.5,
     );
-    final subtitleStyle = GoogleFonts.poppins(
+    final subtitleStyle = GoogleFonts.dmSans(
       color: AppColors.textSecondary,
       fontSize: 14,
       height: 1.5,
@@ -156,7 +156,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -311,7 +311,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                     sw
                                         ? 'Inatumika kwa arifa na nenosiri.'
                                         : 'Used for notifications and password.',
-                                    style: const TextStyle(
+                                    style: GoogleFonts.dmSans(
                                         fontSize: 12,
                                         color: AppColors.textMuted),
                                   ),
@@ -347,7 +347,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                     OnboardingStrings.s(sw,
                                         en: OnboardingStrings.newUserCtaEn,
                                         sw: OnboardingStrings.newUserCtaSw),
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.dmSans(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 16,
                                     ),

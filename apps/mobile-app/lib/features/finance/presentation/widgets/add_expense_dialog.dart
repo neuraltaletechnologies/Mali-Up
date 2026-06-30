@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -217,7 +218,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                           activeThumbColor: AppColors.error,
                           title: Text(
                             _t('Bought on Credit', 'Umenunua kwa Mkopo'),
-                            style: const TextStyle(
+                            style: GoogleFonts.dmSans(
                                 fontSize: 14, fontWeight: FontWeight.w600),
                           ),
                           subtitle: Text(
@@ -225,7 +226,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                               'Not fully paid – record as payable debt',
                               'Haujalipia kikamilifu – rekodi kama deni',
                             ),
-                            style: const TextStyle(fontSize: 12),
+                            style: GoogleFonts.dmSans(fontSize: 12),
                           ),
                         ),
                         if (_isCreditPurchase) ...[
@@ -275,7 +276,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                           activeThumbColor: AppColors.tealAccent,
                           title: Text(
                             _t('Recurring expense', 'Matumizi ya mara kwa mara'),
-                            style: const TextStyle(
+                            style: GoogleFonts.dmSans(
                                 fontSize: 14, fontWeight: FontWeight.w600),
                           ),
                           subtitle: Text(
@@ -283,7 +284,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                               'Auto-record this expense on schedule',
                               'Rekodi matumizi haya kiotomatiki',
                             ),
-                            style: const TextStyle(fontSize: 12),
+                            style: GoogleFonts.dmSans(fontSize: 12),
                           ),
                         ),
                         if (_isRecurring) ...[
@@ -295,7 +296,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
                               children: [
                                 Text(
                                   _t('Frequency', 'Muda'),
-                                  style: const TextStyle(
+                                  style: GoogleFonts.dmSans(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600),
                                 ),

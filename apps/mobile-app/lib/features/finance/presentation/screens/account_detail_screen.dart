@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -127,7 +128,7 @@ class _AccountHeader extends StatelessWidget {
                   children: [
                     Text(
                       account.type,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white54,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -137,7 +138,7 @@ class _AccountHeader extends StatelessWidget {
                         account.accountNumber!.isNotEmpty)
                       Text(
                         account.accountNumber!,
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           color: Colors.white70,
                           fontSize: 12,
                         ),
@@ -150,12 +151,12 @@ class _AccountHeader extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             _t('Current Balance', 'Salio la Sasa'),
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
+            style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 12),
           ),
           const SizedBox(height: 4),
           Text(
             _fmtAmt(account.balance),
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               color: Colors.white,
               fontSize: 28,
               fontWeight: FontWeight.w700,
@@ -173,7 +174,7 @@ class _AccountHeader extends StatelessWidget {
                     'Last reconciled: $lastReconDate',
                     'Mwisho kulinganishwa: $lastReconDate',
                   ),
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  style: GoogleFonts.dmSans(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -262,7 +263,7 @@ class _TxnTile extends StatelessWidget {
                         ),
                         child: Text(
                           txn.reference,
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                             fontSize: 10,
                             color: AppColors.textMuted,
                           ),

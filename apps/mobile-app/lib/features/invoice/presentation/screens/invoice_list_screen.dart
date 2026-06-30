@@ -71,7 +71,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
             en: AppStrings.get('invoices'),
             sw: AppStrings.get('invoices', isSwahili: true),
           ),
-          style: const TextStyle(
+          style: GoogleFonts.dmSans(
             color: Colors.white,
             fontWeight: FontWeight.w700,
             fontSize: 18,
@@ -196,7 +196,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
         children: [
           Text(
             title,
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 12,
               color: accentColor,
               fontWeight: FontWeight.w600,
@@ -205,7 +205,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
           const SizedBox(height: 4),
           Text(
             'TZS ${amount.toStringAsFixed(0)}',
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.navyPrimary,
@@ -301,7 +301,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                   Expanded(
                     child: Text(
                       'Invoice ${invoice.invoiceNumber}',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
@@ -327,7 +327,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                   // Items
                   const Text(
                     'Items',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 8),
                   ...invoice.items.map((item) {
@@ -341,12 +341,12 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                               children: [
                                 Text(
                                   item.name,
-                                  style: const TextStyle(fontWeight: FontWeight.w500),
+                                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w500),
                                 ),
                                 if (item.description.isNotEmpty)
                                   Text(
                                     item.description,
-                                    style: const TextStyle(
+                                    style: GoogleFonts.dmSans(
                                       fontSize: 12,
                                       color: AppColors.textMuted,
                                     ),
@@ -356,12 +356,12 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                           ),
                           Text(
                             '${item.quantity} × ${item.unitPrice.toStringAsFixed(2)}',
-                            style: const TextStyle(color: AppColors.textSecondary),
+                            style: GoogleFonts.dmSans(color: AppColors.textSecondary),
                           ),
                           const SizedBox(width: 8),
                           Text(
                             item.total.toStringAsFixed(2),
-                            style: const TextStyle(fontWeight: FontWeight.w500),
+                            style: GoogleFonts.dmSans(fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
@@ -379,7 +379,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                     const Divider(),
                     const Text(
                       'Note',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 8),
                     Text(invoice.note),
@@ -427,7 +427,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
             width: 80,
             child: Text(
               label,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 color: AppColors.textMuted,
                 fontSize: 14,
               ),
@@ -436,7 +436,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -452,13 +452,13 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
         children: [
           Text(
             label,
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
             ),
           ),
           Text(
             'TZS ${amount.toStringAsFixed(2)}',
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
               fontSize: isBold ? 16 : 14,
             ),
@@ -602,7 +602,7 @@ class InvoiceCard extends StatelessWidget {
                                       invoice.invoiceNumber,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
+                                      style: GoogleFonts.dmSans(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.navyPrimary,
@@ -618,19 +618,19 @@ class InvoiceCard extends StatelessWidget {
                                 invoice.customerName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
                               ),
                               const SizedBox(height: 4),
                               Row(
                                 children: [
                                   Text(
                                     'Due: ${invoice.dueDate}',
-                                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                                    style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
                                   ),
                                   const Spacer(),
                                   Text(
                                     'TZS ${invoice.total.toStringAsFixed(0)}',
-                                    style: const TextStyle(
+                                    style: GoogleFonts.dmSans(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.navyPrimary,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/security_service.dart';
@@ -140,7 +141,7 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
                         _step == 0
                             ? _tr('Create a PIN', 'Tengeneza PIN')
                             : _tr('Confirm your PIN', 'Thibitisha PIN yako'),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           color: AppColors.secondary,
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -157,7 +158,7 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
                                 'Enter the same PIN again to confirm.',
                                 'Ingiza PIN ile ile tena kuthibitisha.',
                               ),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           color: AppColors.textMuted,
                           fontSize: 13,
                         ),
@@ -212,7 +213,7 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
             const SizedBox(height: 10),
             Text(
               _errorMessage,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 color: AppColors.error,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -431,7 +432,7 @@ class _PinChangeSheetState extends State<_PinChangeSheet> {
                     children: [
                       Text(
                         _tr(_titles[_step][0], _titles[_step][1]),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           color: AppColors.secondary,
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -440,7 +441,7 @@ class _PinChangeSheetState extends State<_PinChangeSheet> {
                       const SizedBox(height: 4),
                       Text(
                         _tr(_subtitles[_step][0], _subtitles[_step][1]),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           color: AppColors.textMuted,
                           fontSize: 13,
                         ),
@@ -487,7 +488,7 @@ class _PinChangeSheetState extends State<_PinChangeSheet> {
             const SizedBox(height: 10),
             Text(
               _errorMessage,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 color: AppColors.error,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -594,7 +595,7 @@ class _PinNumpad extends StatelessWidget {
           ),
           child: Text(
             digit,
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               color: AppColors.secondary,
               fontSize: 22,
               fontWeight: FontWeight.w500,

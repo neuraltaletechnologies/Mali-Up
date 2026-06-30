@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 
@@ -86,7 +87,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                 const SizedBox(height: 16),
                 Text(
                   '${pinEntry.length} digits',
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: Colors.grey[600],
                     fontSize: 14,
                   ),
@@ -108,7 +109,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                     ),
                     child: const Text(
                       'Enter at least 4 digits for security',
-                      style: TextStyle(fontSize: 12),
+                      style: GoogleFonts.dmSans(fontSize: 12),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -175,7 +176,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
             child: Center(
               child: Text(
                 number,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
                   color: color ?? AppColors.navyPrimary,

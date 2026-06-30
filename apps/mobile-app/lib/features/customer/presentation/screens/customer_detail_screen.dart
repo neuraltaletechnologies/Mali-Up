@@ -3399,7 +3399,10 @@ class _ActivityTab extends ConsumerWidget {
     final invoicesAsync = ref.watch(customerInvoicesProvider(customerId));
     final paymentsAsync = ref.watch(customerPaymentsProvider(customerId));
 
-    if (invoicesAsync.isLoading || paymentsAsync.isLoading) {
+    // Only block on Drift-backed invoices loading. The Firestore-backed payments
+    // stream has no local cache (persistence is disabled), so it may never emit
+    // when offline — treat it as empty until it resolves.
+    if (invoicesAsync.isLoading) {
       return const CustomScrollView(slivers: [
         SliverFillRemaining(
           hasScrollBody: false,
