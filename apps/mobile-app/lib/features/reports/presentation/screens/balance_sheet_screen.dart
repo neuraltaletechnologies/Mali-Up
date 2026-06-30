@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -31,7 +32,7 @@ class BalanceSheetScreen extends ConsumerWidget {
         leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Balance Sheet', 'Karatasi ya Mizania'),
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
         actions: [
           Padding(
@@ -39,7 +40,7 @@ class BalanceSheetScreen extends ConsumerWidget {
             child: Center(
               child: Text(
                 _tr('As of $dateLabel', 'Hadi $dateLabel'),
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11),
               ),
             ),
           ),
@@ -59,9 +60,9 @@ class BalanceSheetScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _EquationTerm(label: _tr('Assets', 'Rasilimali'), value: formatCurrency(report.totalAssets)),
-                const Text('=', style: TextStyle(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
+                const Text('=', style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
                 _EquationTerm(label: _tr('Liabilities', 'Madeni'), value: formatCurrency(report.totalLiabilities)),
-                const Text('+', style: TextStyle(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
+                const Text('+', style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
                 _EquationTerm(label: _tr('Equity', 'Hisa'), value: formatCurrency(report.ownersEquity)),
               ],
             ),
@@ -78,7 +79,7 @@ class BalanceSheetScreen extends ConsumerWidget {
               child: Text(
                 _tr('Note: Some transactions may not be recorded. Totals are approximate.',
                     'Kumbuka: Baadhi ya miamala huenda haikurekodiwa. Jumla ni takriban.'),
-                style: const TextStyle(fontSize: 11, color: AppColors.secondary),
+                style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.secondary),
               ),
             ),
           ],
@@ -145,7 +146,7 @@ class BalanceSheetScreen extends ConsumerWidget {
                   const SizedBox(width: 10),
                   Text(
                     _tr("OWNER'S EQUITY", 'HISA YA MMILIKI'),
-                    style: const TextStyle(color: AppColors.secondary, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                    style: GoogleFonts.dmSans(color: AppColors.secondary, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5),
                   ),
                 ]),
                 const SizedBox(height: 12),
@@ -196,9 +197,9 @@ class _EquationTerm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-      Text(label, style: const TextStyle(color: Colors.white60, fontSize: 10)),
+      Text(label, style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 10)),
       const SizedBox(height: 2),
-      Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+      Text(value, style: GoogleFonts.dmSans(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
     ]);
   }
 }
@@ -239,7 +240,7 @@ class _BalanceSection extends StatelessWidget {
               decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(width: 10),
-            Text(title, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+            Text(title, style: GoogleFonts.dmSans(color: color, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
           ]),
           const SizedBox(height: 12),
           ...children,
@@ -263,14 +264,14 @@ class _BSGroup extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+        Text(title, style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
         const SizedBox(height: 6),
         ...children,
         Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('  Subtotal', style: TextStyle(fontSize: 12, color: AppColors.textMuted, fontStyle: FontStyle.italic)),
-            Text(subtotal, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontStyle: FontStyle.italic)),
+            const Text('  Subtotal', style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted, fontStyle: FontStyle.italic)),
+            Text(subtotal, style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted, fontStyle: FontStyle.italic)),
           ]),
         ),
         const SizedBox(height: 8),
@@ -296,14 +297,14 @@ class _BSRow extends StatelessWidget {
         children: [
           Expanded(
             child: Text(label,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: bold ? AppColors.secondary : AppColors.textSecondary,
                   fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
                 )),
           ),
           Text(value,
-              style: TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 13,
                 color: valueColor ?? (bold ? AppColors.secondary : AppColors.textPrimary),
                 fontWeight: bold ? FontWeight.w700 : FontWeight.w500,

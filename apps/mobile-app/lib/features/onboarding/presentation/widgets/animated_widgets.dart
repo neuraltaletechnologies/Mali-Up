@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/motion_service.dart';
 
@@ -63,7 +64,7 @@ class _AnimatedChartState extends State<AnimatedChart>
                 children: [
                   const Text(
                     'Monthly Revenue',
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF1F2937),
@@ -77,7 +78,7 @@ class _AnimatedChartState extends State<AnimatedChart>
                     ),
                     child: const Text(
                       '+23%',
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF16C47F),

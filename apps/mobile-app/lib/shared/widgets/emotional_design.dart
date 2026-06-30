@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
@@ -355,7 +356,7 @@ class _EmotionalStatusChipState extends State<EmotionalStatusChip>
               child: Text(
                 widget.text,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   color: _palette(widget.tone),
                   fontWeight: FontWeight.w700,
                   fontSize: 12,

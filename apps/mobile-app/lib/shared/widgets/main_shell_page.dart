@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -307,7 +308,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                       child: Center(
                                         child: Text(
                                           profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
-                                          style: const TextStyle(
+                                          style: GoogleFonts.dmSans(
                                             color: AppColors.secondary,
                                             fontSize: 22,
                                             fontWeight: FontWeight.w800,
@@ -324,7 +325,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                             profile.fullName,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: GoogleFonts.dmSans(
                                               color: Colors.white,
                                               fontSize: 16,
                                               fontWeight: FontWeight.w700,
@@ -335,7 +336,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                             profile.contactLine,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: GoogleFonts.dmSans(
                                               color: Colors.white70,
                                               fontSize: 12,
                                               fontWeight: FontWeight.w400,
@@ -370,7 +371,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                             const SizedBox(width: 4),
                                             Text(
                                               _tr('Free', 'Bure'),
-                                              style: const TextStyle(
+                                              style: GoogleFonts.dmSans(
                                                 color: Colors.white,
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w700,
@@ -398,7 +399,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                             const SizedBox(width: 4),
                                             Text(
                                               _tr('Business', 'Biashara'),
-                                              style: const TextStyle(
+                                              style: GoogleFonts.dmSans(
                                                 color: AppColors.secondary,
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w600,
@@ -424,7 +425,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                         const SizedBox(width: 4),
                                         Text(
                                           member.role.label,
-                                          style: const TextStyle(
+                                          style: GoogleFonts.dmSans(
                                             color: Colors.white,
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
@@ -947,7 +948,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
                         ),
                         title: Text(
                           _businessLabel(business),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
                         ),
                         subtitle: Text(
                           '${(business['category'] ?? '').toString()} • ${(business['placeOfBusiness'] ?? '').toString()}',
@@ -1039,7 +1040,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                       color: canSwitch ? AppColors.primary : AppColors.secondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -1153,7 +1154,7 @@ class _DrawerItemLight extends StatelessWidget {
                   Expanded(
                     child: Text(
                       label,
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: selected ? Colors.white : AppColors.secondary,
                         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                         fontSize: 14,
@@ -1195,7 +1196,7 @@ class _DrawerSectionLabel extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
               label,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 color: AppColors.secondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,

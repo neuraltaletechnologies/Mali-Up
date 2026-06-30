@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/security_service.dart';
@@ -130,7 +131,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                   child: const Center(
                     child: Text(
                       'M',
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: AppColors.navyPrimary,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -141,7 +142,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                 const SizedBox(width: 10),
                 const Text(
                   'MALI UP',
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
@@ -153,7 +154,7 @@ class _PinLockScreenState extends State<PinLockScreen>
             const SizedBox(height: 40),
             Text(
               _tr('Enter PIN to continue', 'Ingiza PIN kuendelea'),
-              style: TextStyle(
+              style: GoogleFonts.dmSans(
                 color: Colors.white.withValues(alpha: 0.75),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
@@ -207,7 +208,7 @@ class _PinLockScreenState extends State<PinLockScreen>
               const SizedBox(height: 12),
               Text(
                 _tr('Incorrect PIN. Try again.', 'PIN si sahihi. Jaribu tena.'),
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   color: AppColors.error,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -249,7 +250,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                         onTap: () => _enterDigit('0'),
                         child: const Text(
                           '0',
-                          style: TextStyle(
+                          style: GoogleFonts.dmSans(
                             color: Colors.white,
                             fontSize: 26,
                             fontWeight: FontWeight.w400,
@@ -285,7 +286,7 @@ class _PinLockScreenState extends State<PinLockScreen>
               onTap: () => _enterDigit(d),
               child: Text(
                 d,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   color: Colors.white,
                   fontSize: 26,
                   fontWeight: FontWeight.w400,

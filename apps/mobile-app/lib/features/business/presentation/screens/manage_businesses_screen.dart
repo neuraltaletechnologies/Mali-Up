@@ -1,10 +1,11 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -81,7 +82,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             Expanded(
               child: Text(
                 _tr('Paid Feature', 'Kipengele cha Malipo'),
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                style: GoogleFonts.dmSans(fontSize: 17, fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -108,7 +109,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             },
             child: Text(
               _tr('Upgrade', 'Panda Daraja'),
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -347,7 +348,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             onPressed: () => Navigator.of(c).pop(true),
             child: Text(
               _tr('Delete', 'Futa'),
-              style: const TextStyle(color: AppColors.error),
+              style: GoogleFonts.dmSans(color: AppColors.error),
             ),
           ),
         ],
@@ -443,7 +444,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                       width: 1.5,
                     ),
                   ),
-                  labelStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  labelStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 );
 
@@ -505,7 +506,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                       isEditing
                                           ? _tr('Edit business', 'Hariri biashara')
                                           : _tr('Add new business', 'Ongeza biashara mpya'),
-                                      style: const TextStyle(
+                                      style: GoogleFonts.dmSans(
                                         fontSize: 19,
                                         fontWeight: FontWeight.w800,
                                         color: AppColors.navyPrimary,
@@ -518,7 +519,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                       isEditing
                                           ? _tr('Update your business profile.', 'Sasisha wasifu wa biashara yako.')
                                           : _tr('Fill in the details below to get started.', 'Jaza maelezo hapa chini kuanza.'),
-                                      style: const TextStyle(
+                                      style: GoogleFonts.dmSans(
                                         fontSize: 12,
                                         color: AppColors.textMuted,
                                         height: 1.4,
@@ -588,7 +589,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                           TextField(
                             controller: nameCtrl,
                             onChanged: (_) => setS(() {}),
-                            style: const TextStyle(fontSize: 15, color: AppColors.navyPrimary),
+                            style: GoogleFonts.dmSans(fontSize: 15, color: AppColors.navyPrimary),
                             decoration: fieldDeco(
                               label: _tr('Business name *', 'Jina la biashara *'),
                               hint: _tr("e.g. Mama Lucy's Shop", 'mfano Duka la Mama Lucy'),
@@ -644,7 +645,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                               'Helps customers and reports stay accurate.',
                               'Husaidia wateja na ripoti kuwa sahihi.',
                             ),
-                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                            style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
                           ),
                           const SizedBox(height: 12),
                           _FormTapSelector(
@@ -712,14 +713,14 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                               'Add your website if you have one (optional).',
                               'Ongeza tovuti yako kama una moja (si lazima).',
                             ),
-                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                            style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
                           ),
                           const SizedBox(height: 12),
                           TextField(
                             controller: websiteCtrl,
                             keyboardType: TextInputType.url,
                             autocorrect: false,
-                            style: const TextStyle(fontSize: 15, color: AppColors.navyPrimary),
+                            style: GoogleFonts.dmSans(fontSize: 15, color: AppColors.navyPrimary),
                             decoration: fieldDeco(
                               label: _tr('Business website (optional)', 'Tovuti ya biashara (hiari)'),
                               hint: 'https://mybusiness.com',
@@ -749,7 +750,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                 const SizedBox(width: 8),
                                 Text(
                                   _tr('Build me my website', 'Nitengeneze Tovuti Yangu'),
-                                  style: const TextStyle(
+                                  style: GoogleFonts.dmSans(
                                     fontSize: 13,
                                     color: AppColors.textMuted,
                                     fontWeight: FontWeight.w500,
@@ -806,7 +807,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                                 : null,
                                             child: Text(
                                               _tr('Delete permanently', 'Futa kudumu'),
-                                              style: const TextStyle(color: Colors.redAccent),
+                                              style: GoogleFonts.dmSans(color: Colors.redAccent),
                                             ),
                                           ),
                                         ],
@@ -907,7 +908,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                           isEditing
                                               ? _tr('Save changes', 'Hifadhi mabadiliko')
                                               : _tr('Add business', 'Ongeza biashara'),
-                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, fontSize: 15),
                                         ),
                                 ),
                               ),
@@ -1129,7 +1130,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: GoogleFonts.dmSans(
                               fontWeight: FontWeight.w700,
                               fontSize: 16,
                               color: AppColors.textPrimary,
@@ -1138,7 +1139,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                           if (category.isNotEmpty)
                             Text(
                               category,
-                              style: const TextStyle(
+                              style: GoogleFonts.dmSans(
                                 color: AppColors.textSecondary,
                                 fontSize: 12,
                               ),
@@ -1166,13 +1167,13 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                   ),
                   title: Text(
                     _tr('Edit business', 'Hariri biashara'),
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                         fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                   subtitle: Text(
                     _tr('Update details, logo and contacts',
                         'Sasisha maelezo, nembo na mawasiliano'),
-                    style: const TextStyle(fontSize: 12),
+                    style: GoogleFonts.dmSans(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded,
                       color: AppColors.textMuted, size: 18),
@@ -1197,7 +1198,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                   ),
                   title: Text(
                     _tr('Delete business', 'Futa biashara'),
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                       color: AppColors.error,
@@ -1206,7 +1207,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                   subtitle: Text(
                     _tr('Permanently remove this business',
                         'Futa biashara hii kudumu'),
-                    style: const TextStyle(fontSize: 12),
+                    style: GoogleFonts.dmSans(fontSize: 12),
                   ),
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
@@ -1223,166 +1224,123 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   }
 
   Widget _buildAddHero(Map<String, dynamic>? profile) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: () {
-          if (_isStarterPlan(profile) && _businessesFromProfile(profile).isNotEmpty) {
-            _showMultiBusinessUpgradeDialog();
-            return;
-          }
-          _openBusinessFormSheet(profile);
-        },
-        borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF003153), Color(0xFF003153)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+    return GestureDetector(
+      onTap: () {
+        if (_isStarterPlan(profile) && _businessesFromProfile(profile).isNotEmpty) {
+          _showMultiBusinessUpgradeDialog();
+          return;
+        }
+        _openBusinessFormSheet(profile);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.navyPrimary,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.navyPrimary.withValues(alpha: 0.40),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+              spreadRadius: -4,
             ),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF003153).withValues(alpha: 0.45),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-                spreadRadius: -4,
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: -36,
-                top: -36,
-                child: Container(
-                  width: 160,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.04),
-                  ),
+          ],
+        ),
+        child: Stack(
+          clipBehavior: Clip.antiAlias,
+          children: [
+            Positioned(
+              right: -30,
+              top: -30,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.04),
                 ),
               ),
-              Positioned(
-                right: 20,
-                bottom: -24,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.yellowBrand.withValues(alpha: 0.06),
-                  ),
+            ),
+            Positioned(
+              left: -20,
+              bottom: -20,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.yellowBrand.withValues(alpha: 0.06),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.yellowBrand.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                        color: AppColors.yellowBrand.withValues(alpha: 0.30),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.add_business_rounded,
+                      color: AppColors.yellowBrand,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: AppColors.yellowBrand.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(15),
-                            border: Border.all(
-                              color: AppColors.yellowBrand.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.add_business_rounded,
-                            color: AppColors.yellowBrand,
-                            size: 26,
+                        Text(
+                          _tr('Add a new business', 'Ongeza biashara mpya'),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            height: 1.2,
+                            letterSpacing: -0.2,
                           ),
                         ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.2)),
+                        const SizedBox(height: 3),
+                        Text(
+                          _tr(
+                            'Manage all your businesses in one place',
+                            'Simamia biashara zako zote mahali pamoja',
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.add_rounded,
-                                  size: 13, color: Colors.white),
-                              const SizedBox(width: 4),
-                              Text(
-                                _tr('New', 'Mpya'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
+                          style: GoogleFonts.dmSans(
+                            color: Colors.white.withValues(alpha: 0.55),
+                            fontSize: 12,
+                            height: 1.4,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 18),
-                    Text(
-                      _tr('Add a new business', 'Ongeza biashara mpya'),
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        height: 1.2,
-                        letterSpacing: -0.4,
-                      ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.yellowBrand,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _tr(
-                        'Set up a separate profile for each business and track everything in one place.',
-                        'Tengeneza wasifu tofauti kwa kila biashara na ufuatilie kila kitu mahali pamoja.',
-                      ),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
-                        fontSize: 13,
-                        height: 1.5,
-                      ),
+                    child: const Icon(
+                      Icons.add_rounded,
+                      color: AppColors.navyPrimary,
+                      size: 20,
                     ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 13),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.add_rounded,
-                              color: AppColors.navyPrimary, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            _tr('Add New Business', 'Ongeza Biashara Mpya'),
-                            style: const TextStyle(
-                              color: AppColors.navyPrimary,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1401,21 +1359,23 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     final isActive = selectedBusinessId == business['id'];
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           onTap: () => _openBusinessActionsSheet(profile, business),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(18),
+              color: isActive
+                  ? AppColors.navyPrimary.withValues(alpha: 0.04)
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isActive
-                    ? AppColors.primary.withValues(alpha: 0.35)
+                    ? AppColors.navyPrimary.withValues(alpha: 0.28)
                     : AppColors.border,
                 width: isActive ? 1.5 : 1,
               ),
@@ -1423,10 +1383,10 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             child: Row(
               children: [
                 Container(
-                  width: 46,
-                  height: 46,
-                  decoration: const BoxDecoration(
-                    color: AppColors.yellowBrand,
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isActive ? AppColors.navyPrimary : AppColors.yellowBrand,
                     shape: BoxShape.circle,
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -1434,12 +1394,11 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                       ? Image.network(
                           logoUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              _LogoInitial(initial: initial),
+                          errorBuilder: (_, _, _) => _LogoInitial(initial: initial),
                         )
                       : _LogoInitial(initial: initial),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1451,28 +1410,31 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                               name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: GoogleFonts.dmSans(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                                color: isActive
+                                    ? AppColors.navyPrimary
+                                    : AppColors.textPrimary,
                               ),
                             ),
                           ),
                           if (isActive) ...[
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
+                                  horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
+                                color: AppColors.navyPrimary,
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 _tr('Active', 'Hai'),
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 11,
+                                style: GoogleFonts.dmSans(
+                                  color: Colors.white,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
                                 ),
                               ),
                             ),
@@ -1480,7 +1442,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                         ],
                       ),
                       if (category.isNotEmpty || place.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           [
                             if (category.isNotEmpty) category,
@@ -1488,9 +1450,9 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                           ].join(' • '),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 13,
+                          style: GoogleFonts.dmSans(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
                           ),
                         ),
                       ],
@@ -1498,8 +1460,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.more_vert_rounded,
-                    color: AppColors.textMuted, size: 20),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textMuted, size: 18),
               ],
             ),
           ),
@@ -1528,7 +1490,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
             child: isLoading
                 ? const SizedBox.shrink()
                 : ListView(
-                    padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 50, 20, 40),
+                    padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 40),
                   children: [
                     _buildAddHero(profile),
                     if (businesses.isNotEmpty) ...[
@@ -1553,7 +1515,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             ),
                             child: Text(
                               '${businesses.length}',
-                              style: const TextStyle(
+                              style: GoogleFonts.dmSans(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 13,
@@ -1602,7 +1564,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                 'Bonyeza kitufe hapo juu kuongeza biashara yako ya kwanza.',
                               ),
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: GoogleFonts.dmSans(
                                 color: AppColors.textSecondary,
                                 fontSize: 14,
                               ),
@@ -1629,7 +1591,7 @@ class _FormSectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         label,
-        style: const TextStyle(
+        style: GoogleFonts.dmSans(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppColors.navyPrimary,
@@ -1682,7 +1644,7 @@ class _FormTapSelector extends StatelessWidget {
             Expanded(
               child: Text(
                 value ?? placeholder,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
                   color: disabled ? AppColors.textDisabled : (hasValue ? AppColors.navyPrimary : AppColors.textDisabled),
@@ -1768,7 +1730,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
               widget.tr('Business Type', 'Aina ya Biashara'),
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navyPrimary,
               ),
             ),
@@ -1784,10 +1746,10 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
               ),
               child: TextField(
                 controller: _searchCtrl,
-                style: const TextStyle(fontSize: 14, color: AppColors.navyPrimary),
+                style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
                 decoration: InputDecoration(
                   hintText: widget.tr('Search business type…', 'Tafuta aina ya biashara…'),
-                  hintStyle: const TextStyle(fontSize: 14, color: AppColors.textDisabled),
+                  hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textDisabled),
                   prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1840,7 +1802,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
                         const SizedBox(width: 14),
                         Expanded(
                           child: Text(label,
-                              style: TextStyle(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 14,
                                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                                 color: AppColors.navyPrimary,
@@ -1926,7 +1888,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
               widget.tr('City / Region', 'Mji / Mkoa'),
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navyPrimary,
               ),
             ),
@@ -1942,10 +1904,10 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
               ),
               child: TextField(
                 controller: _searchCtrl,
-                style: const TextStyle(fontSize: 14, color: AppColors.navyPrimary),
+                style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
                 decoration: InputDecoration(
                   hintText: widget.tr('Search…', 'Tafuta…'),
-                  hintStyle: const TextStyle(fontSize: 14, color: AppColors.textDisabled),
+                  hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textDisabled),
                   prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1973,7 +1935,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
                       children: [
                         Expanded(
                           child: Text(label,
-                              style: TextStyle(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 14,
                                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                                 color: AppColors.navyPrimary,
@@ -2054,7 +2016,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
               widget.tr('District', 'Wilaya'),
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.navyPrimary,
               ),
             ),
@@ -2070,10 +2032,10 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
               ),
               child: TextField(
                 controller: _searchCtrl,
-                style: const TextStyle(fontSize: 14, color: AppColors.navyPrimary),
+                style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.navyPrimary),
                 decoration: InputDecoration(
                   hintText: widget.tr('Search…', 'Tafuta…'),
-                  hintStyle: const TextStyle(fontSize: 14, color: AppColors.textDisabled),
+                  hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textDisabled),
                   prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -2098,7 +2060,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
                       children: [
                         Expanded(
                           child: Text(district,
-                              style: TextStyle(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 14,
                                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                                 color: AppColors.navyPrimary,
@@ -2128,7 +2090,7 @@ class _LogoInitial extends StatelessWidget {
     return Center(
       child: Text(
         initial,
-        style: const TextStyle(
+        style: GoogleFonts.dmSans(
           color: AppColors.navyPrimary,
           fontSize: 32,
           fontWeight: FontWeight.w800,

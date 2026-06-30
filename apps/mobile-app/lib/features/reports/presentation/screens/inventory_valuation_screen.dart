@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -30,7 +31,7 @@ class InventoryValuationScreen extends ConsumerWidget {
         leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Inventory Valuation', 'Tathmini ya Hisa'),
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
         actions: [
           Padding(
@@ -38,7 +39,7 @@ class InventoryValuationScreen extends ConsumerWidget {
             child: Center(
               child: Text(
                 _tr('As of $dateLabel', 'Hadi $dateLabel'),
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11),
               ),
             ),
           ),
@@ -66,17 +67,17 @@ class InventoryValuationScreen extends ConsumerWidget {
                     children: [
                       Text(
                         _tr('Total Inventory Value', 'Jumla ya Thamani ya Hisa'),
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 12),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         formatCurrency(report.totalValue),
-                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                        style: GoogleFonts.dmSans(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         _tr('Weighted average cost method', 'Njia ya wastani uliopimwa wa gharama'),
-                        style: const TextStyle(color: Colors.white54, fontSize: 10),
+                        style: GoogleFonts.dmSans(color: Colors.white54, fontSize: 10),
                       ),
                     ],
                   ),
@@ -86,15 +87,15 @@ class InventoryValuationScreen extends ConsumerWidget {
                   children: [
                     Text(
                       '${report.totalSkus}',
-                      style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
+                      style: GoogleFonts.dmSans(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
                     ),
-                    Text(_tr('SKUs', 'Bidhaa'), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    Text(_tr('SKUs', 'Bidhaa'), style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 11)),
                     const SizedBox(height: 8),
                     Text(
                       report.totalUnits.toStringAsFixed(0),
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                      style: GoogleFonts.dmSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
                     ),
-                    Text(_tr('total units', 'vitengo vyote'), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    Text(_tr('total units', 'vitengo vyote'), style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 11)),
                   ],
                 ),
               ],
@@ -121,7 +122,7 @@ class InventoryValuationScreen extends ConsumerWidget {
                       'Valuation uses unit selling price as cost proxy. For FIFO accuracy, record purchase prices in inventory.',
                       'Tathmini inatumia bei ya mauzo kama mbadala wa gharama. Kwa usahihi wa FIFO, rekodi bei za ununuzi kwenye hisa.',
                     ),
-                    style: const TextStyle(fontSize: 11, color: AppColors.secondary),
+                    style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.secondary),
                   ),
                 ),
               ],
@@ -156,9 +157,9 @@ class InventoryValuationScreen extends ConsumerWidget {
                     ),
                     child: Row(
                       children: [
-                        Expanded(flex: 3, child: Text(_tr('Item', 'Bidhaa'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted))),
-                        Expanded(flex: 2, child: Text(_tr('Stock', 'Hisa'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted), textAlign: TextAlign.right)),
-                        Expanded(flex: 2, child: Text(_tr('Value', 'Thamani'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted), textAlign: TextAlign.right)),
+                        Expanded(flex: 3, child: Text(_tr('Item', 'Bidhaa'), style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted))),
+                        Expanded(flex: 2, child: Text(_tr('Stock', 'Hisa'), style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted), textAlign: TextAlign.right)),
+                        Expanded(flex: 2, child: Text(_tr('Value', 'Thamani'), style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted), textAlign: TextAlign.right)),
                       ],
                     ),
                   ),
@@ -179,11 +180,11 @@ class InventoryValuationScreen extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(item.name,
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondary),
+                                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondary),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis),
                                 Text(item.category,
-                                    style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                                    style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
                               ],
                             ),
                           ),
@@ -192,7 +193,7 @@ class InventoryValuationScreen extends ConsumerWidget {
                             child: Text(
                               '${item.stock.toStringAsFixed(0)} ${item.unit}',
                               textAlign: TextAlign.right,
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary),
                             ),
                           ),
                           Expanded(
@@ -203,12 +204,12 @@ class InventoryValuationScreen extends ConsumerWidget {
                                 Text(
                                   formatCurrency(item.totalValue),
                                   textAlign: TextAlign.right,
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondary),
+                                  style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondary),
                                 ),
                                 Text(
                                   '${(pct * 100).toStringAsFixed(1)}%',
                                   textAlign: TextAlign.right,
-                                  style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                                  style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
                                 ),
                               ],
                             ),
@@ -222,7 +223,7 @@ class InventoryValuationScreen extends ConsumerWidget {
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         '+ ${report.items.length - 50} ${_tr('more items', 'bidhaa zaidi')}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                        style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -295,7 +296,7 @@ class _CategoryPieCard extends StatelessWidget {
                       color: _colors[e.key % _colors.length],
                       radius: 50,
                       title: '${pct.toStringAsFixed(0)}%',
-                      titleStyle: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700),
+                      titleStyle: GoogleFonts.dmSans(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700),
                     );
                   }).toList(),
                   sectionsSpace: 2,
@@ -317,11 +318,11 @@ class _CategoryPieCard extends StatelessWidget {
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(e.value.key,
-                                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textSecondary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                             Text('${pct.toStringAsFixed(1)}%',
-                                style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                                style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
                           ]),
                         ),
                       ]),

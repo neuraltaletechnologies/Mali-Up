@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -33,7 +34,7 @@ class ReportsHubScreen extends ConsumerWidget {
                 children: [
                   Text(
                     _tr('Financial Reports', 'Ripoti za Kifedha'),
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       color: AppColors.secondary,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
@@ -42,7 +43,7 @@ class ReportsHubScreen extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     _tr('Full picture of your business finances', 'Picha kamili ya fedha za biashara yako'),
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 13),
                   ),
                   const SizedBox(height: 14),
                   _DateRangeBar(range: range),
@@ -193,7 +194,7 @@ class _DateRangeBar extends ConsumerWidget {
               ),
               child: Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   color: isSelected ? Colors.white : AppColors.textSecondary,
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
@@ -249,7 +250,7 @@ class _SectionHeader extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Text(
                 label,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   color: AppColors.textMuted,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
@@ -328,7 +329,7 @@ class _ReportCard extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                             color: AppColors.secondary,
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -337,7 +338,7 @@ class _ReportCard extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           subtitle,
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                             color: AppColors.textMuted,
                             fontSize: 12,
                           ),
@@ -455,14 +456,14 @@ class ReportStatCard extends StatelessWidget {
               ],
               Text(
                 label,
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11),
               ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               color: valueColor ?? AppColors.secondary,
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -486,7 +487,7 @@ class ReportSectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: GoogleFonts.dmSans(
           color: AppColors.secondary,
           fontSize: 14,
           fontWeight: FontWeight.w700,

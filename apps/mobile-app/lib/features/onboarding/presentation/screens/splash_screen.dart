@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/logo.dart';
@@ -342,7 +343,7 @@ class _SplashScreenState extends State<SplashScreen>
                     position: _textSlide,
                     child: const Text(
                       'Mali Up',
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 36,
                         fontWeight: FontWeight.w800,
@@ -368,7 +369,7 @@ class _SplashScreenState extends State<SplashScreen>
                           sw: 'Kila kitu biashara yako inahitaji mahali pamoja.',
                         ),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: GoogleFonts.dmSans(
                           color: Colors.white.withValues(alpha: 0.48),
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
@@ -399,7 +400,7 @@ class _SplashScreenState extends State<SplashScreen>
             child: Center(
               child: Text(
                 'v2.0',
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   color: Colors.white.withValues(alpha: 0.18),
                   fontSize: 11,
                   fontWeight: FontWeight.w500,

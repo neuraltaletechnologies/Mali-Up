@@ -115,14 +115,14 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
     final name = state.firstName.isNotEmpty ? state.firstName : '';
     final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    final headingStyle = GoogleFonts.poppins(
+    final headingStyle = GoogleFonts.dmSans(
       fontSize: 26,
       color: AppColors.textPrimary,
       fontWeight: FontWeight.w800,
       height: 1.2,
       letterSpacing: -0.4,
     );
-    final subtitleStyle = GoogleFonts.poppins(
+    final subtitleStyle = GoogleFonts.dmSans(
       color: AppColors.textSecondary,
       fontSize: 14,
       height: 1.5,
@@ -181,7 +181,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -292,7 +292,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                 children: [
                                   Text(
                                     sw ? 'Ingiza PIN yako' : 'Enter your PIN',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.dmSans(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       color: AppColors.textMuted,
@@ -360,7 +360,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                       )
                                     : Text(
                                         sw ? 'Ingia' : 'Sign in',
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.dmSans(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 16,
                                         ),
@@ -376,7 +376,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                   sw
                                       ? 'Inakuingia, subiri kidogo…'
                                       : 'Signing you in, please wait…',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.dmSans(
                                     fontSize: 12,
                                     color: AppColors.textMuted,
                                     fontWeight: FontWeight.w500,
@@ -394,7 +394,7 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                                   sw
                                       ? 'Umesahau PIN yako?'
                                       : 'Forgot your PIN?',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.dmSans(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.navySecondary,
@@ -459,7 +459,7 @@ class _BusinessCard extends StatelessWidget {
               children: [
                 Text(
                   businessName,
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.navyPrimary,
@@ -478,7 +478,7 @@ class _BusinessCard extends StatelessWidget {
                     ),
                     child: Text(
                       role,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.navySecondary,
@@ -567,7 +567,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
 
           Text(
             sw ? 'Msaada wa PIN 🔐' : 'PIN Recovery 🔐',
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 22, fontWeight: FontWeight.w800,
               color: AppColors.navyPrimary, letterSpacing: -0.3,
             ),
@@ -581,7 +581,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                     'kwenye barua pepe uliyosajili.'
                   : 'We\'ll send recovery instructions to your registered email '
                     'so you can reset your PIN.',
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 14, color: AppColors.textMuted, height: 1.55,
               ),
             ),
@@ -606,7 +606,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                             'kuweka nenosiri jipya na PIN yako mpya.'
                           : 'After receiving the email, follow the link '
                             'to set a new password and restore your access.',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12, color: AppColors.tealAccent, height: 1.4,
                       ),
                     ),
@@ -636,7 +636,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                       )
                     : Text(
                         sw ? 'Tuma Maelekezo' : 'Send Recovery Link',
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                             fontSize: 15, fontWeight: FontWeight.w700),
                       ),
               ),
@@ -658,7 +658,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                   const SizedBox(height: 12),
                   Text(
                     sw ? 'Barua pepe haijapatikana' : 'No email on file',
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 16, fontWeight: FontWeight.w800,
                       color: Color(0xFF856404),
                     ),
@@ -671,7 +671,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                         : 'No email address is registered for this account. '
                           'Please contact Mali Up support via WhatsApp for help.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 13, color: Color(0xFF856404), height: 1.5,
                     ),
                   ),
@@ -685,7 +685,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 onPressed: () => Navigator.of(context).pop(),
                 child: Text(
                   sw ? 'Funga' : 'Close',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 14, fontWeight: FontWeight.w600,
                     color: AppColors.navyPrimary,
                   ),
@@ -709,7 +709,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                   const SizedBox(height: 12),
                   Text(
                     sw ? 'Imetumwa! ✓' : 'Sent! ✓',
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 18, fontWeight: FontWeight.w800,
                       color: AppColors.success,
                     ),
@@ -722,7 +722,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                         : 'Recovery instructions sent to ${_maskEmail(_sentTo!)}. '
                           'Check your email and follow the steps provided.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 13, color: AppColors.success, height: 1.5,
                     ),
                   ),
@@ -736,7 +736,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 onPressed: () => Navigator.of(context).pop(),
                 child: Text(
                   sw ? 'Sawa, nimepokea' : 'Got it, close',
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 14, fontWeight: FontWeight.w600,
                     color: AppColors.navyPrimary,
                   ),
@@ -775,7 +775,7 @@ class _PinLoginOfflineBanner extends StatelessWidget {
               sw
                   ? 'Kuingia kunahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
                   : 'Signing in requires internet. Please connect and try again.',
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 12,
                 color: Color(0xFF856404),
                 height: 1.4,

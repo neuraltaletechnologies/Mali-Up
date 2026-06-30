@@ -99,14 +99,14 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
   Widget build(BuildContext context) {
     final topHeight = MediaQuery.of(context).size.height * 0.35;
 
-    final headingStyle = GoogleFonts.poppins(
+    final headingStyle = GoogleFonts.dmSans(
       fontSize: 28,
       color: AppColors.textPrimary,
       fontWeight: FontWeight.w800,
       height: 1.15,
       letterSpacing: -0.5,
     );
-    final subtitleStyle = GoogleFonts.poppins(
+    final subtitleStyle = GoogleFonts.dmSans(
       color: AppColors.textSecondary,
       fontSize: 14,
       height: 1.5,
@@ -153,7 +153,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                       ),
                       label: Text(
                         _tr('Help', 'Msaada'),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           color: Colors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -246,7 +246,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                               // Section label
                               Text(
                                 _tr('Select language', 'Chagua lugha'),
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.navyPrimary,
@@ -259,7 +259,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                   'You can change this anytime in Settings.',
                                   'Unaweza kubadilisha badaye kwenye Mipangilio.',
                                 ),
-                                style: const TextStyle(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 13,
                                   color: AppColors.textMuted,
                                 ),
@@ -316,7 +316,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                         )
                                       : Text(
                                           _tr('Continue', 'Endelea'),
-                                          style: GoogleFonts.poppins(
+                                          style: GoogleFonts.dmSans(
                                             fontWeight: FontWeight.w700,
                                             fontSize: 16,
                                           ),
@@ -420,7 +420,7 @@ class _LanguageCardState extends State<_LanguageCard>
           ),
           child: Row(
             children: [
-              Text(widget.flag, style: const TextStyle(fontSize: 26)),
+              Text(widget.flag, style: GoogleFonts.dmSans(fontSize: 26)),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -428,7 +428,7 @@ class _LanguageCardState extends State<_LanguageCard>
                   children: [
                     Text(
                       widget.name,
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: widget.selected
@@ -440,7 +440,7 @@ class _LanguageCardState extends State<_LanguageCard>
                     const SizedBox(height: 2),
                     Text(
                       widget.nativeName,
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
                         color: widget.selected

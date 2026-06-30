@@ -222,7 +222,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   _showPayment = false;
                 }),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _TierCard(
                 tier: PlanTier.business,
                 limits: limitsFor(PlanTier.business, widget.defs),
@@ -232,9 +232,9 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   _showPayment = false;
                 }),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               const _EnterpriseCard(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // ── CTA / Payment ─────────────────────────────────────────────
               if (!_showPayment) ...[
@@ -419,24 +419,22 @@ class _TierCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.navyPrimary : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected ? AppColors.navyPrimary : AppColors.border,
             width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Radio indicator
             AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              width: 20,
-              height: 20,
-              margin: const EdgeInsets.only(top: 2),
+              width: 18,
+              height: 18,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSelected ? AppColors.yellowBrand : Colors.transparent,
@@ -446,187 +444,82 @@ class _TierCard extends StatelessWidget {
                 ),
               ),
               child: isSelected
-                  ? const Icon(Icons.check_rounded, size: 12, color: AppColors.navyPrimary)
+                  ? const Icon(Icons.check_rounded, size: 10, color: AppColors.navyPrimary)
                   : null,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
 
-            // Content
+            // Name + badge
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        isGrowth ? 'Growth' : 'Business',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: isSelected ? Colors.white : AppColors.navyPrimary,
-                        ),
-                      ),
-                      if (isGrowth) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.yellowBrand.withValues(
-                              alpha: isSelected ? 0.2 : 0.12,
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            'Maarufu',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: isSelected
-                                  ? AppColors.yellowBrand
-                                  : AppColors.navyPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const Spacer(),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            _fmtPrice(limits.pricePerMonth),
-                            style: GoogleFonts.dmSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: isSelected
-                                  ? AppColors.yellowBrand
-                                  : AppColors.navyPrimary,
-                            ),
-                          ),
-                          Text(
-                            '/mwezi',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 10,
-                              color: isSelected
-                                  ? Colors.white.withValues(alpha: 0.5)
-                                  : AppColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
                   Text(
-                    '${_fmtPrice(limits.pricePerCycle)} kwa miezi ${limits.cycleMonths}',
+                    isGrowth ? 'Growth' : 'Business',
                     style: GoogleFonts.dmSans(
-                      fontSize: 11,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : AppColors.navyPrimary,
+                    ),
+                  ),
+                  if (isGrowth) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.yellowBrand.withValues(
+                          alpha: isSelected ? 0.2 : 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Maarufu',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? AppColors.yellowBrand : AppColors.navyPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_fmtPrice(limits.pricePerCycle)} / miezi ${limits.cycleMonths}',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 10,
                       color: isSelected
                           ? Colors.white.withValues(alpha: 0.45)
                           : AppColors.textMuted,
                     ),
                   ),
-                  const SizedBox(height: 9),
-                  Wrap(
-                    children: [
-                      _Feature(
-                        text: 'Ankara zisizo na kikomo',
-                        ok: true,
-                        sel: isSelected,
-                      ),
-                      _Feature(
-                        text: limits.maxUsers == -1
-                            ? 'Watumiaji wasio na kikomo'
-                            : 'Hadi watumiaji ${limits.maxUsers}',
-                        ok: true,
-                        sel: isSelected,
-                      ),
-                      _Feature(
-                        text: 'Ripoti kamili',
-                        ok: limits.fullReports,
-                        sel: isSelected,
-                      ),
-                      _Feature(
-                        text: 'Kuingiza data ya M-Pesa',
-                        ok: limits.mpesaImport,
-                        sel: isSelected,
-                      ),
-                      _Feature(
-                        text: 'Ujumbe wa SMS',
-                        ok: limits.smsReminders,
-                        sel: isSelected,
-                      ),
-                      if (!isGrowth) ...[
-                        _Feature(
-                          text: 'Stoo nyingi',
-                          ok: limits.multiLocation,
-                          sel: isSelected,
-                        ),
-                        _Feature(
-                          text: 'Ufikiaji wa API',
-                          ok: limits.apiAccess,
-                          sel: isSelected,
-                        ),
-                        _Feature(
-                          text: 'Msaada wa kipaumbele',
-                          ok: limits.prioritySupport,
-                          sel: isSelected,
-                        ),
-                      ],
-                    ],
-                  ),
                 ],
               ),
             ),
+
+            // Price
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _fmtPrice(limits.pricePerMonth),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected ? AppColors.yellowBrand : AppColors.navyPrimary,
+                  ),
+                ),
+                Text(
+                  '/mwezi',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 9,
+                    color: isSelected
+                        ? Colors.white.withValues(alpha: 0.45)
+                        : AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Feature row inside tier card
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _Feature extends StatelessWidget {
-  final String text;
-  final bool ok;
-  final bool sel;
-
-  const _Feature({required this.text, required this.ok, required this.sel});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            ok ? Icons.check_circle_rounded : Icons.remove_circle_outline_rounded,
-            size: 13,
-            color: ok
-                ? (sel ? AppColors.yellowBrand : AppColors.success)
-                : (sel
-                    ? Colors.white.withValues(alpha: 0.25)
-                    : AppColors.textDisabled),
-          ),
-          const SizedBox(width: 5),
-          Flexible(
-            child: Text(
-              text,
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                color: ok
-                    ? (sel ? Colors.white : AppColors.textPrimary)
-                    : (sel
-                        ? Colors.white.withValues(alpha: 0.35)
-                        : AppColors.textDisabled),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
       ),
     );
   }
@@ -984,7 +877,7 @@ class _Step extends StatelessWidget {
             child: Center(
               child: Text(
                 number,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   color: Colors.white,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,

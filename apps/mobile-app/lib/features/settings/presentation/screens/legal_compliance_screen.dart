@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_sheet.dart';
@@ -24,7 +25,7 @@ class LegalComplianceScreen extends StatelessWidget {
         ),
         title: Text(
           _tr('Legal & Compliance', 'Kisheria na Uzingatiaji'),
-          style: const TextStyle(
+          style: GoogleFonts.dmSans(
             color: AppColors.secondary,
             fontWeight: FontWeight.w800,
             fontSize: 17,
@@ -295,7 +296,7 @@ class LegalComplianceScreen extends StatelessWidget {
                 'Mali Up — Built for Tanzanian businesses',
                 'Mali Up — Imejengwa kwa biashara za Tanzania',
               ),
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 color: AppColors.textDisabled,
                 fontSize: 12,
               ),
@@ -329,7 +330,7 @@ class LegalComplianceScreen extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: AppColors.secondary,
@@ -338,7 +339,7 @@ class LegalComplianceScreen extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               content,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 14,
                 color: AppColors.textSecondary,
                 height: 1.7,
@@ -422,7 +423,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label.toUpperCase(),
-      style: const TextStyle(
+      style: GoogleFonts.dmSans(
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
@@ -467,13 +468,13 @@ class _InfoBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                         color: AppColors.secondary)),
                 const SizedBox(height: 4),
                 Text(body,
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                         fontSize: 12,
                         color: AppColors.textMuted,
                         height: 1.5)),
@@ -579,7 +580,7 @@ class _RegTileState extends State<_RegTile> {
                               ),
                               child: Text(
                                 widget.item.acronym,
-                                style: const TextStyle(
+                                style: GoogleFonts.dmSans(
                                   color: AppColors.secondary,
                                   fontWeight: FontWeight.w800,
                                   fontSize: 10,
@@ -592,7 +593,7 @@ class _RegTileState extends State<_RegTile> {
                         const SizedBox(height: 2),
                         Text(
                           widget.item.title,
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
                             color: AppColors.textPrimary,
@@ -617,7 +618,7 @@ class _RegTileState extends State<_RegTile> {
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
               child: Text(
                 widget.item.body,
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: AppColors.textSecondary,
                   height: 1.6,
@@ -667,7 +668,7 @@ class _BulletPoint extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: AppColors.textSecondary,
                   height: 1.5),
@@ -739,7 +740,7 @@ class _ActionTile extends StatelessWidget {
             Expanded(
               child: Text(
                 item.label,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: color,

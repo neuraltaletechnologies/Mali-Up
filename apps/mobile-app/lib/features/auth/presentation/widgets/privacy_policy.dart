@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
@@ -97,7 +98,7 @@ class PrivacyPolicyPage extends StatelessWidget {
             Center(
               child: Text(
                 'Last Updated: ${_getLastUpdatedDate()}',
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: AppColors.textSecondary,
                   fontStyle: FontStyle.italic,
@@ -117,7 +118,7 @@ class PrivacyPolicyPage extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: GoogleFonts.dmSans(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
@@ -126,7 +127,7 @@ class PrivacyPolicyPage extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           content,
-          style: const TextStyle(
+          style: GoogleFonts.dmSans(
             fontSize: 14,
             color: AppColors.textSecondary,
             height: 1.6,

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -368,7 +369,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   20,
-                  MediaQuery.of(context).padding.top + 50,
+                  MediaQuery.of(context).padding.top + 16,
                   20,
                   32,
                 ),
@@ -705,7 +706,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                       ),
                       child: Text(
                         _periodLabel(p),
-                        style: TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: selected ? Colors.white : AppColors.textMuted,
@@ -730,7 +731,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                   children: [
                     Text(
                       _tr('Revenue', 'Mapato'),
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textMuted,
@@ -740,7 +741,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       _fmtAmount(revenue),
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
                         color: AppColors.navyPrimary,
@@ -767,7 +768,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           '${isPositive ? '+' : ''}${periodChange.toStringAsFixed(1)}%',
-                          style: TextStyle(
+                          style: GoogleFonts.dmSans(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                             color: changeColor,
@@ -778,7 +779,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       compLabel,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 11,
                         color: AppColors.textMuted,
                       ),
@@ -838,7 +839,7 @@ class _OutstandingReceivablesCard extends StatelessWidget {
                   children: [
                     Text(
                       _tr('Outstanding Receivables', 'Madeni Yanayosubiri'),
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.navyPrimary,
@@ -847,7 +848,7 @@ class _OutstandingReceivablesCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       _fmtAmount(totalOutstanding),
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                         color: AppColors.error,
@@ -875,7 +876,7 @@ class _OutstandingReceivablesCard extends StatelessWidget {
                     children: [
                       Text(
                         '$overdueCount',
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
                           color: AppColors.error,
@@ -883,7 +884,7 @@ class _OutstandingReceivablesCard extends StatelessWidget {
                       ),
                       Text(
                         _tr('Overdue', 'Imechelewa'),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 10,
                           color: AppColors.error,
                           fontWeight: FontWeight.w600,
@@ -931,7 +932,7 @@ class _OutstandingReceivablesCard extends StatelessWidget {
                 foregroundColor: AppColors.navyPrimary,
                 side: const BorderSide(color: AppColors.border),
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                textStyle: const TextStyle(
+                textStyle: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -973,7 +974,7 @@ class _AgingChip extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 10,
               fontWeight: FontWeight.w600,
               color: color,
@@ -982,7 +983,7 @@ class _AgingChip extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             _fmtCompactAmount(amount),
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 12,
               fontWeight: FontWeight.w800,
               color: color,
@@ -1041,7 +1042,7 @@ class _CashPositionCard extends StatelessWidget {
               const SizedBox(width: 7),
               Text(
                 _tr('Cash Position', 'Hali ya Fedha'),
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: AppColors.navyPrimary,
@@ -1050,7 +1051,7 @@ class _CashPositionCard extends StatelessWidget {
               const Spacer(),
               Text(
                 _fmtAmount(totalCash),
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
                   color: AppColors.navyPrimary,
@@ -1125,7 +1126,7 @@ class _CashChip extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   color: color,
@@ -1133,7 +1134,7 @@ class _CashChip extends StatelessWidget {
               ),
               Text(
                 _fmtCompactAmount(amount),
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                   color: color,
@@ -1174,7 +1175,7 @@ class _BusinessInsightsCard extends StatelessWidget {
         children: [
           Text(
             _tr('Business Insights', 'Mwanga wa Biashara'),
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: AppColors.navyPrimary,
@@ -1200,7 +1201,7 @@ class _BusinessInsightsCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       insight,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 13,
                         color: AppColors.textSecondary,
                         height: 1.5,
@@ -1334,9 +1335,9 @@ class _UnifiedHeroCard extends StatefulWidget {
 class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
   bool _detailsVisible = false;
 
-  static const _gradA = Color(0xFF0A1628);
-  static const _gradB = Color(0xFF0D2A4A);
-  static const _gradC = Color(0xFF091520);
+  static const _gradA = AppColors.navyPrimary;
+  static const _gradB = AppColors.navySecondary;
+  static const _gradC = AppColors.tealAccent;
 
   @override
   Widget build(BuildContext context) {
@@ -1373,7 +1374,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF0D1B3E).withValues(alpha: 0.65),
+                  color: AppColors.navyPrimary.withValues(alpha: 0.65),
                   blurRadius: 36,
                   offset: const Offset(0, 18),
                   spreadRadius: -6,
@@ -1449,7 +1450,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                               children: [
                                 Text(
                                   name.toUpperCase(),
-                                  style: const TextStyle(
+                                  style: GoogleFonts.dmSans(
                                     color: AppColors.yellowBrand,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
@@ -1461,7 +1462,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                 const SizedBox(height: 2),
                                 Text(
                                   (widget.plan ?? 'Trial').toUpperCase(),
-                                  style: TextStyle(
+                                  style: GoogleFonts.dmSans(
                                     color: Colors.white.withValues(alpha: 0.42),
                                     fontSize: 8,
                                     fontWeight: FontWeight.w600,
@@ -1507,8 +1508,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                         ],
                       ),
 
-                      // Flexible space pushes balance down to vertical centre
-                      const Spacer(),
+                      const SizedBox(height: 10),
 
                       // ── Balance section ──────────────────────────────────
                       Row(
@@ -1521,7 +1521,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                               children: [
                                 Text(
                                   _tr('TOTAL BALANCE', 'JUMLA YA FEDHA'),
-                                  style: TextStyle(
+                                  style: GoogleFonts.dmSans(
                                     color: Colors.white.withValues(alpha: 0.48),
                                     fontSize: 9,
                                     fontWeight: FontWeight.w600,
@@ -1539,7 +1539,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                   child: Text(
                                     amountText,
                                     key: ValueKey(_detailsVisible),
-                                    style: const TextStyle(
+                                    style: GoogleFonts.dmSans(
                                       color: Colors.white,
                                       fontSize: 28,
                                       fontWeight: FontWeight.w900,
@@ -1633,7 +1633,7 @@ class _BusinessLogoFallback extends StatelessWidget {
       child: Center(
         child: Text(
           initial,
-          style: const TextStyle(
+          style: GoogleFonts.dmSans(
             color: AppColors.navyPrimary,
             fontSize: 17,
             fontWeight: FontWeight.w900,
@@ -1712,7 +1712,7 @@ class _CardStatItem extends StatelessWidget {
         children: [
           Text(
             value,
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               color: color ?? Colors.white,
               fontSize: 12.5,
               fontWeight: FontWeight.w800,
@@ -1721,7 +1721,7 @@ class _CardStatItem extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             label,
-            style: TextStyle(
+            style: GoogleFonts.dmSans(
               color: Colors.white.withValues(alpha: 0.5),
               fontSize: 9.5,
               fontWeight: FontWeight.w500,
@@ -1825,7 +1825,7 @@ class _ModuleGrid extends StatelessWidget {
                             label,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: GoogleFonts.dmSans(
                               color: AppColors.secondary.withValues(alpha: 0.85),
                               fontSize: 10.5,
                               fontWeight: FontWeight.w700,
@@ -2101,7 +2101,7 @@ class _LowStockAlertsSection extends StatelessWidget {
               ),
               child: Text(
                 '${items.length}',
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: AppColors.warning,
@@ -2117,7 +2117,7 @@ class _LowStockAlertsSection extends StatelessWidget {
               ),
               child: Text(
                 _tr('View All', 'Ona Zote'),
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: AppColors.secondary,
@@ -2174,7 +2174,7 @@ class _LowStockAlertsSection extends StatelessWidget {
                             isOut
                                 ? _tr('Out', 'Imekwisha')
                                 : _tr('Low', 'Ndogo'),
-                            style: TextStyle(
+                            style: GoogleFonts.dmSans(
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
                               color: alertColor,
@@ -2187,7 +2187,7 @@ class _LowStockAlertsSection extends StatelessWidget {
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppColors.secondary,
@@ -2195,7 +2195,7 @@ class _LowStockAlertsSection extends StatelessWidget {
                       ),
                       Text(
                         '$stock / $reorder $unit',
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 10,
                           color: AppColors.textMuted,
                         ),
@@ -2306,7 +2306,7 @@ class _TopPerformersSection extends StatelessWidget {
                     children: [
                       Text(
                         _tr('Top Performers', 'Wabora wa Mwezi'),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: AppColors.navyPrimary,
@@ -2314,7 +2314,7 @@ class _TopPerformersSection extends StatelessWidget {
                       ),
                       Text(
                         _tr('This month', 'Mwezi huu'),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 10,
                           color: AppColors.textMuted,
                           fontWeight: FontWeight.w500,
@@ -2388,7 +2388,7 @@ class _PerformerSubsection extends StatelessWidget {
               const SizedBox(width: 5),
               Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: color,
@@ -2417,7 +2417,7 @@ class _PerformerSubsection extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Text(
                       '${rank + 1}',
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
                         color: rankColor,
@@ -2431,7 +2431,7 @@ class _PerformerSubsection extends StatelessWidget {
                       entry.key,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.secondary,
@@ -2442,7 +2442,7 @@ class _PerformerSubsection extends StatelessWidget {
                   // Amount
                   Text(
                     _fmtCompactAmount(entry.value),
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       color: color,
@@ -2607,7 +2607,7 @@ class _RecentTransactionsList extends StatelessWidget {
                     'Bado hakuna shughuli. Biashara yako\niko tayari kwa muamala wa kwanza.',
                   ),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: AppColors.textMuted,
                     fontSize: 13,
                     height: 1.5,
@@ -2628,7 +2628,7 @@ class _RecentTransactionsList extends StatelessWidget {
                   padding: EdgeInsets.only(top: index == 0 ? 0 : 12, bottom: 4),
                   child: Text(
                     row['label'] as String,
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textMuted,
@@ -2674,7 +2674,7 @@ class _RecentTransactionsList extends StatelessWidget {
                     ),
                     title: Text(
                       row['title'] as String,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: AppColors.secondary,
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
@@ -2682,14 +2682,14 @@ class _RecentTransactionsList extends StatelessWidget {
                     ),
                     subtitle: Text(
                       row['subtitle'] as String,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: AppColors.textMuted,
                         fontSize: 11,
                       ),
                     ),
                     trailing: Text(
                       amountStr,
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: isPositive ? AppColors.success : AppColors.error,
                         fontWeight: FontWeight.w900,
                         fontSize: 14,
@@ -2797,7 +2797,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
                     "Let's build you a website for your business?",
                     'Tujenge tovuti ya biashara yako?',
                   ),
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: AppColors.navyPrimary,
@@ -2814,7 +2814,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               'Get a professional website designed for your business and start reaching more customers online.',
               'Pata tovuti ya kitaalamu iliyoundwa kwa biashara yako na uanze kufikia wateja zaidi mtandaoni.',
             ),
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 14,
               color: AppColors.textSecondary,
               height: 1.55,
@@ -2836,7 +2836,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               onPressed: onGetStarted,
               child: Text(
                 _tr('Get Started', 'Anza Sasa'),
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
                 ),
@@ -2849,7 +2849,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               onPressed: onDismiss,
               child: Text(
                 _tr('Maybe Later', 'Labda Baadaye'),
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: AppColors.textMuted,
                   fontWeight: FontWeight.w500,
@@ -3073,7 +3073,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
             Center(
               child: Text(
                 _tr("We'll be in touch!", 'Tutawasiliana nawe hivi karibuni!'),
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppColors.navyPrimary,
@@ -3083,7 +3083,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
           ] else ...[
             Text(
               _tr('Tell us what you need', 'Tuambie unachohitaji'),
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: AppColors.navyPrimary,
@@ -3096,7 +3096,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                 'Any requirements or ideas for your website? (optional)',
                 'Je, una mahitaji au mawazo yoyote kwa tovuti yako? (si lazima)',
               ),
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 13,
                 color: AppColors.textMuted,
                 height: 1.5,
@@ -3108,7 +3108,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
               maxLines: 4,
               minLines: 3,
               textInputAction: TextInputAction.newline,
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 14,
                 color: AppColors.navyPrimary,
               ),
@@ -3117,7 +3117,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                   'e.g. I sell clothing and want an online store…',
                   'mfano Nauza nguo na nataka duka la mtandaoni…',
                 ),
-                hintStyle: const TextStyle(
+                hintStyle: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: AppColors.textDisabled,
                 ),
@@ -3166,7 +3166,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                       )
                     : Text(
                         _tr('Submit', 'Wasilisha'),
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
                         ),
@@ -3179,7 +3179,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                 onPressed: widget.onDone,
                 child: Text(
                   _tr('Cancel', 'Ghairi'),
-                  style: const TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontSize: 13,
                     color: AppColors.textMuted,
                   ),

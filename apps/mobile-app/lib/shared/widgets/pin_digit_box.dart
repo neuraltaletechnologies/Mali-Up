@@ -151,7 +151,7 @@ class _PinDigitBoxState extends State<PinDigitBox> {
                       }
                     }
                   },
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.dmSans(
               fontSize: 24,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,

@@ -471,7 +471,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }) {
       return InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.textMuted),
+        hintStyle: GoogleFonts.dmSans(color: AppColors.textMuted),
         filled: true,
         fillColor: fieldBg,
         border: OutlineInputBorder(
@@ -507,20 +507,20 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
 
-    final headingStyle = GoogleFonts.poppins(
+    final headingStyle = GoogleFonts.dmSans(
       fontSize: 28,
       color: textPrimary,
       fontWeight: FontWeight.w800,
       height: 1.15,
       letterSpacing: -0.5,
     );
-    final subtitleStyle = GoogleFonts.poppins(
+    final subtitleStyle = GoogleFonts.dmSans(
       color: textSecondary,
       fontSize: 14,
       height: 1.5,
       fontWeight: FontWeight.w400,
     );
-    final sectionTitleStyle = GoogleFonts.poppins(
+    final sectionTitleStyle = GoogleFonts.dmSans(
       fontWeight: FontWeight.w700,
       color: textPrimary,
       fontSize: 14,
@@ -576,7 +576,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     label: Text(
                       _tr('Help', 'Msaada'),
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -710,12 +710,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                 children: [
                                   const Text(
                                     '🇹🇿',
-                                    style: TextStyle(fontSize: 18),
+                                    style: GoogleFonts.dmSans(fontSize: 18),
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
                                     '+255',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.dmSans(
                                       color: textPrimary,
                                       fontWeight: FontWeight.w700,
                                       fontSize: 14,
@@ -750,7 +750,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 _isLoading
                                     ? _tr('Checking...', 'Inahakiki...')
                                     : _tr('Continue', 'Endelea'),
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 16,
                                 ),
@@ -767,7 +767,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   'Do not have an account? ',
                                   'Huna akaunti? ',
                                 ),
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   color: textSecondary,
                                   fontSize: 14,
                                 ),
@@ -780,7 +780,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 child: Text(
                                   _tr('Register', 'Jisajili'),
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.dmSans(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 14,
@@ -868,7 +868,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             'Verifying your PIN…',
                                             'Inathibitisha PIN yako…',
                                           ),
-                                          style: GoogleFonts.poppins(
+                                          style: GoogleFonts.dmSans(
                                             color: textSecondary,
                                             fontSize: 13,
                                             fontWeight: FontWeight.w500,
@@ -893,7 +893,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 child: Text(
                                   _tr('Forgot PIN?', 'Umesahau PIN?'),
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.dmSans(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13,
@@ -921,7 +921,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   'Use different number',
                                   'Tumia namba nyingine',
                                 ),
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.dmSans(
                                   color: textSecondary,
                                   fontSize: 14,
                                 ),

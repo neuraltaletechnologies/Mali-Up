@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -126,7 +127,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                               const SizedBox(width: 4),
                               Text(
                                 _t('Reconciled', 'Imelinganishwa'),
-                                style: const TextStyle(
+                                style: GoogleFonts.dmSans(
                                   color: AppColors.success,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -524,7 +525,7 @@ class _BalanceLine extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: GoogleFonts.dmSans(
             color: color,
             fontSize: large ? 14 : 12,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
@@ -532,7 +533,7 @@ class _BalanceLine extends StatelessWidget {
         ),
         Text(
           _fmtAmt(value),
-          style: TextStyle(
+          style: GoogleFonts.dmSans(
             color: color,
             fontSize: large ? 18 : 13,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w600,

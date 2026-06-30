@@ -858,7 +858,7 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
     builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(_tr('Delete Entry', 'Futa Rekodi'),
-          style: const TextStyle(fontWeight: FontWeight.w700)),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
       content: Text(_tr(
         'This cannot be undone. All payment records will also be deleted.',
         'Haiwezi kurejeshwa. Rekodi zote za malipo pia zitafutwa.',

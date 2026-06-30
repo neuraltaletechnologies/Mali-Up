@@ -998,7 +998,7 @@ class MaliSelectField extends StatelessWidget {
         isEmpty: !hasValue,
         decoration: InputDecoration(
           hintText: placeholder,
-          hintStyle: const TextStyle(color: AppColors.textMuted),
+          hintStyle: GoogleFonts.dmSans(color: AppColors.textMuted),
           filled: true,
           fillColor: AppColors.surface,
           border: OutlineInputBorder(
@@ -1034,7 +1034,7 @@ class MaliSelectField extends StatelessWidget {
         child: hasValue
             ? Text(
                 displayValue,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.dmSans(
                   color: AppColors.textPrimary,
                   fontSize: 16,
                 ),

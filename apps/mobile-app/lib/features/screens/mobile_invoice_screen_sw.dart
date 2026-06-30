@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/app_localization.dart' hide localeProvider;
 import '../../core/localization/translation_manager.dart';
@@ -24,7 +25,7 @@ class InvoiceScreenSW extends ConsumerWidget {
               subtitle: const Text('INV-001'),
               trailing: Text(
                 CurrencyFormatter.formatCurrency(150000.00),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
           ),

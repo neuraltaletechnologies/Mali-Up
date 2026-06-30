@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'localization_service.dart';
 import '../theme/app_colors.dart';
@@ -289,7 +290,7 @@ class ErrorHandlingService {
             Expanded(
               child: Text(
                 getLocalizedErrorMessage(error),
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: GoogleFonts.dmSans(color: Colors.white, fontSize: 14),
               ),
             ),
           ],
@@ -365,7 +366,7 @@ class ErrorHandlingService {
               const SizedBox(height: 8),
               Text(
                 'Technical details: ${error.technicalDetails}',
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: Colors.grey[600],
                   fontStyle: FontStyle.italic,

@@ -209,7 +209,7 @@ class _TeamMemberSetupScreenState
                     ),
                     label: Text(
                       sw ? 'Msaada' : 'Help',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -382,7 +382,7 @@ class _InvitationBody extends StatelessWidget {
       children: [
         Text(
           sw ? 'Tumepata mwaliko wako 🎉' : 'We found your invitation 🎉',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 26,
             fontWeight: FontWeight.w800,
             color: AppColors.navyPrimary,
@@ -395,7 +395,7 @@ class _InvitationBody extends StatelessWidget {
           sw
               ? 'Uliombwa kujiunga na biashara hii kama mwanachama wa timu.'
               : 'You\'ve been invited to join this business as a team member.',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 14,
             color: AppColors.textMuted,
             height: 1.5,
@@ -440,7 +440,7 @@ class _InvitationBody extends StatelessWidget {
                       children: [
                         Text(
                           sw ? 'Biashara' : 'Business',
-                          style: TextStyle(
+                          style: GoogleFonts.dmSans(
                             fontSize: 11,
                             color: Colors.white.withValues(alpha: 0.55),
                             fontWeight: FontWeight.w500,
@@ -448,7 +448,7 @@ class _InvitationBody extends StatelessWidget {
                         ),
                         Text(
                           businessName.isNotEmpty ? businessName : '—',
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
@@ -473,7 +473,7 @@ class _InvitationBody extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       sw ? 'Jukumu lako: ' : 'Your role: ',
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 13,
                         color: Colors.white.withValues(alpha: 0.60),
                       ),
@@ -487,7 +487,7 @@ class _InvitationBody extends StatelessWidget {
                       ),
                       child: Text(
                         role,
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppColors.navyPrimary,
@@ -509,14 +509,14 @@ class _InvitationBody extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       sw ? 'Jina lako: ' : 'Your name: ',
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 13,
                         color: Colors.white.withValues(alpha: 0.60),
                       ),
                     ),
                     Text(
                       name,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -565,7 +565,7 @@ class _InvitationBody extends StatelessWidget {
                     sw
                         ? 'Endelea na akaunti hii'
                         : 'Continue with this account',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w700,
                       fontSize: 16,
                     ),
@@ -581,7 +581,7 @@ class _InvitationBody extends StatelessWidget {
             onPressed: isLoading ? null : onStartOver,
             child: Text(
               sw ? 'Anza upya badala yake' : 'Start fresh instead',
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 color: AppColors.textMuted,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -668,7 +668,7 @@ class _PinSetupBody extends StatelessWidget {
           isConfirm
               ? (sw ? 'Thibitisha PIN yako ✓' : 'Confirm your PIN ✓')
               : (sw ? 'Weka PIN yako 🔐' : 'Set your PIN 🔐'),
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 26,
             fontWeight: FontWeight.w800,
             color: AppColors.navyPrimary,
@@ -685,7 +685,7 @@ class _PinSetupBody extends StatelessWidget {
               : (sw
                   ? 'Tengeneza PIN ya tarakimu 4 utakayotumia kuingia.'
                   : 'Create a 4-digit PIN to access your account.'),
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.dmSans(
             fontSize: 14,
             color: AppColors.textMuted,
             height: 1.5,
@@ -700,7 +700,7 @@ class _PinSetupBody extends StatelessWidget {
                 isConfirm
                     ? (sw ? 'Thibitisha PIN' : 'Confirm PIN')
                     : (sw ? 'Ingiza PIN mpya' : 'Enter new PIN'),
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textMuted,
@@ -782,7 +782,7 @@ class _PinSetupBody extends StatelessWidget {
                     isConfirm
                         ? (sw ? 'Hifadhi & Endelea' : 'Save & Continue')
                         : (sw ? 'Endelea' : 'Continue'),
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w700,
                       fontSize: 16,
                     ),
@@ -822,7 +822,7 @@ class _TeamOfflineBanner extends StatelessWidget {
               sw
                   ? 'Hatua hii inahitaji mtandao. Tafadhali unganisha na ujaribu tena.'
                   : 'This step requires internet. Please connect and try again.',
-              style: const TextStyle(
+              style: GoogleFonts.dmSans(
                 fontSize: 12,
                 color: Color(0xFF856404),
                 height: 1.4,
@@ -904,7 +904,7 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
             sw
                 ? 'Nambari hii tayari imeunganishwa na akaunti'
                 : 'This number is already linked to an account',
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 20,
               fontWeight: FontWeight.w800,
               color: AppColors.navyPrimary,
@@ -924,7 +924,7 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
                     '${businessName.isNotEmpty ? businessName : "a business"}. '
                     'Creating a new account will build a separate profile — '
                     'the invitation stays open if you want to claim it later.',
-            style: const TextStyle(
+            style: GoogleFonts.dmSans(
               fontSize: 14,
               color: AppColors.textMuted,
               height: 1.55,
@@ -956,7 +956,7 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
                       sw
                           ? 'Naelewa kwamba ninaunda wasifu mpya na kuacha mwaliko huu.'
                           : 'I understand I am creating a separate profile and leaving this invitation behind.',
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 13,
                         color: AppColors.textSecondary,
                         height: 1.45,
@@ -989,7 +989,7 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
                 sw
                     ? 'Ndiyo, anza akaunti mpya'
                     : 'Yes, create a new account',
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                     fontSize: 15, fontWeight: FontWeight.w700),
               ),
             ),
@@ -1005,7 +1005,7 @@ class _StartFreshWarningSheetState extends State<_StartFreshWarningSheet> {
                 sw
                     ? 'Rudi kudai mwaliko wangu'
                     : 'Go back and claim my invitation',
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                   color: AppColors.textMuted,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,

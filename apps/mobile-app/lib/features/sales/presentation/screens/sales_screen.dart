@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -2315,7 +2315,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(sl,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                     color: sc, fontSize: 12, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -2789,7 +2789,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                             entry.maxStock < 9999
                         ? '/ ${entry.maxStock}'
                         : null,
-                    helperStyle: const TextStyle(
+                    helperStyle: GoogleFonts.dmSans(
                         fontSize: 11, color: AppColors.textMuted),
                   ),
                 ),
@@ -2820,7 +2820,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                         : entry.isOutOfStock
                             ? _tr('Out of stock', 'Imekwisha')
                             : '${entry.maxStock} ${_tr("in stock", "stokuni")}',
-                    style: TextStyle(
+                    style: GoogleFonts.dmSans(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: entry._isService
@@ -3389,7 +3389,7 @@ class _PayBtn extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                     fontWeight: FontWeight.w700,
                     fontSize: 11,
                     color: active ? Colors.white : AppColors.textMuted),
@@ -3531,7 +3531,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               const SheetHandle(),
               Text(
                 _tr('Add New Product', 'Ongeza Bidhaaa Mpya'),
-                style: const TextStyle(
+                style: GoogleFonts.dmSans(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: AppColors.secondary),
@@ -3643,7 +3643,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                               color: AppColors.secondary))
                       : Text(
                           _tr('Add to Inventory', 'Ongeza kwa Bidhaa'),
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                               fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
@@ -4057,7 +4057,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                           if (invoiceDate != null) const SizedBox(width: 8),
                           const Text('·',
                               style:
-                                  TextStyle(color: AppColors.textMuted)),
+                                  GoogleFonts.dmSans(color: AppColors.textMuted)),
                           const SizedBox(width: 8),
                           Icon(Icons.event_rounded,
                               size: 11,
@@ -4615,7 +4615,7 @@ class _SaleSuccessScreenState extends State<_SaleSuccessScreen>
                   const SizedBox(height: 18),
                   Text(
                     _tr('Sale Successful!', 'Mauzo Yamefanikiwa!'),
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -4625,7 +4625,7 @@ class _SaleSuccessScreenState extends State<_SaleSuccessScreen>
                   const SizedBox(height: 6),
                   Text(
                     'TSh ${_sNum(amount)}',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.dmSans(
                       fontSize: 36,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
@@ -4907,7 +4907,7 @@ class _TicketReceiptCard extends StatelessWidget {
                         ),
                         if (mpesaRef.isNotEmpty) ...[
                           const Text(' · ',
-                              style: TextStyle(color: AppColors.textMuted)),
+                              style: GoogleFonts.dmSans(color: AppColors.textMuted)),
                           Text(
                             mpesaRef,
                             style: GoogleFonts.jetBrainsMono(

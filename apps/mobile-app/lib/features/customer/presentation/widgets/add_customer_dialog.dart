@@ -1,6 +1,7 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
@@ -76,7 +77,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
         prefixIcon: Icon(icon, size: 18, color: AppColors.textMuted),
         filled: true,
         fillColor: AppColors.surface,
-        labelStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+        labelStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.border),
@@ -195,7 +196,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                                   ? _tr('Opening contacts…', 'Inafungua mawasiliano…')
                                   : _tr('Import from Contacts',
                                       'Ingiza kutoka Mawasiliano'),
-                              style: const TextStyle(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.navyPrimary,
@@ -216,7 +217,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: Text(
                             _tr('or enter manually', 'au weka mwenyewe'),
-                            style: const TextStyle(
+                            style: GoogleFonts.dmSans(
                                 fontSize: 12, color: AppColors.textMuted),
                           ),
                         ),
@@ -230,7 +231,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                     TextFormField(
                       controller: _nameController,
                       textCapitalization: TextCapitalization.words,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                           fontSize: 15, color: AppColors.navyPrimary),
                       decoration: _field(
                         _isOrganisation
@@ -249,7 +250,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                           fontSize: 15, color: AppColors.navyPrimary),
                       decoration: _field(
                         _tr('Phone Number *', 'Namba ya Simu *'),
@@ -266,7 +267,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                           fontSize: 15, color: AppColors.navyPrimary),
                       decoration: _field(
                         _tr('Email (Optional)', 'Barua pepe (Hiari)'),
@@ -279,7 +280,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                       TextFormField(
                         controller: _tinController,
                         textCapitalization: TextCapitalization.characters,
-                        style: const TextStyle(
+                        style: GoogleFonts.dmSans(
                             fontSize: 15, color: AppColors.navyPrimary),
                         decoration: _field(
                           _tr('TIN Number (Optional)', 'Namba ya TIN (Hiari)'),
@@ -293,7 +294,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                     TextFormField(
                       controller: _addressController,
                       textCapitalization: TextCapitalization.sentences,
-                      style: const TextStyle(
+                      style: GoogleFonts.dmSans(
                           fontSize: 15, color: AppColors.navyPrimary),
                       decoration: _field(
                         _tr('Address (Optional)', 'Anwani (Hiari)'),
@@ -347,7 +348,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                                   )
                                 : Text(
                                     _tr('Add Customer', 'Ongeza Mteja'),
-                                    style: const TextStyle(
+                                    style: GoogleFonts.dmSans(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 15),
                                   ),
@@ -855,7 +856,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                 Expanded(
                   child: Text(
                     _tr('Select contacts', 'Chagua mawasiliano'),
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       color: AppColors.secondary,
@@ -868,7 +869,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                     allSelected
                         ? _tr('Deselect all', 'Toa chaguzi zote')
                         : _tr('Select all', 'Chagua yote'),
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700),
                   ),
@@ -927,7 +928,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                       '${_selectedIds.length} selected',
                       '${_selectedIds.length} imechaguliwa',
                     ),
-                    style: const TextStyle(
+                    style: GoogleFonts.dmSans(
                       color: AppColors.secondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -948,7 +949,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                         'No contacts found',
                         'Hakuna mawasiliano yaliyopatikana',
                       ),
-                      style: const TextStyle(color: AppColors.textMuted),
+                      style: GoogleFonts.dmSans(color: AppColors.textMuted),
                     ),
                   )
                 : ListView.builder(
@@ -981,7 +982,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                               ? _tr('Unnamed contact',
                                   'Mawasiliano bila jina')
                               : contact.displayName,
-                          style: const TextStyle(
+                          style: GoogleFonts.dmSans(
                               fontWeight: FontWeight.w600,
                               fontSize: 14),
                         ),
@@ -989,7 +990,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                             ? (cachedPhone.isEmpty
                                 ? null
                                 : Text(cachedPhone,
-                                    style: const TextStyle(
+                                    style: GoogleFonts.dmSans(
                                         fontSize: 12,
                                         color: AppColors.textMuted)))
                             : FutureBuilder<String>(
@@ -999,7 +1000,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                                   return phone.isEmpty
                                       ? const SizedBox.shrink()
                                       : Text(phone,
-                                          style: const TextStyle(
+                                          style: GoogleFonts.dmSans(
                                               fontSize: 12,
                                               color: AppColors.textMuted));
                                 },
@@ -1056,7 +1057,7 @@ class _ContactPickerSheetState extends State<_ContactPickerSheet> {
                               'Import ${_selectedIds.length}',
                               'Ingiza ${_selectedIds.length}',
                             ),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -1104,7 +1105,7 @@ class _TypeTab extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   label,
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                     color: active ? Colors.white : AppColors.textMuted,

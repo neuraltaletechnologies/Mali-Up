@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -27,7 +28,7 @@ class ArAgingScreen extends ConsumerWidget {
         leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('AR Aging', 'Umri wa Madai'),
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -51,12 +52,12 @@ class ArAgingScreen extends ConsumerWidget {
               children: [
                 Text(
                   _tr('Total Outstanding Receivables', 'Jumla ya Madai Yanayosubiri'),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   formatCurrency(report.grandTotal),
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                  style: GoogleFonts.dmSans(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
                 ),
               ],
             ),
@@ -192,8 +193,8 @@ class _AgingLegend extends StatelessWidget {
     return Column(children: [
       Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
       const SizedBox(height: 4),
-      Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
-      Text('$count inv', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+      Text(label, style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
+      Text('$count inv', style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
     ]);
   }
 }
@@ -254,14 +255,14 @@ class _AgingBucketCardState extends State<_AgingBucketCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.label, style: TextStyle(color: widget.color, fontSize: 13, fontWeight: FontWeight.w700)),
+                        Text(widget.label, style: GoogleFonts.dmSans(color: widget.color, fontSize: 13, fontWeight: FontWeight.w700)),
                         Text('${bucket.items.length} ${_tr('invoices', 'ankara')}',
-                            style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                            style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11)),
                       ],
                     ),
                   ),
                   Text(formatCurrency(bucket.total),
-                      style: TextStyle(color: widget.color, fontSize: 14, fontWeight: FontWeight.w800)),
+                      style: GoogleFonts.dmSans(color: widget.color, fontSize: 14, fontWeight: FontWeight.w800)),
                   const SizedBox(width: 6),
                   Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
                       color: AppColors.textMuted, size: 20),
@@ -301,16 +302,16 @@ class _InvoiceRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(customer, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
-                Text(number, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                Text(customer, style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                Text(number, style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted)),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(formatCurrency(amount), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondary)),
-              Text('$ageDays ${_tr('days', 'siku')}', style: TextStyle(fontSize: 11, color: accentColor, fontWeight: FontWeight.w600)),
+              Text(formatCurrency(amount), style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+              Text('$ageDays ${_tr('days', 'siku')}', style: GoogleFonts.dmSans(fontSize: 11, color: accentColor, fontWeight: FontWeight.w600)),
             ],
           ),
         ],

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/localization_service.dart';
@@ -28,7 +29,7 @@ class ProfitLossScreen extends ConsumerWidget {
         leading: const BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Profit & Loss', 'Faida na Hasara'),
-          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -128,7 +129,7 @@ class ProfitLossScreen extends ConsumerWidget {
               children: [
                 Text(
                   _tr('NET PROFIT', 'FAIDA HALISI'),
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: report.netProfit >= 0 ? AppColors.success : AppColors.error,
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
@@ -137,7 +138,7 @@ class ProfitLossScreen extends ConsumerWidget {
                 ),
                 Text(
                   formatCurrency(report.netProfit),
-                  style: TextStyle(
+                  style: GoogleFonts.dmSans(
                     color: report.netProfit >= 0 ? AppColors.success : AppColors.error,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
@@ -230,7 +231,7 @@ class _TrendCard extends StatelessWidget {
                       if (idx < 0 || idx >= trend.length) return const SizedBox.shrink();
                       return Text(
                         monthLabel(trend[idx].month),
-                        style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+                        style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
                       );
                     },
                   ),
@@ -257,7 +258,7 @@ class _Legend extends StatelessWidget {
     return Row(children: [
       Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
       const SizedBox(width: 4),
-      Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+      Text(label, style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted)),
     ]);
   }
 }
@@ -306,14 +307,14 @@ class _LineItem extends StatelessWidget {
         children: [
           Expanded(
             child: Text(label,
-                style: TextStyle(
+                style: GoogleFonts.dmSans(
                   color: bold ? AppColors.secondary : AppColors.textSecondary,
                   fontSize: 13,
                   fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
                 )),
           ),
           Text(value,
-              style: TextStyle(
+              style: GoogleFonts.dmSans(
                 color: bold ? AppColors.secondary : AppColors.textPrimary,
                 fontSize: 13,
                 fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
