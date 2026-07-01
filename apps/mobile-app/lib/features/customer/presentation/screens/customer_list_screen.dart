@@ -302,7 +302,7 @@ class _CustomerDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 50, 20, _pillHalf + 8),
+          padding: EdgeInsets.fromLTRB(20, top + 50, 20, _pillHalf + 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1887,7 +1887,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                                 fontSize: 14, fontWeight: FontWeight.w700),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.tealAccent,
+                            backgroundColor: AppColors.navyPrimary,
                             padding:
                                 const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
@@ -1928,7 +1928,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                           child: _SheetActionBtn(
                             icon: Icons.sms_rounded,
                             label: _tr('Message', 'Ujumbe'),
-                            color: const Color(0xFF1A6E8A),
+                            color: AppColors.tealAccent,
                             onTap: () => _sms(live.phone),
                           ),
                         ),

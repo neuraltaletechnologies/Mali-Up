@@ -902,7 +902,7 @@ class _QuickActions extends StatelessWidget {
           child: _ActionBtn(
             icon: Icons.sms_rounded,
             label: _tr('Message', 'Ujumbe'),
-            color: const Color(0xFF1A6E8A),
+            color: AppColors.tealAccent,
             onTap: onSms,
           ),
         ),
@@ -1274,7 +1274,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                       fontSize: 14, fontWeight: FontWeight.w700),
                 ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.tealAccent,
+                  backgroundColor: AppColors.navyPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
@@ -3522,102 +3522,90 @@ class _ActivityTile extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border(
-          left: BorderSide(color: statusColor, width: 3),
-          right: const BorderSide(color: AppColors.border),
-          top: const BorderSide(color: AppColors.border),
-          bottom: const BorderSide(color: AppColors.border),
-        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard, blurRadius: 4, offset: Offset(0, 1)),
+        ],
       ),
-      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 15, color: statusColor),
             ),
-            child: Icon(icon, size: 17, color: statusColor),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.title,
-                  style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary),
-                ),
-                if (entry.subtitle != null) ...[
-                  SizedBox(height: 2),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    entry.subtitle!,
+                    entry.title,
                     style: GoogleFonts.dmSans(
-                        fontSize: 11, color: AppColors.textMuted),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    entry.subtitle != null
+                        ? '${entry.subtitle!} · ${_fmtDate(entry.date)}'
+                        : _fmtDate(entry.date),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 10, color: AppColors.textMuted),
                   ),
                 ],
-                SizedBox(height: 3),
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today_rounded,
-                        size: 10, color: AppColors.textDisabled),
-                    SizedBox(width: 3),
-                    Text(
-                      _fmtDate(entry.date),
-                      style: GoogleFonts.dmSans(
-                          fontSize: 11, color: AppColors.textMuted),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (showFinancials)
+                  Text(
+                    'TZS ${_fmtNum(entry.amount)}',
+                    style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isPayment
+                            ? AppColors.tealAccent
+                            : AppColors.textPrimary),
+                  ),
+                if (isPurchase && entry.status != null) ...[
+                  const SizedBox(height: 4),
+                  PaymentStatusChip(status: entry.status!),
+                ],
+                if (isPayment) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.tealAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ],
-                ),
+                    child: Text(
+                      _tr('Paid', 'Imelipwa'),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.tealAccent),
+                    ),
+                  ),
+                ],
               ],
             ),
-          ),
-          SizedBox(width: 10),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (showFinancials)
-                Text(
-                  'TZS ${_fmtNum(entry.amount)}',
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isPayment
-                          ? AppColors.tealAccent
-                          : AppColors.textPrimary),
-                ),
-              if (isPurchase && entry.status != null) ...[
-                const SizedBox(height: 4),
-                PaymentStatusChip(status: entry.status!),
-              ],
-              if (isPayment) ...[
-                SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.tealAccent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Text(
-                    _tr('PAID', 'IMELIPWA'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.tealAccent),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
