@@ -289,7 +289,7 @@ class LegalComplianceScreen extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 32),
+          SizedBox(height: 32),
           Center(
             child: Text(
               _tr(
@@ -336,7 +336,7 @@ class LegalComplianceScreen extends StatelessWidget {
                 color: AppColors.secondary,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               content,
               style: GoogleFonts.dmSans(
@@ -462,7 +462,7 @@ class _InfoBanner extends StatelessWidget {
             ),
             child: Icon(icon, color: AppColors.secondary, size: 20),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,7 +472,7 @@ class _InfoBanner extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                         color: AppColors.secondary)),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(body,
                     style: GoogleFonts.dmSans(
                         fontSize: 12,
@@ -563,7 +563,7 @@ class _RegTileState extends State<_RegTile> {
                     child: Icon(widget.item.icon,
                         color: AppColors.secondary, size: 18),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -590,7 +590,7 @@ class _RegTileState extends State<_RegTile> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
                           widget.item.title,
                           style: GoogleFonts.dmSans(
@@ -664,7 +664,7 @@ class _BulletPoint extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 16, color: AppColors.tealAccent),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
@@ -736,7 +736,7 @@ class _ActionTile extends StatelessWidget {
         child: Row(
           children: [
             Icon(item.icon, size: 20, color: color),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Text(
                 item.label,

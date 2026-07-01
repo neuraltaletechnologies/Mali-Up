@@ -93,7 +93,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                             ),
                           ),
                         )
-                      : const Icon(Icons.download),
+                      : Icon(Icons.download),
                   label: Text(
                     isExporting ? 'Exporting...' : 'Download Data',
                     style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.w600),
@@ -146,8 +146,8 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                         color: Colors.green[900],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       '✓ All invoices\n'
                       '✓ All customers\n'
                       '✓ All expenses\n'
@@ -178,8 +178,8 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       'Under Tanzania\'s Personal Data Protection Act, you have the right to export your data. This complies with Article 18 (Right to Portability).\n\n'
                       'You can download your data at any time and transfer it to another service.',
                       style: GoogleFonts.dmSans(height: 1.6),

@@ -88,12 +88,12 @@ class BarcodeViewSheet extends StatelessWidget {
                   drawText: false,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.barcode_reader, size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 6),
+                  SizedBox(width: 6),
                   Text(
                     sku,
                     style: GoogleFonts.jetBrainsMono(

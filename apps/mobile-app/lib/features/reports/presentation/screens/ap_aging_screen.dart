@@ -25,7 +25,7 @@ class ApAgingScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: AppColors.secondary),
+        leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('AP Aging', 'Umri wa Madeni'),
           style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
@@ -53,12 +53,12 @@ class ApAgingScreen extends ConsumerWidget {
                 _tr('Total Outstanding Payables', 'Jumla ya Madeni Yanayosubiri'),
                 style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 12),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Text(
                 formatCurrency(report.grandTotal),
                 style: GoogleFonts.dmSans(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 _tr('Total cash required to clear all payables', 'Jumla ya pesa inayohitajika kulipa madeni yote'),
                 style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 11),
@@ -111,7 +111,7 @@ class ApAgingScreen extends ConsumerWidget {
             ),
             child: Row(children: [
               const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 18),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
                   _tr(
@@ -193,7 +193,7 @@ class _ApDistributionCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: buckets.map((b) => Column(children: [
               Container(width: 10, height: 10, decoration: BoxDecoration(color: b.color, borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(b.label, style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
               Text('${b.count}', style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
             ])).toList(),
@@ -253,7 +253,7 @@ class _ApBucketCardState extends State<_ApBucketCard> {
                     ),
                     child: Icon(widget.icon, color: widget.color, size: 16),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

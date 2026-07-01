@@ -83,7 +83,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
                   child: Row(
                     children: [
                       Icon(Icons.info_outline, color: Colors.orange[700]),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'Biometric lock not available on this device',
@@ -151,8 +151,8 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       '✓ Biometric fingerprint or face unlock\n'
                       '✓ Optional PIN code lock\n'
                       '✓ Device-level encryption\n'

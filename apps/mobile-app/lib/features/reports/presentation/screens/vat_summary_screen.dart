@@ -26,7 +26,7 @@ class VatSummaryScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: AppColors.secondary),
+        leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('VAT Summary', 'Muhtasari wa VAT'),
           style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
@@ -53,7 +53,7 @@ class VatSummaryScreen extends ConsumerWidget {
             child: Row(
               children: [
                 const Icon(Icons.verified_rounded, color: AppColors.secondary, size: 20),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     _tr(
@@ -115,7 +115,7 @@ class VatSummaryScreen extends ConsumerWidget {
                     letterSpacing: 0.8,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   formatCurrency(report.netVatPayable.abs()),
                   style: GoogleFonts.dmSans(
@@ -124,7 +124,7 @@ class VatSummaryScreen extends ConsumerWidget {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   isPayable
                       ? _tr('Amount to remit to TRA this period', 'Kiasi cha kulipa TRA kipindi hiki')
@@ -209,7 +209,7 @@ class _VatSection extends StatelessWidget {
               decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, color: color, size: 16),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: Text(title, style: GoogleFonts.dmSans(color: color, fontSize: 13, fontWeight: FontWeight.w700)),
             ),

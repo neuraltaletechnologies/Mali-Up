@@ -99,7 +99,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: const Text(
+                child: Text(
                   'Point camera at barcode or QR code',
                   style: GoogleFonts.dmSans(color: Colors.white, fontSize: 13),
                 ),
@@ -311,7 +311,7 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                             children: [
                               const Icon(Icons.arrow_back_ios_new_rounded,
                                   color: Colors.white, size: 14),
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               Text(
                                 widget.title,
                                 style: GoogleFonts.dmSans(
@@ -364,7 +364,7 @@ class _PosScannerScreenState extends State<PosScannerScreen>
                     children: [
                       const Icon(Icons.check_circle_rounded,
                           color: Colors.white, size: 20),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Flexible(
                         child: Text(
                           _lastScannedName!,
@@ -434,7 +434,7 @@ class _ScanHint extends StatelessWidget {
           color: Colors.black54,
           borderRadius: BorderRadius.circular(24),
         ),
-        child: const Text(
+        child: Text(
           'Point camera at barcode or QR code',
           style: GoogleFonts.dmSans(color: Colors.white, fontSize: 13),
         ),
@@ -500,7 +500,7 @@ class _MiniCart extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,7 +514,7 @@ class _MiniCart extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 1),
+                SizedBox(height: 1),
                 Text(
                   _fmt(subtotal),
                   style: GoogleFonts.dmSans(
@@ -535,7 +535,7 @@ class _MiniCart extends StatelessWidget {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 'Done',
                 style: GoogleFonts.dmSans(
                   color: AppColors.navyPrimary,

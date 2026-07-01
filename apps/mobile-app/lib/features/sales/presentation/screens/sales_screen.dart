@@ -265,7 +265,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 backgroundColor: AppColors.yellowBrand,
                 foregroundColor: AppColors.navyPrimary,
                 elevation: 3,
-                icon: const Icon(Icons.add_rounded, size: 22),
+                icon: Icon(Icons.add_rounded, size: 22),
                 label: Text(
                   _tr('New Sale', 'Mauzo Mapya'),
                   style: GoogleFonts.dmSans(
@@ -571,7 +571,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                     fontWeight: FontWeight.w700,
                     color: AppColors.navyPrimary),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 (sale['invoiceNumber'] ?? sale['id'] ?? '').toString(),
                 style: GoogleFonts.jetBrainsMono(
@@ -722,9 +722,10 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
                       child: Text(
                         _tr('Sales', 'Mauzo'),
                         style: GoogleFonts.dmSans(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
+                          letterSpacing: -0.5,
                         ),
                       ),
                     ),
@@ -984,7 +985,7 @@ class _SalesFilterSheetState extends State<_SalesFilterSheet> {
                       ))
                   .toList(),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -1251,7 +1252,7 @@ class _InvoiceCard extends StatelessWidget {
                               ),
                             ),
                           if (isQuotation) ...[
-                            const SizedBox(width: 6),
+                            SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 1),
@@ -1271,7 +1272,7 @@ class _InvoiceCard extends StatelessWidget {
                           ],
                         ],
                       ),
-                      const SizedBox(height: 3),
+                      SizedBox(height: 3),
                       Text(
                         cardTitle,
                         style: GoogleFonts.dmSans(
@@ -1299,7 +1300,7 @@ class _InvoiceCard extends StatelessWidget {
                         letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
@@ -1312,7 +1313,7 @@ class _InvoiceCard extends StatelessWidget {
                         children: [
                           Icon(chipData.icon,
                               size: 10, color: chipData.text),
-                          const SizedBox(width: 3),
+                          SizedBox(width: 3),
                           Text(
                             chipData.label,
                             style: GoogleFonts.dmSans(
@@ -1342,7 +1343,7 @@ class _InvoiceCard extends StatelessWidget {
                   ),
                 ),
                 if (itemCount > 0) ...[
-                  const SizedBox(width: 6),
+                  SizedBox(width: 6),
                   Text(
                     '· $itemCount ${_tr(itemCount == 1 ? "item" : "items", itemCount == 1 ? "kitu" : "vitu")}',
                     style: GoogleFonts.dmSans(
@@ -1351,7 +1352,7 @@ class _InvoiceCard extends StatelessWidget {
                     ),
                   ),
                 ],
-                const Spacer(),
+                Spacer(),
                 GestureDetector(
                   onTap: onReceiptAction,
                   child: Container(
@@ -1370,7 +1371,7 @@ class _InvoiceCard extends StatelessWidget {
                           size: 13,
                           color: AppColors.textSecondary,
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: 4),
                         Text(
                           _tr('Share', 'Shiriki'),
                           style: GoogleFonts.dmSans(
@@ -1388,12 +1389,12 @@ class _InvoiceCard extends StatelessWidget {
 
             // Row 3: overdue / balance warning
             if (overdue && dueDate != null) ...[
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Row(
                 children: [
                   const Icon(Icons.schedule_rounded,
                       size: 12, color: AppColors.error),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(
                     '${_tr("Due was", "Malipo ilikuwa")} ${_fmtDate(dueDate)} ${dueDate.year}',
                     style: GoogleFonts.dmSans(
@@ -1405,12 +1406,12 @@ class _InvoiceCard extends StatelessWidget {
                 ],
               ),
             ] else if (status == 'partial' && outstanding > 0) ...[
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Row(
                 children: [
                   const Icon(Icons.account_balance_wallet_outlined,
                       size: 12, color: AppColors.warning),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text(
                     '${_tr("Balance due", "Baki")}: ${_fmtAmt(outstanding)}',
                     style: GoogleFonts.dmSans(
@@ -1516,7 +1517,7 @@ class _ReceiptAction extends StatelessWidget {
               ),
               child: Icon(icon, color: iconColor, size: 20),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Text(
               label,
               style: GoogleFonts.dmSans(
@@ -2337,7 +2338,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     fontWeight: FontWeight.w600,
                     color: needsCustomer ? AppColors.warning : AppColors.textMuted)),
             if (needsCustomer) ...[
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
@@ -2420,7 +2421,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                                   : Icons.person_outline_rounded,
                               size: 18,
                               color: AppColors.textSecondary),
-                          const SizedBox(width: 10),
+                          SizedBox(width: 10),
                           Expanded(
                             child: Text(c.name,
                                 style: GoogleFonts.dmSans(
@@ -2460,7 +2461,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 children: [
                   const Icon(Icons.person_add_outlined,
                       size: 18, color: AppColors.primary),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Text(_tr('Add new customer', 'Ongeza mteja mpya'),
                       style: GoogleFonts.dmSans(
                           color: AppColors.primary,
@@ -2504,7 +2505,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                   children: [
                     const Icon(Icons.qr_code_scanner_rounded,
                         size: 14, color: AppColors.tealAccent),
-                    const SizedBox(width: 5),
+                    SizedBox(width: 5),
                     Text(_tr('Scan Mode', 'Skani'),
                         style: GoogleFonts.dmSans(
                             fontSize: 11,
@@ -2514,7 +2515,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text(
                 '${_items.length} ${_tr("item", "kitu")}${_items.length != 1 ? "s" : ""}',
                 style: GoogleFonts.dmSans(
@@ -2543,7 +2544,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               children: [
                 const Icon(Icons.add_circle_outline_rounded,
                     size: 18, color: AppColors.primary),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(_tr('Add Item', 'Ongeza Bidhaaa'),
                     style: GoogleFonts.dmSans(
                         color: AppColors.primary,
@@ -2657,7 +2658,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                           children: [
                             const Icon(Icons.history_rounded,
                                 size: 12, color: AppColors.textMuted),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 4),
                             Text(
                               name,
                               style: GoogleFonts.dmSans(
@@ -2701,7 +2702,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     children: [
                       const Icon(Icons.add_circle_outline_rounded,
                           size: 15, color: AppColors.primary),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           _tr(
@@ -2796,7 +2797,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Row(
             children: [
               if (entry.selectedItem != null)
@@ -2904,7 +2905,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                           child: Icon(iconData,
                               size: 18, color: stockColor),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2924,7 +2925,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -3003,7 +3004,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               prefix: Icons.discount_outlined,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -3027,7 +3028,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             _TotalRow(
                 label: 'VAT (18%)',
                 value: 'TSh ${_vatAmt.toStringAsFixed(0)}'),
-          const Divider(color: AppColors.border, height: 16),
+          Divider(color: AppColors.border, height: 16),
           Row(
             children: [
               Text(_tr('TOTAL', 'JUMLA KUU'),
@@ -3035,7 +3036,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: AppColors.navyPrimary)),
-              const Spacer(),
+              Spacer(),
               Text(
                 'TSh ${_grandTotal.toStringAsFixed(0)}',
                 style: GoogleFonts.jetBrainsMono(
@@ -3099,7 +3100,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           ),
         ),
         if (_payStatus != _PayStatus.unpaid) ...[
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             _tr('Payment Method', 'Njia ya Malipo'),
             style: GoogleFonts.dmSans(
@@ -3138,7 +3139,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                               color: active
                                   ? Colors.white
                                   : AppColors.textMuted),
-                          const SizedBox(height: 3),
+                          SizedBox(height: 3),
                           Text(
                             m.label,
                             textAlign: TextAlign.center,
@@ -3206,7 +3207,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           children: [
             const Icon(Icons.calendar_today_outlined,
                 size: 18, color: AppColors.textSecondary),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Text(
                 _dueDate != null
@@ -3341,7 +3342,7 @@ class _TotalRow extends StatelessWidget {
                 fontSize: 13,
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w500)),
-        const Spacer(),
+        Spacer(),
         Text(value,
             style: GoogleFonts.jetBrainsMono(
                 fontSize: 13,
@@ -3385,7 +3386,7 @@ class _PayBtn extends StatelessWidget {
               Icon(icon,
                   size: 16,
                   color: active ? Colors.white : AppColors.textMuted),
-              const SizedBox(height: 3),
+              SizedBox(height: 3),
               Text(
                 label,
                 textAlign: TextAlign.center,
@@ -3528,7 +3529,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SheetHandle(),
+              SheetHandle(),
               Text(
                 _tr('Add New Product', 'Ongeza Bidhaaa Mpya'),
                 style: GoogleFonts.dmSans(
@@ -3620,7 +3621,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                   label: _tr('SKU (Optional)', 'SKU (Hiari)'),
                   icon: Icons.tag_outlined,
                   caps: TextCapitalization.characters),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
@@ -3977,7 +3978,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                                       ),
                                     ),
                                   if (_isQuotation) ...[
-                                    const SizedBox(width: 6),
+                                    SizedBox(width: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 1),
@@ -3998,7 +3999,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: 4),
                               Text(
                                 _customerName,
                                 style: GoogleFonts.dmSans(
@@ -4012,7 +4013,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 5),
@@ -4024,7 +4025,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(chip.icon, size: 12, color: chip.text),
-                              const SizedBox(width: 4),
+                              SizedBox(width: 4),
                               Text(
                                 chip.label,
                                 style: GoogleFonts.dmSans(
@@ -4040,13 +4041,13 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                     ),
 
                     // ── Date row ─────────────────────────────────────────────
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Row(
                       children: [
                         if (invoiceDate != null) ...[
                           const Icon(Icons.calendar_today_rounded,
                               size: 11, color: AppColors.textMuted),
-                          const SizedBox(width: 4),
+                          SizedBox(width: 4),
                           Text(
                             _fmtDate(invoiceDate),
                             style: GoogleFonts.dmSans(
@@ -4054,8 +4055,8 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                           ),
                         ],
                         if (dueDate != null) ...[
-                          if (invoiceDate != null) const SizedBox(width: 8),
-                          const Text('·',
+                          if (invoiceDate != null) SizedBox(width: 8),
+                          Text('·',
                               style:
                                   GoogleFonts.dmSans(color: AppColors.textMuted)),
                           const SizedBox(width: 8),
@@ -4064,7 +4065,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                               color: overdue
                                   ? AppColors.error
                                   : AppColors.textMuted),
-                          const SizedBox(width: 4),
+                          SizedBox(width: 4),
                           Text(
                             '${_tr("Due", "Mwisho")}: ${_fmtDate(dueDate)}',
                             style: GoogleFonts.dmSans(
@@ -4082,7 +4083,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                     ),
 
                     // ── Total + outstanding ───────────────────────────────────
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -4123,7 +4124,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
 
                     // ── Line items ────────────────────────────────────────────
                     if (lineItems.isNotEmpty) ...[
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14),
                       Row(
                         children: [
                           Text(
@@ -4135,7 +4136,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                               letterSpacing: 0.8,
                             ),
                           ),
-                          const SizedBox(width: 5),
+                          SizedBox(width: 5),
                           Text(
                             '(${lineItems.length})',
                             style: GoogleFonts.dmSans(
@@ -4195,7 +4196,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                                               ),
                                             ),
                                             if (unitPrice > 0) ...[
-                                              const SizedBox(height: 2),
+                                              SizedBox(height: 2),
                                               Text(
                                                 '×$qty · TZS ${_sNum(unitPrice)} ${_tr("each", "kila")}',
                                                 style: GoogleFonts.dmSans(
@@ -4295,7 +4296,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                             child: const Icon(Icons.payments_rounded,
                                 size: 14, color: AppColors.textMuted),
                           ),
-                          const SizedBox(width: 10),
+                          SizedBox(width: 10),
                           Text(
                             switch (payMethod) {
                               'cash' => _tr('Cash', 'Taslimu'),
@@ -4314,7 +4315,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                           ),
                           if ((_inv['mpesaRef'] ?? '').toString().isNotEmpty)
                             ...[
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Text(
                               (_inv['mpesaRef'] ?? '').toString(),
                               style: GoogleFonts.jetBrainsMono(
@@ -4330,13 +4331,13 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                     if (notes.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Container(height: 1, color: AppColors.border),
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(Icons.notes_rounded,
                               size: 14, color: AppColors.textMuted),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               notes,
@@ -4364,7 +4365,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                           sale: _inv,
                           ref: ref,
                         ),
-                        icon: const Icon(Icons.ios_share_rounded, size: 16),
+                        icon: Icon(Icons.ios_share_rounded, size: 16),
                         label: Text(
                           _tr('Share Receipt', 'Shiriki Risiti'),
                           style: GoogleFonts.dmSans(
@@ -4381,7 +4382,7 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
 
                     // ── Mark as Paid ──────────────────────────────────────────
                     if (_canTakePayment && !isPaidOrCancelled) ...[
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
                         height: 44,
@@ -4412,13 +4413,13 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                     ],
 
                     // ── View Full Details ─────────────────────────────────────
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton.icon(
                         onPressed: _openFullDetail,
-                        icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                        icon: Icon(Icons.receipt_long_rounded, size: 18),
                         label: Text(
                           _tr('View Full Details', 'Ona Maelezo Kamili'),
                           style: GoogleFonts.dmSans(
@@ -4612,7 +4613,7 @@ class _SaleSuccessScreenState extends State<_SaleSuccessScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  SizedBox(height: 18),
                   Text(
                     _tr('Sale Successful!', 'Mauzo Yamefanikiwa!'),
                     style: GoogleFonts.dmSans(
@@ -4622,7 +4623,7 @@ class _SaleSuccessScreenState extends State<_SaleSuccessScreen>
                       letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Text(
                     'TSh ${_sNum(amount)}',
                     style: GoogleFonts.dmSans(
@@ -4813,7 +4814,7 @@ class _TicketReceiptCard extends StatelessWidget {
                     ],
                   ),
 
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     dateStr,
                     style: GoogleFonts.jetBrainsMono(
@@ -4894,19 +4895,19 @@ class _TicketReceiptCard extends StatelessWidget {
                   ],
 
                   if (payMethod.isNotEmpty) ...[
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     Row(
                       children: [
                         Icon(_pmIcon(payMethod),
                             size: 14, color: AppColors.textMuted),
-                        const SizedBox(width: 6),
+                        SizedBox(width: 6),
                         Text(
                           _pmLabel(payMethod),
                           style: GoogleFonts.dmSans(
                               fontSize: 12, color: AppColors.textMuted),
                         ),
                         if (mpesaRef.isNotEmpty) ...[
-                          const Text(' · ',
+                          Text(' · ',
                               style: GoogleFonts.dmSans(color: AppColors.textMuted)),
                           Text(
                             mpesaRef,
@@ -4925,7 +4926,7 @@ class _TicketReceiptCard extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: onShare,
-                          icon: const Icon(Icons.share_rounded, size: 18),
+                          icon: Icon(Icons.share_rounded, size: 18),
                           label: Text(
                             _tr('Share', 'Shiriki'),
                             style: GoogleFonts.dmSans(
@@ -4942,7 +4943,7 @@ class _TicketReceiptCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
                           onPressed: onDone,

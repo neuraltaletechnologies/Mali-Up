@@ -28,7 +28,7 @@ class InventoryValuationScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: AppColors.secondary),
+        leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Inventory Valuation', 'Tathmini ya Hisa'),
           style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
@@ -69,12 +69,12 @@ class InventoryValuationScreen extends ConsumerWidget {
                         _tr('Total Inventory Value', 'Jumla ya Thamani ya Hisa'),
                         style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 12),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         formatCurrency(report.totalValue),
                         style: GoogleFonts.dmSans(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Text(
                         _tr('Weighted average cost method', 'Njia ya wastani uliopimwa wa gharama'),
                         style: GoogleFonts.dmSans(color: Colors.white54, fontSize: 10),
@@ -90,7 +90,7 @@ class InventoryValuationScreen extends ConsumerWidget {
                       style: GoogleFonts.dmSans(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
                     ),
                     Text(_tr('SKUs', 'Bidhaa'), style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 11)),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Text(
                       report.totalUnits.toStringAsFixed(0),
                       style: GoogleFonts.dmSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
@@ -115,7 +115,7 @@ class InventoryValuationScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(Icons.info_outline_rounded, color: AppColors.tealAccent, size: 18),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     _tr(
@@ -303,7 +303,7 @@ class _CategoryPieCard extends StatelessWidget {
                   centerSpaceRadius: 24,
                 )),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,7 +314,7 @@ class _CategoryPieCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 3),
                       child: Row(children: [
                         Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(e.value.key,

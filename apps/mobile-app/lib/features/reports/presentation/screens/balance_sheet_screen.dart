@@ -29,7 +29,7 @@ class BalanceSheetScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: AppColors.secondary),
+        leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Balance Sheet', 'Karatasi ya Mizania'),
           style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
@@ -60,15 +60,15 @@ class BalanceSheetScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _EquationTerm(label: _tr('Assets', 'Rasilimali'), value: formatCurrency(report.totalAssets)),
-                const Text('=', style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
+                Text('=', style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
                 _EquationTerm(label: _tr('Liabilities', 'Madeni'), value: formatCurrency(report.totalLiabilities)),
-                const Text('+', style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
+                Text('+', style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
                 _EquationTerm(label: _tr('Equity', 'Hisa'), value: formatCurrency(report.ownersEquity)),
               ],
             ),
           ),
           if (!isBalanced) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -143,7 +143,7 @@ class BalanceSheetScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Text(
                     _tr("OWNER'S EQUITY", 'HISA YA MMILIKI'),
                     style: GoogleFonts.dmSans(color: AppColors.secondary, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5),
@@ -198,7 +198,7 @@ class _EquationTerm extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(children: [
       Text(label, style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 10)),
-      const SizedBox(height: 2),
+      SizedBox(height: 2),
       Text(value, style: GoogleFonts.dmSans(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
     ]);
   }
@@ -239,7 +239,7 @@ class _BalanceSection extends StatelessWidget {
               height: 20,
               decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Text(title, style: GoogleFonts.dmSans(color: color, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
           ]),
           const SizedBox(height: 12),
@@ -270,7 +270,7 @@ class _BSGroup extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('  Subtotal', style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted, fontStyle: FontStyle.italic)),
+            Text('  Subtotal', style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted, fontStyle: FontStyle.italic)),
             Text(subtotal, style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted, fontStyle: FontStyle.italic)),
           ]),
         ),

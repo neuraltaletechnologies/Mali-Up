@@ -271,7 +271,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     SegmentedButton<String>(
                       segments: _activityCategories
                           .map((e) => ButtonSegment(
@@ -301,7 +301,7 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
                   ],
 
                   // Reference (optional)
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   TextFormField(
                     controller: _referenceController,
                     style: GoogleFonts.dmSans(
@@ -460,7 +460,7 @@ class _TypeTab extends StatelessWidget {
           child: Column(
             children: [
               Icon(icon, size: 20, color: selected ? color : AppColors.textMuted),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 label,
                 style: GoogleFonts.dmSans(

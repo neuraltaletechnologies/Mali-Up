@@ -171,7 +171,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
         backgroundColor: AppColors.yellowBrand,
         foregroundColor: AppColors.navyPrimary,
         elevation: 3,
-        icon: const Icon(Icons.description_rounded, size: 20),
+        icon: Icon(Icons.description_rounded, size: 20),
         label: Text(
           LocalizationService.tr(en: 'New Invoice', sw: 'Ankara Mpya'),
           style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
@@ -202,7 +202,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             'TZS ${amount.toStringAsFixed(0)}',
             style: GoogleFonts.dmSans(
@@ -325,11 +325,11 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                   const Divider(),
                   
                   // Items
-                  const Text(
+                  Text(
                     'Items',
                     style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   ...invoice.items.map((item) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -358,7 +358,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                             '${item.quantity} × ${item.unitPrice.toStringAsFixed(2)}',
                             style: GoogleFonts.dmSans(color: AppColors.textSecondary),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Text(
                             item.total.toStringAsFixed(2),
                             style: GoogleFonts.dmSans(fontWeight: FontWeight.w500),
@@ -376,8 +376,8 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
                   _buildTotalRow('Total', invoice.total, isBold: true),
                   
                   if (invoice.note.isNotEmpty) ...[
-                    const Divider(),
-                    const Text(
+                    Divider(),
+                    Text(
                       'Note',
                       style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
@@ -590,7 +590,7 @@ class InvoiceCard extends StatelessWidget {
                           ),
                           child: Icon(Icons.receipt_long_rounded, size: 20, color: _stripeColor),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -613,21 +613,21 @@ class InvoiceCard extends StatelessWidget {
                                   PaymentStatusChip(status: invoice.status),
                                 ],
                               ),
-                              const SizedBox(height: 2),
+                              SizedBox(height: 2),
                               Text(
                                 invoice.customerName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: 4),
                               Row(
                                 children: [
                                   Text(
                                     'Due: ${invoice.dueDate}',
                                     style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
                                   ),
-                                  const Spacer(),
+                                  Spacer(),
                                   Text(
                                     'TZS ${invoice.total.toStringAsFixed(0)}',
                                     style: GoogleFonts.dmSans(

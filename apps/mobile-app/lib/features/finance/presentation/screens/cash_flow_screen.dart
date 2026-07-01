@@ -136,7 +136,7 @@ class _CashFlowDarkHeader extends ConsumerWidget {
                         letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(
                       _fmtAmt(total),
                       style: GoogleFonts.dmSans(
@@ -275,7 +275,7 @@ class _PillStat extends StatelessWidget {
             color: color,
           ),
         ),
-        const SizedBox(height: 2),
+        SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(
@@ -330,7 +330,7 @@ class _CashFlowFab extends ConsumerWidget {
       backgroundColor: AppColors.yellowBrand,
       foregroundColor: AppColors.navyPrimary,
       elevation: 3,
-      icon: const Icon(Icons.swap_horiz_rounded, size: 20),
+      icon: Icon(Icons.swap_horiz_rounded, size: 20),
       label: Text(
         _tr('Add Transaction', 'Ongeza Muamala'),
         style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
@@ -477,7 +477,7 @@ class _StatementTab extends ConsumerWidget {
                 builder: (_) => const CashFlowStatementScreen(),
               ),
             ),
-            icon: const Icon(Icons.open_in_new, size: 16),
+            icon: Icon(Icons.open_in_new, size: 16),
             label: Text(
               _tr('Full Statement', 'Taarifa Kamili'),
               style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
@@ -529,7 +529,7 @@ class _StatementTab extends ConsumerWidget {
                       style: GoogleFonts.dmSans(
                           color: Colors.white60, fontSize: 12),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       _tr('Net Cash Flow', 'Mtiririko Halisi'),
                       style: GoogleFonts.dmSans(
@@ -641,7 +641,7 @@ class _AccountCard extends StatelessWidget {
                     color: AppColors.textMuted, size: 16),
               ],
             ),
-            const Spacer(),
+            Spacer(),
             Text(
               _fmtCompact(account.balance),
               style: GoogleFonts.dmSans(
@@ -650,7 +650,7 @@ class _AccountCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(
               account.name,
               style: GoogleFonts.dmSans(
@@ -684,7 +684,7 @@ class _NoAccountsCard extends StatelessWidget {
         children: [
           const Icon(Icons.add_card_outlined,
               color: AppColors.textMuted, size: 28),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             _tr('Add your first account', 'Ongeza akaunti yako ya kwanza'),
             style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
@@ -752,7 +752,7 @@ class _TxnListTile extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 18),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -767,7 +767,7 @@ class _TxnListTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   '$subtitle • ${txn.date}',
                   style: GoogleFonts.dmSans(
@@ -778,7 +778,7 @@ class _TxnListTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             '$prefix${_fmtCompact(txn.amount)}',
             style: GoogleFonts.dmSans(
@@ -826,7 +826,7 @@ class _ActivityCard extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

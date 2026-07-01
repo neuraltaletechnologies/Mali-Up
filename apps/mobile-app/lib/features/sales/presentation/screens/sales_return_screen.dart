@@ -443,7 +443,7 @@ class _InvoiceSummaryCard extends StatelessWidget {
                             color: AppColors.navyPrimary,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 1),
@@ -463,7 +463,7 @@ class _InvoiceSummaryCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    SizedBox(height: 3),
                     Text(
                       customer,
                       maxLines: 1,
@@ -501,7 +501,7 @@ class _InvoiceSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Row(
             children: [
               Text(
@@ -512,7 +512,7 @@ class _InvoiceSummaryCard extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const Spacer(),
+              Spacer(),
               Text(
                 _tr('Source invoice', 'Ankara chanzo'),
                 style: GoogleFonts.dmSans(
@@ -592,7 +592,7 @@ class _SummaryMeta extends StatelessWidget {
         Row(
           children: [
             Icon(icon, size: 11, color: AppColors.textMuted),
-            const SizedBox(width: 4),
+            SizedBox(width: 4),
             Text(
               label,
               style: GoogleFonts.dmSans(
@@ -602,7 +602,7 @@ class _SummaryMeta extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 3),
+        SizedBox(height: 3),
         Text(
           value,
           style: GoogleFonts.dmSans(
@@ -708,7 +708,7 @@ class _ReturnItemCard extends StatelessWidget {
                               size: 14, color: Colors.white)
                           : null,
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         line.productName,
@@ -729,7 +729,7 @@ class _ReturnItemCard extends StatelessWidget {
               ),
             ),
             if (line.selected) ...[
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: AppColors.border),
               Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 10),
@@ -748,7 +748,7 @@ class _ReturnItemCard extends StatelessWidget {
                       max: line.originalQty,
                       onChanged: onQtyChange,
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 16),
                     Text(
                       'TZS ${_fmtNum(line.returnTotal)}',
                       style: GoogleFonts.jetBrainsMono(
@@ -863,7 +863,7 @@ class _RestockToggle extends StatelessWidget {
             child: const Icon(Icons.inventory_rounded,
                 size: 18, color: AppColors.tealAccent),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -914,7 +914,7 @@ class _ReasonField extends StatelessWidget {
               color: AppColors.textSecondary,
               letterSpacing: 0.5),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -965,7 +965,7 @@ class _CreditSummary extends StatelessWidget {
         children: [
           const Icon(Icons.credit_score_rounded,
               color: AppColors.error, size: 22),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1049,7 +1049,7 @@ class _BottomBar extends StatelessWidget {
                     fontSize: 13, color: AppColors.textMuted),
               ),
             ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           FilledButton.icon(
             onPressed: (saving || !hasSelection) ? null : onSave,
             icon: saving
@@ -1057,7 +1057,7 @@ class _BottomBar extends StatelessWidget {
                     dimension: 16,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.undo_rounded, size: 16),
+                : Icon(Icons.undo_rounded, size: 16),
             label: Text(
               saving
                   ? _tr('Saving…', 'Inahifadhi…')
@@ -1182,7 +1182,7 @@ class _ResolutionOption extends StatelessWidget {
         child: Column(
           children: [
             Icon(icon, size: 20, color: selected ? Colors.white : AppColors.textMuted),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               label,
               style: GoogleFonts.dmSans(
@@ -1259,7 +1259,7 @@ class _ExchangeProductPickerState
             color: AppColors.textSecondary, letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         TextField(
           controller: widget.controller,
           focusNode: _focus,
@@ -1306,7 +1306,7 @@ class _ExchangeProductPickerState
                     child: Row(
                       children: [
                         const Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.textMuted),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             item.name,

@@ -26,7 +26,7 @@ class ProfitLossScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: AppColors.secondary),
+        leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Profit & Loss', 'Faida na Hasara'),
           style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
@@ -215,7 +215,7 @@ class _TrendCard extends StatelessWidget {
             const SizedBox(width: 14),
             _Legend(color: AppColors.error, label: _tr('Expenses', 'Gharama')),
           ]),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           SizedBox(
             height: 160,
             child: BarChart(BarChartData(
@@ -257,7 +257,7 @@ class _Legend extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(children: [
       Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-      const SizedBox(width: 4),
+      SizedBox(width: 4),
       Text(label, style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted)),
     ]);
   }

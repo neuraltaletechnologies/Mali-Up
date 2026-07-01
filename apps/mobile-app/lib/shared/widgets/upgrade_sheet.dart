@@ -201,7 +201,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 3),
+              SizedBox(height: 3),
               Text(
                 'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.',
                 style: GoogleFonts.dmSans(
@@ -256,7 +256,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.rocket_launch_rounded, size: 16),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text(
                           'Panda ${_selected == PlanTier.growth ? "Growth" : "Business"}'
                           ' — ${_fmtPrice(_priceMonthly)}/mwezi',
@@ -269,7 +269,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Center(
                   child: Text(
                     '${_fmtPrice(_priceCycle)} ulipwa kwa miezi ${_selLimits.cycleMonths} mbele',
@@ -335,7 +335,7 @@ class _LockedFeatureNotice extends StatelessWidget {
               ),
               child: Icon(icon, color: AppColors.navyPrimary, size: 17),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,7 +362,7 @@ class _LockedFeatureNotice extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
               decoration: BoxDecoration(
@@ -373,7 +373,7 @@ class _LockedFeatureNotice extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.lock_rounded, size: 9, color: Colors.white),
-                  const SizedBox(width: 3),
+                  SizedBox(width: 3),
                   Text(
                     'PREMIUM',
                     style: GoogleFonts.dmSans(
@@ -462,7 +462,7 @@ class _TierCard extends StatelessWidget {
                     ),
                   ),
                   if (isGrowth) ...[
-                    const SizedBox(width: 5),
+                    SizedBox(width: 5),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -481,7 +481,7 @@ class _TierCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(width: 6),
+                  SizedBox(width: 6),
                   Text(
                     '${_fmtPrice(limits.pricePerCycle)} / miezi ${limits.cycleMonths}',
                     style: GoogleFonts.dmSans(
@@ -562,7 +562,7 @@ class _EnterpriseCard extends StatelessWidget {
                 size: 16,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -635,7 +635,7 @@ class _PaymentInstructions extends StatelessWidget {
             children: [
               const Icon(Icons.arrow_back_rounded,
                   size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 4),
+              SizedBox(width: 4),
               Text(
                 'Rudi',
                 style: GoogleFonts.dmSans(
@@ -668,7 +668,7 @@ class _PaymentInstructions extends StatelessWidget {
                     child: const Icon(Icons.phone_android_rounded,
                         color: AppColors.tealAccent, size: 16),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Text(
                     'Hatua za Malipo ya M-Pesa',
                     style: GoogleFonts.dmSans(
@@ -723,7 +723,7 @@ class _PaymentInstructions extends StatelessWidget {
                   bold: true,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -737,7 +737,7 @@ class _PaymentInstructions extends StatelessWidget {
                   children: [
                     const Icon(Icons.access_time_rounded,
                         size: 14, color: AppColors.warning),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Baada ya kulipa, timu yetu itathibitisha ndani ya masaa 24.',
@@ -751,14 +751,14 @@ class _PaymentInstructions extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
                   onPressed: onDone,
                   icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
-                  label: const Text('Nimemaliza Kulipa'),
+                  label: Text('Nimemaliza Kulipa'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
                     foregroundColor: Colors.white,
@@ -885,7 +885,7 @@ class _Step extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: text != null
                 ? Padding(

@@ -404,7 +404,7 @@ class PlanUpgradeCard extends StatelessWidget {
               size: 20,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,7 +419,7 @@ class PlanUpgradeCard extends StatelessWidget {
                     color: accent,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   'Growth: ${_fmtPrice(status.definitions?[PlanTier.growth]?.pricePerMonth ?? 5000)}/mwezi — ankara zisizo na kikomo',
                   style: GoogleFonts.dmSans(
@@ -431,7 +431,7 @@ class PlanUpgradeCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           GestureDetector(
             onTap: onUpgradeTap,
             child: Container(
@@ -505,7 +505,7 @@ class PlanInfoCard extends StatelessWidget {
                 color: isPaid ? AppColors.yellowBrand : AppColors.textMuted,
                 size: 22,
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Text(
                 status.tierLabel,
                 style: GoogleFonts.dmSans(
@@ -530,7 +530,7 @@ class PlanInfoCard extends StatelessWidget {
           const SizedBox(height: 12),
           if (status.isStarter) ...[
             _UsageBar(status: status),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               '${status.invoicesUsedThisMonth} / $limit invoices mwezi huu',
               style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
@@ -540,7 +540,7 @@ class PlanInfoCard extends StatelessWidget {
             const _FeatureRow(text: 'Ankara zisizo na kikomo', ok: false),
             const _FeatureRow(text: 'Ripoti kamili', ok: false),
             const _FeatureRow(text: 'Kuingiza data ya M-Pesa', ok: false),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -627,7 +627,7 @@ class _FeatureRow extends StatelessWidget {
                 ? (light ? AppColors.yellowBrand : AppColors.success)
                 : AppColors.textDisabled,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             text,
             style: GoogleFonts.dmSans(

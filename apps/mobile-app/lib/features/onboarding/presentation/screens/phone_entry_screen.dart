@@ -296,7 +296,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                       ),
                     )
                   else
-                    const SizedBox(width: 44),
+                    SizedBox(width: 44),
                   TextButton.icon(
                     onPressed: () => _openWhatsAppHelp(sw),
                     icon: const Icon(
@@ -410,12 +410,12 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                 onCountryTap: _pickCountry,
                                 onFieldSubmitted: (_) => _submit(),
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8),
                               Row(
                                 children: [
                                   const Icon(Icons.lock_outline_rounded,
                                       size: 12, color: AppColors.textMuted),
-                                  const SizedBox(width: 5),
+                                  SizedBox(width: 5),
                                   Text(
                                     OnboardingStrings.s(sw,
                                         en: OnboardingStrings.phoneHelperEn,
@@ -557,7 +557,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
           children: [
             // Label
             AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 180),
+              duration: Duration(milliseconds: 180),
               style: GoogleFonts.dmSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -614,7 +614,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                             widget.country.flag,
                             style: GoogleFonts.dmSans(fontSize: 20),
                           ),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           Text(
                             widget.country.dial,
                             style: GoogleFonts.dmSans(
@@ -656,7 +656,7 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
                         fontWeight: FontWeight.w500,
                         color: AppColors.navyPrimary,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: '7XX XXX XXX',
                         hintStyle: GoogleFonts.dmSans(
                           fontSize: 15,
@@ -674,12 +674,12 @@ class _PhoneInputRowState extends State<_PhoneInputRow> {
 
             // Error message
             if (_error != null) ...[
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               Row(
                 children: [
                   const Icon(Icons.error_outline_rounded,
                       size: 13, color: AppColors.error),
-                  const SizedBox(width: 5),
+                  SizedBox(width: 5),
                   Expanded(
                     child: Text(
                       _error!,
@@ -853,7 +853,7 @@ class _CountryTile extends StatelessWidget {
         child: Row(
           children: [
             Text(country.flag, style: GoogleFonts.dmSans(fontSize: 22)),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Text(
                 country.name,
@@ -898,7 +898,7 @@ class _OfflineBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.wifi_off_rounded, size: 18, color: Color(0xFF856404)),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -911,7 +911,7 @@ class _OfflineBanner extends StatelessWidget {
                     color: Color(0xFF856404),
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   sw
                       ? 'Tafadhali unganisha mtandao na ujaribu tena.'

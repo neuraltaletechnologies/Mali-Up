@@ -454,7 +454,7 @@ class _ReceiptHeroBackground extends StatelessWidget {
                 children: [
                   const Icon(Icons.zoom_out_map_rounded,
                       size: 13, color: Colors.white),
-                  const SizedBox(width: 5),
+                  SizedBox(width: 5),
                   Text(
                     _tr('View receipt', 'Angalia risiti'),
                     style: GoogleFonts.dmSans(
@@ -529,7 +529,7 @@ class _HeroCard extends StatelessWidget {
             ),
             child: Icon(cat.icon, size: 26, color: Colors.white),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -539,7 +539,7 @@ class _HeroCard extends StatelessWidget {
                   style: GoogleFonts.dmSans(
                       fontSize: 13, color: Colors.white70),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   'TZS ${_fmtNum(amount)}',
                   style: GoogleFonts.dmSerifDisplay(
@@ -666,7 +666,7 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, size: 16, color: AppColors.textMuted),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,7 +723,7 @@ class _ReceiptPreviewCard extends StatelessWidget {
                         color: AppColors.navyPrimary, strokeWidth: 2));
               }),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -735,7 +735,7 @@ class _ReceiptPreviewCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     _tr('Tap to view full receipt',
                         'Gusa kuona risiti kamili'),
@@ -781,7 +781,7 @@ class _ApprovalCard extends StatelessWidget {
             children: [
               const Icon(Icons.pending_actions_rounded,
                   size: 18, color: AppColors.warning),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 _tr('Awaiting Approval', 'Inasubiri Idhini'),
                 style: GoogleFonts.dmSans(
@@ -791,7 +791,7 @@ class _ApprovalCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             _tr(
                 'This expense was submitted for manager review. Approve or reject it below.',
@@ -799,13 +799,13 @@ class _ApprovalCard extends StatelessWidget {
             style: GoogleFonts.dmSans(
                 fontSize: 12, color: AppColors.textSecondary),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: loading ? null : onReject,
-                  icon: const Icon(Icons.cancel_rounded, size: 16),
+                  icon: Icon(Icons.cancel_rounded, size: 16),
                   label: Text(_tr('Reject', 'Kataa'),
                       style: GoogleFonts.dmSans(
                           fontWeight: FontWeight.w600)),
@@ -819,7 +819,7 @@ class _ApprovalCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: FilledButton.icon(
                   onPressed: loading ? null : onApprove,
@@ -915,7 +915,7 @@ class _ActionRow extends StatelessWidget {
         child: Row(
           children: [
             Icon(icon, size: 18, color: color),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Text(
               label,
               style: GoogleFonts.dmSans(

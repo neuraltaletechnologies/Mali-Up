@@ -84,7 +84,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                 ),
 
                 // PIN Length Indicator
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   '${pinEntry.length} digits',
                   style: GoogleFonts.dmSans(
@@ -107,7 +107,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                       color: AppColors.navyPrimary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Enter at least 4 digits for security',
                       style: GoogleFonts.dmSans(fontSize: 12),
                       textAlign: TextAlign.center,

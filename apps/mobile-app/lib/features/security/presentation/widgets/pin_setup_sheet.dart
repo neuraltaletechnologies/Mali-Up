@@ -132,7 +132,7 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
-                if (_step == 1) const SizedBox(width: 8),
+                if (_step == 1) SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,7 +147,7 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         _step == 0
                             ? _tr(
@@ -210,7 +210,7 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
           ),
 
           if (_hasError) ...[
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Text(
               _errorMessage,
               style: GoogleFonts.dmSans(
@@ -425,7 +425,7 @@ class _PinChangeSheetState extends State<_PinChangeSheet> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,7 +438,7 @@ class _PinChangeSheetState extends State<_PinChangeSheet> {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         _tr(_subtitles[_step][0], _subtitles[_step][1]),
                         style: GoogleFonts.dmSans(
@@ -485,7 +485,7 @@ class _PinChangeSheetState extends State<_PinChangeSheet> {
           ),
 
           if (_hasError) ...[
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Text(
               _errorMessage,
               style: GoogleFonts.dmSans(

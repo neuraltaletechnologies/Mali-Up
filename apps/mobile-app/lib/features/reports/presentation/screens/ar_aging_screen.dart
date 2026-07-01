@@ -25,7 +25,7 @@ class ArAgingScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: AppColors.secondary),
+        leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('AR Aging', 'Umri wa Madai'),
           style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
@@ -54,7 +54,7 @@ class ArAgingScreen extends ConsumerWidget {
                   _tr('Total Outstanding Receivables', 'Jumla ya Madai Yanayosubiri'),
                   style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 12),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   formatCurrency(report.grandTotal),
                   style: GoogleFonts.dmSans(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
@@ -192,7 +192,7 @@ class _AgingLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(children: [
       Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-      const SizedBox(height: 4),
+      SizedBox(height: 4),
       Text(label, style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
       Text('$count inv', style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
     ]);
@@ -250,7 +250,7 @@ class _AgingBucketCardState extends State<_AgingBucketCard> {
                     ),
                     child: Icon(widget.icon, color: widget.color, size: 16),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

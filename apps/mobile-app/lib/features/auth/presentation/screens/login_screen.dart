@@ -708,11 +708,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               prefix: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Text(
+                                  Text(
                                     '🇹🇿',
                                     style: GoogleFonts.dmSans(fontSize: 18),
                                   ),
-                                  const SizedBox(width: 6),
+                                  SizedBox(width: 6),
                                   Text(
                                     '+255',
                                     style: GoogleFonts.dmSans(
@@ -862,7 +862,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             color: AppColors.primary,
                                           ),
                                         ),
-                                        const SizedBox(width: 10),
+                                        SizedBox(width: 10),
                                         Text(
                                           _tr(
                                             'Verifying your PIN…',

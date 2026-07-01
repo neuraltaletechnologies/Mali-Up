@@ -281,7 +281,7 @@ class _SlidePage extends StatelessWidget {
               letterSpacing: -1.2,
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           Text(
             body,
             style: GoogleFonts.dmSans(

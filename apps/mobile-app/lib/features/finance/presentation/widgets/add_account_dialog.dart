@@ -125,7 +125,7 @@ class _AddAccountDialogState extends ConsumerState<AddAccountDialog> {
                                         ? Colors.white
                                         : AppColors.textMuted,
                                   ),
-                                  const SizedBox(height: 4),
+                                  SizedBox(height: 4),
                                   Text(
                                     LocalizationService.isSwahili
                                         ? entry.$2

@@ -461,7 +461,7 @@ class StatusChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(config.icon, size: 12, color: config.text),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           Text(
             customLabel ?? config.label,
             style: GoogleFonts.dmSans(
@@ -562,7 +562,7 @@ class EmptyState extends StatelessWidget {
 
             // ── CTA button ─────────────────────────────────────────────────
             if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
               SizedBox(
                 width: 220,
                 height: 44,
@@ -1088,7 +1088,7 @@ class MaliSelectSheet<T> extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -1324,7 +1324,7 @@ class PaymentStatusChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(c.icon, size: 11, color: c.fg),
-          const SizedBox(width: 3),
+          SizedBox(width: 3),
           Text(
             c.label,
             style: GoogleFonts.dmSans(
@@ -1456,7 +1456,7 @@ class AppFilterChip extends StatelessWidget {
               ),
             ),
             if (count != null) ...[
-              const SizedBox(width: 5),
+              SizedBox(width: 5),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(

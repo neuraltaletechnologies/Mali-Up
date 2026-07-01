@@ -316,7 +316,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 14),
+                                    SizedBox(width: 14),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +331,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
-                                          const SizedBox(height: 2),
+                                          SizedBox(height: 2),
                                           Text(
                                             profile.contactLine,
                                             maxLines: 1,
@@ -368,7 +368,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             const Icon(Icons.stars_rounded, size: 12, color: Colors.white),
-                                            const SizedBox(width: 4),
+                                            SizedBox(width: 4),
                                             Text(
                                               _tr('Free', 'Bure'),
                                               style: GoogleFonts.dmSans(
@@ -380,7 +380,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
@@ -396,7 +396,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                               size: 12,
                                               color: AppColors.secondary,
                                             ),
-                                            const SizedBox(width: 4),
+                                            SizedBox(width: 4),
                                             Text(
                                               _tr('Business', 'Biashara'),
                                               style: GoogleFonts.dmSans(
@@ -422,7 +422,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         const Icon(Icons.badge_outlined, size: 12, color: Colors.white),
-                                        const SizedBox(width: 4),
+                                        SizedBox(width: 4),
                                         Text(
                                           member.role.label,
                                           style: GoogleFonts.dmSans(
@@ -927,7 +927,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
@@ -1034,9 +1034,9 @@ class _FinanceContextSwitcher extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(Icons.business_center_rounded, size: 16, color: AppColors.primary),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 130),
+                  constraints: BoxConstraints(maxWidth: 130),
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
@@ -1150,7 +1150,7 @@ class _DrawerItemLight extends StatelessWidget {
                       color: selected ? Colors.white : AppColors.secondary,
                     ),
                   ),
-                  const SizedBox(width: 13),
+                  SizedBox(width: 13),
                   Expanded(
                     child: Text(
                       label,
@@ -1191,7 +1191,7 @@ class _DrawerSectionLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
       child: Row(
         children: [
-          const Expanded(child: Divider(height: 1, color: AppColors.border)),
+          Expanded(child: Divider(height: 1, color: AppColors.border)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(

@@ -286,7 +286,7 @@ class _OnboardingSuccessScreenState
                                 isSwahili: sw,
                               ),
                             ],
-                            const SizedBox(height: 32),
+                            SizedBox(height: 32),
                             Text(
                               OnboardingStrings.s(
                                 sw,
@@ -386,7 +386,7 @@ class _RoundFeatureCard extends StatelessWidget {
           ),
           child: Icon(icon, size: 24, color: AppColors.success),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Text(
           label,
           style: GoogleFonts.dmSans(
@@ -440,7 +440,7 @@ class _BusinessReadyCard extends StatelessWidget {
               size: 22,
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,7 +455,7 @@ class _BusinessReadyCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: 3),
                 Text(
                   isSwahili
                       ? 'Eneo lako liko tayari'

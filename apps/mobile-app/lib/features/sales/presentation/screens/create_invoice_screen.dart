@@ -672,7 +672,7 @@ class _Tab extends StatelessWidget {
               Icon(icon,
                   size: 16,
                   color: active ? Colors.white : AppColors.textMuted),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Text(
                 label,
                 style: GoogleFonts.dmSans(
@@ -817,7 +817,7 @@ class _DateChip extends StatelessWidget {
                     color: AppColors.textMuted,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.3)),
-            const SizedBox(height: 3),
+            SizedBox(height: 3),
             Row(
               children: [
                 Icon(Icons.calendar_today_rounded,
@@ -825,7 +825,7 @@ class _DateChip extends StatelessWidget {
                     color: optional
                         ? AppColors.textMuted
                         : AppColors.navyPrimary),
-                const SizedBox(width: 5),
+                SizedBox(width: 5),
                 Flexible(
                   child: Text(
                     value,
@@ -884,7 +884,7 @@ class _ItemsSection extends ConsumerWidget {
             ),
             TextButton.icon(
               onPressed: onAdd,
-              icon: const Icon(Icons.add_circle_rounded, size: 16),
+              icon: Icon(Icons.add_circle_rounded, size: 16),
               label: Text(_tr('Add Item', 'Ongeza'),
                   style: GoogleFonts.dmSans(
                       fontSize: 13, fontWeight: FontWeight.w600)),
@@ -1051,7 +1051,7 @@ class _LineItemCardState extends State<_LineItemCard> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     widget.item.productName.isEmpty
@@ -1232,7 +1232,7 @@ class _SuggestionList extends StatelessWidget {
                       color: stockColor,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1244,7 +1244,7 @@ class _SuggestionList extends StatelessWidget {
                               color: AppColors.navyPrimary),
                         ),
                         if (category.isNotEmpty) ...[
-                          const SizedBox(height: 2),
+                          SizedBox(height: 2),
                           Text(category,
                               style: GoogleFonts.dmSans(
                                   fontSize: 11, color: AppColors.textMuted)),
@@ -1252,7 +1252,7 @@ class _SuggestionList extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -1264,7 +1264,7 @@ class _SuggestionList extends StatelessWidget {
                             color: AppColors.navyPrimary),
                       ),
                       if (!isService) ...[
-                        const SizedBox(height: 3),
+                        SizedBox(height: 3),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 7, vertical: 2),
@@ -1322,7 +1322,7 @@ class _DiscountRow extends StatelessWidget {
         children: [
           const Icon(Icons.local_offer_rounded,
               size: 18, color: AppColors.warning),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               _tr('Invoice Discount', 'Punguzo la Ankara'),
@@ -1381,7 +1381,7 @@ class _VatToggle extends StatelessWidget {
         children: [
           const Icon(Icons.receipt_rounded,
               size: 18, color: AppColors.tealAccent),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1470,7 +1470,7 @@ class _TotalsCard extends StatelessWidget {
           ],
           const SizedBox(height: 12),
           const Divider(color: Colors.white24, height: 1),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1593,7 +1593,7 @@ class _PaymentSection extends StatelessWidget {
                         color: active
                             ? Colors.white
                             : AppColors.textMuted),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Text(
                       m.label,
                       style: GoogleFonts.dmSans(
@@ -1610,7 +1610,7 @@ class _PaymentSection extends StatelessWidget {
           }).toList(),
         ),
         if (selected == _PayMethod.mpesa) ...[
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
                 color: Colors.white,
@@ -1660,7 +1660,7 @@ class _NotesField extends StatelessWidget {
               color: AppColors.textSecondary,
               letterSpacing: 0.5),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -1717,7 +1717,7 @@ class _BottomActions extends StatelessWidget {
           Expanded(
             child: OutlinedButton.icon(
               onPressed: saving ? null : onDraft,
-              icon: const Icon(Icons.save_outlined, size: 16),
+              icon: Icon(Icons.save_outlined, size: 16),
               label: Text(_tr('Save Draft', 'Hifadhi Rasimu'),
                   style: GoogleFonts.dmSans(
                       fontSize: 14, fontWeight: FontWeight.w600)),
@@ -1730,7 +1730,7 @@ class _BottomActions extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             flex: 2,
             child: FilledButton.icon(

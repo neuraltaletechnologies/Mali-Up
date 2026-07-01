@@ -27,7 +27,7 @@ class CashFlowReportScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: AppColors.secondary),
+        leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Cash Flow Statement', 'Taarifa ya Mtiririko wa Fedha'),
           style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
@@ -82,7 +82,7 @@ class CashFlowReportScreen extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       isPositive
                           ? _tr('Positive — cash surplus', 'Chanya — ziada ya pesa')
@@ -210,7 +210,7 @@ class _CashWaterfallCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ReportSectionTitle(title: _tr('Cash Flow Overview', 'Muhtasari wa Mtiririko wa Fedha')),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           SizedBox(
             height: 160,
             child: BarChart(BarChartData(
@@ -293,7 +293,7 @@ class _CashActivityCardState extends State<_CashActivityCard> {
                     ),
                     child: Icon(widget.icon, color: widget.color, size: 16),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Text(widget.title,
                         style: GoogleFonts.dmSans(color: widget.color, fontSize: 14, fontWeight: FontWeight.w700)),
@@ -308,7 +308,7 @@ class _CashActivityCardState extends State<_CashActivityCard> {
             ),
           ),
           if (_expanded && widget.items.isNotEmpty) ...[
-            const Divider(height: 1, color: AppColors.border),
+            Divider(height: 1, color: AppColors.border),
             ...widget.items.take(20).map((item) => Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
               child: Row(

@@ -210,7 +210,7 @@ class _BannerStripState extends State<_BannerStrip>
                   child: Icon(cfg.icon, size: 14, color: cfg.textColor),
                 )
               : Icon(cfg.icon, size: 14, color: cfg.textColor),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
               cfg.label,
