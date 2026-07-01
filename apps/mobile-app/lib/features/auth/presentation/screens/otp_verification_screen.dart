@@ -289,7 +289,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                           size: 14,
                           color: Colors.white,
                         ),
-                        const SizedBox(width: 6),
+                        SizedBox(width: 6),
                         Text(
                           _tr('Secure', 'Salama'),
                           style: GoogleFonts.dmSans(
@@ -356,7 +356,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       Row(
                         children: [
                           const Icon(
@@ -364,7 +364,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                             size: 16,
                             color: textSecondary,
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _tr(
@@ -397,7 +397,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                                 color: Colors.red,
                                 size: 20,
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _errorMessage!,
@@ -427,7 +427,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                                 color: Colors.green,
                                 size: 20,
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _successMessage!,
@@ -500,7 +500,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                               : Text(_tr('Verify Code', 'Thibitisha Nambari')),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Center(
                         child: Column(
                           children: [

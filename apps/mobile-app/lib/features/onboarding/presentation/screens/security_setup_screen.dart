@@ -364,7 +364,7 @@ class _SetPinBody extends StatelessWidget {
             letterSpacing: -0.4,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           sw
               ? 'Tengeneza PIN ya tarakimu 4 utakayotumia kufikia Mali Up.'
@@ -482,7 +482,7 @@ class _ConfirmPinBody extends StatelessWidget {
             letterSpacing: -0.4,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           sw
               ? 'Ingiza tena PIN yako ili ithibitishwe.'
@@ -601,7 +601,7 @@ class _OnboardingOfflineBanner extends StatelessWidget {
         children: [
           const Icon(Icons.wifi_off_rounded,
               size: 18, color: Color(0xFF856404)),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -614,7 +614,7 @@ class _OnboardingOfflineBanner extends StatelessWidget {
                     color: Color(0xFF856404),
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   sw
                       ? 'Tafadhali unganisha mtandao na ujaribu tena.'

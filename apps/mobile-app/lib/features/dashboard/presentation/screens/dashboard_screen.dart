@@ -738,7 +738,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                         letterSpacing: 0.3,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       _fmtAmount(revenue),
                       style: GoogleFonts.dmSans(
@@ -765,7 +765,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                           size: 14,
                           color: changeColor,
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: 4),
                         Text(
                           '${isPositive ? '+' : ''}${periodChange.toStringAsFixed(1)}%',
                           style: GoogleFonts.dmSans(
@@ -776,7 +776,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(
                       compLabel,
                       style: GoogleFonts.dmSans(
@@ -845,7 +845,7 @@ class _OutstandingReceivablesCard extends StatelessWidget {
                         color: AppColors.navyPrimary,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       _fmtAmount(totalOutstanding),
                       style: GoogleFonts.dmSans(
@@ -921,7 +921,7 @@ class _OutstandingReceivablesCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -980,7 +980,7 @@ class _AgingChip extends StatelessWidget {
               color: color,
             ),
           ),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(
             _fmtCompactAmount(amount),
             style: GoogleFonts.dmSans(
@@ -1039,7 +1039,7 @@ class _CashPositionCard extends StatelessWidget {
                 size: 16,
                 color: AppColors.tealAccent,
               ),
-              const SizedBox(width: 7),
+              SizedBox(width: 7),
               Text(
                 _tr('Cash Position', 'Hali ya Fedha'),
                 style: GoogleFonts.dmSans(
@@ -1048,7 +1048,7 @@ class _CashPositionCard extends StatelessWidget {
                   color: AppColors.navyPrimary,
                 ),
               ),
-              const Spacer(),
+              Spacer(),
               Text(
                 _fmtAmount(totalCash),
                 style: GoogleFonts.dmSans(
@@ -1119,7 +1119,7 @@ class _CashChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -1181,7 +1181,7 @@ class _BusinessInsightsCard extends StatelessWidget {
               color: AppColors.navyPrimary,
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           ...insights.map(
             (insight) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -1197,7 +1197,7 @@ class _BusinessInsightsCard extends StatelessWidget {
                       color: AppColors.tealAccent,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       insight,
@@ -1360,9 +1360,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
-        child: AspectRatio(
-          aspectRatio: 1.65,
-          child: Container(
+        child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
@@ -1442,7 +1440,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                       Row(
                         children: [
                           const _CardChip(),
-                          const SizedBox(width: 14),
+                          SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1459,7 +1457,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 2),
+                                SizedBox(height: 2),
                                 Text(
                                   (widget.plan ?? 'Trial').toUpperCase(),
                                   style: GoogleFonts.dmSans(
@@ -1528,7 +1526,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                     letterSpacing: 1.4,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                SizedBox(height: 6),
                                 AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 260),
                                   transitionBuilder: (child, anim) =>
@@ -1617,7 +1615,6 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -1718,7 +1715,7 @@ class _CardStatItem extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 3),
+          SizedBox(height: 3),
           Text(
             label,
             style: GoogleFonts.dmSans(
@@ -1819,7 +1816,7 @@ class _ModuleGrid extends StatelessWidget {
                             color: module.color,
                           ),
                         ),
-                        const SizedBox(width: 7),
+                        SizedBox(width: 7),
                         Expanded(
                           child: Text(
                             label,
@@ -2092,7 +2089,7 @@ class _LowStockAlertsSection extends StatelessWidget {
                 color: AppColors.secondary,
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
@@ -2108,7 +2105,7 @@ class _LowStockAlertsSection extends StatelessWidget {
                 ),
               ),
             ),
-            const Spacer(),
+            Spacer(),
             TextButton(
               onPressed: () => context.go(AppRouter.inventoryPath),
               style: TextButton.styleFrom(
@@ -2169,7 +2166,7 @@ class _LowStockAlertsSection extends StatelessWidget {
                             size: 11,
                             color: alertColor,
                           ),
-                          const SizedBox(width: 4),
+                          SizedBox(width: 4),
                           Text(
                             isOut
                                 ? _tr('Out', 'Imekwisha')
@@ -2299,7 +2296,7 @@ class _TopPerformersSection extends StatelessWidget {
                     color: AppColors.yellowBrand,
                   ),
                 ),
-                const SizedBox(width: 9),
+                SizedBox(width: 9),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2385,7 +2382,7 @@ class _PerformerSubsection extends StatelessWidget {
           Row(
             children: [
               Icon(icon, size: 11, color: color),
-              const SizedBox(width: 5),
+              SizedBox(width: 5),
               Text(
                 label,
                 style: GoogleFonts.dmSans(
@@ -2397,7 +2394,7 @@ class _PerformerSubsection extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           ...entries.asMap().entries.map((e) {
             final rank = e.key;
             final entry = e.value;
@@ -2600,7 +2597,7 @@ class _RecentTransactionsList extends StatelessWidget {
                   size: 36,
                   color: AppColors.textDisabled,
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 Text(
                   _tr(
                     'No activity yet. Your business is ready\nfor its first transaction.',
@@ -2790,7 +2787,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
                   size: 22,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Text(
                   _tr(
@@ -2808,7 +2805,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Text(
             _tr(
               'Get a professional website designed for your business and start reaching more customers online.',
@@ -2820,7 +2817,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               height: 1.55,
             ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: 28),
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -2843,7 +2840,7 @@ class _WebsiteNudgeBanner extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Center(
             child: TextButton(
               onPressed: onDismiss,
@@ -3069,7 +3066,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                 size: 48,
               ),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             Center(
               child: Text(
                 _tr("We'll be in touch!", 'Tutawasiliana nawe hivi karibuni!'),
@@ -3090,7 +3087,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                 letterSpacing: -0.2,
               ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               _tr(
                 'Any requirements or ideas for your website? (optional)',
@@ -3102,7 +3099,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             TextField(
               controller: _notesCtrl,
               maxLines: 4,
@@ -3173,7 +3170,7 @@ class _WebsiteRequirementsFormState extends State<_WebsiteRequirementsForm> {
                       ),
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Center(
               child: TextButton(
                 onPressed: widget.onDone,

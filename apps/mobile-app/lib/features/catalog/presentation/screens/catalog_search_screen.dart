@@ -81,7 +81,7 @@ class _CatalogSearchScreenState extends ConsumerState<CatalogSearchScreen> {
       child: Column(
         children: [
           // ── Handle + header ──────────────────────────────────────────────
-          const SheetHandle(),
+          SheetHandle(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: Column(
@@ -210,7 +210,7 @@ class _SearchBar extends StatelessWidget {
           'Tafuta kwa jina, msimbo au neno…',
         ),
         hintStyle:
-            GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF64748B)),
+            GoogleFonts.dmSans(fontSize: 14, color: Color(0xFF64748B)),
         prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
         suffixIcon: controller.text.isNotEmpty
             ? IconButton(
@@ -405,7 +405,7 @@ class _ProductCard extends StatelessWidget {
                   ),
                   if (product.productNameSw.isNotEmpty &&
                       product.productNameSw != product.productName) ...[
-                    const SizedBox(height: 1),
+                    SizedBox(height: 1),
                     Text(
                       product.productNameSw,
                       style: GoogleFonts.dmSans(
@@ -599,7 +599,7 @@ class _CatalogError extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 56, color: const Color(0xFF94A3B8)),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               title,
               style: GoogleFonts.dmSans(
@@ -609,7 +609,7 @@ class _CatalogError extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               subtitle,
               style: GoogleFonts.dmSans(
@@ -658,7 +658,7 @@ class _EmptyResults extends StatelessWidget {
           children: [
             const Icon(Icons.search_off_rounded,
                 size: 56, color: Color(0xFF94A3B8)),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               query.isNotEmpty
                   ? _tr('No results for "$query"',
@@ -672,7 +672,7 @@ class _EmptyResults extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               _tr(
                 'Try a different search term or browse all products.',

@@ -351,7 +351,7 @@ class _EmotionalStatusChipState extends State<EmotionalStatusChip>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(_icon(widget.tone), size: 16, color: _palette(widget.tone)),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Flexible(
               child: Text(
                 widget.text,

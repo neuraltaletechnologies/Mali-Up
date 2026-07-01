@@ -36,7 +36,7 @@ class SalesReportScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: AppColors.secondary),
+        leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Sales Report', 'Ripoti ya Mauzo'),
           style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
@@ -174,7 +174,7 @@ class _PaymentPieCard extends StatelessWidget {
                   centerSpaceRadius: 24,
                 )),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,7 +184,7 @@ class _PaymentPieCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 3),
                       child: Row(children: [
                         Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(child: Text(e.value.key, style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary))),
                         Text(formatCurrency(e.value.value), style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600)),
                       ]),
@@ -234,7 +234,7 @@ class _SalesTrendCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ReportSectionTitle(title: _tr('Revenue Trend (6 months)', 'Mwenendo wa Mapato (miezi 6)')),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           SizedBox(
             height: 150,
             child: BarChart(BarChartData(
@@ -316,7 +316,7 @@ class _RankedListCard extends StatelessWidget {
                                 style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.secondary)),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text(e.value.key,
                             style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary)),
                       ]),

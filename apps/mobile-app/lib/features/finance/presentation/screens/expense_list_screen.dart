@@ -147,7 +147,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         backgroundColor: AppColors.yellowBrand,
         foregroundColor: AppColors.navyPrimary,
         elevation: 3,
-        icon: const Icon(Icons.receipt_long_rounded, size: 20),
+        icon: Icon(Icons.receipt_long_rounded, size: 20),
         label: Text(
           _tr('Add Expense', 'Ongeza Matumizi'),
           style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
@@ -325,7 +325,7 @@ class _ExpenseDarkHeader extends StatelessWidget {
                           color: Colors.white70, size: 22),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     _monthLabel(month),
                     style: GoogleFonts.dmSans(
@@ -572,7 +572,7 @@ class _ExpenseCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Row(
                           children: [
                             Text(
@@ -580,12 +580,12 @@ class _ExpenseCard extends StatelessWidget {
                               style: GoogleFonts.dmSans(
                                   fontSize: 12, color: AppColors.textMuted),
                             ),
-                            const SizedBox(width: 6),
+                            SizedBox(width: 6),
                             Text('·',
                                 style: GoogleFonts.dmSans(
                                     fontSize: 12,
                                     color: AppColors.textDisabled)),
-                            const SizedBox(width: 6),
+                            SizedBox(width: 6),
                             Text(
                               _fmtDate(expense.date),
                               style: GoogleFonts.dmSans(
@@ -685,7 +685,7 @@ class _PillStat extends StatelessWidget {
           style: GoogleFonts.dmSans(
               fontSize: 13, fontWeight: FontWeight.w800, color: color),
         ),
-        const SizedBox(height: 2),
+        SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(

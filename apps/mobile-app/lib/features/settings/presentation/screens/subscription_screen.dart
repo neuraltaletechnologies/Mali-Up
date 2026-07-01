@@ -42,14 +42,14 @@ class SubscriptionScreen extends ConsumerWidget {
         ),
       ),
       body: planAsync.smartWhen(
-        skeleton: () => const SkeletonSubscriptionBody(),
+        skeleton: () => SkeletonSubscriptionBody(),
         onError: (_, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.error_outline_rounded,
                   color: AppColors.error, size: 48),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(_t('Could not load plan info', 'Imeshindwa kupakia mpango'),
                   style: GoogleFonts.dmSans(color: AppColors.textSecondary)),
               const SizedBox(height: 16),
@@ -226,7 +226,7 @@ class _UsageMeter extends StatelessWidget {
             ),
           ),
           if (pct >= 0.8) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               pct >= 1.0
                   ? _t('Limit reached — upgrade to continue', 'Kikomo kimefikiwa — boresha kuendelea')
@@ -308,7 +308,7 @@ class _ComparisonTable extends StatelessWidget {
             color: AppColors.surface,
             child: Row(
               children: [
-                const Expanded(flex: 3, child: SizedBox()),
+                Expanded(flex: 3, child: SizedBox()),
                 ...List.generate(
                   tiers.length,
                   (i) => Expanded(

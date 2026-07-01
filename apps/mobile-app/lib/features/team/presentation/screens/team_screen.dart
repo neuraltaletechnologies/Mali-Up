@@ -117,7 +117,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
               backgroundColor: AppColors.yellowBrand,
               foregroundColor: AppColors.navyPrimary,
               elevation: 3,
-              icon: const Icon(Icons.person_add_rounded, size: 20),
+              icon: Icon(Icons.person_add_rounded, size: 20),
               label: Text(
                 _tr('Add Member', 'Ongeza Mwanachama'),
                 style: GoogleFonts.dmSans(
@@ -671,7 +671,7 @@ class _TeamFilterSheetState extends State<_TeamFilterSheet> {
                       ))
                   .toList(),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -864,7 +864,7 @@ class _MemberCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -901,7 +901,7 @@ class _MemberCard extends StatelessWidget {
                                     shape: BoxShape.circle,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
+                                SizedBox(width: 4),
                                 Text(statusLabel,
                                     style: GoogleFonts.dmSans(
                                         fontSize: 10,
@@ -912,11 +912,11 @@ class _MemberCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 3),
+                      SizedBox(height: 3),
                       Row(
                         children: [
                           Icon(_roleIcon(member.role), size: 12, color: rc),
-                          const SizedBox(width: 4),
+                          SizedBox(width: 4),
                           Text(
                             member.role.label,
                             style: GoogleFonts.dmSans(
@@ -942,7 +942,7 @@ class _MemberCard extends StatelessWidget {
                           ],
                         ],
                       ),
-                      const SizedBox(height: 5),
+                      SizedBox(height: 5),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 7, vertical: 2),
@@ -1352,7 +1352,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                                         size: 18,
                                         color: _roleColor(_selectedRole)),
                                   ),
-                                  const SizedBox(width: 12),
+                                  SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
@@ -1676,7 +1676,7 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                               color: rc)),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1686,12 +1686,12 @@ class _MemberSheetState extends ConsumerState<_MemberSheet> {
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.navyPrimary)),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Row(
                           children: [
                             Icon(_roleIcon(_member.role),
                                 size: 12, color: rc),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 4),
                             Text(_member.role.label,
                                 style: GoogleFonts.dmSans(
                                     fontSize: 12,
@@ -1889,7 +1889,7 @@ class _RolePickerSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SheetHandle(),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(
                 _tr('Select Role', 'Chagua Jukumu'),
                 style: GoogleFonts.dmSans(
@@ -1962,7 +1962,7 @@ class _RoleCard extends StatelessWidget {
               ),
               child: Icon(_roleIcon(role), size: 18, color: rc),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2060,7 +2060,7 @@ class _PermissionEditor extends StatelessWidget {
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: AppColors.navyPrimary)),
-                      const Spacer(),
+                      Spacer(),
                       Text(
                         allOn
                             ? _tr('All on', 'Zote zimewashwa')
@@ -2186,7 +2186,7 @@ class _PermissionSummary extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: AppColors.textMuted,
                         letterSpacing: 0.5)),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -2257,7 +2257,7 @@ class _ActionCard extends StatelessWidget {
                 ),
                 child: Icon(icon, size: 20, color: color),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2321,7 +2321,7 @@ class _StatusBadge extends StatelessWidget {
             decoration:
                 BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 5),
+          SizedBox(width: 5),
           Text(label,
               style: GoogleFonts.dmSans(
                   fontSize: 11,

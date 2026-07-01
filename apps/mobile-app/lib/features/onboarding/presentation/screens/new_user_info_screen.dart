@@ -301,12 +301,12 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                     v ?? '', isSwahili: sw),
                                 onFieldSubmitted: (_) => _submit(),
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8),
                               Row(
                                 children: [
                                   const Icon(Icons.info_outline_rounded,
                                       size: 13, color: AppColors.textMuted),
-                                  const SizedBox(width: 5),
+                                  SizedBox(width: 5),
                                   Text(
                                     sw
                                         ? 'Inatumika kwa arifa na nenosiri.'

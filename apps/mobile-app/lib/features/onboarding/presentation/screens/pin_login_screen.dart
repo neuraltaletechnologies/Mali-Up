@@ -452,7 +452,7 @@ class _BusinessCard extends StatelessWidget {
             child: const Icon(Icons.storefront_rounded,
                 color: AppColors.navyPrimary, size: 22),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,7 +468,7 @@ class _BusinessCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (role.isNotEmpty) ...[
-                  const SizedBox(height: 3),
+                  SizedBox(height: 3),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
@@ -585,7 +585,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 fontSize: 14, color: AppColors.textMuted, height: 1.55,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -598,7 +598,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 children: [
                   const Icon(Icons.info_outline_rounded,
                       color: AppColors.tealAccent, size: 18),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       sw
@@ -614,7 +614,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+            SizedBox(height: 28),
             SizedBox(
               width: double.infinity, height: 52,
               child: ElevatedButton(
@@ -655,7 +655,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 children: [
                   const Icon(Icons.email_outlined,
                       color: Color(0xFF856404), size: 40),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   Text(
                     sw ? 'Barua pepe haijapatikana' : 'No email on file',
                     style: GoogleFonts.dmSans(
@@ -663,7 +663,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                       color: Color(0xFF856404),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     sw
                         ? 'Hakuna barua pepe iliyosajiliwa kwa akaunti hii. '
@@ -678,7 +678,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: TextButton(
@@ -706,7 +706,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 children: [
                   const Icon(Icons.check_circle_rounded,
                       color: AppColors.success, size: 40),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   Text(
                     sw ? 'Imetumwa! ✓' : 'Sent! ✓',
                     style: GoogleFonts.dmSans(
@@ -714,7 +714,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                       color: AppColors.success,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     sw
                         ? 'Maelekezo yametumwa kwenda ${_maskEmail(_sentTo!)}. '
@@ -729,7 +729,7 @@ class _ForgotPinSheetState extends ConsumerState<_ForgotPinSheet> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: TextButton(
@@ -769,7 +769,7 @@ class _PinLoginOfflineBanner extends StatelessWidget {
         children: [
           const Icon(Icons.wifi_off_rounded,
               size: 18, color: Color(0xFF856404)),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               sw

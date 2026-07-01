@@ -1,4 +1,4 @@
-﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -215,7 +215,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     SizedBox(
                       height: 48,
                       child: ElevatedButton(
@@ -382,7 +382,7 @@ class _CategoryTile extends StatelessWidget {
                   ),
                   child: Icon(iconData, size: 20, color: accent),
                 ),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(
                   child: Text(
                     category.categoryName,
@@ -435,7 +435,7 @@ class _EmptySearch extends StatelessWidget {
               child: const Icon(Icons.search_off_rounded,
                   size: 30, color: AppColors.textMuted),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               _tr('No categories found', 'Hakuna kategoria iliyopatikana'),
               style: GoogleFonts.dmSans(
@@ -444,7 +444,7 @@ class _EmptySearch extends StatelessWidget {
                 color: AppColors.navyPrimary,
               ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               _tr(
                 'Try a different search term.',
@@ -557,7 +557,7 @@ class CategorySelectField extends ConsumerWidget {
                           : AppColors.textMuted,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

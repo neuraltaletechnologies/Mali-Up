@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -76,10 +77,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       duration: const Duration(seconds: 2),
     ));
-  }
-
-  void _showComingSoon(String feature) {
-    _showSnackBar(_tr('$feature coming soon', '$feature itakuja hivi karibuni'));
   }
 
   Future<void> _changeLanguage(AppLanguage language) async {
@@ -183,7 +180,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             lang == AppLanguage.english ? '🇬🇧' : '🇹🇿',
                             style: GoogleFonts.dmSans(fontSize: 22),
                           ),
-                          const SizedBox(width: 14),
+                          SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +241,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(
             _tr('Account & preferences', 'Akaunti na mipangilio'),
             style: GoogleFonts.dmSans(
@@ -315,20 +312,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingCard(
             children: [
               _SettingTile(
-                icon: Icons.backup_rounded,
-                iconBg: AppColors.success.withValues(alpha: 0.1),
-                iconColor: AppColors.success,
-                title: _tr('Auto Backup', 'Hifadhi Otomatiki'),
-                subtitle: _tr('Back up your data daily', 'Hifadhi data yako kila siku'),
-                onTap: () => _showComingSoon(_tr('Auto backup', 'Hifadhi otomatiki')),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
-                ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
                 icon: Icons.download_rounded,
                 iconBg: AppColors.tealAccent.withValues(alpha: 0.1),
                 iconColor: AppColors.tealAccent,
@@ -353,56 +336,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const AuditLogScreen(),
                 )),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // ── Support ───────────────────────────────────────────
-          _SectionHeader(label: _tr('Support', 'Msaada')),
-          const SizedBox(height: 8),
-          _SettingCard(
-            children: [
-              _SettingTile(
-                icon: Icons.help_rounded,
-                iconBg: AppColors.info.withValues(alpha: 0.1),
-                iconColor: AppColors.info,
-                title: _tr('Help Center', 'Kituo cha Msaada'),
-                subtitle: _tr('FAQs and how-to guides', 'Maswali na mwongozo wa matumizi'),
-                onTap: () => _showComingSoon(_tr('Help center', 'Kituo cha msaada')),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
-                ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
-                icon: Icons.bug_report_rounded,
-                iconBg: AppColors.warning.withValues(alpha: 0.1),
-                iconColor: AppColors.warning,
-                title: _tr('Report a Bug', 'Ripoti Hitilafu'),
-                subtitle: _tr('Help us improve the app', 'Tusaidie kuboresha programu'),
-                onTap: () => _showComingSoon(_tr('Bug reports', 'Ripoti za hitilafu')),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textMuted,
-                ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
-                icon: Icons.star_rounded,
-                iconBg: AppColors.primary.withValues(alpha: 0.12),
-                iconColor: AppColors.primary,
-                title: _tr('Rate the App', 'Kadiria Programu'),
-                subtitle: _tr('Leave a review on the store', 'Tuachie tathmini kwenye duka'),
-                onTap: () => _showComingSoon(_tr('App rating', 'Kadiria programu')),
                 trailing: const Icon(
                   Icons.chevron_right_rounded,
                   size: 20,
@@ -454,101 +387,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-
-          // ── About ─────────────────────────────────────────────
-          _SectionHeader(label: _tr('About', 'Kuhusu')),
-          const SizedBox(height: 8),
-          _SettingCard(
-            children: [
-              _SettingTile(
-                icon: Icons.info_outline_rounded,
-                iconBg: AppColors.secondary.withValues(alpha: 0.06),
-                iconColor: AppColors.secondary,
-                title: _tr('App Version', 'Toleo la Programu'),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Text(
-                    '1.1.0',
-                    style: GoogleFonts.dmSans(
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-              const _TileDivider(),
-              _SettingTile(
-                icon: Icons.language_rounded,
-                iconBg: AppColors.secondary.withValues(alpha: 0.06),
-                iconColor: AppColors.secondary,
-                title: _tr('Website', 'Tovuti'),
-                subtitle: 'neuraltale.com',
-                onTap: () => _openExternalLink(_appWebsiteUrl),
-                trailing: const Icon(
-                  Icons.open_in_new_rounded,
-                  size: 18,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // ── Follow us ─────────────────────────────────────────
-          _SectionHeader(label: _tr('Follow Us', 'Tufuate')),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _SocialIcon(
-                label: 'f',
-                color: const Color(0xFF1877F2),
-                onTap: () => _openExternalLink(_socialLinks['Facebook']!),
-              ),
-              const SizedBox(width: 14),
-              _SocialIcon(
-                label: 'IG',
-                color: const Color(0xFFE1306C),
-                onTap: () => _openExternalLink(_socialLinks['Instagram']!),
-              ),
-              const SizedBox(width: 14),
-              _SocialIcon(
-                label: 'X',
-                color: Colors.black87,
-                onTap: () => _openExternalLink(_socialLinks['X']!),
-              ),
-              const SizedBox(width: 14),
-              _SocialIcon(
-                label: 'in',
-                color: const Color(0xFF0A66C2),
-                onTap: () => _openExternalLink(_socialLinks['LinkedIn']!),
-              ),
-              const SizedBox(width: 14),
-              _SocialIcon(
-                icon: Icons.play_arrow_rounded,
-                color: const Color(0xFFFF0000),
-                onTap: () => _openExternalLink(_socialLinks['YouTube']!),
-              ),
-            ],
-          ),
           const SizedBox(height: 28),
 
+          // ── Kuhusu & Tufuate ──────────────────────────────────
           Center(
-            child: Text(
-              _tr('Made with ♥ by Neuraltale', 'Imetengenezwa kwa ♥ na Neuraltale'),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textDisabled,
-                fontSize: 12,
-              ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _BrandCircle(
+                      icon: const FaIcon(FontAwesomeIcons.facebookF, size: 17, color: Colors.white),
+                      bgColor: const Color(0xFF1877F2),
+                      onTap: () => _openExternalLink(_socialLinks['Facebook']!),
+                    ),
+                    const SizedBox(width: 10),
+                    _BrandCircle(
+                      icon: const FaIcon(FontAwesomeIcons.instagram, size: 18, color: Colors.white),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFEDA77), Color(0xFFF58529), Color(0xFFDD2A7B), Color(0xFF8134AF)],
+                        begin: Alignment.bottomLeft,
+                        end: Alignment.topRight,
+                      ),
+                      onTap: () => _openExternalLink(_socialLinks['Instagram']!),
+                    ),
+                    const SizedBox(width: 10),
+                    _BrandCircle(
+                      icon: const FaIcon(FontAwesomeIcons.xTwitter, size: 17, color: Colors.white),
+                      bgColor: const Color(0xFF14171A),
+                      onTap: () => _openExternalLink(_socialLinks['X']!),
+                    ),
+                    const SizedBox(width: 10),
+                    _BrandCircle(
+                      icon: const FaIcon(FontAwesomeIcons.linkedinIn, size: 17, color: Colors.white),
+                      bgColor: const Color(0xFF0A66C2),
+                      onTap: () => _openExternalLink(_socialLinks['LinkedIn']!),
+                    ),
+                    const SizedBox(width: 10),
+                    _BrandCircle(
+                      icon: const FaIcon(FontAwesomeIcons.youtube, size: 18, color: Colors.white),
+                      bgColor: const Color(0xFFFF0000),
+                      onTap: () => _openExternalLink(_socialLinks['YouTube']!),
+                    ),
+                    const SizedBox(width: 10),
+                    _BrandCircle(
+                      icon: const Icon(Icons.language_rounded, size: 20, color: Colors.white),
+                      bgColor: AppColors.secondary,
+                      onTap: () => _openExternalLink(_appWebsiteUrl),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 14),
+                Text(
+                  'v1.1.0',
+                  style: GoogleFonts.dmSans(
+                    color: AppColors.textDisabled,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(height: 36),
         ],
       ),
     );
@@ -637,7 +539,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,7 +554,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            SizedBox(height: 2),
                             Text(
                               contact,
                               maxLines: 1,
@@ -845,7 +747,7 @@ class _SettingTile extends StatelessWidget {
               ),
               child: Icon(icon, size: 18, color: iconColor),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -859,7 +761,7 @@ class _SettingTile extends StatelessWidget {
                     ),
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(
                       subtitle!,
                       style: GoogleFonts.dmSans(
@@ -882,18 +784,18 @@ class _SettingTile extends StatelessWidget {
   }
 }
 
-// ── Social icon button ────────────────────────────────────────────────────────
+// ── Brand circle icon button ──────────────────────────────────────────────────
 
-class _SocialIcon extends StatelessWidget {
-  final String? label;
-  final IconData? icon;
-  final Color color;
+class _BrandCircle extends StatelessWidget {
+  final Widget icon;
+  final Color? bgColor;
+  final Gradient? gradient;
   final VoidCallback onTap;
 
-  const _SocialIcon({
-    this.label,
-    this.icon,
-    required this.color,
+  const _BrandCircle({
+    required this.icon,
+    this.bgColor,
+    this.gradient,
     required this.onTap,
   });
 
@@ -902,26 +804,14 @@ class _SocialIcon extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 48,
-        height: 48,
+        width: 46,
+        height: 46,
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
           shape: BoxShape.circle,
-          border: Border.all(color: color.withValues(alpha: 0.22)),
+          gradient: gradient,
+          color: gradient == null ? bgColor : null,
         ),
-        child: Center(
-          child: icon != null
-              ? Icon(icon, size: 22, color: color)
-              : Text(
-                  label!,
-                  style: GoogleFonts.dmSans(
-                    color: color,
-                    fontSize: label!.length > 1 ? 12 : 18,
-                    fontWeight: FontWeight.w900,
-                    height: 1.0,
-                  ),
-                ),
-        ),
+        child: Center(child: icon),
       ),
     );
   }
@@ -957,7 +847,7 @@ class _PlanCardBody extends StatelessWidget {
           color: AppColors.yellowBrand,
           size: 16,
         ),
-        const SizedBox(width: 7),
+        SizedBox(width: 7),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -974,7 +864,7 @@ class _PlanCardBody extends StatelessWidget {
                     ),
                   ),
                   if (isStarter) ...[
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
@@ -1004,7 +894,7 @@ class _PlanCardBody extends StatelessWidget {
                 ],
               ),
               if (isStarter) ...[
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Row(
                   children: [
                     Expanded(
@@ -1024,7 +914,7 @@ class _PlanCardBody extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Text(
                       '$invoicesUsed/$invoiceLimit',
                       style: GoogleFonts.dmSans(
@@ -1038,7 +928,7 @@ class _PlanCardBody extends StatelessWidget {
                   ],
                 ),
               ] else if (expiresAt != null) ...[
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   tr(
                     'Valid until ${_fmtDate(expiresAt!)}',

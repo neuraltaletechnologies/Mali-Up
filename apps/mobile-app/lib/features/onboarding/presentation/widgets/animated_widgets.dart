@@ -62,7 +62,7 @@ class _AnimatedChartState extends State<AnimatedChart>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Monthly Revenue',
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
@@ -76,7 +76,7 @@ class _AnimatedChartState extends State<AnimatedChart>
                       color: const Color(0xFF16C47F).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
+                    child: Text(
                       '+23%',
                       style: GoogleFonts.dmSans(
                         fontSize: 12,

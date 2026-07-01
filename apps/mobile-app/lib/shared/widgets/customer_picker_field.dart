@@ -118,7 +118,7 @@ class _CustomerPickerFieldState extends ConsumerState<CustomerPickerField> {
                     color: c != null ? AppColors.navyPrimary : AppColors.textMuted,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: c == null
                       ? Text(
@@ -142,7 +142,7 @@ class _CustomerPickerFieldState extends ConsumerState<CustomerPickerField> {
                               ),
                             ),
                             if (c.phone.isNotEmpty) ...[
-                              const SizedBox(height: 2),
+                              SizedBox(height: 2),
                               Text(
                                 c.phone,
                                 style: GoogleFonts.dmSans(
@@ -252,7 +252,7 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
         minChildSize: 0.4,
         builder: (_, ctrl) => Column(
           children: [
-            const SheetHandle(),
+            SheetHandle(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
               child: Row(
@@ -304,7 +304,7 @@ class _CustomerPickerSheetState extends State<CustomerPickerSheet> {
                         children: [
                           const Icon(Icons.person_search_rounded,
                               size: 40, color: AppColors.textDisabled),
-                          const SizedBox(height: 10),
+                          SizedBox(height: 10),
                           Text(
                             _query.isEmpty
                                 ? _tr('No customers yet', 'Hakuna wateja bado')

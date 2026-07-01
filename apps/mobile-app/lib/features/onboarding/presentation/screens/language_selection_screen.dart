@@ -253,7 +253,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                                   letterSpacing: -0.2,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: 4),
                               Text(
                                 _tr(
                                   'You can change this anytime in Settings.',
@@ -421,7 +421,7 @@ class _LanguageCardState extends State<_LanguageCard>
           child: Row(
             children: [
               Text(widget.flag, style: GoogleFonts.dmSans(fontSize: 26)),
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,7 +437,7 @@ class _LanguageCardState extends State<_LanguageCard>
                         letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(
                       widget.nativeName,
                       style: GoogleFonts.dmSans(

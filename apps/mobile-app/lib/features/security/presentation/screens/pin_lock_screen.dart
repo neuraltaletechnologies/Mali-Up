@@ -128,7 +128,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                     color: AppColors.yellowBrand,
                     shape: BoxShape.circle,
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
                       'M',
                       style: GoogleFonts.dmSans(
@@ -139,8 +139,8 @@ class _PinLockScreenState extends State<PinLockScreen>
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                const Text(
+                SizedBox(width: 10),
+                Text(
                   'MALI UP',
                   style: GoogleFonts.dmSans(
                     color: Colors.white,
@@ -151,7 +151,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 40),
+            SizedBox(height: 40),
             Text(
               _tr('Enter PIN to continue', 'Ingiza PIN kuendelea'),
               style: GoogleFonts.dmSans(
@@ -205,7 +205,7 @@ class _PinLockScreenState extends State<PinLockScreen>
             ),
 
             if (_hasError) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(
                 _tr('Incorrect PIN. Try again.', 'PIN si sahihi. Jaribu tena.'),
                 style: GoogleFonts.dmSans(
@@ -230,7 +230,7 @@ class _PinLockScreenState extends State<PinLockScreen>
                   _buildNumRow(['4', '5', '6']),
                   const SizedBox(height: 16),
                   _buildNumRow(['7', '8', '9']),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -245,10 +245,10 @@ class _PinLockScreenState extends State<PinLockScreen>
                           ),
                         )
                       else
-                        const SizedBox(width: 72, height: 72),
+                        SizedBox(width: 72, height: 72),
                       _NumpadKey(
                         onTap: () => _enterDigit('0'),
-                        child: const Text(
+                        child: Text(
                           '0',
                           style: GoogleFonts.dmSans(
                             color: Colors.white,

@@ -78,7 +78,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
         title: Row(
           children: [
             const Icon(Icons.lock_rounded, color: AppColors.yellowBrand, size: 22),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: Text(
                 _tr('Paid Feature', 'Kipengele cha Malipo'),
@@ -497,7 +497,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                   size: 22,
                                 ),
                               ),
-                              const SizedBox(width: 14),
+                              SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,7 +514,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                         height: 1.2,
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
+                                    SizedBox(height: 2),
                                     Text(
                                       isEditing
                                           ? _tr('Update your business profile.', 'Sasisha wasifu wa biashara yako.')
@@ -639,7 +639,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
                           // ── Business location ─────────────────────────────
                           _FormSectionLabel(label: _tr('Business location', 'Mahali pa biashara')),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
                             _tr(
                               'Helps customers and reports stay accurate.',
@@ -707,7 +707,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
                           // ── Online presence ───────────────────────────────
                           _FormSectionLabel(label: _tr('Online presence', 'Uwepo wa mtandao')),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
                             _tr(
                               'Add your website if you have one (optional).',
@@ -715,7 +715,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             ),
                             style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: 12),
                           TextField(
                             controller: websiteCtrl,
                             keyboardType: TextInputType.url,
@@ -747,7 +747,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                     side: const BorderSide(color: AppColors.border, width: 1.5),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                SizedBox(width: 8),
                                 Text(
                                   _tr('Build me my website', 'Nitengeneze Tovuti Yangu'),
                                   style: GoogleFonts.dmSans(
@@ -1121,7 +1121,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             )
                           : _LogoInitial(initial: initial),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1292,7 +1292,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                       size: 22,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1308,7 +1308,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             letterSpacing: -0.2,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                        SizedBox(height: 3),
                         Text(
                           _tr(
                             'Manage all your businesses in one place',
@@ -1398,7 +1398,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                         )
                       : _LogoInitial(initial: initial),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1420,7 +1420,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             ),
                           ),
                           if (isActive) ...[
-                            const SizedBox(width: 6),
+                            SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 7, vertical: 2),
@@ -1442,7 +1442,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                         ],
                       ),
                       if (category.isNotEmpty || place.isNotEmpty) ...[
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
                           [
                             if (category.isNotEmpty) category,
@@ -1494,7 +1494,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                   children: [
                     _buildAddHero(profile),
                     if (businesses.isNotEmpty) ...[
-                      const SizedBox(height: 28),
+                      SizedBox(height: 28),
                       Row(
                         children: [
                           Text(
@@ -1505,7 +1505,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                       color: AppColors.textPrimary,
                                     ),
                           ),
-                          const Spacer(),
+                          Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
@@ -1557,7 +1557,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                   .titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             Text(
                               _tr(
                                 'Tap the button above to add your first business.',
@@ -1640,7 +1640,7 @@ class _FormTapSelector extends StatelessWidget {
           children: [
             Icon(icon, size: 18,
                 color: disabled ? AppColors.textDisabled : (hasValue ? AppColors.navyPrimary : AppColors.textMuted)),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Text(
                 value ?? placeholder,
@@ -1725,7 +1725,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SheetHandle(),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -1735,7 +1735,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -1799,7 +1799,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
                           child: Icon(icon, size: 18,
                               color: selected ? AppColors.yellowBrand : AppColors.textMuted),
                         ),
-                        const SizedBox(width: 14),
+                        SizedBox(width: 14),
                         Expanded(
                           child: Text(label,
                               style: GoogleFonts.dmSans(
@@ -1883,7 +1883,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SheetHandle(),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -1893,7 +1893,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -1915,7 +1915,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Flexible(
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
@@ -2011,7 +2011,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SheetHandle(),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
@@ -2021,7 +2021,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -2043,7 +2043,7 @@ class _DistrictPickerSheetState extends State<_DistrictPickerSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Flexible(
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),

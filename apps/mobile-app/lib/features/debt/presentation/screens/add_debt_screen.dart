@@ -283,7 +283,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                               : null,
                         ),
                       ),
-                      const Divider(height: 1, color: AppColors.border),
+                      Divider(height: 1, color: AppColors.border),
                       _LabeledField(
                         label: _tr('Phone Number', 'Namba ya Simu'),
                         child: TextFormField(
@@ -298,7 +298,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _FieldCard(
                     children: [
                       _LabeledField(
@@ -317,7 +317,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                               children: [
                                 const Icon(Icons.calendar_today_outlined,
                                     size: 16, color: AppColors.navyPrimary),
-                                const SizedBox(width: 10),
+                                SizedBox(width: 10),
                                 Text(
                                   _fmtDate(_dueDate),
                                   style: GoogleFonts.jetBrainsMono(
@@ -325,7 +325,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                                       fontWeight: FontWeight.w600,
                                       color: AppColors.textPrimary),
                                 ),
-                                const Spacer(),
+                                Spacer(),
                                 Text(
                                   _daysLabel(),
                                   style: GoogleFonts.dmSans(
@@ -339,7 +339,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _FieldCard(
                     children: [
                       _LabeledField(
@@ -352,7 +352,7 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
                           decoration: _fieldDecoration(hint: 'INV-001'),
                         ),
                       ),
-                      const Divider(height: 1, color: AppColors.border),
+                      Divider(height: 1, color: AppColors.border),
                       _LabeledField(
                         label: _tr('Note (optional)', 'Maelezo (hiari)'),
                         child: TextFormField(
@@ -519,7 +519,7 @@ class _ToggleChip extends StatelessWidget {
               Icon(icon,
                   size: 18,
                   color: active ? Colors.white : AppColors.textMuted),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,7 +589,7 @@ class _AmountCard extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Row(
             children: [
               Text(
@@ -599,7 +599,7 @@ class _AmountCard extends StatelessWidget {
                     fontSize: 18,
                     fontWeight: FontWeight.w500),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Expanded(
                 child: TextFormField(
                   controller: controller,

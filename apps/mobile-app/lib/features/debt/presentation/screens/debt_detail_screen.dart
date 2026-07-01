@@ -199,7 +199,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                     children: [
                       const Icon(Icons.warning_amber_rounded,
                           color: AppColors.warning, size: 18),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _tr(
@@ -212,7 +212,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
                   _tr('Reason', 'Sababu'),
                   style: GoogleFonts.dmSans(
@@ -220,7 +220,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                       fontWeight: FontWeight.w700,
                       color: AppColors.textMuted),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: selectedReason,
                   decoration: InputDecoration(
@@ -247,7 +247,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                         fontSize: 13, color: AppColors.textDisabled),
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 TextField(
                   controller: noteCtrl,
                   decoration: InputDecoration(
@@ -488,7 +488,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 36),
+                SizedBox(height: 36),
                 Container(
                   width: 60,
                   height: 60,
@@ -509,7 +509,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
                         color: Colors.white),
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -609,7 +609,7 @@ class _HeroAmountCard extends StatelessWidget {
               minHeight: 6,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Row(
             children: [
               Text(
@@ -659,7 +659,7 @@ class _AmountColumn extends StatelessWidget {
             style: GoogleFonts.dmSans(
                 fontSize: 11, color: AppColors.textMuted),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             value,
             style: GoogleFonts.jetBrainsMono(
@@ -743,13 +743,13 @@ class _InfoRow extends StatelessWidget {
           child: Row(
             children: [
               Icon(icon, size: 16, color: AppColors.textMuted),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Text(
                 label,
                 style: GoogleFonts.dmSans(
                     fontSize: 13, color: AppColors.textMuted),
               ),
-              const Spacer(),
+              Spacer(),
               Flexible(
                 child: Text(
                   value,
@@ -798,7 +798,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
               children: [
                 const Icon(Icons.history_rounded,
                     size: 16, color: AppColors.textMuted),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   _tr('Payment History', 'Historia ya Malipo'),
                   style: GoogleFonts.dmSans(
@@ -806,7 +806,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
                       fontWeight: FontWeight.w700,
                       color: AppColors.textSecondary),
                 ),
-                const Spacer(),
+                Spacer(),
                 Text(
                   paymentsAsync.maybeWhen(
                     data: (p) =>
@@ -819,7 +819,7 @@ class _PaymentHistoryCard extends ConsumerWidget {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: AppColors.border),
           paymentsAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.all(24),
@@ -906,7 +906,7 @@ class _PaymentTile extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Icon(icon, color: color, size: 18),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1072,7 +1072,7 @@ class _ActionRow extends StatelessWidget {
               alignment: Alignment.center,
               child: Icon(icon, color: color, size: 18),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Text(
                 label,
@@ -1220,7 +1220,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SheetHandle(),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               _tr('Record Payment', 'Rekodi Malipo'),
               style: GoogleFonts.dmSans(

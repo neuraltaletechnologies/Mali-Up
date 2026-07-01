@@ -341,7 +341,7 @@ class _SplashScreenState extends State<SplashScreen>
                   opacity: _textOpacity,
                   child: SlideTransition(
                     position: _textSlide,
-                    child: const Text(
+                    child: Text(
                       'Mali Up',
                       style: GoogleFonts.dmSans(
                         color: Colors.white,

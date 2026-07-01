@@ -649,7 +649,7 @@ class _InvoiceSummaryCard extends StatelessWidget {
                             ),
                           ),
                         if (isQuotation) ...[
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 1),
@@ -670,7 +670,7 @@ class _InvoiceSummaryCard extends StatelessWidget {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    SizedBox(height: 3),
                     Text(
                       customerName,
                       maxLines: 1,
@@ -709,7 +709,7 @@ class _InvoiceSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Row(
             children: [
               Text(
@@ -742,12 +742,12 @@ class _InvoiceSummaryCard extends StatelessWidget {
             ],
           ),
           if (overdue) ...[
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Row(
               children: [
                 const Icon(Icons.schedule_rounded,
                     size: 12, color: AppColors.error),
-                const SizedBox(width: 4),
+                SizedBox(width: 4),
                 Text(
                   '${_tr('Due was', 'Malipo ilikuwa')} ${_fmt(dueDate!)} ${dueDate!.year}',
                   style: GoogleFonts.dmSans(
@@ -787,7 +787,7 @@ class _SummaryMeta extends StatelessWidget {
         Row(
           children: [
             Icon(icon, size: 11, color: AppColors.textMuted),
-            const SizedBox(width: 4),
+            SizedBox(width: 4),
             Text(
               label,
               style: GoogleFonts.dmSans(
@@ -797,7 +797,7 @@ class _SummaryMeta extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 3),
+        SizedBox(height: 3),
         Text(
           value,
           style: GoogleFonts.dmSans(
@@ -885,7 +885,7 @@ class _ShareBtn extends StatelessWidget {
         child: Column(
           children: [
             Icon(icon, size: 20, color: color),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               label,
               style: GoogleFonts.dmSans(
@@ -982,7 +982,7 @@ class _LineItemsCard extends StatelessWidget {
                               color: AppColors.navyPrimary),
                         ),
                         if (unit.isNotEmpty || unitPrice > 0) ...[
-                          const SizedBox(height: 3),
+                          SizedBox(height: 3),
                           Text(
                             [
                               if (unit.isNotEmpty) unit,
@@ -1009,7 +1009,7 @@ class _LineItemsCard extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                             color: AppColors.navyPrimary),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
@@ -1085,7 +1085,7 @@ class _SummaryCard extends StatelessWidget {
           ],
           const SizedBox(height: 12),
           const Divider(color: AppColors.border, height: 1),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1176,7 +1176,7 @@ class _PaymentInfoCard extends StatelessWidget {
             child: const Icon(Icons.payments_rounded,
                 size: 20, color: AppColors.navyPrimary),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1233,7 +1233,7 @@ class _NotesCard extends StatelessWidget {
                 color: AppColors.textMuted,
                 letterSpacing: 0.5),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(notes,
               style: GoogleFonts.dmSans(
                   fontSize: 14, color: AppColors.textPrimary)),
@@ -1383,7 +1383,7 @@ class _ActionTile extends StatelessWidget {
       onTap: onTap,
       child: AnimatedOpacity(
         opacity: onTap == null ? 0.4 : 1.0,
-        duration: const Duration(milliseconds: 200),
+        duration: Duration(milliseconds: 200),
         child: Container(
           padding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1400,7 +1400,7 @@ class _ActionTile extends StatelessWidget {
           child: Row(
             children: [
               Icon(icon, size: 18, color: color),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Text(
                   label,
@@ -1494,26 +1494,26 @@ class _RecordPaymentSheetState
                     borderRadius: BorderRadius.circular(2)),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               _tr('Record Payment', 'Rekodi Malipo'),
               style: GoogleFonts.dmSans(
                   fontSize: 18, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               _tr('Outstanding: TZS ${_fmtNum(widget.outstanding)}',
                   'Inayodaiwa: TZS ${_fmtNum(widget.outstanding)}'),
               style: GoogleFonts.jetBrainsMono(
                   fontSize: 13, color: AppColors.textMuted),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Text(_tr('Amount Received', 'Kiasi Kilichopokelewa'),
                 style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary)),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             TextField(
               controller: _amountCtrl,
               keyboardType:
@@ -1571,7 +1571,7 @@ class _RecordPaymentSheetState
               }).toList(),
             ),
             if (_method == 'mpesa') ...[
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(
                 controller: _refCtrl,
                 decoration: InputDecoration(
@@ -1589,7 +1589,7 @@ class _RecordPaymentSheetState
                 style: GoogleFonts.jetBrainsMono(fontSize: 14),
               ),
             ],
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: FilledButton(

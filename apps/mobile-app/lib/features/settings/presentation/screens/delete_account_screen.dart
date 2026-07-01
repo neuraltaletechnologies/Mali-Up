@@ -56,7 +56,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     Text(
                       'Deleting your account will permanently remove all your business data. '
                       'This action can be undone within 30 days of requesting deletion.',
@@ -74,14 +74,14 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
+                child: Text(
                   '• All invoices and payment records\n'
                   '• All customer information\n'
                   '• All expense records\n'
@@ -101,7 +101,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: CheckboxListTile(
-                  title: const Text(
+                  title: Text(
                     'I understand this is permanent',
                     style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
                   ),
@@ -131,7 +131,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Delete My Account',
                           style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.w600),
                         ),
@@ -155,8 +155,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       '1. Export your data first (for your records)\n'
                       '2. Settle any outstanding payments\n'
                       '3. Notify your customers if needed',
@@ -183,8 +183,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       'This implements Article 19 of Tanzania\'s Personal Data Protection Act, which gives you the right to deletion.\n\n'
                       'You have 30 days to cancel the deletion. After 30 days, your account and all data will be permanently deleted and cannot be recovered.',
                       style: GoogleFonts.dmSans(height: 1.6),

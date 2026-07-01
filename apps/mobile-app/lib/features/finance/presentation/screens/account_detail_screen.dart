@@ -121,7 +121,7 @@ class _AccountHeader extends StatelessWidget {
                   size: 22,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,12 +148,12 @@ class _AccountHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Text(
             _t('Current Balance', 'Salio la Sasa'),
             style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 12),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             _fmtAmt(account.balance),
             style: GoogleFonts.dmSans(
@@ -163,12 +163,12 @@ class _AccountHeader extends StatelessWidget {
             ),
           ),
           if (lastReconDate != null && lastReconDate!.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Row(
               children: [
                 const Icon(Icons.check_circle_outline,
                     color: Colors.white54, size: 14),
-                const SizedBox(width: 4),
+                SizedBox(width: 4),
                 Text(
                   _t(
                     'Last reconciled: $lastReconDate',
@@ -242,7 +242,7 @@ class _TxnTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Row(
                   children: [
                     Text(
@@ -253,7 +253,7 @@ class _TxnTile extends StatelessWidget {
                       ),
                     ),
                     if (txn.reference.isNotEmpty) ...[
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 1),

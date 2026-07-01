@@ -1,4 +1,4 @@
-﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -354,7 +354,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         backgroundColor: AppColors.yellowBrand,
         foregroundColor: AppColors.navyPrimary,
         elevation: 3,
-        icon: const Icon(Icons.inventory_2_rounded, size: 20),
+        icon: Icon(Icons.inventory_2_rounded, size: 20),
         label: Text(
           _tr('Add Product', 'Ongeza Bidhaa'),
           style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
@@ -686,7 +686,7 @@ class _PillStat extends StatelessWidget {
           value,
           style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w800, color: color),
         ),
-        const SizedBox(height: 2),
+        SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textMuted),
@@ -980,7 +980,7 @@ class _ProductRow extends ConsumerWidget {
                             ],
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
                           [
                             if (cat.isNotEmpty) cat,
@@ -994,7 +994,7 @@ class _ProductRow extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (type != ProductType.service) ...[
-                          const SizedBox(height: 3),
+                          SizedBox(height: 3),
                           Text(
                             '$qty $unit',
                             style: GoogleFonts.dmSans(
@@ -1073,7 +1073,7 @@ class _ManufacturedBadge extends StatelessWidget {
             size: 9,
             color: AppColors.tealAccent,
           ),
-          const SizedBox(width: 2),
+          SizedBox(width: 2),
           Text(
             _tr('MADE', 'MADE'),
             style: GoogleFonts.dmSans(
@@ -1169,7 +1169,7 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SheetHandle(),
+                    SheetHandle(),
                     Row(
                       children: [
                         Expanded(
@@ -1213,7 +1213,7 @@ class _FilterSortSheetState extends State<_FilterSortSheet> {
                         Row(
                           children: [
                             _SheetSectionLabel(_tr('Alerts', 'Tahadhari')),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
@@ -1497,7 +1497,7 @@ class _AlertRow extends StatelessWidget {
                   ),
                   child: Icon(icon, size: 16, color: color),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
@@ -1608,7 +1608,7 @@ class _SortChip extends StatelessWidget {
               ),
             ),
             if (badge != null && badge! > 0) ...[
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
@@ -1661,7 +1661,7 @@ class _StatusPill extends StatelessWidget {
             width: 5, height: 5,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: 4),
           Text(
             label,
             style: GoogleFonts.dmSans(
@@ -1855,7 +1855,7 @@ class _DetailView extends StatelessWidget {
                           color: AppColors.textMuted,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1917,7 +1917,7 @@ class _DetailView extends StatelessWidget {
                     children: [
                       _StatusPill(level: fullStatus),
                       if (expiryDate.isNotEmpty && daysLeft >= 0) ...[
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text(
                           daysLeft == 0
                               ? _tr('Expires today!', 'Inaisha leo!')
@@ -2094,7 +2094,7 @@ class _DetailView extends StatelessWidget {
                                 width: 16, height: 16,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
-                            : const Icon(Icons.factory_rounded, size: 18),
+                            : Icon(Icons.factory_rounded, size: 18),
                         label: Text(
                           _tr('Record Production', 'Rekodi Uzalishaji'),
                           style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w700),
@@ -2117,7 +2117,7 @@ class _DetailView extends StatelessWidget {
                     height: 50,
                     child: OutlinedButton.icon(
                       onPressed: onEdit,
-                      icon: const Icon(Icons.edit_rounded, size: 17),
+                      icon: Icon(Icons.edit_rounded, size: 17),
                       label: Text(
                         _tr('Edit Product', 'Hariri Bidhaa'),
                         style: GoogleFonts.dmSans(
@@ -2176,7 +2176,7 @@ List<Widget> _buildBomSection(Map<String, dynamic> item, String finishedUnit) {
         _tr('Ingredients (per batch)', 'Malighafi (kwa kundi)'),
         style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w600),
       ),
-      const SizedBox(height: 8),
+      SizedBox(height: 8),
       ...ingredients.map((i) {
         final name = (i['name'] as String?) ?? '';
         final qty = (i['qty'] as num?)?.toDouble() ?? 0;
@@ -2187,7 +2187,7 @@ List<Widget> _buildBomSection(Map<String, dynamic> item, String finishedUnit) {
           child: Row(
             children: [
               const Icon(Icons.circle, size: 5, color: AppColors.textMuted),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '$name  ×  ${qty % 1 == 0 ? qty.toStringAsFixed(0) : qty.toStringAsFixed(2)} $unit',
@@ -2210,7 +2210,7 @@ List<Widget> _buildBomSection(Map<String, dynamic> item, String finishedUnit) {
         _tr('Other Costs (per batch)', 'Gharama Nyingine (kwa kundi)'),
         style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w600),
       ),
-      const SizedBox(height: 8),
+      SizedBox(height: 8),
       ...overheads.map((o) {
         final desc = (o['desc'] as String?) ?? '';
         final amt = (o['amount'] as num?)?.toDouble() ?? 0;
@@ -2219,7 +2219,7 @@ List<Widget> _buildBomSection(Map<String, dynamic> item, String finishedUnit) {
           child: Row(
             children: [
               const Icon(Icons.circle, size: 5, color: AppColors.textMuted),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(child: Text(desc, style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textPrimary))),
               Text(_fmtAmount(amt), style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted)),
             ],
@@ -2305,7 +2305,7 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SheetHandle(),
+          SheetHandle(),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
             child: Column(
@@ -2315,7 +2315,7 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                   _tr('Record Production', 'Rekodi Uzalishaji'),
                   style: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.navyPrimary),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   _tr(
                     'This will add ${batchYield % 1 == 0 ? batchYield.toStringAsFixed(0) : batchYield.toStringAsFixed(2)} $unit of $productName to your stock.',
@@ -2324,7 +2324,7 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                   style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
                 ),
                 if (ingredients.isNotEmpty) ...[
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
@@ -2342,7 +2342,7 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                               : _tr('Ingredients (for reference):', 'Malighafi (kwa kumbukumbu):'),
                           style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         ...ingredients.map((i) {
                           final iName = (i['name'] as String?) ?? '';
                           final qty = (i['qty'] as num?)?.toDouble() ?? 0;
@@ -2357,7 +2357,7 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                                   size: 13,
                                   color: hasLink ? AppColors.error : AppColors.textMuted,
                                 ),
-                                const SizedBox(width: 6),
+                                SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     '$iName  −  ${qty % 1 == 0 ? qty.toStringAsFixed(0) : qty.toStringAsFixed(2)} $iUnit',
@@ -2377,7 +2377,7 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
@@ -2392,12 +2392,12 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                         child: Text(_tr('Cancel', 'Ghairi'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Expanded(
                       flex: 2,
                       child: ElevatedButton.icon(
                         onPressed: () => Navigator.of(context).pop(true),
-                        icon: const Icon(Icons.factory_rounded, size: 17),
+                        icon: Icon(Icons.factory_rounded, size: 17),
                         label: Text(_tr('Confirm', 'Thibitisha'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.navyPrimary,
@@ -2451,7 +2451,7 @@ class _ProductionSuccessView extends StatelessWidget {
               height: 140,
               child: Lottie.asset('assets/lottie/DATA.json', repeat: false),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text(
               _tr('Production recorded!', 'Uzalishaji umerekodiwa!'),
               style: GoogleFonts.dmSans(
@@ -2460,7 +2460,7 @@ class _ProductionSuccessView extends StatelessWidget {
                 color: AppColors.navyPrimary,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               _tr(
                 '$yieldStr $unit of $productName added to stock',
@@ -2469,7 +2469,7 @@ class _ProductionSuccessView extends StatelessWidget {
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               _tr('Materials deducted automatically', 'Malighafi yamekatwa kiotomatiki'),
               textAlign: TextAlign.center,
@@ -2527,7 +2527,7 @@ class _DetailStat extends StatelessWidget {
           label,
           style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
         ),
-        const SizedBox(height: 3),
+        SizedBox(height: 3),
         Text(
           value,
           style: GoogleFonts.dmSans(
@@ -3396,7 +3396,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                   height: 130,
                   child: Lottie.asset('assets/lottie/DATA.json', repeat: false),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 Text(
                   _tr('Production recorded!', 'Uzalishaji umerekodiwa!'),
                   style: GoogleFonts.dmSans(
@@ -3405,7 +3405,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                     color: AppColors.navyPrimary,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   _tr(
                     '$yieldStr $_unit of ${_nameCtrl.text.trim()} added to stock',
@@ -3414,7 +3414,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   _tr('Materials deducted automatically', 'Malighafi yamekatwa kiotomatiki'),
                   style: GoogleFonts.dmSans(
@@ -3467,7 +3467,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
           child: Column(
             children: [
               // Handle + Header ──────────────────────────────────────────────
-              const SheetHandle(),
+              SheetHandle(),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
                 child: Column(
@@ -3539,7 +3539,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 child: Column(
                                   children: [
                                     Icon(_typeIcon(t), size: 15, color: contentColor),
-                                    const SizedBox(height: 3),
+                                    SizedBox(height: 3),
                                     Text(
                                       _typeName(t),
                                       textAlign: TextAlign.center,
@@ -3602,7 +3602,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       ),
                       // ── Existing-product suggestions (restock) ────────
                       if (nameSuggestions.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -3659,7 +3659,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                         ),
                                         child: const Icon(Icons.add_circle_outline_rounded, size: 16, color: AppColors.tealAccent),
                                       ),
-                                      const SizedBox(width: 10),
+                                      SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3673,7 +3673,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                                   ),
                                                 ),
                                                 if (isExact) ...[
-                                                  const SizedBox(width: 6),
+                                                  SizedBox(width: 6),
                                                   Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                                     decoration: BoxDecoration(
@@ -3699,7 +3699,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(width: 6),
+                                      SizedBox(width: 6),
                                       Text(
                                         _tr('Restock', 'Ongeza'),
                                         style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.tealAccent),
@@ -3718,7 +3718,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
                       // ── Restock mode banner ───────────────────────────────
                       if (_restockTarget != null) ...[
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           decoration: BoxDecoration(
@@ -3729,7 +3729,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                           child: Row(
                             children: [
                               const Icon(Icons.add_circle_outline_rounded, size: 15, color: AppColors.tealAccent),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _tr(
@@ -3739,7 +3739,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                   style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.tealAccent),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               GestureDetector(
                                 onTap: () => setState(() {
                                   _restockTarget = null;
@@ -3911,7 +3911,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             _FormSectionLabel(_tr('Bill of Materials', 'Orodha ya Malighafi')),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           _tr(
                             'What goes into making one batch?',
@@ -3951,12 +3951,12 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         ),
 
                         // ── Overhead costs ───────────────────────────
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         Text(
                           _tr('Other Costs per Batch', 'Gharama Nyingine kwa Kundi'),
                           style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textMuted),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           _tr('e.g. electricity, labour, gas', 'k.m. umeme, kazi, gesi'),
                           style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
@@ -3984,7 +3984,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         ),
 
                         // ── Batch yield ──────────────────────────────
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         Row(
                           children: [
                             Expanded(
@@ -3992,7 +3992,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _FormLabel(_tr('Batch yield *', 'Matokeo ya kundi *')),
-                                  const SizedBox(height: 2),
+                                  SizedBox(height: 2),
                                   Text(
                                     _tr('Units produced per batch', 'Vipande vinavyotengenezwa kwa kundi'),
                                     style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
@@ -4008,13 +4008,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _FormLabel(_tr('Unit', 'Kitengo')),
-                                  const SizedBox(height: 2),
+                                  SizedBox(height: 2),
                                   Text(
                                     _tr('Finished product unit', 'Kitengo cha bidhaa iliyotengenezwa'),
                                     style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
@@ -4032,7 +4032,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         ),
 
                         if (_bomCostPerUnit > 0) ...[
-                          const SizedBox(height: 10),
+                          SizedBox(height: 10),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
@@ -4043,7 +4043,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             child: Row(
                               children: [
                                 const Icon(Icons.calculate_outlined, size: 15, color: AppColors.tealAccent),
-                                const SizedBox(width: 8),
+                                SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     _tr(
@@ -4093,7 +4093,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _FormLabel(_tr('Cost per unit (auto)', 'Gharama kwa kipande (otomatiki)')),
-                                  const SizedBox(height: 6),
+                                  SizedBox(height: 6),
                                   Container(
                                     height: 48,
                                     padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -4191,7 +4191,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       if (!isReturn) ...[
                         const SizedBox(height: 20),
                         Container(height: 1, color: AppColors.border),
-                        const SizedBox(height: 20),
+                        SizedBox(height: 20),
                         Row(
                           children: [
                             Expanded(
@@ -4199,7 +4199,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _FormSectionLabel(_tr('Selling Units', 'Vitengo vya Mauzo')),
-                                  const SizedBox(height: 2),
+                                  SizedBox(height: 2),
                                   Text(
                                     _tr(
                                       'Define bulk / wholesale units (e.g. Dozen, Carton)',
@@ -4251,7 +4251,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const Icon(Icons.add_rounded, size: 17, color: AppColors.tealAccent),
-                                const SizedBox(width: 6),
+                                SizedBox(width: 6),
                                 Text(
                                   _tr('Add selling unit', 'Ongeza kitengo'),
                                   style: GoogleFonts.dmSans(
@@ -4312,7 +4312,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        SizedBox(height: 6),
                         Text(
                           _tr(
                             'Alert me when stock drops to the reorder point.',
@@ -4329,7 +4329,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         _FormSectionLabel(
                           _tr('Stock origin', 'Asili ya Stoo'),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           _tr(
                             'Is this stock you already own, or a new purchase?',
@@ -4414,7 +4414,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                           Icons.account_balance_wallet_outlined,
                                           size: 15,
                                           color: AppColors.navyPrimary),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
                                           _isEdit
@@ -4479,7 +4479,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                                     children: [
                                       const Icon(Icons.warning_amber_outlined,
                                           size: 15, color: AppColors.error),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
                                           _tr(
@@ -4819,7 +4819,7 @@ class _BomIngredientCardState extends State<_BomIngredientCard> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           TextField(
             controller: entry.nameCtrl,
             focusNode: _ingNameFocus,
@@ -4861,7 +4861,7 @@ class _BomIngredientCardState extends State<_BomIngredientCard> {
                       child: Row(
                         children: [
                           const Icon(Icons.inventory_2_outlined, size: 15, color: AppColors.textMuted),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               item.name,
@@ -4881,7 +4881,7 @@ class _BomIngredientCardState extends State<_BomIngredientCard> {
               ),
             ),
           ],
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Row(
             children: [
               SizedBox(
@@ -4905,7 +4905,7 @@ class _BomIngredientCardState extends State<_BomIngredientCard> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: StatefulBuilder(
                   builder: (ctx, setSt) => DropdownButtonFormField<String>(
@@ -4922,7 +4922,7 @@ class _BomIngredientCardState extends State<_BomIngredientCard> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   controller: entry.costCtrl,
@@ -4948,7 +4948,7 @@ class _BomIngredientCardState extends State<_BomIngredientCard> {
             ],
           ),
           if (entry.totalCost > 0) ...[
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Align(
               alignment: Alignment.centerRight,
               child: Text(
@@ -5003,7 +5003,7 @@ class _BomOverheadCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -5024,7 +5024,7 @@ class _BomOverheadCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   controller: entry.amountCtrl,
@@ -5076,7 +5076,7 @@ class _AddRowButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.add_rounded, size: 16, color: AppColors.tealAccent),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.tealAccent),
@@ -5124,7 +5124,7 @@ class _CategoryDropdownButton extends StatelessWidget {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.textMuted),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
                         _tr('Loading…', 'Inapakia…'),
                         style: GoogleFonts.dmSans(
@@ -5226,7 +5226,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
       ),
       child: Column(
         children: [
-          const SheetHandle(),
+          SheetHandle(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 4, 0),
             child: Row(
@@ -5302,7 +5302,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
@@ -5372,7 +5372,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                       children: [
                         const Icon(Icons.category_outlined,
                             size: 36, color: AppColors.border),
-                        const SizedBox(height: 10),
+                        SizedBox(height: 10),
                         Text(
                           _tr(
                             'No categories found.',
@@ -5483,7 +5483,7 @@ class _ExpiryDateButton extends StatelessWidget {
         child: Row(
           children: [
             Icon(Icons.calendar_month_rounded, size: 18, color: iconColor),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: Text(
                 hasDate
@@ -5604,7 +5604,7 @@ class _SelectSaleForReturnSheetState
         mainAxisSize: MainAxisSize.min,
         children: [
           const SheetHandle(),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -5618,7 +5618,7 @@ class _SelectSaleForReturnSheetState
                     color: AppColors.navyPrimary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   _tr(
                     'Only products that were sold can be returned.',
@@ -5688,7 +5688,7 @@ class _SelectSaleForReturnSheetState
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.receipt_long_outlined, size: 40, color: AppColors.textDisabled),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8),
                         Text(
                           _query.isNotEmpty
                               ? _tr('No matching sales', 'Hakuna mauzo yanayolingana')
@@ -5750,7 +5750,7 @@ class _SelectSaleForReturnSheetState
                               ),
                               child: const Icon(Icons.receipt_outlined, size: 20, color: AppColors.tealAccent),
                             ),
-                            const SizedBox(width: 10),
+                            SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -5765,7 +5765,7 @@ class _SelectSaleForReturnSheetState
                                       color: AppColors.navyPrimary,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
+                                  SizedBox(height: 2),
                                   Text(
                                     '${inv.invoiceNumber} · $itemCount ${_tr('items', 'bidhaa')} · ${_fmtDate(inv.createdAt)}',
                                     style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
@@ -5927,7 +5927,7 @@ class _ProfitStrip extends StatelessWidget {
             size: 16,
             color: color,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             '${_tr("Profit", "Faida")} ${_fmtAmount(profit)} · ${margin.toStringAsFixed(0)}% ${_tr("margin", "ya bei")}',
             style: GoogleFonts.dmSans(
@@ -6022,7 +6022,7 @@ class _StockToggleOption extends StatelessWidget {
                 Icon(icon,
                     size: 16,
                     color: selected ? selectedColor : AppColors.textMuted),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     label,
@@ -6039,7 +6039,7 @@ class _StockToggleOption extends StatelessWidget {
                       size: 14, color: selectedColor),
               ],
             ),
-            const SizedBox(height: 3),
+            SizedBox(height: 3),
             Text(
               sub,
               style: GoogleFonts.dmSans(
@@ -6084,7 +6084,7 @@ class _AccountDropdown extends ConsumerWidget {
               children: [
                 const Icon(Icons.info_outline,
                     size: 16, color: AppColors.warning),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _tr(
@@ -6145,7 +6145,7 @@ class _AccountDropdown extends ConsumerWidget {
               child: Row(
                 children: [
                   Icon(icon, size: 16, color: AppColors.textMuted),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(a.name,
                       style: GoogleFonts.dmSans(fontSize: 13)),
                 ],

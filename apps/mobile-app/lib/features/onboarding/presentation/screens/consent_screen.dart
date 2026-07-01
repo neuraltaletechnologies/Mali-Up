@@ -57,7 +57,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Privacy Policy'),
+        title: Text('Privacy Policy'),
         content: SingleChildScrollView(
           child: Text(
             _getPrivacyPolicyText(),
@@ -217,7 +217,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                     : AppColors.surface,
                               ),
                               child: CheckboxListTile(
-                                title: const Text(
+                                title: Text(
                                   'I accept the Privacy Policy',
                                   style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w600,
@@ -227,7 +227,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                 ),
                                 subtitle: GestureDetector(
                                   onTap: () => _showPrivacyPolicy(context),
-                                  child: const Text(
+                                  child: Text(
                                     'Read full policy',
                                     style: GoogleFonts.dmSans(
                                       color: AppColors.navyPrimary,
@@ -254,7 +254,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                 color: AppColors.surface,
                               ),
                               child: CheckboxListTile(
-                                title: const Text(
+                                title: Text(
                                   'Help improve Mali Up',
                                   style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w600,
@@ -262,7 +262,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                     fontSize: 14,
                                   ),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   'Send usage analytics (non-financial)',
                                   style: GoogleFonts.dmSans(
                                       fontSize: 12,
@@ -286,7 +286,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                 color: AppColors.surface,
                               ),
                               child: CheckboxListTile(
-                                title: const Text(
+                                title: Text(
                                   'Enable notifications',
                                   style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w600,
@@ -294,7 +294,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                     fontSize: 14,
                                   ),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   'Get updates about invoices, expenses, and important events',
                                   style: GoogleFonts.dmSans(
                                       fontSize: 12,
@@ -353,7 +353,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                       .withValues(alpha: 0.12),
                                 ),
                               ),
-                              child: const Column(
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(

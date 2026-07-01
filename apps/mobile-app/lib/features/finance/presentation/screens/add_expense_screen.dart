@@ -399,7 +399,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         top: false,
         child: Column(
           children: [
-            const SheetHandle(),
+            SheetHandle(),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
               child: Row(
@@ -505,7 +505,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 'Supplier Phone (Optional)', 'Simu ya Muuzaji (Hiari)'),
                             icon: Icons.phone_outlined,
                           ),
-                          const Divider(height: 1, color: AppColors.border),
+                          Divider(height: 1, color: AppColors.border),
                           Padding(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 10),
@@ -513,7 +513,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               children: [
                                 const Icon(Icons.warning_amber_rounded,
                                     color: AppColors.error, size: 15),
-                                const SizedBox(width: 8),
+                                SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     _tr(
@@ -540,7 +540,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     uploading: _uploadingReceipt,
                     onTap: _showReceiptOptions,
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
                   _FieldCard(
                     child: Column(
                       children: [
@@ -555,7 +555,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           onChanged: (v) => setState(() => _isRecurring = v),
                         ),
                         if (_isRecurring) ...[
-                          const Divider(height: 1, color: AppColors.border),
+                          Divider(height: 1, color: AppColors.border),
                           Padding(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
@@ -648,7 +648,7 @@ class _AmountSection extends StatelessWidget {
                 color: Colors.white54,
                 letterSpacing: 0.5),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Row(
             children: [
               Text(
@@ -658,7 +658,7 @@ class _AmountSection extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: Colors.white54),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Expanded(
                 child: TextField(
                   controller: controller,
@@ -740,7 +740,7 @@ class _CategoryGrid extends StatelessWidget {
                   size: 24,
                   color: active ? Colors.white : cat.color,
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   cat.label,
                   style: GoogleFonts.dmSans(
@@ -786,7 +786,7 @@ class _DateChip extends StatelessWidget {
         children: [
           const Icon(Icons.calendar_today_rounded,
               size: 15, color: AppColors.navyPrimary),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             _fmt(date),
             style: GoogleFonts.dmSans(
@@ -837,7 +837,7 @@ class _PaymentMethodChips extends StatelessWidget {
                 Icon(m.icon,
                     size: 15,
                     color: active ? Colors.white : AppColors.textMuted),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Text(
                   m.label,
                   style: GoogleFonts.dmSans(
@@ -915,7 +915,7 @@ class _ReceiptSection extends StatelessWidget {
                     children: [
                       const Icon(Icons.edit_rounded,
                           size: 11, color: Colors.white),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Text(
                         _tr('Change', 'Badilisha'),
                         style: GoogleFonts.dmSans(
@@ -963,7 +963,7 @@ class _ReceiptSection extends StatelessWidget {
               child: const Icon(Icons.add_photo_alternate_rounded,
                   size: 24, color: AppColors.tealAccent),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Text(
               _tr('Attach receipt photo',
                   'Ambatanisha picha ya risiti'),
@@ -972,7 +972,7 @@ class _ReceiptSection extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: AppColors.tealAccent),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               _tr('Camera or gallery — Phase 2: auto OCR extraction',
                   'Kamera au maktaba — Awamu 2: utambuzi wa maandishi'),
@@ -1023,7 +1023,7 @@ class _InlineField extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, size: 18, color: AppColors.textMuted),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: TextField(
               controller: controller,
@@ -1076,7 +1076,7 @@ class _ToggleRow extends StatelessWidget {
             ),
             child: Icon(icon, size: 18, color: color),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
