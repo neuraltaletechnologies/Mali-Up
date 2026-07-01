@@ -1360,7 +1360,9 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
-        child: Container(
+        child: AspectRatio(
+          aspectRatio: 85.6 / 53.98,
+          child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
@@ -1435,6 +1437,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // ── Top row: chip | name + plan | logo ──────────────
                       Row(
@@ -1506,8 +1509,6 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                         ],
                       ),
 
-                      const SizedBox(height: 10),
-
                       // ── Balance section ──────────────────────────────────
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -1575,8 +1576,6 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                         ],
                       ),
 
-                      const SizedBox(height: 14),
-
                       // ── Stats row ────────────────────────────────────────
                       Row(
                         children: [
@@ -1615,6 +1614,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
             ),
           ),
         ),
+      ),
     );
   }
 }
@@ -1742,21 +1742,21 @@ class _ModuleGrid extends StatelessWidget {
       icon: Icons.payments_rounded,
       labelEn: 'Gharama zangu',
       labelSw: 'Gharama zangu',
-      color: Color(0xFFD97706),
+      color: AppColors.warning,
       route: AppRouter.expensesPath,
     ),
     (
       icon: Icons.account_balance_rounded,
       labelEn: 'Madeni',
       labelSw: 'Madeni',
-      color: Color(0xFFDC2626),
+      color: AppColors.error,
       route: AppRouter.debtPath,
     ),
     (
       icon: Icons.account_balance_wallet_rounded,
       labelEn: 'Mtiririko wa Fedha',
       labelSw: 'Mtiririko wa Fedha',
-      color: Color(0xFF7C3AED),
+      color: AppColors.purpleAccent,
       route: AppRouter.cashFlowPath,
     ),
   ];
