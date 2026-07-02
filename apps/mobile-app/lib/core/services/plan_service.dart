@@ -9,7 +9,7 @@ import '../../core/theme/app_colors.dart';
 // Tiers
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum PlanTier { starter, growth, business, enterprise }
+enum PlanTier { starter, growth, business, enterprise, lifetime }
 
 extension PlanTierX on PlanTier {
   String get name {
@@ -18,6 +18,7 @@ extension PlanTierX on PlanTier {
       case PlanTier.growth:     return 'growth';
       case PlanTier.business:   return 'business';
       case PlanTier.enterprise: return 'enterprise';
+      case PlanTier.lifetime:   return 'lifetime';
     }
   }
 
@@ -26,6 +27,7 @@ extension PlanTierX on PlanTier {
       case 'growth':     return PlanTier.growth;
       case 'business':   return PlanTier.business;
       case 'enterprise': return PlanTier.enterprise;
+      case 'lifetime':   return PlanTier.lifetime;
       default:           return PlanTier.starter;
     }
   }
@@ -173,6 +175,24 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
     expenseTracking: true,
     manualDebt: true,
   ),
+  PlanTier.lifetime: PlanLimits(
+    monthlyInvoices: -1,
+    maxUsers: -1,
+    cycleMonths: 0,
+    fullReports: true,
+    mpesaImport: true,
+    smsReminders: true,
+    multiLocation: true,
+    apiAccess: true,
+    allExports: true,
+    prioritySupport: true,
+    customIntegrations: true,
+    whiteLabel: true,
+    dedicatedOnboarding: true,
+    cashFlow: true,
+    expenseTracking: true,
+    manualDebt: true,
+  ),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -261,6 +281,7 @@ class PlanStatus {
       case PlanTier.growth:     return 'Growth';
       case PlanTier.business:   return 'Business';
       case PlanTier.enterprise: return 'Enterprise';
+      case PlanTier.lifetime:   return 'Lifetime';
     }
   }
 
@@ -270,6 +291,7 @@ class PlanStatus {
       case PlanTier.growth:     return 'Growth';
       case PlanTier.business:   return 'Business';
       case PlanTier.enterprise: return 'Enterprise';
+      case PlanTier.lifetime:   return 'Lifetime';
     }
   }
 }

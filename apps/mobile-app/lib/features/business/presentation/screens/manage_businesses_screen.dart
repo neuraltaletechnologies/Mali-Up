@@ -18,6 +18,9 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
+import '../../../../shared/widgets/upgrade_sheet.dart';
+
+String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class ManageBusinessesScreen extends StatefulWidget {
   const ManageBusinessesScreen({super.key});
@@ -58,8 +61,6 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     } catch (_) {}
   }
 
-  String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
-
   bool _isStarterPlan(Map<String, dynamic>? profile) {
     final tier = PlanTierX.fromString(profile?['plan'] as String?);
     if (tier == PlanTier.starter) return true;
@@ -70,51 +71,22 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     return false;
   }
 
-  Future<void> _showMultiBusinessUpgradeDialog() async {
-    await showDialog<void>(
-      context: context,
-      builder: (c) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.lock_rounded, color: AppColors.yellowBrand, size: 22),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                _tr('Paid Feature', 'Kipengele cha Malipo'),
-                style: GoogleFonts.dmSans(fontSize: 17, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
+  /// Add-business entry point (FAB): starter-plan users with an existing
+  /// business are gated behind the shared slide-up upgrade sheet instead of
+  /// the old blocking dialog, matching the rest of the app's paywall UX.
+  Future<void> _handleAddBusinessTap(Map<String, dynamic>? profile) async {
+    if (_isStarterPlan(profile) && _businessesFromProfile(profile).isNotEmpty) {
+      await showUpgradeSheet(
+        context,
+        featureKey: PlanFeatureKey.multiBusiness,
+        triggerReason: _tr(
+          'Managing multiple businesses is available on Growth, Business, and Enterprise plans.',
+          'Usimamizi wa biashara nyingi unapatikana kwenye mipango ya Growth, Business, na Enterprise.',
         ),
-        content: Text(_tr(
-          'Managing multiple businesses is available on Growth, Business, and Enterprise plans. Upgrade to unlock this feature.',
-          'Usimamizi wa biashara nyingi unapatikana kwenye mipango ya Growth, Business, na Enterprise. Panda daraja ili kufungua kipengele hiki.',
-        )),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(c).pop(),
-            child: Text(_tr('Cancel', 'Ghairi')),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.yellowBrand,
-              foregroundColor: AppColors.navyPrimary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () {
-              Navigator.of(c).pop();
-              context.push(AppRouter.subscriptionPath);
-            },
-            child: Text(
-              _tr('Upgrade', 'Panda Daraja'),
-              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
+      );
+      return;
+    }
+    await _openBusinessFormSheet(profile);
   }
 
   // ─── Storage helpers ─────────────────────────────────────────────────────────
@@ -1223,168 +1195,251 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     );
   }
 
-  Widget _buildAddHero(Map<String, dynamic>? profile) {
-    return GestureDetector(
-      onTap: () {
-        if (_isStarterPlan(profile) && _businessesFromProfile(profile).isNotEmpty) {
-          _showMultiBusinessUpgradeDialog();
-          return;
-        }
-        _openBusinessFormSheet(profile);
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.navyPrimary,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.navyPrimary.withValues(alpha: 0.40),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-              spreadRadius: -4,
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _profileFuture,
+      builder: (context, snapshot) {
+        final profile = snapshot.data;
+        final businesses = _businessesFromProfile(profile);
+        final selectedBusinessId = _selectedBusinessId(profile);
+        final isLoading =
+            snapshot.connectionState != ConnectionState.done && profile == null;
+        final tier = PlanTierX.fromString(profile?['plan'] as String?);
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _handleAddBusinessTap(profile),
+            backgroundColor: AppColors.yellowBrand,
+            foregroundColor: AppColors.navyPrimary,
+            elevation: 3,
+            icon: const Icon(Icons.add_business_rounded, size: 20),
+            label: Text(
+              _tr('Add Business', 'Ongeza Biashara'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
             ),
-          ],
-        ),
-        child: Stack(
-          clipBehavior: Clip.antiAlias,
-          children: [
-            Positioned(
-              right: -30,
-              top: -30,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.04),
-                ),
-              ),
-            ),
-            Positioned(
-              left: -20,
-              bottom: -20,
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.yellowBrand.withValues(alpha: 0.06),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.yellowBrand.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(13),
-                      border: Border.all(
-                        color: AppColors.yellowBrand.withValues(alpha: 0.30),
+          ),
+          body: SmartSkeleton(
+            isLoading: isLoading,
+            hasExistingData: profile != null,
+            skeleton: const SkeletonBusinessList(),
+            child: isLoading
+                ? const SizedBox.shrink()
+                : Column(
+                    children: [
+                      _BusinessDarkHeader(
+                        businessCount: businesses.length,
+                        tier: tier,
                       ),
-                    ),
-                    child: const Icon(
-                      Icons.add_business_rounded,
-                      color: AppColors.yellowBrand,
-                      size: 22,
-                    ),
+                      const SizedBox(height: _BusinessDarkHeader._pillHalf + 8),
+                      Expanded(
+                        child: businesses.isEmpty
+                            ? const _BusinessEmptyState()
+                            : ListView.builder(
+                                padding: const EdgeInsets.only(bottom: 120),
+                                itemCount: businesses.length,
+                                itemBuilder: (_, i) => _BusinessRow(
+                                  business: businesses[i],
+                                  isActive:
+                                      businesses[i]['id'] == selectedBusinessId,
+                                  isLast: i == businesses.length - 1,
+                                  onTap: () => _openBusinessActionsSheet(
+                                      profile, businesses[i]),
+                                ),
+                              ),
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _tr('Add a new business', 'Ongeza biashara mpya'),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            height: 1.2,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          _tr(
-                            'Manage all your businesses in one place',
-                            'Simamia biashara zako zote mahali pamoja',
-                          ),
-                          style: GoogleFonts.dmSans(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontSize: 12,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.yellowBrand,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.add_rounded,
-                      color: AppColors.navyPrimary,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Dark header + status pill (mirrors CustomerListScreen's header) ─────────
+
+class _BusinessDarkHeader extends StatelessWidget {
+  final int businessCount;
+  final PlanTier tier;
+
+  const _BusinessDarkHeader({required this.businessCount, required this.tier});
+
+  static const double _pillHalf = 22.0;
+
+  String get _tierLabel {
+    switch (tier) {
+      case PlanTier.starter:
+        return _tr('Starter', 'Bure');
+      case PlanTier.growth:
+        return 'Growth';
+      case PlanTier.business:
+        return 'Business';
+      case PlanTier.enterprise:
+        return 'Enterprise';
+      case PlanTier.lifetime:
+        return 'Lifetime';
+    }
+  }
+
+  Widget _buildPill() {
+    final isStarter = tier == PlanTier.starter;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _PillStat(
+            label: _tr('Businesses', 'Biashara'),
+            value: '$businessCount',
+            color: AppColors.tealAccent,
+          ),
+          const _PillDivider(),
+          _PillStat(
+            label: _tr('Plan', 'Mpango'),
+            value: _tierLabel,
+            color: isStarter ? AppColors.textMuted : AppColors.navyPrimary,
+          ),
+          const _PillDivider(),
+          _PillStat(
+            label: _tr('Limit', 'Kikomo'),
+            value: isStarter ? '1' : '∞',
+            color: isStarter ? AppColors.warning : AppColors.success,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildBusinessCard(
-    Map<String, dynamic>? profile,
-    Map<String, dynamic> business,
-    String? selectedBusinessId,
-  ) {
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          padding: EdgeInsets.fromLTRB(20, top + 50, 20, _pillHalf + 16),
+          child: Text(
+            _tr('Businesses', 'Biashara'),
+            style: GoogleFonts.dmSans(
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -_pillHalf,
+          left: 0,
+          right: 0,
+          child: Center(child: _buildPill()),
+        ),
+      ],
+    );
+  }
+}
+
+class _PillStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _PillStat(
+      {required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.dmSans(
+              fontSize: 13, fontWeight: FontWeight.w800, color: color),
+        ),
+        SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+class _PillDivider extends StatelessWidget {
+  const _PillDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Container(
+        width: 1,
+        height: 28,
+        color: AppColors.border,
+      ),
+    );
+  }
+}
+
+// ─── Business row (flat list-card style, mirrors CustomerListScreen) ─────────
+
+class _BusinessRow extends StatelessWidget {
+  final Map<String, dynamic> business;
+  final bool isActive;
+  final bool isLast;
+  final VoidCallback onTap;
+
+  const _BusinessRow({
+    required this.business,
+    required this.isActive,
+    required this.isLast,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final name = (business['name'] as String?)?.trim() ?? '';
     final category = (business['category'] as String?)?.trim() ?? '';
     final place = (business['placeOfBusiness'] as String?)?.trim() ?? '';
     final logoUrl = (business['logoUrl'] as String?)?.trim();
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'B';
-    final isActive = selectedBusinessId == business['id'];
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _openBusinessActionsSheet(profile, business),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? AppColors.navyPrimary.withValues(alpha: 0.04)
-                  : AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isActive
-                    ? AppColors.navyPrimary.withValues(alpha: 0.28)
-                    : AppColors.border,
-                width: isActive ? 1.5 : 1,
-              ),
-            ),
-            child: Row(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Column(
+          children: [
+            Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: isActive ? AppColors.navyPrimary : AppColors.yellowBrand,
                     shape: BoxShape.circle,
@@ -1398,10 +1453,11 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                         )
                       : _LogoInitial(initial: initial),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Row(
                         children: [
@@ -1411,8 +1467,8 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.dmSans(
-                                fontWeight: FontWeight.w700,
                                 fontSize: 14,
+                                fontWeight: FontWeight.w700,
                                 color: isActive
                                     ? AppColors.navyPrimary
                                     : AppColors.textPrimary,
@@ -1420,7 +1476,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                             ),
                           ),
                           if (isActive) ...[
-                            SizedBox(width: 6),
+                            const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 7, vertical: 2),
@@ -1442,7 +1498,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                         ],
                       ),
                       if (category.isNotEmpty || place.isNotEmpty) ...[
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
                           [
                             if (category.isNotEmpty) category,
@@ -1464,120 +1520,69 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                     color: AppColors.textMuted, size: 18),
               ],
             ),
-          ),
+            if (!isLast)
+              const Padding(
+                padding: EdgeInsets.only(top: 13, left: 54),
+                child: Divider(
+                    height: 1, color: AppColors.border, thickness: 0.8),
+              ),
+          ],
         ),
       ),
     );
   }
+}
+
+// ─── Empty state ───────────────────────────────────────────────────────────
+
+class _BusinessEmptyState extends StatelessWidget {
+  const _BusinessEmptyState();
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _profileFuture,
-      builder: (context, snapshot) {
-        final profile = snapshot.data;
-        final businesses = _businessesFromProfile(profile);
-        final selectedBusinessId = _selectedBusinessId(profile);
-        final isLoading =
-            snapshot.connectionState != ConnectionState.done && profile == null;
-
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          body: SmartSkeleton(
-            isLoading: isLoading,
-            hasExistingData: profile != null,
-            skeleton: const SkeletonBusinessList(),
-            child: isLoading
-                ? const SizedBox.shrink()
-                : ListView(
-                    padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 40),
-                  children: [
-                    _buildAddHero(profile),
-                    if (businesses.isNotEmpty) ...[
-                      SizedBox(height: 28),
-                      Row(
-                        children: [
-                          Text(
-                            _tr('Your businesses', 'Biashara zako'),
-                            style:
-                                Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textPrimary,
-                                    ),
-                          ),
-                          Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              '${businesses.length}',
-                              style: GoogleFonts.dmSans(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ...businesses.map(
-                        (b) =>
-                            _buildBusinessCard(profile, b, selectedBusinessId),
-                      ),
-                    ] else if (snapshot.connectionState ==
-                        ConnectionState.done) ...[
-                      const SizedBox(height: 40),
-                      Center(
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 72,
-                              height: 72,
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(22),
-                                border: Border.all(color: AppColors.border),
-                              ),
-                              child: const Icon(
-                                Icons.storefront_outlined,
-                                size: 36,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            Text(
-                              _tr('No businesses yet', 'Bado hakuna biashara'),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              _tr(
-                                'Tap the button above to add your first business.',
-                                'Bonyeza kitufe hapo juu kuongeza biashara yako ya kwanza.',
-                              ),
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.dmSans(
-                                color: AppColors.textSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-          ),
-        );
-      },
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Icon(
+                Icons.storefront_outlined,
+                size: 36,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              _tr('No businesses yet', 'Bado hakuna biashara'),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _tr(
+                'Tap "Add Business" below to add your first business.',
+                'Bonyeza "Ongeza Biashara" hapa chini kuongeza biashara yako ya kwanza.',
+              ),
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

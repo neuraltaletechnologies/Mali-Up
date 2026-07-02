@@ -2,7 +2,7 @@ import type {
   AdminUser, Business, AnalyticsOverview, CatalogProduct, CatalogCategory,
   Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
-  PlanDefinition, PlanDefinitions, PlanTier, AppLookups,
+  PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -248,6 +248,24 @@ export async function assignPlan(
   return apiFetch('/api/admin/plans/assign', {
     method: 'POST',
     body: JSON.stringify({ uid, businessId, tier, cycleMonths }),
+  })
+}
+
+// ─── Plan Requests (from mobile app) ─────────────────────────────────────────
+
+export async function fetchPlanRequests(status?: string): Promise<{ requests: PlanRequest[] }> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : ''
+  return apiFetch(`/api/admin/plan-requests${q}`)
+}
+
+export async function patchPlanRequest(
+  id: string,
+  action: 'approve' | 'reject',
+  adminNotes?: string,
+): Promise<{ status: string }> {
+  return apiFetch(`/api/admin/plan-requests/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action, adminNotes }),
   })
 }
 

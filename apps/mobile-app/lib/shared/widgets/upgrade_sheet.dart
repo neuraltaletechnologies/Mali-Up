@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/services/plan_request_service.dart';
 import '../../core/services/plan_service.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_sheet.dart';
@@ -24,6 +25,7 @@ enum PlanFeatureKey {
   smsReminders,
   allExports,
   manualDebt,
+  multiBusiness,
 }
 
 extension PlanFeatureKeyX on PlanFeatureKey {
@@ -37,6 +39,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
         PlanFeatureKey.smsReminders    => Icons.sms_rounded,
         PlanFeatureKey.allExports      => Icons.ios_share_rounded,
         PlanFeatureKey.manualDebt      => Icons.edit_note_rounded,
+        PlanFeatureKey.multiBusiness   => Icons.store_mall_directory_rounded,
       };
 
   String get labelSw => switch (this) {
@@ -49,6 +52,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
         PlanFeatureKey.smsReminders    => 'SMS za Ukumbusho',
         PlanFeatureKey.allExports      => 'Uhamishaji wa Data',
         PlanFeatureKey.manualDebt      => 'Kuongeza Deni/Dai Mkononi',
+        PlanFeatureKey.multiBusiness   => 'Biashara Nyingi',
       };
 
   String get labelEn => switch (this) {
@@ -61,6 +65,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
         PlanFeatureKey.smsReminders    => 'SMS Reminders',
         PlanFeatureKey.allExports      => 'Data Exports',
         PlanFeatureKey.manualDebt      => 'Manual Debt Entry',
+        PlanFeatureKey.multiBusiness   => 'Multiple Businesses',
       };
 }
 
@@ -160,12 +165,41 @@ class _UpgradeSheet extends StatefulWidget {
 class _UpgradeSheetState extends State<_UpgradeSheet> {
   PlanTier _selected = PlanTier.growth;
   bool _showPayment = false;
+  bool _showEnterprise = false;
+  bool _submittingClaim = false;
+  String _paymentRef = '';
 
   static const _mpesaNumber = '+255 XXX XXX XXX';
 
   PlanLimits get _selLimits => limitsFor(_selected, widget.defs);
   int get _priceMonthly => _selLimits.pricePerMonth;
   int get _priceCycle   => _selLimits.pricePerCycle;
+
+  void _openPayment() {
+    final tierName = _selected == PlanTier.growth ? 'GROWTH' : 'BUSINESS';
+    setState(() {
+      _paymentRef =
+          'MALIUP-$tierName-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+      _showPayment = true;
+    });
+  }
+
+  /// Records the payment claim in Firestore (visible in the admin portal)
+  /// before closing the sheet. Best-effort — activation is manual either way.
+  Future<void> _finishPayment() async {
+    setState(() => _submittingClaim = true);
+    try {
+      await PlanRequestService.submit(
+        tier: _selected,
+        type: PlanRequestType.paymentClaim,
+        paymentRef: _paymentRef,
+      );
+    } catch (_) {
+      // Offline or rules failure — the M-Pesa reference still reaches the
+      // team through the payment itself, so don't block the user here.
+    }
+    if (mounted) Navigator.pop(context, _selected);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -216,33 +250,45 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               _TierCard(
                 tier: PlanTier.growth,
                 limits: limitsFor(PlanTier.growth, widget.defs),
-                isSelected: _selected == PlanTier.growth,
+                isSelected: !_showEnterprise && _selected == PlanTier.growth,
                 onTap: () => setState(() {
                   _selected = PlanTier.growth;
                   _showPayment = false;
+                  _showEnterprise = false;
                 }),
               ),
               const SizedBox(height: 6),
               _TierCard(
                 tier: PlanTier.business,
                 limits: limitsFor(PlanTier.business, widget.defs),
-                isSelected: _selected == PlanTier.business,
+                isSelected: !_showEnterprise && _selected == PlanTier.business,
                 onTap: () => setState(() {
                   _selected = PlanTier.business;
                   _showPayment = false;
+                  _showEnterprise = false;
                 }),
               ),
               const SizedBox(height: 6),
-              const _EnterpriseCard(),
+              _EnterpriseCard(
+                isSelected: _showEnterprise,
+                onTap: () => setState(() {
+                  _showEnterprise = true;
+                  _showPayment = false;
+                }),
+              ),
               const SizedBox(height: 16),
 
-              // ── CTA / Payment ─────────────────────────────────────────────
-              if (!_showPayment) ...[
+              // ── CTA / Payment / Enterprise request ───────────────────────
+              if (_showEnterprise) ...[
+                _EnterpriseRequestForm(
+                  onDone: () => Navigator.pop(context, PlanTier.enterprise),
+                ),
+              ] else if (!_showPayment) ...[
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: () => setState(() => _showPayment = true),
+                    onPressed: _openPayment,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.yellowBrand,
                       foregroundColor: AppColors.navyPrimary,
@@ -286,7 +332,9 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                   priceCycle: _priceCycle,
                   cycleMonths: _selLimits.cycleMonths,
                   mpesaNumber: _mpesaNumber,
-                  onDone: () => Navigator.pop(context, _selected),
+                  paymentRef: _paymentRef,
+                  busy: _submittingClaim,
+                  onDone: _finishPayment,
                   onBack: () => setState(() => _showPayment = false),
                 ),
               ],
@@ -530,23 +578,26 @@ class _TierCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _EnterpriseCard extends StatelessWidget {
-  const _EnterpriseCard();
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _EnterpriseCard({required this.isSelected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wasiliana nasi kwa ajili ya bei ya Enterprise'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      ),
-      child: Container(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(
+            color: isSelected ? AppColors.navyPrimary : AppColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
         ),
         child: Row(
           children: [
@@ -598,6 +649,235 @@ class _EnterpriseCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Enterprise request form — writes to plan_requests, visible in admin portal
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum _EnterpriseFormState { checking, form, submitting, sent, alreadyPending }
+
+class _EnterpriseRequestForm extends StatefulWidget {
+  final VoidCallback onDone;
+
+  const _EnterpriseRequestForm({required this.onDone});
+
+  @override
+  State<_EnterpriseRequestForm> createState() => _EnterpriseRequestFormState();
+}
+
+class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
+  final _noteController = TextEditingController();
+  _EnterpriseFormState _state = _EnterpriseFormState.checking;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPending();
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkPending() async {
+    final pending =
+        await PlanRequestService.hasPending(PlanRequestType.enterpriseInquiry);
+    if (!mounted) return;
+    setState(() => _state = pending
+        ? _EnterpriseFormState.alreadyPending
+        : _EnterpriseFormState.form);
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _state = _EnterpriseFormState.submitting;
+      _error = null;
+    });
+    try {
+      await PlanRequestService.submit(
+        tier: PlanTier.enterprise,
+        type: PlanRequestType.enterpriseInquiry,
+        note: _noteController.text,
+      );
+      if (!mounted) return;
+      setState(() => _state = _EnterpriseFormState.sent);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _state = _EnterpriseFormState.form;
+        _error = 'Imeshindwa kutuma ombi. Hakikisha una intaneti kisha jaribu tena.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    switch (_state) {
+      case _EnterpriseFormState.checking:
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        );
+
+      case _EnterpriseFormState.sent:
+      case _EnterpriseFormState.alreadyPending:
+        final alreadyPending = _state == _EnterpriseFormState.alreadyPending;
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.success.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
+          ),
+          child: Column(
+            children: [
+              const Icon(Icons.mark_email_read_rounded,
+                  color: AppColors.success, size: 36),
+              SizedBox(height: 10),
+              Text(
+                alreadyPending
+                    ? 'Tayari umetuma ombi la Enterprise'
+                    : 'Ombi limetumwa!',
+                style: GoogleFonts.dmSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navyPrimary,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Timu yetu itawasiliana nawe ndani ya masaa 24 kuhusu bei maalum ya biashara yako.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: widget.onDone,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navyPrimary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    'Sawa',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+      case _EnterpriseFormState.form:
+      case _EnterpriseFormState.submitting:
+        final busy = _state == _EnterpriseFormState.submitting;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tuambie kuhusu biashara yako (hiari)',
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            SizedBox(height: 8),
+            TextField(
+              controller: _noteController,
+              maxLines: 3,
+              maxLength: 500,
+              enabled: !busy,
+              style: GoogleFonts.dmSans(fontSize: 13),
+              decoration: InputDecoration(
+                hintText:
+                    'Mf. matawi 5, wafanyakazi 30, tunahitaji API na ripoti maalum…',
+                hintStyle: GoogleFonts.dmSans(
+                    fontSize: 12, color: AppColors.textMuted),
+                filled: true,
+                fillColor: AppColors.surface,
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.navyPrimary),
+                ),
+              ),
+            ),
+            if (_error != null) ...[
+              SizedBox(height: 8),
+              Text(
+                _error!,
+                style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.error),
+              ),
+            ],
+            SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: busy ? null : _submit,
+                icon: busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.navyPrimary),
+                      )
+                    : const Icon(Icons.send_rounded, size: 16),
+                label: Text(
+                  busy ? 'Inatuma…' : 'Tuma Ombi la Enterprise',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.w800),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.yellowBrand,
+                  foregroundColor: AppColors.navyPrimary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            SizedBox(height: 6),
+            Center(
+              child: Text(
+                'Ombi lako litaonekana na timu yetu mara moja.',
+                style: GoogleFonts.dmSans(
+                    fontSize: 11, color: AppColors.textMuted),
+              ),
+            ),
+          ],
+        );
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Payment instructions
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -607,6 +887,8 @@ class _PaymentInstructions extends StatelessWidget {
   final int priceCycle;
   final int cycleMonths;
   final String mpesaNumber;
+  final String paymentRef;
+  final bool busy;
   final VoidCallback onDone;
   final VoidCallback onBack;
 
@@ -616,15 +898,15 @@ class _PaymentInstructions extends StatelessWidget {
     required this.priceCycle,
     required this.cycleMonths,
     required this.mpesaNumber,
+    required this.paymentRef,
+    required this.busy,
     required this.onDone,
     required this.onBack,
   });
 
   @override
   Widget build(BuildContext context) {
-    final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
-    final ref =
-        'MALIUP-${tierName.toUpperCase()}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+    final ref = paymentRef;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -756,9 +1038,17 @@ class _PaymentInstructions extends StatelessWidget {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
-                  onPressed: onDone,
-                  icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
-                  label: Text('Nimemaliza Kulipa'),
+                  onPressed: busy ? null : onDone,
+                  icon: busy
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_outline_rounded, size: 18),
+                  label: Text(busy ? 'Inatuma…' : 'Nimemaliza Kulipa'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
                     foregroundColor: Colors.white,

@@ -450,6 +450,33 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // PLATFORM CONFIG  (plan definitions — edited from the admin portal)
+    // =========================================================================
+    // Only the plans doc is exposed; other config docs (e.g. main) stay denied.
+    // Writes happen through the admin portal's Admin SDK, which bypasses rules.
+    match /platform_config/plans {
+      allow read: if true;
+    }
+
+    // =========================================================================
+    // PLAN REQUESTS  (enterprise inquiries + payment confirmations from the app)
+    // =========================================================================
+    match /plan_requests/{requestId} {
+      allow create: if isSignedIn() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.type in ['enterprise_inquiry', 'payment_claim'] &&
+        request.resource.data.requestedTier in ['growth', 'business', 'enterprise'] &&
+        (!request.resource.data.keys().hasAny(['note']) ||
+          (request.resource.data.note is string && request.resource.data.note.size() <= 1000)) &&
+        (!request.resource.data.keys().hasAny(['paymentRef']) ||
+          request.resource.data.paymentRef is string);
+      // User can see their own requests (e.g. "request already sent" state).
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      // No client updates/deletes — requests are resolved from the admin portal.
+    }
+
+    // =========================================================================
     // DEFAULT DENY
     // =========================================================================
     match /{document=**} {

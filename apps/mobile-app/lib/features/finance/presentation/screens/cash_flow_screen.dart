@@ -98,8 +98,8 @@ class _CashFlowDarkHeader extends ConsumerWidget {
           currentStatus: plan,
           featureKey: PlanFeatureKey.cashFlow,
           triggerReason: _tr(
-            'Cash flow tracking requires a Growth or Business plan.',
-            'Ufuatiliaji wa mtiririko wa fedha unahitaji mpango wa Growth au Business.',
+            'required a Growth or Business plan.',
+            'unahitaji mpango wa Growth au Business.',
           ),
         );
         return;
@@ -315,8 +315,8 @@ class _CashFlowFab extends ConsumerWidget {
           currentStatus: plan,
           featureKey: PlanFeatureKey.cashFlow,
           triggerReason: _tr(
-            'Cash flow tracking requires a Growth or Business plan.',
-            'Ufuatiliaji wa mtiririko wa fedha unahitaji mpango wa Growth au Business.',
+            'Required a Growth or Business plan.',
+            'unahitaji mpango wa Growth au Business.',
           ),
         );
         return;

@@ -99,8 +99,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         currentStatus: plan,
         featureKey: PlanFeatureKey.expenseTracking,
         triggerReason: _tr(
-          'Expense tracking requires a Growth or Business plan.',
-          'Kufuatilia matumizi kunahitaji mpango wa Growth au Business.',
+          'Required a Growth or Business plan.',
+          'Unahitaji mpango wa Growth au Business.',
         ),
       );
       return;
