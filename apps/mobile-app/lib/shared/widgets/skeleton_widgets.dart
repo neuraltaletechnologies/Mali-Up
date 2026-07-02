@@ -435,11 +435,11 @@ class SkeletonSubscriptionBody extends StatelessWidget {
         SizedBox(height: 28),
         SkeletonText(width: 150),
         SizedBox(height: 12),
-        SkeletonCard(height: 56),
+        SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
         SizedBox(height: 8),
-        SkeletonCard(height: 56),
+        SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
         SizedBox(height: 8),
-        SkeletonCard(height: 56),
+        SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
       ],
     );
   }

@@ -2286,20 +2286,6 @@ class _TopPerformersSection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 13, 14, 0),
             child: Row(
               children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: AppColors.navyPrimary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.leaderboard_rounded,
-                    size: 14,
-                    color: AppColors.yellowBrand,
-                  ),
-                ),
-                SizedBox(width: 9),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

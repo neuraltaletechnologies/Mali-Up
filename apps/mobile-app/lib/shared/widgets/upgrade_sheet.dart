@@ -119,9 +119,9 @@ class _UpgradeSheetWrapper extends ConsumerWidget {
             children: [
               SkeletonPlanCard(),
               SizedBox(height: 16),
-              SkeletonCard(height: 56),
+              SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
               SizedBox(height: 8),
-              SkeletonCard(height: 56),
+              SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
             ],
           ),
         ),

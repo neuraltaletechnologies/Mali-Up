@@ -757,10 +757,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                         : 16.0,
                   ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.navyPrimary,
-                      borderRadius: BorderRadius.circular(26),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.28),
@@ -769,13 +766,23 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                         ),
                       ],
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: List.generate(destinations.length, (index) {
-                        final destination = destinations[index];
-                        final isSelected = index == currentIndex;
-                        return _buildBottomNavItem(context, destination, isSelected, index);
-                      }),
+                    child: CustomPaint(
+                      painter: _NavBarBackgroundPainter(
+                        selectedIndex: currentIndex,
+                        itemCount: destinations.length,
+                        color: AppColors.navyPrimary,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: List.generate(destinations.length, (index) {
+                            final destination = destinations[index];
+                            final isSelected = index == currentIndex;
+                            return _buildBottomNavItem(context, destination, isSelected, index);
+                          }),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -799,33 +806,51 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              height: 12,
-              width: 32,
-              child: AnimatedOpacity(
-                opacity: isSelected ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                child: CustomPaint(
-                  size: const Size(32, 12),
-                  painter: _NavIndicatorPainter(color: activeColor),
-                ),
+            AnimatedOpacity(
+              opacity: isSelected ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 16,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(3),
+                        bottomRight: Radius.circular(3),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: activeColor,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: activeColor,
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 2),
-            AnimatedSlide(
-              offset: isSelected ? const Offset(0, -0.1) : Offset.zero,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                transitionBuilder: (child, animation) =>
-                    ScaleTransition(scale: animation, child: child),
-                child: Icon(
-                  isSelected ? destination.activeIcon : destination.icon,
-                  key: ValueKey<bool>(isSelected),
-                  color: isSelected ? activeColor : inactiveColor,
-                  size: 22,
-                ),
+            const SizedBox(height: 4),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, animation) =>
+                  ScaleTransition(scale: animation, child: child),
+              child: Icon(
+                isSelected ? destination.activeIcon : destination.icon,
+                key: ValueKey<bool>(isSelected),
+                color: isSelected ? activeColor : inactiveColor,
+                size: 22,
               ),
             ),
             const SizedBox(height: 4),
@@ -850,31 +875,73 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
   }
 }
 
-/// Draws the small upward curve that sits behind the selected tab's dot,
-/// mirroring the "bump + dot" indicator style used above active nav icons.
-class _NavIndicatorPainter extends CustomPainter {
+/// Custom painter for nav bar background with curved bump for selected index.
+class _NavBarBackgroundPainter extends CustomPainter {
+  final int selectedIndex;
+  final int itemCount;
   final Color color;
-  const _NavIndicatorPainter({required this.color});
+
+  const _NavBarBackgroundPainter({
+    required this.selectedIndex,
+    required this.itemCount,
+    required this.color,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final curvePaint = Paint()
-      ..color = color.withValues(alpha: 0.9)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
 
-    final path = Path()
-      ..moveTo(0, size.height)
-      ..quadraticBezierTo(size.width / 2, -size.height * 0.5, size.width, size.height);
-    canvas.drawPath(path, curvePaint);
+    const radius = 26.0;
+    const bumpHeight = 12.0;
+    const bumpRadius = 14.0;
 
-    final dotPaint = Paint()..color = color;
-    canvas.drawCircle(Offset(size.width / 2, 0), 2.5, dotPaint);
+    if (itemCount == 0) {
+      _drawRoundedRect(canvas, size, radius, paint);
+      return;
+    }
+
+    final itemWidth = size.width / itemCount;
+    final centerX = (selectedIndex + 0.5) * itemWidth;
+
+    final path = Path();
+    // Top-left corner
+    path.moveTo(radius, 0);
+    // Top edge with bump
+    path.lineTo(centerX - bumpRadius, 0);
+    // Curve the bump upward
+    path.quadraticBezierTo(centerX, -bumpHeight, centerX + bumpRadius, 0);
+    // Top-right corner
+    path.lineTo(size.width - radius, 0);
+    path.quadraticBezierTo(size.width, 0, size.width, radius);
+    // Right edge
+    path.lineTo(size.width, size.height - radius);
+    path.quadraticBezierTo(size.width, size.height, size.width - radius, size.height);
+    // Bottom edge
+    path.lineTo(radius, size.height);
+    path.quadraticBezierTo(0, size.height, 0, size.height - radius);
+    // Left edge
+    path.lineTo(0, radius);
+    path.quadraticBezierTo(0, 0, radius, 0);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawRoundedRect(Canvas canvas, Size size, double radius, Paint paint) {
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Radius.circular(radius),
+    );
+    canvas.drawRRect(rect, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _NavIndicatorPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _NavBarBackgroundPainter oldDelegate) =>
+      oldDelegate.selectedIndex != selectedIndex ||
+      oldDelegate.itemCount != itemCount ||
+      oldDelegate.color != color;
 }
 
 class _NavDestination {
