@@ -15,6 +15,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
@@ -712,7 +713,7 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
               ),
             ),
             padding: EdgeInsets.fromLTRB(
-                20, top + 16, 20, _SalesDarkHeader._pillHalf + 16),
+                20, top + AppTheme.headerTopPadding, 20, _SalesDarkHeader._pillHalf + 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

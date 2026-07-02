@@ -13,6 +13,7 @@ import '../../../../config/routing.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../customer/data/customer_providers.dart';
@@ -368,10 +369,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         children: [
           SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
-                  20,
-                  MediaQuery.of(context).padding.top + 16,
-                  20,
-                  32,
+                  AppTheme.pageHorizontalPadding,
+                  MediaQuery.of(context).padding.top + AppTheme.headerTopPadding,
+                  AppTheme.pageHorizontalPadding,
+                  AppTheme.pageVerticalPadding,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

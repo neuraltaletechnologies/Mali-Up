@@ -16,6 +16,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../config/routing.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
 import 'account_details_screen.dart';
@@ -255,7 +256,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 40),
+        padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + AppTheme.headerTopPadding, 20, 40),
         children: [
           // ── Page title ───────────────────────────────────────
           Text(
