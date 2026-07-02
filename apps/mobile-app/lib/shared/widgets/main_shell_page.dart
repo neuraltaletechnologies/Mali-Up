@@ -751,13 +751,16 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
               children: [
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                    24, 0, 24,
+                    24, 8, 24,
                     MediaQuery.of(context).padding.bottom > 0
-                        ? MediaQuery.of(context).padding.bottom
+                        ? MediaQuery.of(context).padding.bottom + 8
                         : 16.0,
                   ),
                   child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     decoration: BoxDecoration(
+                      color: AppColors.navyPrimary,
+                      borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.28),
@@ -766,23 +769,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                         ),
                       ],
                     ),
-                    child: CustomPaint(
-                      painter: _NavBarBackgroundPainter(
-                        selectedIndex: currentIndex,
-                        itemCount: destinations.length,
-                        color: AppColors.navyPrimary,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: List.generate(destinations.length, (index) {
-                            final destination = destinations[index];
-                            final isSelected = index == currentIndex;
-                            return _buildBottomNavItem(context, destination, isSelected, index);
-                          }),
-                        ),
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: List.generate(destinations.length, (index) {
+                        final destination = destinations[index];
+                        final isSelected = index == currentIndex;
+                        return _buildBottomNavItem(context, destination, isSelected, index);
+                      }),
                     ),
                   ),
                 ),
@@ -795,77 +788,68 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
   }
 
   Widget _buildBottomNavItem(BuildContext context, _NavDestination destination, bool isSelected, int index) {
-    const activeColor = AppColors.yellowBrand;
-    const inactiveColor = Colors.white54;
-
     return GestureDetector(
       onTap: () => context.go(destination.route),
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: 64,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
           children: [
-            AnimatedOpacity(
-              opacity: isSelected ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 16,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(3),
-                        bottomRight: Radius.circular(3),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, animation) =>
+                      ScaleTransition(scale: animation, child: child),
+                  child: Icon(
+                    isSelected ? destination.activeIcon : destination.icon,
+                    key: ValueKey<bool>(isSelected),
+                    color: isSelected ? AppColors.yellowBrand : Colors.white54,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  style: GoogleFonts.dmSans(
+                    color: isSelected ? AppColors.yellowBrand : Colors.white54,
+                    fontSize: 10,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                  child: Text(
+                    destination.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            // Straddles the top edge of the navy card so it reads as a
+            // notch/badge cresting the bar, sitting right above the icon.
+            Positioned(
+              top: -11,
+              child: AnimatedOpacity(
+                opacity: isSelected ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: AppColors.yellowBrand,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
                       ),
-                    ),
+                    ],
                   ),
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: activeColor,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: activeColor,
-                          blurRadius: 8,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              transitionBuilder: (child, animation) =>
-                  ScaleTransition(scale: animation, child: child),
-              child: Icon(
-                isSelected ? destination.activeIcon : destination.icon,
-                key: ValueKey<bool>(isSelected),
-                color: isSelected ? activeColor : inactiveColor,
-                size: 22,
-              ),
-            ),
-            const SizedBox(height: 4),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: GoogleFonts.dmSans(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? activeColor : inactiveColor,
-              ),
-              child: Text(
-                destination.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
+                ),
               ),
             ),
           ],
@@ -873,75 +857,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
       ),
     );
   }
-}
-
-/// Custom painter for nav bar background with curved bump for selected index.
-class _NavBarBackgroundPainter extends CustomPainter {
-  final int selectedIndex;
-  final int itemCount;
-  final Color color;
-
-  const _NavBarBackgroundPainter({
-    required this.selectedIndex,
-    required this.itemCount,
-    required this.color,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    const radius = 26.0;
-    const bumpHeight = 12.0;
-    const bumpRadius = 14.0;
-
-    if (itemCount == 0) {
-      _drawRoundedRect(canvas, size, radius, paint);
-      return;
-    }
-
-    final itemWidth = size.width / itemCount;
-    final centerX = (selectedIndex + 0.5) * itemWidth;
-
-    final path = Path();
-    // Top-left corner
-    path.moveTo(radius, 0);
-    // Top edge with bump
-    path.lineTo(centerX - bumpRadius, 0);
-    // Curve the bump upward
-    path.quadraticBezierTo(centerX, -bumpHeight, centerX + bumpRadius, 0);
-    // Top-right corner
-    path.lineTo(size.width - radius, 0);
-    path.quadraticBezierTo(size.width, 0, size.width, radius);
-    // Right edge
-    path.lineTo(size.width, size.height - radius);
-    path.quadraticBezierTo(size.width, size.height, size.width - radius, size.height);
-    // Bottom edge
-    path.lineTo(radius, size.height);
-    path.quadraticBezierTo(0, size.height, 0, size.height - radius);
-    // Left edge
-    path.lineTo(0, radius);
-    path.quadraticBezierTo(0, 0, radius, 0);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  void _drawRoundedRect(Canvas canvas, Size size, double radius, Paint paint) {
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Radius.circular(radius),
-    );
-    canvas.drawRRect(rect, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _NavBarBackgroundPainter oldDelegate) =>
-      oldDelegate.selectedIndex != selectedIndex ||
-      oldDelegate.itemCount != itemCount ||
-      oldDelegate.color != color;
 }
 
 class _NavDestination {
