@@ -127,7 +127,7 @@ class AppStrings {
   static const String chooseLanguage = 'Choose your language';
   static const String chooseLanguageSw = 'Chagua lugha';
   static const String youCanChangeLater = 'You can change this later in Settings.';
-  static const String youCanChangeLaterSw = 'Unaweza kubadilisha baadaye kwenye Mipangilio.';
+  static const String youCanChangeLaterSw = 'Unaweza kubadilisha kwenye Mipangilio.';
   static const String continueInEnglish = 'Continue in English';
   static const String continueInSwahili = 'Endelea kwa Kiswahili';
   static const String english = 'English';

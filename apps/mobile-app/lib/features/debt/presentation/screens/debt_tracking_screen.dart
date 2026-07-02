@@ -138,11 +138,10 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
         currentStatus: plan,
         featureKey: PlanFeatureKey.manualDebt,
         triggerReason: _tr(
-          'Manual debt entry is available on paid plans. Debts from customer sales are always visible.',
-          'Kuongeza deni mkononi kunahitaji mpango wa malipo. Madeni kutoka mauzo ya wateja yanaonekana daima.',
+          'Manual entry is available on paid plans.',
+          'Kuongeza deni kunahitaji mpango wa malipo.',
         ),
       );
-      return;
     }
     await showModalBottomSheet(
       context: context,

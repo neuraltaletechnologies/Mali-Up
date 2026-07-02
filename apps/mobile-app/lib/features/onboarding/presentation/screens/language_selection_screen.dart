@@ -257,7 +257,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen>
                               Text(
                                 _tr(
                                   'You can change this anytime in Settings.',
-                                  'Unaweza kubadilisha badaye kwenye Mipangilio.',
+                                  'Unaweza kubadilisha kwenye Mipangilio.',
                                 ),
                                 style: GoogleFonts.dmSans(
                                   fontSize: 13,
