@@ -699,8 +699,8 @@ class _UsageBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       child: LinearProgressIndicator(
         value: pct,
-        minHeight: 6,
-        backgroundColor: AppColors.border,
+        minHeight: 7,
+        backgroundColor: AppColors.surfaceVariant,
         valueColor: AlwaysStoppedAnimation<Color>(barColor),
       ),
     );
@@ -717,25 +717,25 @@ class _FeatureRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
           Icon(
-            ok ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            ok ? Icons.check_circle_rounded : Icons.lock_outline_rounded,
             size: 16,
             color: ok
                 ? (light ? AppColors.yellowBrand : AppColors.success)
                 : AppColors.textDisabled,
           ),
-          SizedBox(width: 8),
+          SizedBox(width: 10),
           Text(
             text,
             style: GoogleFonts.dmSans(
               fontSize: 13,
               color: ok
-                  ? (light ? Colors.white : AppColors.textPrimary)
+                  ? (light ? Colors.white.withValues(alpha: 0.92) : AppColors.textPrimary)
                   : AppColors.textDisabled,
-              fontWeight: ok ? FontWeight.w500 : FontWeight.w400,
+              fontWeight: ok ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
         ],
