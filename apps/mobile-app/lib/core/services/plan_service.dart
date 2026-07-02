@@ -616,44 +616,56 @@ class PlanInfoCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-          if (status.isStarter) ...[
-            _UsageBar(status: status),
-            SizedBox(height: 8),
-            Text(
-              '${status.invoicesUsedThisMonth} / $limit invoices mwezi huu',
-              style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 14),
-            _FeatureRow(text: 'Hadi $limit invoices / mwezi', ok: true),
-            const _FeatureRow(text: 'Ankara zisizo na kikomo', ok: false),
-            const _FeatureRow(text: 'Ripoti kamili', ok: false),
-            const _FeatureRow(text: 'Kuingiza data ya M-Pesa', ok: false),
-            SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: onUpgradeTap,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.yellowBrand,
-                  foregroundColor: AppColors.navyPrimary,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+              if (status.isStarter) ...[
+                _UsageBar(status: status),
+                SizedBox(height: 8),
+                Text(
+                  '${status.invoicesUsedThisMonth} / $limit invoices mwezi huu',
+                  style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary),
                 ),
-                child: Text(
-                  'Angalia Mipango ya Malipo — ${_fmtPrice(growthPrice)}/mwezi',
-                  style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700),
+                const SizedBox(height: 14),
+                _FeatureRow(text: 'Hadi $limit invoices / mwezi', ok: true),
+                const _FeatureRow(text: 'Ankara zisizo na kikomo', ok: false),
+                const _FeatureRow(text: 'Ripoti kamili', ok: false),
+                const _FeatureRow(text: 'Kuingiza data ya M-Pesa', ok: false),
+                SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.yellowBrand.withValues(alpha: 0.3),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: onUpgradeTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.yellowBrand,
+                      foregroundColor: AppColors.navyPrimary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      'Angalia Mipango ya Malipo — ${_fmtPrice(growthPrice)}/mwezi',
+                      style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ] else ...[
-            const _FeatureRow(text: 'Ankara zisizo na kikomo', ok: true, light: true),
-            const _FeatureRow(text: 'Ripoti kamili', ok: true, light: true),
-            const _FeatureRow(text: 'Kuingiza data ya M-Pesa', ok: true, light: true),
-            if (status.tier == PlanTier.business || status.tier == PlanTier.enterprise)
-              const _FeatureRow(text: 'Stoo nyingi', ok: true, light: true),
-          ],
+              ] else ...[
+                const _FeatureRow(text: 'Ankara zisizo na kikomo', ok: true, light: true),
+                const _FeatureRow(text: 'Ripoti kamili', ok: true, light: true),
+                const _FeatureRow(text: 'Kuingiza data ya M-Pesa', ok: true, light: true),
+                if (status.tier == PlanTier.business || status.tier == PlanTier.enterprise)
+                  const _FeatureRow(text: 'Stoo nyingi', ok: true, light: true),
+              ],
+            ],
+          ),
         ],
       ),
     );

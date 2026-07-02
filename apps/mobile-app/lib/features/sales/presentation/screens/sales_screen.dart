@@ -1233,13 +1233,13 @@ class _InvoiceCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Row 1: [invoiceNo + customer] left | [amount + status] right
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: Column(
@@ -1251,16 +1251,16 @@ class _InvoiceCard extends StatelessWidget {
                             Text(
                               invoiceNo,
                               style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11,
+                                fontSize: 10,
                                 color: AppColors.textMuted,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           if (isQuotation) ...[
-                            SizedBox(width: 6),
+                            SizedBox(width: 5),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 1),
+                                  horizontal: 5, vertical: 1),
                               decoration: BoxDecoration(
                                 color: AppColors.surfaceVariant,
                                 borderRadius: BorderRadius.circular(4),
@@ -1268,7 +1268,7 @@ class _InvoiceCard extends StatelessWidget {
                               child: Text(
                                 _tr('QUO', 'NUK'),
                                 style: GoogleFonts.dmSans(
-                                    fontSize: 9,
+                                    fontSize: 8,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.textMuted,
                                     letterSpacing: 0.5),
@@ -1277,11 +1277,11 @@ class _InvoiceCard extends StatelessWidget {
                           ],
                         ],
                       ),
-                      SizedBox(height: 3),
+                      SizedBox(height: 2),
                       Text(
                         cardTitle,
                         style: GoogleFonts.dmSans(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.navyPrimary,
                         ),
@@ -1291,7 +1291,7 @@ class _InvoiceCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 // Amount + status chip stacked on right
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -1299,16 +1299,16 @@ class _InvoiceCard extends StatelessWidget {
                     Text(
                       _fmtAmt(amount),
                       style: GoogleFonts.jetBrainsMono(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                         letterSpacing: -0.3,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    SizedBox(height: 3),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: chipData.bg,
                         borderRadius: BorderRadius.circular(20),
@@ -1317,12 +1317,12 @@ class _InvoiceCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(chipData.icon,
-                              size: 10, color: chipData.text),
+                              size: 9, color: chipData.text),
                           SizedBox(width: 3),
                           Text(
                             chipData.label,
                             style: GoogleFonts.dmSans(
-                              fontSize: 10,
+                              fontSize: 9,
                               fontWeight: FontWeight.w700,
                               color: chipData.text,
                             ),
@@ -1335,7 +1335,7 @@ class _InvoiceCard extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
 
             // Row 2: date + item count | share button
             Row(
@@ -1343,16 +1343,16 @@ class _InvoiceCard extends StatelessWidget {
                 Text(
                   _fmtDate(date),
                   style: GoogleFonts.dmSans(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     color: AppColors.textMuted,
                   ),
                 ),
                 if (itemCount > 0) ...[
-                  SizedBox(width: 6),
+                  SizedBox(width: 5),
                   Text(
                     '· $itemCount ${_tr(itemCount == 1 ? "item" : "items", itemCount == 1 ? "kitu" : "vitu")}',
                     style: GoogleFonts.dmSans(
-                      fontSize: 11,
+                      fontSize: 10.5,
                       color: AppColors.textMuted,
                     ),
                   ),
@@ -1362,10 +1362,10 @@ class _InvoiceCard extends StatelessWidget {
                   onTap: onReceiptAction,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                        horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(7),
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Row(
@@ -1373,14 +1373,14 @@ class _InvoiceCard extends StatelessWidget {
                       children: [
                         const Icon(
                           Icons.ios_share_rounded,
-                          size: 13,
+                          size: 12,
                           color: AppColors.textSecondary,
                         ),
-                        SizedBox(width: 4),
+                        SizedBox(width: 3),
                         Text(
                           _tr('Share', 'Shiriki'),
                           style: GoogleFonts.dmSans(
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textSecondary,
                           ),
@@ -1394,16 +1394,16 @@ class _InvoiceCard extends StatelessWidget {
 
             // Row 3: overdue / balance warning
             if (overdue && dueDate != null) ...[
-              SizedBox(height: 6),
+              SizedBox(height: 4),
               Row(
                 children: [
                   const Icon(Icons.schedule_rounded,
-                      size: 12, color: AppColors.error),
+                      size: 11, color: AppColors.error),
                   SizedBox(width: 4),
                   Text(
                     '${_tr("Due was", "Malipo ilikuwa")} ${_fmtDate(dueDate)} ${dueDate.year}',
                     style: GoogleFonts.dmSans(
-                      fontSize: 11,
+                      fontSize: 10.5,
                       color: AppColors.error,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1411,16 +1411,16 @@ class _InvoiceCard extends StatelessWidget {
                 ],
               ),
             ] else if (status == 'partial' && outstanding > 0) ...[
-              SizedBox(height: 6),
+              SizedBox(height: 4),
               Row(
                 children: [
                   const Icon(Icons.account_balance_wallet_outlined,
-                      size: 12, color: AppColors.warning),
+                      size: 11, color: AppColors.warning),
                   SizedBox(width: 4),
                   Text(
                     '${_tr("Balance due", "Baki")}: ${_fmtAmt(outstanding)}',
                     style: GoogleFonts.dmSans(
-                      fontSize: 11,
+                      fontSize: 10.5,
                       color: AppColors.warning,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1431,7 +1431,7 @@ class _InvoiceCard extends StatelessWidget {
 
             if (!isLast)
               const Padding(
-                padding: EdgeInsets.only(top: 12),
+                padding: EdgeInsets.only(top: 9),
                 child: Divider(
                   height: 1,
                   thickness: 1,
