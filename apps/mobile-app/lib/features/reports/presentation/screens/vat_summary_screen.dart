@@ -29,7 +29,7 @@ class VatSummaryScreen extends ConsumerWidget {
         leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('VAT Summary', 'Muhtasari wa VAT'),
-          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 17),
+          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 20),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),

@@ -1294,7 +1294,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                   Text(
                     _tr('Edit Customer', 'Hariri Mteja'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.navyPrimary),
                   ),
@@ -1390,6 +1390,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                           onPressed: _isSaving ? null : _save,
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.navyPrimary,
+                            foregroundColor: Colors.white,
                             padding:
                                 const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -1888,6 +1889,7 @@ class _CustomerInfoSheet extends ConsumerWidget {
                           ),
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.navyPrimary,
+                            foregroundColor: Colors.white,
                             padding:
                                 const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(

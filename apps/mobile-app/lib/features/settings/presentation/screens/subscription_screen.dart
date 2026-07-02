@@ -31,7 +31,7 @@ class SubscriptionScreen extends ConsumerWidget {
         title: Text(
           _t('My Plan', 'Mpango Wangu'),
           style: GoogleFonts.dmSans(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.w800,
             color: AppColors.navyPrimary,
           ),

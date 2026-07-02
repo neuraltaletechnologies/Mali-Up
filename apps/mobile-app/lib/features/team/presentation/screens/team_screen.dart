@@ -402,9 +402,10 @@ class _TeamDarkHeaderState extends State<_TeamDarkHeader> {
                     child: Text(
                       _tr('My Team', 'Timu Yangu'),
                       style: GoogleFonts.dmSans(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
+                        letterSpacing: -0.5,
                       ),
                     ),
                   ),
@@ -1230,7 +1231,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     final size = MediaQuery.sizeOf(context);
 
     final headingStyle = GoogleFonts.dmSans(
-      fontSize: 26,
+      fontSize: 18,
       color: AppColors.navyPrimary,
       fontWeight: FontWeight.w800,
       height: 1.2,
@@ -1893,7 +1894,7 @@ class _RolePickerSheet extends StatelessWidget {
               Text(
                 _tr('Select Role', 'Chagua Jukumu'),
                 style: GoogleFonts.dmSans(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppColors.navyPrimary,
                 ),

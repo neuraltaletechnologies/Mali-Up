@@ -74,7 +74,7 @@ class _InvoiceListScreenState extends ConsumerState<InvoiceListScreen> {
           style: GoogleFonts.dmSans(
             color: Colors.white,
             fontWeight: FontWeight.w700,
-            fontSize: 18,
+            fontSize: 20,
           ),
         ),
         actions: [

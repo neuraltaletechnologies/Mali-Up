@@ -592,7 +592,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         title,
         style: GoogleFonts.dmSans(
             fontWeight: FontWeight.w700,
-            fontSize: 17,
+            fontSize: 20,
             color: Colors.white),
       ),
       leading: IconButton(

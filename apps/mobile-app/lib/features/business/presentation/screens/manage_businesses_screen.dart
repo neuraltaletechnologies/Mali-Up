@@ -507,7 +507,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                                           ? _tr('Edit business', 'Hariri biashara')
                                           : _tr('Add new business', 'Ongeza biashara mpya'),
                                       style: GoogleFonts.dmSans(
-                                        fontSize: 19,
+                                        fontSize: 18,
                                         fontWeight: FontWeight.w800,
                                         color: AppColors.navyPrimary,
                                         letterSpacing: -0.3,

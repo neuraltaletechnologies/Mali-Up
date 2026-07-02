@@ -1190,6 +1190,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                         },
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.navyPrimary,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
                           shape: RoundedRectangleBorder(
@@ -1275,6 +1276,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.navyPrimary,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
@@ -1937,6 +1939,7 @@ class _TagsCardState extends State<_TagsCard> {
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.navyPrimary,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(
@@ -2670,6 +2673,7 @@ class _AddNoteSheetState extends State<_AddNoteSheet> {
                       },
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.navyPrimary,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -2835,7 +2839,7 @@ class _EditCustomerFullSheetState
                   Text(
                     _tr('Edit Profile', 'Hariri Wasifu'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.navyPrimary),
                   ),
@@ -2927,6 +2931,7 @@ class _EditCustomerFullSheetState
                           onPressed: _saving ? null : _save,
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.navyPrimary,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
@@ -3282,6 +3287,7 @@ class _CustomerPayDebtSheetState extends State<CustomerPayDebtSheet> {
                 style: FilledButton.styleFrom(
                   backgroundColor:
                       _saving ? AppColors.border : AppColors.tealAccent,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
