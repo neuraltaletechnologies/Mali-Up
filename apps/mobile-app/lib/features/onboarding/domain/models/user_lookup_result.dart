@@ -27,6 +27,7 @@ final class ReturningUser extends UserLookupResult {
     required this.businessName,
     required this.businessType,
     required this.businessId,
+    this.businessLogo,
   });
 
   /// Firestore document ID in the `users` collection.
@@ -49,6 +50,9 @@ final class ReturningUser extends UserLookupResult {
 
   /// Firestore document ID in the `businesses` collection. Empty if no biz.
   final String businessId;
+
+  /// Business logo URL — null/empty falls back to an initials avatar.
+  final String? businessLogo;
 
   @override
   String toString() =>

@@ -1213,14 +1213,19 @@ class _InvoiceCard extends StatelessWidget {
           label: _tr('Cancelled', 'Imefutwa'),
           icon: Icons.cancel_rounded,
         ),
-        _ => (
-          bg: AppColors.infoBg,
-          text: AppColors.tealAccent,
-          label: isQuotation ? _tr('Quotation', 'Nukuu') : _tr('Sent', 'Imetumwa'),
-          icon: isQuotation
-              ? Icons.description_outlined
-              : Icons.send_rounded,
-        ),
+        _ => isQuotation
+            ? (
+                bg: AppColors.infoBg,
+                text: AppColors.tealAccent,
+                label: _tr('Quotation', 'Nukuu'),
+                icon: Icons.description_outlined,
+              )
+            : (
+                bg: AppColors.errorBg,
+                text: AppColors.error,
+                label: _tr('Unpaid', 'Haijalipwa'),
+                icon: Icons.hourglass_empty_rounded,
+              ),
       };
     }
 

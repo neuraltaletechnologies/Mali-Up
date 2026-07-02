@@ -495,7 +495,7 @@ class PlanInfoCard extends StatelessWidget {
     final growthPrice = status.definitions?[PlanTier.growth]?.pricePerMonth ?? 5000;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: isPaid
             ? const LinearGradient(
@@ -504,52 +504,118 @@ class PlanInfoCard extends StatelessWidget {
                 end: Alignment.bottomRight,
               )
             : null,
-        color: isPaid ? null : AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: isPaid ? null : Border.all(color: AppColors.border),
-        boxShadow: isPaid
-            ? [
-                BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                )
-              ]
-            : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isPaid ? Icons.stars_rounded : Icons.workspace_premium_outlined,
-                color: isPaid ? AppColors.yellowBrand : AppColors.textMuted,
-                size: 22,
-              ),
-              SizedBox(width: 10),
-              Text(
-                status.tierLabel,
-                style: GoogleFonts.dmSans(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: isPaid ? Colors.white : AppColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              if (status.expiresAt != null)
-                Text(
-                  'Hadi ${_fmt(status.expiresAt!)}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    color: isPaid
-                        ? Colors.white.withValues(alpha: 0.55)
-                        : AppColors.textMuted,
-                  ),
-                ),
-            ],
+        color: isPaid ? null : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: isPaid ? null : Border.all(color: AppColors.borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: isPaid
+                ? AppColors.navyPrimary.withValues(alpha: 0.28)
+                : AppColors.shadowCard,
+            blurRadius: isPaid ? 24 : 14,
+            offset: Offset(0, isPaid ? 10 : 4),
           ),
-          const SizedBox(height: 12),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (isPaid)
+            Positioned(
+              right: -18,
+              top: -28,
+              child: Icon(
+                Icons.stars_rounded,
+                size: 130,
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
+            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isPaid ? Colors.white.withValues(alpha: 0.14) : null,
+                      gradient: isPaid
+                          ? null
+                          : const LinearGradient(
+                              colors: [AppColors.tealAccent, AppColors.navySecondary],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                      boxShadow: isPaid
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: AppColors.tealAccent.withValues(alpha: 0.25),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                    ),
+                    child: Icon(
+                      isPaid ? Icons.stars_rounded : Icons.workspace_premium_rounded,
+                      color: isPaid ? AppColors.yellowBrand : Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'CURRENT PLAN',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                            color: isPaid
+                                ? Colors.white.withValues(alpha: 0.55)
+                                : AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          status.tierLabel,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            color: isPaid ? Colors.white : AppColors.navyPrimary,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (status.expiresAt != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isPaid
+                            ? Colors.white.withValues(alpha: 0.12)
+                            : AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Hadi ${_fmt(status.expiresAt!)}',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: isPaid
+                              ? Colors.white.withValues(alpha: 0.75)
+                              : AppColors.textMuted,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
           if (status.isStarter) ...[
             _UsageBar(status: status),
             SizedBox(height: 8),

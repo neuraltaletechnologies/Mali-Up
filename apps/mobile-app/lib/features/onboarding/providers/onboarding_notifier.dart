@@ -195,6 +195,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
             role: r.role,
             businessName: r.businessName,
             businessType: r.businessType,
+            businessLogo: r.businessLogo ?? '',
             businessId: r.businessId,
             currentStep: OnboardingStep.pinLogin,
             isLoading: false,

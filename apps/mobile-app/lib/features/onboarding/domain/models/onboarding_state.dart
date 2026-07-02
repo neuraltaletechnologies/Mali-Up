@@ -55,6 +55,7 @@ class OnboardingState {
     this.role = '',
     this.businessName = '',
     this.businessType = '',
+    this.businessLogo = '',
     this.businessId = '',
     this.businessCountry = 'TZ',
     this.businessRegion = '',
@@ -112,6 +113,7 @@ class OnboardingState {
   // ── Screen 5 ──────────────────────────────────────────────────────────────
   final String businessName;
   final String businessType;
+  final String businessLogo;
   final String businessId;
   final String businessCountry;  // ISO-2 code, default 'TZ'
   final String businessRegion;
@@ -165,6 +167,7 @@ class OnboardingState {
     String? role,
     String? businessName,
     String? businessType,
+    String? businessLogo,
     String? businessId,
     String? businessCountry,
     String? businessRegion,
@@ -198,6 +201,7 @@ class OnboardingState {
       role: role ?? this.role,
       businessName: businessName ?? this.businessName,
       businessType: businessType ?? this.businessType,
+      businessLogo: businessLogo ?? this.businessLogo,
       businessId: businessId ?? this.businessId,
       businessCountry: businessCountry ?? this.businessCountry,
       businessRegion: businessRegion ?? this.businessRegion,
@@ -234,6 +238,7 @@ class OnboardingState {
         other.role == role &&
         other.businessName == businessName &&
         other.businessType == businessType &&
+        other.businessLogo == businessLogo &&
         other.businessId == businessId &&
         other.businessCountry == businessCountry &&
         other.businessRegion == businessRegion &&
@@ -255,7 +260,7 @@ class OnboardingState {
         isReturningUser, existingUserId,
         isTeamMember, teamMemberId, teamOwnerUid, inviteId, memberEmail,
         firstName, lastName, city, role,
-        businessName, businessType, businessId,
+        businessName, businessType, businessLogo, businessId,
         businessCountry, businessRegion, businessDistrict, email,
         websiteUrl, hasWebsite, websiteInterest,
         pin, confirmPin, isLoading, errorMessage, isComplete,
