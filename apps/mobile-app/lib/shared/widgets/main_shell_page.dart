@@ -757,10 +757,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                         : 16.0,
                   ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                     decoration: BoxDecoration(
                       color: AppColors.navyPrimary,
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(26),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.28),
@@ -788,17 +788,32 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
   }
 
   Widget _buildBottomNavItem(BuildContext context, _NavDestination destination, bool isSelected, int index) {
+    const activeColor = AppColors.yellowBrand;
+    const inactiveColor = Colors.white54;
+
     return GestureDetector(
       onTap: () => context.go(destination.route),
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 48,
-        height: 48,
+        width: 64,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            SizedBox(
+              height: 12,
+              width: 32,
+              child: AnimatedOpacity(
+                opacity: isSelected ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: CustomPaint(
+                  size: const Size(32, 12),
+                  painter: _NavIndicatorPainter(color: activeColor),
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
             AnimatedSlide(
-              offset: isSelected ? const Offset(0, -0.2) : Offset.zero,
+              offset: isSelected ? const Offset(0, -0.1) : Offset.zero,
               duration: const Duration(milliseconds: 250),
               curve: Curves.easeOutCubic,
               child: AnimatedSwitcher(
@@ -808,22 +823,24 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                 child: Icon(
                   isSelected ? destination.activeIcon : destination.icon,
                   key: ValueKey<bool>(isSelected),
-                  color: isSelected ? AppColors.yellowBrand : Colors.white54,
+                  color: isSelected ? activeColor : inactiveColor,
                   size: 22,
                 ),
               ),
             ),
-            const SizedBox(height: 3),
-            AnimatedOpacity(
-              opacity: isSelected ? 1.0 : 0.0,
+            const SizedBox(height: 4),
+            AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
-              child: Container(
-                width: 5,
-                height: 5,
-                decoration: const BoxDecoration(
-                  color: AppColors.yellowBrand,
-                  shape: BoxShape.circle,
-                ),
+              style: GoogleFonts.dmSans(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? activeColor : inactiveColor,
+              ),
+              child: Text(
+                destination.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
             ),
           ],
@@ -831,6 +848,33 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
       ),
     );
   }
+}
+
+/// Draws the small upward curve that sits behind the selected tab's dot,
+/// mirroring the "bump + dot" indicator style used above active nav icons.
+class _NavIndicatorPainter extends CustomPainter {
+  final Color color;
+  const _NavIndicatorPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final curvePaint = Paint()
+      ..color = color.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path()
+      ..moveTo(0, size.height)
+      ..quadraticBezierTo(size.width / 2, -size.height * 0.5, size.width, size.height);
+    canvas.drawPath(path, curvePaint);
+
+    final dotPaint = Paint()..color = color;
+    canvas.drawCircle(Offset(size.width / 2, 0), 2.5, dotPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _NavIndicatorPainter oldDelegate) => oldDelegate.color != color;
 }
 
 class _NavDestination {

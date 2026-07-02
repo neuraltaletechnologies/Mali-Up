@@ -272,6 +272,24 @@ export interface PlanAssignment {
   cycleMonths: number
 }
 
+// Upgrade / enterprise requests submitted from the mobile app (plan_requests collection)
+export interface PlanRequest {
+  id: string
+  uid: string
+  name: string
+  phone: string
+  businessId: string
+  businessName: string
+  requestedTier: PlanTier
+  type: 'enterprise_inquiry' | 'payment_claim'
+  note: string
+  paymentRef: string
+  status: 'pending' | 'approved' | 'rejected'
+  adminNotes: string
+  createdAt: string
+  resolvedAt: string
+}
+
 export interface LookupBusinessType {
   value: string
   en: string

@@ -216,8 +216,8 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
           currentStatus: plan,
           featureKey: PlanFeatureKey.teamMembers,
           triggerReason: _tr(
-            'Your ${plan.tierLabel} plan supports up to $maxUsers user${maxUsers == 1 ? '' : 's'}. Upgrade to add more team members.',
-            'Mpango wako wa ${plan.tierLabelSw} unasaidia hadi watumiaji $maxUsers. Panda mpango kuongeza wanachama zaidi.',
+            'Your ${plan.tierLabel} plan supports up to $maxUsers user${maxUsers == 1 ? '' : 's'}.',
+            'Mpango wako wa ${plan.tierLabelSw} unasaidia hadi watumiaji $maxUsers.',
           ),
         );
         return;
