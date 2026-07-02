@@ -120,7 +120,7 @@ class _CashFlowDarkHeader extends ConsumerWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 50, 20, _pillHalf + 16),
+          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 16),
           child: Row(
             children: [
               Expanded(

@@ -294,7 +294,7 @@ class _ExpenseDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 50, 20, _pillHalf + 16),
+          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -32,6 +32,8 @@ class ManageBusinessesScreen extends StatefulWidget {
 class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late Future<Map<String, dynamic>?> _profileFuture;
+  final _searchCtrl = TextEditingController();
+  bool _searchExpanded = false;
 
   List<Map<String, dynamic>> _businessTypes = LookupService.defaultBusinessTypes;
   List<Map<String, String>> _tanzaniaCities = LookupService.defaultTanzaniaCities;
@@ -42,6 +44,12 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     super.initState();
     _profileFuture = _loadProfile();
     _loadLookups();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLookups() async {
@@ -1231,6 +1239,14 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                       _BusinessDarkHeader(
                         businessCount: businesses.length,
                         tier: tier,
+                        searchCtrl: _searchCtrl,
+                        searchExpanded: _searchExpanded,
+                        onToggleSearch: () => setState(() {
+                          _searchExpanded = !_searchExpanded;
+                          if (!_searchExpanded) {
+                            _searchCtrl.clear();
+                          }
+                        }),
                       ),
                       const SizedBox(height: _BusinessDarkHeader._pillHalf + 8),
                       Expanded(
@@ -1263,8 +1279,17 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 class _BusinessDarkHeader extends StatelessWidget {
   final int businessCount;
   final PlanTier tier;
+  final TextEditingController searchCtrl;
+  final bool searchExpanded;
+  final VoidCallback onToggleSearch;
 
-  const _BusinessDarkHeader({required this.businessCount, required this.tier});
+  const _BusinessDarkHeader({
+    required this.businessCount,
+    required this.tier,
+    required this.searchCtrl,
+    required this.searchExpanded,
+    required this.onToggleSearch,
+  });
 
   static const double _pillHalf = 22.0;
 
@@ -1337,15 +1362,94 @@ class _BusinessDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 50, 20, _pillHalf + 16),
-          child: Text(
-            _tr('Businesses', 'Biashara'),
-            style: GoogleFonts.dmSans(
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: -0.5,
-            ),
+          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _tr('Businesses', 'Biashara'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: onToggleSearch,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: searchExpanded
+                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                            : Colors.white12,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: searchExpanded ? AppColors.yellowBrand : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        searchExpanded ? Icons.close_rounded : Icons.search_rounded,
+                        color: searchExpanded ? AppColors.yellowBrand : Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: searchExpanded
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: SizedBox(
+                          height: 44,
+                          child: TextField(
+                            controller: searchCtrl,
+                            autofocus: true,
+                            style: GoogleFonts.dmSans(
+                                fontSize: 14, color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: _tr(
+                                'Search by name or category…',
+                                'Tafuta kwa jina au kategoria…',
+                              ),
+                              hintStyle: GoogleFonts.dmSans(
+                                  fontSize: 14, color: Colors.white38),
+                              prefixIcon: const Icon(Icons.search_rounded,
+                                  size: 18, color: Colors.white54),
+                              filled: true,
+                              fillColor: Colors.white12,
+                              contentPadding: EdgeInsets.zero,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: Colors.white24),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AppColors.yellowBrand, width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
           ),
         ),
         Positioned(
@@ -1427,6 +1531,7 @@ class _BusinessRow extends StatelessWidget {
     final place = (business['placeOfBusiness'] as String?)?.trim() ?? '';
     final logoUrl = (business['logoUrl'] as String?)?.trim();
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'B';
+    final hasLogo = logoUrl != null && logoUrl.isNotEmpty;
 
     return GestureDetector(
       onTap: onTap,
@@ -1438,20 +1543,47 @@ class _BusinessRow extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
-                    color: isActive ? AppColors.navyPrimary : AppColors.yellowBrand,
+                    color: hasLogo
+                        ? Colors.transparent
+                        : (isActive ? AppColors.navyPrimary : AppColors.yellowBrand),
                     shape: BoxShape.circle,
+                    border: hasLogo
+                        ? Border.all(
+                            color: AppColors.border,
+                            width: 1,
+                          )
+                        : null,
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: (logoUrl != null && logoUrl.isNotEmpty)
+                  child: hasLogo
                       ? Image.network(
                           logoUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _LogoInitial(initial: initial),
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null
+                                  ? child
+                                  : Center(
+                                      child: SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          value: progress.expectedTotalBytes != null
+                                              ? progress.cumulativeBytesLoaded /
+                                                  progress.expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                          errorBuilder: (_, __, ___) =>
+                              _LogoInitial(initial: initial),
                         )
-                      : _LogoInitial(initial: initial),
+                      : Center(
+                          child: _LogoInitial(initial: initial),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

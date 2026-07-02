@@ -5219,7 +5219,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 50),
+      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
