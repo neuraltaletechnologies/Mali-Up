@@ -33,6 +33,15 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = "mali-up-key"
+            keyPassword = System.getenv("KEYSTORE_PASSWORD") ?: "MaliUp@2026Key"
+            storeFile = file("keystore/mali-up-release.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "MaliUp@2026Key"
+        }
+    }
+
     buildTypes {
         release {
             // Enable code obfuscation and resource shrinking
@@ -40,9 +49,8 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
 
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use release signing config for Google Play
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

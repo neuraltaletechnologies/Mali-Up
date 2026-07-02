@@ -63,6 +63,7 @@ ios/*.p8
 # Android keystore
 android/app/*.keystore
 android/app/*.jks
+android/app/keystore/
 android/key.properties
 
 # Secrets
