@@ -18,6 +18,7 @@ import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../config/routing.dart';
 import '../../../onboarding/providers/onboarding_notifier.dart';
+import 'account_details_screen.dart';
 import 'subscription_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -102,7 +103,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _switchAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(_tr('Sign out?', 'Toka kwenye akaunti?')),
+        content: Text(_tr(
+          'You will be signed out and can log in with a different account.',
+          'Utatoka kwenye akaunti hii na unaweza kuingia kwa akaunti nyingine.',
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(_tr('Cancel', 'Ghairi')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: Text(_tr('Sign out', 'Toka')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
     ref.read(onboardingNotifierProvider.notifier).resetToPhoneEntry();
     if (!mounted) return;
     context.go(AppRouter.phonePath, extra: {'switchAccount': true});
@@ -498,11 +524,7 @@ class _ProfileAndPlanCard extends ConsumerWidget {
         child: Column(
           children: [
             // ── Blue gradient section (profile + plan) ──────────
-            GestureDetector(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-              ),
-              child: Container(
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -514,8 +536,13 @@ class _ProfileAndPlanCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Profile row
-                  Row(
+                  // Profile row — opens account details for editing name/email/PIN.
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AccountDetailsScreen()),
+                    ),
+                    child: Row(
                     children: [
                       Container(
                         width: 40,
@@ -568,7 +595,9 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {},
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const AccountDetailsScreen()),
+                        ),
                         child: Icon(
                           Icons.edit_outlined,
                           color: Colors.white.withValues(alpha: 0.40),
@@ -576,54 +605,64 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                         ),
                       ),
                     ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Divider(
-                      color: Colors.white.withValues(alpha: 0.10),
-                      height: 1,
                     ),
                   ),
-                  // Plan section
-                  planAsync.when(
-                      loading: () => _PlanCardBody(
-                        planName: 'Starter',
-                        statusLabel: tr('Loading…', 'Inapakia…'),
-                        isStarter: true,
-                        pct: 0,
-                        invoicesUsed: 0,
-                        invoiceLimit: 10,
-                        expiresAt: null,
-                        tr: tr,
-                      ),
-                      error: (err, st) => _PlanCardBody(
-                        planName: 'Starter',
-                        statusLabel: tr('Free plan', 'Mpango wa bure'),
-                        isStarter: true,
-                        pct: 0,
-                        invoicesUsed: 0,
-                        invoiceLimit: 10,
-                        expiresAt: null,
-                        tr: tr,
-                      ),
-                      data: (s) => _PlanCardBody(
-                        planName: s.tierLabel,
-                        statusLabel: s.isStarter
-                            ? tr('Free plan · Limited features', 'Mpango wa bure · Vipengele vichache')
-                            : tr('Active subscription', 'Usajili unaofanya kazi'),
-                        isStarter: s.isStarter,
-                        pct: s.isStarter
-                            ? (s.invoicesUsedThisMonth / s.limits.monthlyInvoices).clamp(0.0, 1.0)
-                            : 1.0,
-                        invoicesUsed: s.invoicesUsedThisMonth,
-                        invoiceLimit: s.limits.monthlyInvoices,
-                        expiresAt: s.expiresAt,
-                        tr: tr,
-                      ),
+                  // Plan section — tapping opens the subscription screen.
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
                     ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Divider(
+                            color: Colors.white.withValues(alpha: 0.10),
+                            height: 1,
+                          ),
+                        ),
+                        planAsync.when(
+                          loading: () => _PlanCardBody(
+                            planName: 'Starter',
+                            statusLabel: tr('Loading…', 'Inapakia…'),
+                            isStarter: true,
+                            pct: 0,
+                            invoicesUsed: 0,
+                            invoiceLimit: 10,
+                            expiresAt: null,
+                            tr: tr,
+                          ),
+                          error: (err, st) => _PlanCardBody(
+                            planName: 'Starter',
+                            statusLabel: tr('Free plan', 'Mpango wa bure'),
+                            isStarter: true,
+                            pct: 0,
+                            invoicesUsed: 0,
+                            invoiceLimit: 10,
+                            expiresAt: null,
+                            tr: tr,
+                          ),
+                          data: (s) => _PlanCardBody(
+                            planName: s.tierLabel,
+                            statusLabel: s.isStarter
+                                ? tr('Free plan · Limited features', 'Mpango wa bure · Vipengele vichache')
+                                : tr('Active subscription', 'Usajili unaofanya kazi'),
+                            isStarter: s.isStarter,
+                            pct: s.isStarter
+                                ? (s.invoicesUsedThisMonth / s.limits.monthlyInvoices).clamp(0.0, 1.0)
+                                : 1.0,
+                            invoicesUsed: s.invoicesUsedThisMonth,
+                            invoiceLimit: s.limits.monthlyInvoices,
+                            expiresAt: s.expiresAt,
+                            tr: tr,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
             ),
             // ── Switch Account (white section) ──────────────────
             Container(

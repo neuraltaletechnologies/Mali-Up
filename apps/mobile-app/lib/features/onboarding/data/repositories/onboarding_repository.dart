@@ -75,6 +75,7 @@ class OnboardingRepository {
         String businessName = '';
         String businessType = '';
         String businessId = '';
+        String? businessLogo;
 
         if (businessSnap.docs.isNotEmpty) {
           final businessDoc = businessSnap.docs[0];
@@ -82,6 +83,7 @@ class OnboardingRepository {
           businessId = businessDoc.id;
           businessName = (businessData['businessName'] as String?) ?? '';
           businessType = (businessData['businessType'] as String?) ?? '';
+          businessLogo = (businessData['logoUrl'] as String?)?.trim();
         }
 
         final fullName = (userData['name'] as String?) ?? '';
@@ -98,6 +100,7 @@ class OnboardingRepository {
           businessName: businessName,
           businessType: businessType,
           businessId: businessId,
+          businessLogo: businessLogo,
         );
       }
 

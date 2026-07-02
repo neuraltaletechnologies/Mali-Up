@@ -279,6 +279,8 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
                               const SizedBox(height: 24),
                               _BusinessCard(
                                 businessName: state.businessName,
+                                businessType: state.businessType,
+                                logoUrl: state.businessLogo,
                                 role: state.role,
                                 isSwahili: sw,
                               ),
@@ -423,16 +425,23 @@ class _PinLoginScreenState extends ConsumerState<PinLoginScreen>
 class _BusinessCard extends StatelessWidget {
   const _BusinessCard({
     required this.businessName,
+    required this.businessType,
+    required this.logoUrl,
     required this.role,
     required this.isSwahili,
   });
 
   final String businessName;
+  final String businessType;
+  final String logoUrl;
   final String role;
   final bool isSwahili;
 
   @override
   Widget build(BuildContext context) {
+    final initial =
+        businessName.trim().isNotEmpty ? businessName.trim()[0].toUpperCase() : 'M';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -445,12 +454,19 @@ class _BusinessCard extends StatelessWidget {
           Container(
             width: 44,
             height: 44,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: AppColors.yellowBrand,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.storefront_rounded,
-                color: AppColors.navyPrimary, size: 22),
+            child: logoUrl.isNotEmpty
+                ? Image.network(
+                    logoUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        _BusinessCardInitial(initial: initial),
+                  )
+                : _BusinessCardInitial(initial: initial),
           ),
           SizedBox(width: 14),
           Expanded(
@@ -467,23 +483,23 @@ class _BusinessCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (role.isNotEmpty) ...[
-                  SizedBox(height: 3),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.navySecondary.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Text(
-                      role,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.navySecondary,
-                      ),
-                    ),
+                if (businessType.isNotEmpty || role.isNotEmpty) ...[
+                  SizedBox(height: 5),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      if (businessType.isNotEmpty)
+                        _CardBadge(
+                          label: businessType,
+                          color: AppColors.tealAccent,
+                        ),
+                      if (role.isNotEmpty)
+                        _CardBadge(
+                          label: role,
+                          color: AppColors.navySecondary,
+                        ),
+                    ],
                   ),
                 ],
               ],
@@ -492,6 +508,53 @@ class _BusinessCard extends StatelessWidget {
           const Icon(Icons.verified_rounded,
               color: AppColors.success, size: 18),
         ],
+      ),
+    );
+  }
+}
+
+class _BusinessCardInitial extends StatelessWidget {
+  const _BusinessCardInitial({required this.initial});
+  final String initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AppColors.yellowBrand,
+      child: Center(
+        child: Text(
+          initial,
+          style: GoogleFonts.dmSans(
+            color: AppColors.navyPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CardBadge extends StatelessWidget {
+  const _CardBadge({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.dmSans(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }

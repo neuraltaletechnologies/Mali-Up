@@ -142,19 +142,21 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-[240px] bg-[var(--navy)] border-r border-white/[0.07] flex flex-col z-30">
       {/* Brand */}
-      <div className="px-5 py-5 border-b border-white/[0.07]">
-        <div className="flex items-center gap-2.5">
+      <div className="relative px-5 pt-6 pb-5">
+        <div className="flex items-center gap-3">
           <img
             src="/mali_up_wordmark.png"
             alt="Mali Up"
-            className="h-8 w-8 rounded-full shrink-0"
-            style={{ boxShadow: '0 0 12px rgba(255,193,7,0.25)' }}
+            className="h-8 w-8 rounded-full shrink-0 ring-1 ring-white/[0.12]"
           />
-          <div>
-            <div className="text-white text-[14px] font-semibold leading-none tracking-tight">Mali Up</div>
-            <div className="text-[10px] mt-0.5" style={{ color: 'rgba(255,193,7,0.6)' }}>Admin Console</div>
+          <div className="min-w-0">
+            <div className="text-white text-[14.5px] font-semibold leading-none tracking-tight">Mali Up</div>
+            <div className="text-[9.5px] mt-1.5 font-medium uppercase tracking-[0.16em] text-slate-500">
+              Admin Console
+            </div>
           </div>
         </div>
+        <div className="absolute inset-x-5 bottom-0 h-px bg-gradient-to-r from-white/[0.09] to-transparent" />
       </div>
 
       {/* Nav */}

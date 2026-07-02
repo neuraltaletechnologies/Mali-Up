@@ -28,16 +28,18 @@ class SubscriptionScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
+        centerTitle: false,
         title: Text(
           _t('My Plan', 'Mpango Wangu'),
           style: GoogleFonts.dmSans(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
             color: AppColors.navyPrimary,
+            letterSpacing: -0.3,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.navyPrimary),
+          icon: const Icon(Icons.arrow_back_ios_rounded, size: 18, color: AppColors.navyPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -121,9 +123,19 @@ class SubscriptionScreen extends ConsumerWidget {
 
             // ── Upgrade CTA (Starter only) ─────────────────────
             if (status.isStarter)
-              SizedBox(
+              Container(
                 width: double.infinity,
-                height: 52,
+                height: 54,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.yellowBrand.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
                 child: ElevatedButton(
                   onPressed: () => _openUpgrade(context, ref, status),
                   style: ElevatedButton.styleFrom(
@@ -133,10 +145,17 @@ class SubscriptionScreen extends ConsumerWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: Text(
-                    _t('Upgrade my plan', 'Boresha mpango wangu'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 15, fontWeight: FontWeight.w800),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _t('Upgrade my plan', 'Boresha mpango wangu'),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
                   ),
                 ),
               ),
@@ -163,12 +182,12 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        label,
+        label.toUpperCase(),
         style: GoogleFonts.dmSans(
-          fontSize: 13,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           color: AppColors.textMuted,
-          letterSpacing: 0.5,
+          letterSpacing: 1.1,
         ),
       );
 }
@@ -193,11 +212,18 @@ class _UsageMeter extends StatelessWidget {
             : AppColors.success;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,21 +233,25 @@ class _UsageMeter extends StatelessWidget {
             children: [
               Text(label,
                   style: GoogleFonts.dmSans(
-                      fontSize: 14, fontWeight: FontWeight.w600)),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navyPrimary)),
               Text(
                 '$used / $limit',
                 style: GoogleFonts.dmSans(
-                    fontSize: 13, color: AppColors.textSecondary),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 8,
-              backgroundColor: AppColors.border,
+              backgroundColor: AppColors.surfaceVariant,
               valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
@@ -297,8 +327,15 @@ class _ComparisonTable extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -314,7 +351,7 @@ class _ComparisonTable extends StatelessWidget {
                   (i) => Expanded(
                     flex: 2,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: tiers[i] == currentTier
                           ? const BoxDecoration(
                               color: AppColors.navyPrimary,
@@ -322,6 +359,26 @@ class _ComparisonTable extends StatelessWidget {
                           : null,
                       child: Column(
                         children: [
+                          if (tiers[i] == currentTier) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.yellowBrand,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                _t('CURRENT', 'SASA'),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.navyPrimary,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
                           Text(
                             tierNames[i],
                             style: GoogleFonts.dmSans(
@@ -475,21 +532,43 @@ class _FaqState extends State<_Faq> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowCard,
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          leading: Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: _open
+                  ? AppColors.navyPrimary
+                  : AppColors.surfaceVariant,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.help_outline_rounded,
+              size: 15,
+              color: _open ? Colors.white : AppColors.textMuted,
+            ),
+          ),
           title: Text(
             widget.q,
             style: GoogleFonts.dmSans(
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary),
+                fontWeight: FontWeight.w700,
+                color: AppColors.navyPrimary),
           ),
           trailing: Icon(
             _open ? Icons.expand_less_rounded : Icons.expand_more_rounded,
