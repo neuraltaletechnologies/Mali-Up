@@ -263,7 +263,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
           _tr('Sales Return', 'Kurudisha Bidhaaa'),
           style: GoogleFonts.dmSans(
               fontWeight: FontWeight.w700,
-              fontSize: 17,
+              fontSize: 20,
               color: Colors.white),
         ),
         leading: IconButton(

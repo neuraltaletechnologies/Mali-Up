@@ -28,7 +28,7 @@ class LegalComplianceScreen extends StatelessWidget {
           style: GoogleFonts.dmSans(
             color: AppColors.secondary,
             fontWeight: FontWeight.w800,
-            fontSize: 17,
+            fontSize: 20,
           ),
         ),
       ),

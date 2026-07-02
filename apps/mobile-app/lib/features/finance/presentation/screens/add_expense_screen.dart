@@ -410,7 +410,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           ? _tr('Edit Expense', 'Hariri Gharama')
                           : _tr('New Expense', 'Gharama Mpya'),
                       style: GoogleFonts.dmSans(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: AppColors.navyPrimary),
                     ),

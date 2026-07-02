@@ -1357,9 +1357,11 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
         ? const Color(0xFF34D399)
         : const Color(0xFFF87171);
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
         child: AspectRatio(
           aspectRatio: 85.6 / 53.98,
           child: Container(
@@ -1615,7 +1617,8 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

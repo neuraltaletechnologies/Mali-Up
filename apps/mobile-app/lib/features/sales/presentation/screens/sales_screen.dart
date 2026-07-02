@@ -2302,7 +2302,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             child: Text(
               _tr('New Sale', 'Mauzo Mapya'),
               style: GoogleFonts.dmSans(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppColors.navyPrimary),
             ),
@@ -2460,11 +2460,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               child: Row(
                 children: [
                   const Icon(Icons.person_add_outlined,
-                      size: 18, color: AppColors.primary),
+                      size: 18, color: AppColors.navyPrimary),
                   SizedBox(width: 10),
                   Text(_tr('Add new customer', 'Ongeza mteja mpya'),
                       style: GoogleFonts.dmSans(
-                          color: AppColors.primary,
+                          color: AppColors.navyPrimary,
                           fontWeight: FontWeight.w700,
                           fontSize: 13)),
                 ],
@@ -2534,20 +2534,20 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             padding:
                 const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.07),
+              color: AppColors.navyPrimary.withValues(alpha: 0.06),
               border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.3)),
+                  color: AppColors.navyPrimary.withValues(alpha: 0.25)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.add_circle_outline_rounded,
-                    size: 18, color: AppColors.primary),
+                    size: 18, color: AppColors.navyPrimary),
                 SizedBox(width: 8),
                 Text(_tr('Add Item', 'Ongeza Bidhaaa'),
                     style: GoogleFonts.dmSans(
-                        color: AppColors.primary,
+                        color: AppColors.navyPrimary,
                         fontWeight: FontWeight.w700,
                         fontSize: 13)),
               ],
@@ -2692,16 +2692,16 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.07),
+                    color: AppColors.navyPrimary.withValues(alpha: 0.06),
                     border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3)),
+                        color: AppColors.navyPrimary.withValues(alpha: 0.25)),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.add_circle_outline_rounded,
-                          size: 15, color: AppColors.primary),
+                          size: 15, color: AppColors.navyPrimary),
                       SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -2711,7 +2711,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.dmSans(
-                              color: AppColors.primary,
+                              color: AppColors.navyPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 12),
                         ),
@@ -2979,73 +2979,102 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
   Widget _buildTotalsSection() {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: AppColors.shadowCard,
+              blurRadius: 6,
+              offset: Offset(0, 1)),
+        ],
       ),
       child: Column(
         children: [
-          _TotalRow(
-              label: _tr('Subtotal', 'Jumla Bidhaaa'),
-              value: 'TSh ${_subtotal.toStringAsFixed(0)}'),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _discountCtrl,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
-            ],
-            onChanged: (_) => setState(() {}),
-            decoration: _fieldDec(
-              label: _tr('Discount (TSh, optional)', 'Punguzo (TSh, hiari)'),
-              prefix: Icons.discount_outlined,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Column(
+              children: [
+                _TotalRow(
+                    label: _tr('Subtotal', 'Jumla Bidhaaa'),
+                    value: 'TSh ${_subtotal.toStringAsFixed(0)}'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _discountCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                  ],
+                  onChanged: (_) => setState(() {}),
+                  decoration: _fieldDec(
+                    label: _tr(
+                        'Discount (TSh, optional)', 'Punguzo (TSh, hiari)'),
+                    prefix: Icons.discount_outlined,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.receipt_long_rounded,
+                        size: 16, color: AppColors.tealAccent),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                          _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500)),
+                    ),
+                    Switch.adaptive(
+                      value: _vatEnabled,
+                      onChanged: (v) => setState(() => _vatEnabled = v),
+                      activeThumbColor: AppColors.tealAccent,
+                      activeTrackColor:
+                          AppColors.tealAccent.withValues(alpha: 0.4),
+                    ),
+                  ],
+                ),
+                if (_vatEnabled) ...[
+                  const SizedBox(height: 4),
+                  _TotalRow(
+                      label: 'VAT (18%)',
+                      value: 'TSh ${_vatAmt.toStringAsFixed(0)}'),
+                ],
+                const SizedBox(height: 12),
+              ],
             ),
           ),
-          SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                    _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
+          // Grand total — pulled out as its own banded row so the number a
+          // cashier actually needs to read is unmissable at a glance.
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: const BoxDecoration(
+              color: AppColors.navyPrimary,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(_tr('TOTAL', 'JUMLA KUU'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500)),
-              ),
-              Switch.adaptive(
-                value: _vatEnabled,
-                onChanged: (v) => setState(() => _vatEnabled = v),
-                activeThumbColor: AppColors.tealAccent,
-                activeTrackColor:
-                    AppColors.tealAccent.withValues(alpha: 0.4),
-              ),
-            ],
-          ),
-          if (_vatEnabled)
-            _TotalRow(
-                label: 'VAT (18%)',
-                value: 'TSh ${_vatAmt.toStringAsFixed(0)}'),
-          Divider(color: AppColors.border, height: 16),
-          Row(
-            children: [
-              Text(_tr('TOTAL', 'JUMLA KUU'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyPrimary)),
-              Spacer(),
-              Text(
-                'TSh ${_grandTotal.toStringAsFixed(0)}',
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navyPrimary,
-                    letterSpacing: -0.5),
-              ),
-            ],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white70,
+                        letterSpacing: 1)),
+                Text(
+                  'TSh ${_grandTotal.toStringAsFixed(0)}',
+                  style: GoogleFonts.jetBrainsMono(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: -0.5),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -3319,7 +3348,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide:
-                const BorderSide(color: AppColors.primary, width: 2)),
+                const BorderSide(color: AppColors.navyPrimary, width: 1.5)),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       );
@@ -3533,7 +3562,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               Text(
                 _tr('Add New Product', 'Ongeza Bidhaaa Mpya'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: AppColors.secondary),
               ),
@@ -3602,7 +3631,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
                             borderSide: const BorderSide(
-                                color: AppColors.primary, width: 2)),
+                                color: AppColors.navyPrimary, width: 1.5)),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 14),
                       ),
@@ -3682,7 +3711,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide:
-                  const BorderSide(color: AppColors.primary, width: 2)),
+                  const BorderSide(color: AppColors.navyPrimary, width: 1.5)),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),

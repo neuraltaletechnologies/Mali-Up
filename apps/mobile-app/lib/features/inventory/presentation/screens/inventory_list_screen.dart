@@ -502,7 +502,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                       child: Text(
                         _tr('Add New Item', 'Ongeza Bidhaa Mpya'),
                         style: GoogleFonts.dmSans(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: AppColors.navyPrimary,
                         ),

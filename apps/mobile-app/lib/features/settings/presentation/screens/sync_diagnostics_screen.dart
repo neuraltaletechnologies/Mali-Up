@@ -53,7 +53,7 @@ class SyncDiagnosticsScreen extends ConsumerWidget {
           style: GoogleFonts.dmSans(
             color: Colors.white,
             fontWeight: FontWeight.w600,
-            fontSize: 18,
+            fontSize: 20,
           ),
         ),
         actions: [
