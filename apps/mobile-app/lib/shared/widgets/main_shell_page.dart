@@ -680,6 +680,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
 
         return Scaffold(
           extendBodyBehindAppBar: true,
+          extendBody: true,
           drawerScrimColor: Colors.transparent,
           appBar: PreferredSize(
             preferredSize: Size.fromHeight(54 + MediaQuery.of(context).padding.top),
@@ -769,6 +770,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                         ),
                       ],
                     ),
+                    clipBehavior: Clip.antiAlias,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: List.generate(destinations.length, (index) {

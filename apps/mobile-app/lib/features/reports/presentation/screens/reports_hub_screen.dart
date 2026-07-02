@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/reports_providers.dart';
 
@@ -28,7 +29,7 @@ class ReportsHubScreen extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 0),
+              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + AppTheme.headerTopPadding, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

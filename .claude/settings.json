@@ -15,7 +15,15 @@
       "Bash(cd /c/SIDE/GIT/Maliapp/apps/mobile-app && find lib -name \"*.dart\" -type f | wc -l)",
       "Read(//c/c/SIDE/GIT/Maliapp/apps/mobile-app/**)",
       "PowerShell(netstat -ano)",
-      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://maliup.neuraltale.com/delete-account)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://mali-up.nt7y6jqm4n.workers.dev/delete-account)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://maliup.neuraltale.com/privacy)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://mali-up.nt7y6jqm4n.workers.dev/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://mali-up.nt7y6jqm4n.workers.dev/terms)",
+      "Bash(curl -s https://mali-up.nt7y6jqm4n.workers.dev/delete-account)",
+      "Bash(curl -s https://mali-up.nt7y6jqm4n.workers.dev/privacy)",
+      "Bash(wait)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

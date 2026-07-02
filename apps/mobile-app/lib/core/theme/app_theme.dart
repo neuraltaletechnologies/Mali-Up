@@ -7,6 +7,11 @@ import 'app_colors.dart';
 /// Typography: DM Sans (body/UI), DM Serif Display (hero amounts via AmountDisplay widget),
 /// JetBrains Mono (monetary values via AmountDisplay widget).
 class AppTheme {
+  // ── Spacing / Layout ──
+  static const double headerTopPadding = 16.0;
+  static const double pageHorizontalPadding = 20.0;
+  static const double pageVerticalPadding = 32.0;
+
   // ── Shadow Definitions ──
 
   static List<BoxShadow> get cardShadow => [
