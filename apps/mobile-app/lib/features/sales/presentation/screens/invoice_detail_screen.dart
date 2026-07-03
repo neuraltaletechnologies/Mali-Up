@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
@@ -122,6 +123,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   Future<void> _updateStatus(String newStatus) async {
+    // Status changes write straight to Firestore — online-only for now.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     setState(() => _updating = true);
     try {
       final scope = await resolveSalesScope(ref);
@@ -173,6 +177,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   /// commits everything atomically.
   Future<void> _convertToInvoice() async {
     if (!_isQuotation) return;
+    // Conversion commits an atomic Firestore batch — online-only for now.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     setState(() => _updating = true);
     try {
       final scope = await resolveSalesScope(ref);
@@ -267,6 +274,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   Future<void> _recordPayment() async {
+    // Payments move invoice + customer balances via server increments —
+    // online-only for now.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final result = await showAppSheet<Map<String, dynamic>>(
       context,
       backgroundColor: Colors.white,

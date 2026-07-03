@@ -293,6 +293,20 @@ class SyncService extends ChangeNotifier {
       return;
     }
 
+    if (entry.operation == 'balance_delta') {
+      // Offline credit sales queue balance increments so concurrent sessions
+      // compose on the server exactly like online sale batches do.
+      final payload = jsonDecode(entry.payload) as Map<String, dynamic>;
+      final delta = (payload['balanceDelta'] as num?)?.toDouble() ?? 0;
+      if (delta != 0) {
+        final serverTs = await _remoteCustomer
+            .applyBalanceDeltaAndGetTimestamp(entry.entityId, delta);
+        await _localCustomer.markSynced(entry.entityId, serverTs);
+      }
+      await _queue.markCompleted(entry.id);
+      return;
+    }
+
     // Conflict check
     final serverData = await _remoteCustomer.fetchRaw(entry.entityId);
     if (serverData != null) {
@@ -520,6 +534,12 @@ class SyncService extends ChangeNotifier {
   }
 
   Future<void> _pullCustomers(int sinceMs) async {
+    // While balance deltas from offline sales are still queued, the server
+    // balances don't include them yet — pulling now would make local balances
+    // jump backwards (same guard as cash accounts). Push runs first, so this
+    // only skips a cycle when the push couldn't complete.
+    if (await _queue.hasPendingForType('customer')) return;
+
     final updates = await _remoteCustomer.fetchUpdatedSince(sinceMs);
     for (final update in updates) {
       final localRaw = await _localCustomer.getRawById(update.id);

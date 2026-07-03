@@ -59,7 +59,8 @@
       "Bash(xargs -0 grep -l \"buildNextjsApp\")",
       "Bash(tee /tmp/deploy.log)",
       "Bash(curl -s -L -o /dev/null -w \"admin -> follows to: %{url_effective} \\(%{http_code}\\)\\\\n\" https://maliup.neuraltale.com/admin)",
-      "Bash(curl -s https://maliup.neuraltale.com/delete-account)"
+      "Bash(curl -s https://maliup.neuraltale.com/delete-account)",
+      "Bash(grep -E \" - \\(lib|test\\)\\\\\\\\\\\\\\\\\" b98j6gd0n.output)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

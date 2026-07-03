@@ -16,6 +16,7 @@ import '../../../../core/services/sentry_metrics_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
@@ -24,7 +25,11 @@ import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../customer/presentation/widgets/add_customer_dialog.dart';
+import '../../../debt/data/debt_providers.dart';
+import '../../../debt/domain/models/debt.dart';
 import '../../../inventory/data/inventory_providers.dart';
+import '../../../inventory/domain/models/inventory_item.dart';
+import '../../../inventory/presentation/providers/inventory_providers.dart';
 import '../../../invoice/data/mappers/invoice_mapper.dart';
 import '../../../invoice/domain/models/invoice.dart';
 import '../../../invoice/presentation/providers/invoice_providers.dart';
@@ -1950,19 +1955,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
     setState(() => _isSaving = true);
     final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
 
     try {
-      final scope = await resolveSalesScope(ref);
-      if (scope == null) throw Exception('Not logged in');
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final role = ref.read(currentUserRoleProvider);
-
-      final invoicesRef = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'sales_invoices');
-
       final now = DateTime.now();
       final invoiceId = const Uuid().v4();
       final invoiceNumber =
@@ -1993,6 +1987,100 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final notes = _notesCtrl.text.trim();
       final mpesaRef = _mpesaRefCtrl.text.trim();
       final outstanding = _grandTotal - amountPaid;
+
+      final invoiceItems = _items
+          .map((e) => InvoiceItem(
+                id: '',
+                name: e.nameCtrl.text.trim(),
+                quantity: e.qty.toDouble(),
+                unitPrice: e.unitPrice,
+                total: e.lineTotal,
+              ))
+          .toList();
+      final invoiceObj = Invoice(
+        id: invoiceId,
+        customerId: _selectedCustomer?.id ?? '',
+        customerName: customerName ?? '',
+        customerPhone: _selectedCustomer?.phone ?? '',
+        invoiceNumber: invoiceNumber,
+        date: now.toIso8601String(),
+        dueDate: _dueDate?.toIso8601String() ?? '',
+        status: statusStr,
+        subtotal: _subtotal,
+        discountAmount: _discountAmt,
+        tax: _vatAmt,
+        total: _grandTotal,
+        amountPaid: amountPaid,
+        paymentMethod:
+            payStatus != _PayStatus.unpaid ? _payMethod.firestoreKey : '',
+        items: invoiceItems,
+        note: notes,
+        createdAt: now.toIso8601String(),
+        updatedAt: now.toIso8601String(),
+      );
+
+      // Offline: commit the sale to Drift + the sync queue instead of the
+      // Firestore batch (whose commit() would never resolve without a
+      // connection). SyncService pushes everything when connectivity returns.
+      if (!await OnlineGuard.isDeviceOnline()) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) throw Exception('Not logged in');
+
+        await ref.read(invoiceRepositoryProvider).save(invoiceObj);
+
+        // Stock deductions as deltas so concurrent sessions compose on push.
+        for (final e in _items) {
+          if (e.selectedItem == null) continue;
+          final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
+          if (itemId.isEmpty) continue;
+          await ref
+              .read(inventoryRepositoryProvider)
+              .adjustQuantity(itemId, -e.qty.toDouble());
+        }
+
+        // Credit sale: queued balance increment + receivable record.
+        if (_selectedCustomer != null && outstanding > 0) {
+          await ref
+              .read(customerRepositoryProvider)
+              .adjustBalance(_selectedCustomer!.id, outstanding);
+          await ref.read(debtRepositoryProvider).save(Debt(
+                id: '',
+                partyName: _selectedCustomer!.name,
+                partyPhone: _selectedCustomer!.phone,
+                partyId: _selectedCustomer!.id,
+                type: 'receivable',
+                originalAmount: _grandTotal,
+                paidAmount: amountPaid,
+                dueDate: _dueDate?.toIso8601String().split('T').first ?? '',
+                invoiceRef: invoiceNumber,
+                note: notes,
+                createdBy: user.uid,
+                createdAt: now.toIso8601String(),
+              ));
+        }
+
+        await _showQuickSaleReceipt(
+          invoiceNumber: invoiceNumber,
+          customerName: customerName,
+          itemsData: itemsData,
+          amountPaid: amountPaid,
+          payStatus: payStatus,
+          mpesaRef: mpesaRef,
+          statusStr: statusStr,
+          now: now,
+        );
+        return;
+      }
+
+      final scope = await resolveSalesScope(ref);
+      if (scope == null) throw Exception('Not logged in');
+      final repo = ref.read(contextFirestoreRepositoryProvider);
+      final role = ref.read(currentUserRoleProvider);
+
+      final invoicesRef = repo.scopeCollection(
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'sales_invoices');
 
       // One atomic batch: invoice + stock deduction + customer balance +
       // debt record all commit together, so a crash or permission failure
@@ -2120,37 +2208,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         final bizId =
             ref.read(currentBusinessIdProvider).valueOrNull ?? '';
         final db = ref.read(appDatabaseProvider);
-        final invoiceItems = _items
-            .map((e) => InvoiceItem(
-                  id: '',
-                  name: e.nameCtrl.text.trim(),
-                  quantity: e.qty.toDouble(),
-                  unitPrice: e.unitPrice,
-                  total: e.lineTotal,
-                ))
-            .toList();
-        final invoiceObj = Invoice(
-          id: invoiceId,
-          customerId: _selectedCustomer?.id ?? '',
-          customerName: customerName ?? '',
-          customerPhone: _selectedCustomer?.phone ?? '',
-          invoiceNumber: invoiceNumber,
-          date: now.toIso8601String(),
-          dueDate: _dueDate?.toIso8601String() ?? '',
-          status: statusStr,
-          subtotal: _subtotal,
-          discountAmount: _discountAmt,
-          tax: _vatAmt,
-          total: _grandTotal,
-          amountPaid: amountPaid,
-          paymentMethod: payStatus != _PayStatus.unpaid
-              ? _payMethod.firestoreKey
-              : '',
-          items: invoiceItems,
-          note: notes,
-          createdAt: now.toIso8601String(),
-          updatedAt: now.toIso8601String(),
-        );
         final nowMs = now.millisecondsSinceEpoch;
         await db.invoiceDao.upsert(
           InvoiceMapper.toCompanion(
@@ -2170,10 +2227,6 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         unawaited(Sentry.captureException(e, stackTrace: st));
       }
 
-      SentryMetricsService.salesCreated(
-        amount: _grandTotal,
-        status: statusStr,
-      );
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,
         businessId: scope.businessId,
@@ -2189,39 +2242,16 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       // in the sales list without waiting for the next connectivity event.
       unawaited(ref.read(syncServiceProvider).syncNow());
 
-      // Build a plain data map for the receipt popup — no server timestamps,
-      // just the values we already have in memory.
-      final saleReceipt = <String, dynamic>{
-        'invoiceNumber': invoiceNumber,
-        'customerName': customerName,
-        'items': itemsData,
-        'subtotal': _subtotal,
-        'discountAmount': _discountAmt,
-        'vatAmount': _vatAmt,
-        'amount': _grandTotal,
-        'amountPaid': amountPaid,
-        if (payStatus != _PayStatus.unpaid)
-          'paymentMethod': _payMethod.firestoreKey,
-        if (mpesaRef.isNotEmpty) 'mpesaRef': mpesaRef,
-        'status': statusStr,
-        'createdAt': now,
-      };
-
-      if (!mounted) return;
-      await Navigator.of(context, rootNavigator: true).push<void>(
-        PageRouteBuilder(
-          pageBuilder: (_, _, _) =>
-              _SaleSuccessScreen(saleData: saleReceipt, ref: ref),
-          transitionsBuilder: (_, animation, _, child) => FadeTransition(
-            opacity:
-                CurvedAnimation(parent: animation, curve: Curves.easeIn),
-            child: child,
-          ),
-          transitionDuration: const Duration(milliseconds: 250),
-        ),
+      await _showQuickSaleReceipt(
+        invoiceNumber: invoiceNumber,
+        customerName: customerName,
+        itemsData: itemsData,
+        amountPaid: amountPaid,
+        payStatus: payStatus,
+        mpesaRef: mpesaRef,
+        statusStr: statusStr,
+        now: now,
       );
-      if (!mounted) return;
-      navigator.pop();
     } catch (e, st) {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
@@ -2230,6 +2260,59 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           content: Text(_tr(
               'Failed to save. Try again.', 'Imeshindikana. Jaribu tena.'))));
     }
+  }
+
+  /// Shared success tail for the online and offline quick-sale paths:
+  /// records the metric, shows the receipt popup, then closes the sheet.
+  Future<void> _showQuickSaleReceipt({
+    required String invoiceNumber,
+    required String? customerName,
+    required List<Map<String, dynamic>> itemsData,
+    required double amountPaid,
+    required _PayStatus payStatus,
+    required String mpesaRef,
+    required String statusStr,
+    required DateTime now,
+  }) async {
+    SentryMetricsService.salesCreated(
+      amount: _grandTotal,
+      status: statusStr,
+    );
+
+    // Build a plain data map for the receipt popup — no server timestamps,
+    // just the values we already have in memory.
+    final saleReceipt = <String, dynamic>{
+      'invoiceNumber': invoiceNumber,
+      'customerName': customerName,
+      'items': itemsData,
+      'subtotal': _subtotal,
+      'discountAmount': _discountAmt,
+      'vatAmount': _vatAmt,
+      'amount': _grandTotal,
+      'amountPaid': amountPaid,
+      if (payStatus != _PayStatus.unpaid)
+        'paymentMethod': _payMethod.firestoreKey,
+      if (mpesaRef.isNotEmpty) 'mpesaRef': mpesaRef,
+      'status': statusStr,
+      'createdAt': now,
+    };
+
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    await Navigator.of(context, rootNavigator: true).push<void>(
+      PageRouteBuilder(
+        pageBuilder: (_, _, _) =>
+            _SaleSuccessScreen(saleData: saleReceipt, ref: ref),
+        transitionsBuilder: (_, animation, _, child) => FadeTransition(
+          opacity:
+              CurvedAnimation(parent: animation, curve: Curves.easeIn),
+          child: child,
+        ),
+        transitionDuration: const Duration(milliseconds: 250),
+      ),
+    );
+    if (!mounted) return;
+    navigator.pop();
   }
 
   void _snack(String msg) =>
@@ -3506,32 +3589,26 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     final navigator = Navigator.of(context);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Not logged in');
-
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final ctx = await repo.resolveContextForUser(user.uid);
-      final inventoryRef = repo.scopeCollection(
-          uid: user.uid,
-          context: ctx,
-          childCollection: 'inventory_items');
-
-      final docRef = await inventoryRef.add({
-        'name': name,
-        'unitPrice': price,
-        'category': category.isNotEmpty ? category : 'General',
-        'currentStock': stock,
-        'reorderPoint': 5,
-        'unit': _selectedUnit,
-        if (_skuCtrl.text.trim().isNotEmpty) 'sku': _skuCtrl.text.trim(),
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Offline-first: Drift + sync queue, same as the inventory screen —
+      // works with no connection and pushes to Firestore on reconnect.
+      final id = const Uuid().v4();
+      final nowIso = DateTime.now().toIso8601String();
+      await ref.read(inventoryRepositoryProvider).save(InventoryItem(
+            id: id,
+            name: name,
+            category: category.isNotEmpty ? category : 'General',
+            sku: _skuCtrl.text.trim(),
+            currentStock: stock.toDouble(),
+            reorderPoint: 5,
+            unitPrice: price,
+            unit: _selectedUnit,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          ));
 
       navigator.pop();
       widget.onAdded({
-        'id': docRef.id,
+        'id': id,
         'name': name,
         'unitPrice': price,
         'category': category.isNotEmpty ? category : 'General',
@@ -3862,6 +3939,10 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
   // ── Actions ───────────────────────────────────────────────────────────────────
 
   Future<void> _markPaid() async {
+    // Payment settlement moves customer balances via server increments —
+    // keep it online-only for now (offline sales themselves still work).
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     setState(() => _updating = true);
     try {
       final scope = await resolveSalesScope(ref);

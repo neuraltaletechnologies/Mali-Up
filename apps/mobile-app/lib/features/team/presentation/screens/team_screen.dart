@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
@@ -1096,6 +1097,11 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
     final normalizedPhone =
         rawPhone.isNotEmpty ? OnboardingValidator.normalisePhone(rawPhone) : '';
+
+    // Inviting a member writes the invite + pending-invite lookup docs that
+    // staff login depends on — this must reach the server, so online-only.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
 
     setState(() => _isSaving = true);
     final navigator = Navigator.of(context);
