@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
@@ -223,6 +224,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
   // ── Save ────────────────────────────────────────────────────────────────────
 
   Future<void> _save({required bool asDraft}) async {
+    // The full editor (drafts, quotations, edits) commits an atomic Firestore
+    // batch — online-only for now. Offline sales go through Quick Sale.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     if (_items.every((i) => i.productName.trim().isEmpty)) {
       _showSnack(_tr('Add at least one item', 'Ongeza bidhaaa angalau moja'));
       return;

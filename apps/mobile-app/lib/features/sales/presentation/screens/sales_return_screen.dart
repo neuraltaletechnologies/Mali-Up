@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
@@ -103,6 +104,10 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
           'Chagua bidhaa ya kubadilishana'));
       return;
     }
+    // Returns commit an atomic Firestore batch (stock restore + credit note
+    // + balances) — online-only for now.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     setState(() => _saving = true);
 
     try {

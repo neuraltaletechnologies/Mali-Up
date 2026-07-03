@@ -108,6 +108,34 @@ class SyncCustomerRepository implements CustomerRepository {
     return toSave;
   }
 
+  /// Adjusts the customer balance by [delta] locally and queues a server-side
+  /// FieldValue.increment, so an offline credit sale updates the balance the
+  /// same way an online sale batch does (mirrors inventory quantity_delta).
+  Future<void> adjustBalance(String id, double delta) async {
+    _policy.assertCanWrite();
+    final existing = await _local.getById(id);
+    final newBalance = (existing?.balanceAmount ?? 0) + delta;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final payload = jsonEncode({'balanceDelta': delta});
+
+    await _db.transaction(() async {
+      await _local.updateBalance(id, newBalance);
+      await _queue.enqueue(
+        SyncQueueTableCompanion(
+          operationId: Value(const Uuid().v4()),
+          entityType: const Value('customer'),
+          entityId: Value(id),
+          operation: const Value('balance_delta'),
+          payload: Value(payload),
+          checksum: Value(SyncUtils.sha256(payload)),
+          localVersion: const Value(0),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+  }
+
   @override
   Future<void> delete(String id) async {
     _policy.assertCanWrite();

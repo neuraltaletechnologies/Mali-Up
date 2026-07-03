@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/services/plan_request_service.dart';
 import '../../core/services/plan_service.dart';
+import '../../core/utils/online_guard.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_sheet.dart';
 import 'mali_components.dart';
@@ -175,7 +176,11 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   int get _priceMonthly => _selLimits.pricePerMonth;
   int get _priceCycle   => _selLimits.pricePerCycle;
 
-  void _openPayment() {
+  Future<void> _openPayment() async {
+    // The payment claim must reach Firestore (admin portal activates the
+    // plan from it) — don't start the flow without a connection.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final tierName = _selected == PlanTier.growth ? 'GROWTH' : 'BUSINESS';
     setState(() {
       _paymentRef =
@@ -187,6 +192,10 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   /// Records the payment claim in Firestore (visible in the admin portal)
   /// before closing the sheet. Best-effort — activation is manual either way.
   Future<void> _finishPayment() async {
+    // Without a connection PlanRequestService.submit would hang forever
+    // (Firestore persistence is disabled) — bail out with the offline notice.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     setState(() => _submittingClaim = true);
     try {
       await PlanRequestService.submit(
@@ -690,6 +699,9 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
   }
 
   Future<void> _submit() async {
+    // Enterprise inquiries write to Firestore — online-only.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     setState(() {
       _state = _EnterpriseFormState.submitting;
       _error = null;

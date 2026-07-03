@@ -31,6 +31,21 @@ class RemoteCustomerRepository {
     return DateTime.now().millisecondsSinceEpoch;
   }
 
+  /// Applies a balance delta via FieldValue.increment so offline sales from
+  /// concurrent sessions compose correctly (mirrors the inventory
+  /// quantity_delta op). Also stamps lastTransactionDate like online sales do.
+  Future<int> applyBalanceDeltaAndGetTimestamp(String id, double delta) async {
+    await _collection.doc(id).set({
+      'balance': FieldValue.increment(delta),
+      'lastTransactionDate': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    final snap = await _collection.doc(id).get();
+    final ts = snap.data()?['updatedAt'];
+    if (ts is Timestamp) return ts.millisecondsSinceEpoch;
+    return DateTime.now().millisecondsSinceEpoch;
+  }
+
   Future<void> delete(String id) => _collection.doc(id).delete();
 
   Future<Map<String, dynamic>?> fetchRaw(String id) async {
