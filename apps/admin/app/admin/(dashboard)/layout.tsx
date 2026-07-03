@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
 import { Sidebar } from '@/components/layout/sidebar'
 import { TopBar } from '@/components/layout/topbar'
 
@@ -6,7 +8,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth()
+  if (!session) {
+    redirect('/admin/login')
+  }
+
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)] text-[13px]">
       <Sidebar />
