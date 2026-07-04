@@ -386,12 +386,28 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Not logged in');
 
+      // Only persist the account side(s) the type actually uses — the
+      // defaultAccount prefill sets both, and a stale id on the unused side
+      // would attribute the transaction to the wrong account.
+      final fromId = (_type == 'withdrawal' || _type == 'transfer')
+          ? (_fromAccountId ?? '')
+          : '';
+      final toId = (_type == 'deposit' || _type == 'transfer')
+          ? (_toAccountId ?? '')
+          : '';
+      if (_type == 'transfer' && fromId == toId) {
+        throw Exception(_t(
+          'Transfer accounts must differ',
+          'Akaunti za kuhamisha lazima zitofautiane',
+        ));
+      }
+
       final txn = CashTransaction(
         id: '',
         type: _type,
         amount: double.parse(_amountController.text.trim()),
-        fromAccountId: _fromAccountId ?? '',
-        toAccountId: _toAccountId ?? '',
+        fromAccountId: fromId,
+        toAccountId: toId,
         description: _descController.text.trim(),
         date: _dateController.text,
         reference: _referenceController.text.trim(),

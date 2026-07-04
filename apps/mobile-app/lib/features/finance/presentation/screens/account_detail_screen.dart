@@ -10,6 +10,7 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
 import '../../data/cash_flow_providers.dart';
+import '../../data/finance_providers.dart';
 import '../widgets/add_transaction_dialog.dart';
 import 'reconciliation_screen.dart';
 
@@ -24,13 +25,20 @@ class AccountDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the live row so the balance updates after adding a transaction —
+    // the constructor argument is only a snapshot from navigation time.
+    final liveMatches = ref
+        .watch(cashAccountListProvider)
+        .maybeWhen(data: (d) => d, orElse: () => const <CashAccount>[])
+        .where((a) => a.id == account.id);
+    final liveAccount = liveMatches.isEmpty ? account : liveMatches.first;
     final transactions = ref.watch(accountTransactionsProvider(account.id));
     final reconciliations = ref.watch(accountReconciliationsProvider(account.id));
     final lastRecon = reconciliations.isNotEmpty ? reconciliations.first : null;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(account.name),
+        title: Text(liveAccount.name),
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -41,7 +49,7 @@ class AccountDetailScreen extends ConsumerWidget {
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => ReconciliationScreen(account: account),
+                builder: (_) => ReconciliationScreen(account: liveAccount),
               ),
             ),
           ),
@@ -50,7 +58,7 @@ class AccountDetailScreen extends ConsumerWidget {
       body: Column(
         children: [
           // Account summary header
-          _AccountHeader(account: account, lastReconDate: lastRecon?.date),
+          _AccountHeader(account: liveAccount, lastReconDate: lastRecon?.date),
 
           // Transaction list
           Expanded(
@@ -77,7 +85,7 @@ class AccountDetailScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () => showAppSheet(
           context,
-          builder: (_) => AddTransactionDialog(defaultAccount: account),
+          builder: (_) => AddTransactionDialog(defaultAccount: liveAccount),
         ),
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: AppColors.secondary),

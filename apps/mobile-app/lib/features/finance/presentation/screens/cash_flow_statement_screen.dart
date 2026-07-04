@@ -70,7 +70,7 @@ class CashFlowStatementScreen extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    '${netFlow >= 0 ? '+' : ''}${_fmtAmt(netFlow)}',
+                    '${netFlow >= 0 ? '+' : '-'}${_fmtAmt(netFlow)}',
                     style: GoogleFonts.dmSans(
                       color: netFlow >= 0 ? const Color(0xFF6EE7B7) : const Color(0xFFFCA5A5),
                       fontSize: 22,
@@ -434,7 +434,7 @@ class _SummaryRow extends StatelessWidget {
           ),
         ),
         Text(
-          _fmtAmt(value),
+          '${value < 0 ? '-' : ''}${_fmtAmt(value)}',
           style: GoogleFonts.dmSans(
             color: color,
             fontSize: bold ? 16 : 13,
