@@ -183,7 +183,7 @@ class OnboardingRepository {
     required String pin,
   }) async {
     final derivedEmail = _emailFromPhone(phone);
-    final password = buildAuthPasswordFromPin(pin);
+    final password = buildAuthPasswordFromPin(phone: phone, pin: pin);
 
     late FirebaseAuthException notFoundError;
     try {
@@ -225,7 +225,7 @@ class OnboardingRepository {
     String inviteId = '',
   }) async {
     final email = _emailFromPhone(phone);
-    final password = buildAuthPasswordFromPin(pin);
+    final password = buildAuthPasswordFromPin(phone: phone, pin: pin);
 
     UserCredential cred;
     try {
@@ -444,7 +444,7 @@ class OnboardingRepository {
     required String pin,
   }) async {
     final email = _emailFromPhone(phone);
-    final password = buildAuthPasswordFromPin(pin);
+    final password = buildAuthPasswordFromPin(phone: phone, pin: pin);
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
         email: email,

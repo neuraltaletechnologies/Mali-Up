@@ -63,7 +63,7 @@ class AuthService {
       return PhoneConfirmationResult._();
     } catch (e) {
       if (kDebugMode) {
-        print('Phone verification error: $e');
+        debugPrint('Phone verification error: $e');
       }
       rethrow;
     }
@@ -77,7 +77,7 @@ class AuthService {
       return await _auth.signInWithCredential(credential);
     } catch (e) {
       if (kDebugMode) {
-        print('Sign in with credential error: $e');
+        debugPrint('Sign in with credential error: $e');
       }
       rethrow;
     }
@@ -98,7 +98,7 @@ class AuthService {
       return await signInWithCredential(credential);
     } catch (e) {
       if (kDebugMode) {
-        print('Sign in with phone number error: $e');
+        debugPrint('Sign in with phone number error: $e');
       }
       rethrow;
     }
@@ -193,13 +193,13 @@ class AuthService {
       await batch.commit();
 
       if (kDebugMode) {
-        print('User profile created successfully for userId: $userId');
+        debugPrint('User profile created successfully for userId: $userId');
       }
 
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('Error creating user profile: $e');
+        debugPrint('Error creating user profile: $e');
       }
       rethrow;
     }
@@ -233,7 +233,7 @@ class AuthService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error updating user profile: $e');
+        debugPrint('Error updating user profile: $e');
       }
       rethrow;
     }
@@ -249,7 +249,7 @@ class AuthService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting user profile: $e');
+        debugPrint('Error getting user profile: $e');
       }
       rethrow;
     }
@@ -270,7 +270,7 @@ class AuthService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting user by phone: $e');
+        debugPrint('Error getting user by phone: $e');
       }
       rethrow;
     }
@@ -291,7 +291,7 @@ class AuthService {
       return hasBusinessName && hasDisplayName;
     } catch (e) {
       if (kDebugMode) {
-        print('Error checking onboarding status: $e');
+        debugPrint('Error checking onboarding status: $e');
       }
       return false;
     }
@@ -307,7 +307,7 @@ class AuthService {
       await _auth.signOut();
     } catch (e) {
       if (kDebugMode) {
-        print('Error signing out: $e');
+        debugPrint('Error signing out: $e');
       }
       rethrow;
     }
@@ -360,7 +360,7 @@ class AuthService {
       await currentUser?.delete();
     } catch (e) {
       if (kDebugMode) {
-        print('Error deleting account: $e');
+        debugPrint('Error deleting account: $e');
       }
       rethrow;
     }
@@ -377,7 +377,7 @@ class AuthService {
       return currentUser?.getIdToken();
     } catch (e) {
       if (kDebugMode) {
-        print('Error refreshing ID token: $e');
+        debugPrint('Error refreshing ID token: $e');
       }
       rethrow;
     }
@@ -389,7 +389,7 @@ class AuthService {
       return await currentUser?.getIdToken();
     } catch (e) {
       if (kDebugMode) {
-        print('Error getting ID token: $e');
+        debugPrint('Error getting ID token: $e');
       }
       rethrow;
     }

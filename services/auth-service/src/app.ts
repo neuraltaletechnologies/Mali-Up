@@ -3,12 +3,25 @@ import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
+import rateLimit from '@fastify/rate-limit';
 import autoload from '@fastify/autoload';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Fail fast rather than silently signing every JWT with a public,
+// hardcoded string if the operator forgets to set JWT_SECRET.
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET environment variable must be set — refusing to start with an insecure default.');
+}
+
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 export const buildApp = async () => {
   const app = fastify({
@@ -21,9 +34,16 @@ export const buildApp = async () => {
 
   // Core Plugins
   await app.register(helmet);
-  await app.register(cors, { origin: true });
-  await app.register(jwt, {
-    secret: process.env.JWT_SECRET || 'neuraltale-shhh-dont-tell-anyone-it-is-a-secret',
+  await app.register(cors, {
+    // Reflects every origin if none are configured, so local/dev setups
+    // keep working — set CORS_ALLOWED_ORIGINS in production.
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+  });
+  await app.register(jwt, { secret: jwtSecret });
+  await app.register(rateLimit, {
+    global: true,
+    max: 100,
+    timeWindow: '1 minute',
   });
 
   // Autoload Plugins
