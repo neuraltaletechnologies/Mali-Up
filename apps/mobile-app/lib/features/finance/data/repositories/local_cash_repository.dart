@@ -45,6 +45,8 @@ class LocalCashRepository {
       );
 
   Future<void> softDeleteAccount(String id) => _dao.softDeleteAccount(id);
+  Future<void> applyRemoteAccountDeletion(String id, int serverUpdatedAtMs) =>
+      _dao.applyRemoteAccountDeletion(id, serverUpdatedAt: serverUpdatedAtMs);
   Future<void> markAccountSynced(String id, int serverUpdatedAtMs) =>
       _dao.markAccountSynced(id, serverUpdatedAt: serverUpdatedAtMs);
   Future<void> adjustAccountBalance(String id, double delta) =>

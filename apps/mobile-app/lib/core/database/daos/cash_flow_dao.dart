@@ -50,6 +50,20 @@ class CashFlowDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Applies a deletion that already happened on the server (a pulled
+  /// tombstone) — unlike [softDeleteAccount] there is nothing left to push.
+  Future<void> applyRemoteAccountDeletion(String id,
+      {required int serverUpdatedAt}) async {
+    await (update(cashAccountsTable)..where((t) => t.id.equals(id))).write(
+      CashAccountsTableCompanion(
+        isDeleted: const Value(1),
+        syncStatus: const Value('synced'),
+        serverUpdatedAt: Value(serverUpdatedAt),
+        updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
+  }
+
   Future<void> markAccountSynced(String id,
       {required int serverUpdatedAt}) async {
     await (update(cashAccountsTable)..where((t) => t.id.equals(id))).write(
