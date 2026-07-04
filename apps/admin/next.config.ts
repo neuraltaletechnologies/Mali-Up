@@ -44,7 +44,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/admin/:path*',
+        // Applies to every route — public marketing pages and /api/admin/*
+        // previously shipped with no CSP/X-Frame-Options/HSTS at all.
+        source: '/:path*',
         headers: securityHeaders,
       },
     ]
