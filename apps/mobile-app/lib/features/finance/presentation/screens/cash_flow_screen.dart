@@ -22,11 +22,14 @@ import 'cash_flow_statement_screen.dart';
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 final _numFmt = NumberFormat('#,###', 'en_US');
-String _fmtAmt(double v) => 'TSh ${_numFmt.format(v)}';
+String _fmtAmt(double v) =>
+    '${v < 0 ? '-' : ''}TZS ${_numFmt.format(v.abs())}';
 String _fmtCompact(double v) {
-  if (v >= 1000000) return 'TSh ${(v / 1000000).toStringAsFixed(1)}M';
-  if (v >= 1000) return 'TSh ${(v / 1000).toStringAsFixed(0)}K';
-  return _fmtAmt(v);
+  final sign = v < 0 ? '-' : '';
+  final a = v.abs();
+  if (a >= 1000000) return '${sign}TZS ${(a / 1000000).toStringAsFixed(1)}M';
+  if (a >= 1000) return '${sign}TZS ${(a / 1000).toStringAsFixed(0)}K';
+  return '${sign}TZS ${_numFmt.format(a)}';
 }
 
 class CashFlowScreen extends ConsumerStatefulWidget {

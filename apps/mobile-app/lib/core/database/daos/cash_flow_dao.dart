@@ -88,7 +88,10 @@ class CashFlowDao extends DatabaseAccessor<AppDatabase>
     return (select(cashTransactionsTable)
           ..where((t) =>
               t.businessId.equals(businessId) & t.isDeleted.equals(0))
-          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.date),
+            (t) => OrderingTerm.desc(t.createdAt),
+          ]))
         .watch();
   }
 
