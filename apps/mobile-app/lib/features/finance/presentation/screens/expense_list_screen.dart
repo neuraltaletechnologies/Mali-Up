@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
@@ -143,15 +144,17 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAdd,
-        backgroundColor: AppColors.yellowBrand,
-        foregroundColor: AppColors.navyPrimary,
-        elevation: 3,
-        icon: Icon(Icons.receipt_long_rounded, size: 20),
-        label: Text(
-          _tr('Add Expense', 'Ongeza Matumizi'),
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+      floatingActionButton: NavAwareFab(
+        child: FloatingActionButton.extended(
+          onPressed: _openAdd,
+          backgroundColor: AppColors.yellowBrand,
+          foregroundColor: AppColors.navyPrimary,
+          elevation: 3,
+          icon: Icon(Icons.receipt_long_rounded, size: 20),
+          label: Text(
+            _tr('Add Expense', 'Ongeza Matumizi'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          ),
         ),
       ),
       body: Column(

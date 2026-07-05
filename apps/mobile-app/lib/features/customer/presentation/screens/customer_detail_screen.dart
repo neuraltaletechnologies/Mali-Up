@@ -12,6 +12,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../rbac/data/audit_log_service.dart';
@@ -2370,15 +2371,17 @@ class _NotesTab extends ConsumerWidget {
           Positioned(
             bottom: 20,
             right: 16,
-            child: FloatingActionButton.extended(
-              heroTag: 'add-note-fab',
-              onPressed: onAddNote,
-              backgroundColor: AppColors.navyPrimary,
-              icon: Icon(Icons.add_rounded, color: Colors.white),
-              label: Text(
-                _tr('Add Note', 'Ongeza Logi'),
-                style: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.w700, color: Colors.white),
+            child: NavAwareFab(
+              child: FloatingActionButton.extended(
+                heroTag: 'add-note-fab',
+                onPressed: onAddNote,
+                backgroundColor: AppColors.navyPrimary,
+                icon: Icon(Icons.add_rounded, color: Colors.white),
+                label: Text(
+                  _tr('Add Note', 'Ongeza Logi'),
+                  style: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.w700, color: Colors.white),
+                ),
               ),
             ),
           ),

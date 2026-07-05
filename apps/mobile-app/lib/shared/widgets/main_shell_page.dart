@@ -18,6 +18,7 @@ import '../../features/rbac/data/rbac_providers.dart';
 import '../../features/rbac/domain/permission_service.dart';
 import '../../features/team/domain/models/team_member.dart';
 import 'app_sheet.dart';
+import 'nav_aware_fab.dart';
 
 class MainShellPage extends ConsumerStatefulWidget {
   final Widget child;
@@ -735,7 +736,15 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
               ),
             ),
           ),
-          body: widget.child,
+          body: Builder(
+            // With extendBody, Scaffold injects the bottom nav's height into
+            // the body's MediaQuery padding — republish it as NavBarLift so
+            // FABs (whose slot strips MediaQuery padding) can clear the nav.
+            builder: (bodyContext) => NavBarLift(
+              lift: MediaQuery.of(bodyContext).padding.bottom,
+              child: widget.child,
+            ),
+          ),
           bottomNavigationBar: ValueListenableBuilder<int>(
             valueListenable: sheetOpenNotifier,
             builder: (_, sheetCount, child) => ClipRect(

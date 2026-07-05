@@ -13,6 +13,7 @@ import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -114,16 +115,18 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
 
     return Scaffold(
       floatingActionButton: ps.isOwner
-          ? FloatingActionButton.extended(
-              onPressed: () => _tryInvite(context),
-              backgroundColor: AppColors.yellowBrand,
-              foregroundColor: AppColors.navyPrimary,
-              elevation: 3,
-              icon: Icon(Icons.person_add_rounded, size: 20),
-              label: Text(
-                _tr('Add Member', 'Ongeza Mwanachama'),
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, fontWeight: FontWeight.w700),
+          ? NavAwareFab(
+              child: FloatingActionButton.extended(
+                onPressed: () => _tryInvite(context),
+                backgroundColor: AppColors.yellowBrand,
+                foregroundColor: AppColors.navyPrimary,
+                elevation: 3,
+                icon: Icon(Icons.person_add_rounded, size: 20),
+                label: Text(
+                  _tr('Add Member', 'Ongeza Mwanachama'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.w700),
+                ),
               ),
             )
           : null,

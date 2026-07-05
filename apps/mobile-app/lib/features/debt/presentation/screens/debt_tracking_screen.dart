@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
@@ -227,16 +228,18 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
-        backgroundColor: AppColors.yellowBrand,
-        foregroundColor: AppColors.navyPrimary,
-        icon: Icon(Icons.add_rounded),
-        label: Text(
-          _tabCtrl.index == 0
-              ? _tr('Add Receivable', 'Ongeza Dai')
-              : _tr('Add Payable', 'Ongeza Deni'),
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+      floatingActionButton: NavAwareFab(
+        child: FloatingActionButton.extended(
+          onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
+          backgroundColor: AppColors.yellowBrand,
+          foregroundColor: AppColors.navyPrimary,
+          icon: Icon(Icons.add_rounded),
+          label: Text(
+            _tabCtrl.index == 0
+                ? _tr('Add Receivable', 'Ongeza Dai')
+                : _tr('Add Payable', 'Ongeza Deni'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          ),
         ),
       ),
     );
@@ -297,7 +300,7 @@ class _DebtDarkHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _tr('Debt Tracker', 'Ufuatiliaji wa Madeni'),
+                          _tr('Debt Tracker', 'Madeni'),
                           style: GoogleFonts.dmSans(
                             fontSize: 30,
                             fontWeight: FontWeight.w800,

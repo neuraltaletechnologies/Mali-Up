@@ -21,6 +21,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
@@ -266,19 +267,21 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     return Scaffold(
       floatingActionButton: !ps.canCreateSale
           ? null
-          : Builder(
-              builder: (ctx) => FloatingActionButton.extended(
-                onPressed: () => _showNewSaleSheet(ctx),
-                backgroundColor: AppColors.yellowBrand,
-                foregroundColor: AppColors.navyPrimary,
-                elevation: 3,
-                icon: Icon(Icons.add_rounded, size: 22),
-                label: Text(
-                  _tr('New Sale', 'Mauzo Mapya'),
-                  style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navyPrimary),
+          : NavAwareFab(
+              child: Builder(
+                builder: (ctx) => FloatingActionButton.extended(
+                  onPressed: () => _showNewSaleSheet(ctx),
+                  backgroundColor: AppColors.yellowBrand,
+                  foregroundColor: AppColors.navyPrimary,
+                  elevation: 3,
+                  icon: Icon(Icons.add_rounded, size: 22),
+                  label: Text(
+                    _tr('New Sale', 'Mauzo Mapya'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.navyPrimary),
+                  ),
                 ),
               ),
             ),

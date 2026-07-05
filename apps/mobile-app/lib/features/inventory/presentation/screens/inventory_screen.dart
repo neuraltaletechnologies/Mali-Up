@@ -12,6 +12,7 @@ import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/barcode_scanner_screen.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../catalog/presentation/screens/catalog_search_screen.dart';
 import '../../../catalog/presentation/widgets/add_product_choice_sheet.dart';
 import '../../../sales/presentation/screens/sales_return_screen.dart';
@@ -350,15 +351,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         (_sort != SortOption.nameAz ? 1 : 0);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAdd(context),
-        backgroundColor: AppColors.yellowBrand,
-        foregroundColor: AppColors.navyPrimary,
-        elevation: 3,
-        icon: Icon(Icons.inventory_2_rounded, size: 20),
-        label: Text(
-          _tr('Add Product', 'Ongeza Bidhaa'),
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+      floatingActionButton: NavAwareFab(
+        child: FloatingActionButton.extended(
+          onPressed: () => _openAdd(context),
+          backgroundColor: AppColors.yellowBrand,
+          foregroundColor: AppColors.navyPrimary,
+          elevation: 3,
+          icon: Icon(Icons.inventory_2_rounded, size: 20),
+          label: Text(
+            _tr('Add Product', 'Ongeza Bidhaa'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
