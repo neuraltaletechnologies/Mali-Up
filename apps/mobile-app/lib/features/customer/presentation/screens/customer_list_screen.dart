@@ -1337,7 +1337,7 @@ class _EditCustomerSheetState extends ConsumerState<_EditCustomerSheet> {
                     controller: _emailCtrl,
                     keyboardType: TextInputType.emailAddress,
                     decoration: _dec(
-                        _tr('Email (Optional)', 'Barua pepe (Hiari)'),
+                        _tr('Email (Optional)', 'Barua pepe '),
                         Icons.email_outlined),
                   ),
                   if (_isOrg) ...[
