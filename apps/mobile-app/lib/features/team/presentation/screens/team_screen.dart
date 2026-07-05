@@ -1315,7 +1315,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
 
                           OnboardingField(
                             controller: _emailCtrl,
-                            label: _tr('Email (optional)', 'Barua pepe (hiari)'),
+                            label: _tr('Email (optional)', 'Barua pepe '),
                             hint: _tr('you@example.com', 'jina@mfano.com'),
                             keyboardType: TextInputType.emailAddress,
                             prefix: const Icon(Icons.alternate_email_rounded,

@@ -288,7 +288,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                               OnboardingField(
                                 controller: _emailCtrl,
                                 label: sw
-                                    ? 'BARUA PEPE (HIARI)'
+                                    ? 'BARUA PEPE '
                                     : 'EMAIL (OPTIONAL)',
                                 hint: sw ? 'jina@mfano.com' : 'you@example.com',
                                 keyboardType: TextInputType.emailAddress,
