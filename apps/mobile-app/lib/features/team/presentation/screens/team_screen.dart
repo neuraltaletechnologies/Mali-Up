@@ -1030,7 +1030,6 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     with SingleTickerProviderStateMixin {
   final _formKey  = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
@@ -1059,7 +1058,6 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
   void dispose() {
     _animCtrl.dispose();
     _nameCtrl.dispose();
-    _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
@@ -1087,16 +1085,13 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     final name = _nameCtrl.text.trim();
 
     final rawPhone = _phoneCtrl.text.trim();
-    if (rawPhone.isNotEmpty) {
-      final phoneError = OnboardingValidator.validatePhone(rawPhone);
-      if (phoneError != null) {
-        _snack(phoneError);
-        return;
-      }
+    final phoneError = OnboardingValidator.validatePhone(rawPhone);
+    if (phoneError != null) {
+      _snack(phoneError);
+      return;
     }
 
-    final normalizedPhone =
-        rawPhone.isNotEmpty ? OnboardingValidator.normalisePhone(rawPhone) : '';
+    final normalizedPhone = OnboardingValidator.normalisePhone(rawPhone);
 
     // Inviting a member writes the invite + pending-invite lookup docs that
     // staff login depends on — this must reach the server, so online-only.
@@ -1129,7 +1124,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
         context: ctx,
         data: {
           'name': name,
-          'email': _emailCtrl.text.trim(),
+          'email': '',
           'phone': storedPhone,
           'role': _selectedRole.name,
           'customPermissions': permNames,
@@ -1156,7 +1151,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
             'businessName': bizName,
             'fullName': name,
             'phoneNumber': normalizedPhone,
-            'email': _emailCtrl.text.trim(),
+            'email': '',
             'role': _selectedRole.name,
             'invitedBy': user.uid,
             'ownerUid': user.uid,
@@ -1177,7 +1172,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
         final member = TeamMember(
           id: memberRef.id,
           name: name,
-          email: _emailCtrl.text.trim(),
+          email: '',
           phone: storedPhone,
           role: _selectedRole,
           customPermissions: permsToStore,
@@ -1314,22 +1309,14 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                           const SizedBox(height: 16),
 
                           OnboardingField(
-                            controller: _emailCtrl,
-                            label: _tr('Email (optional)', 'Barua pepe '),
-                            hint: _tr('you@example.com', 'jina@mfano.com'),
-                            keyboardType: TextInputType.emailAddress,
-                            prefix: const Icon(Icons.alternate_email_rounded,
-                                size: 18, color: AppColors.textMuted),
-                          ),
-                          const SizedBox(height: 16),
-
-                          OnboardingField(
                             controller: _phoneCtrl,
-                            label: _tr('Phone (optional)', 'Simu (hiari)'),
+                            label: _tr('Phone Number *', 'Namba ya Simu *'),
                             hint: '+255 700 000 000',
                             keyboardType: TextInputType.phone,
                             prefix: const Icon(Icons.phone_outlined,
                                 size: 18, color: AppColors.textMuted),
+                            validator: (v) => OnboardingValidator.validatePhone(
+                                v ?? ''),
                           ),
                           const SizedBox(height: 24),
 

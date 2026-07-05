@@ -284,12 +284,10 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                               ),
                               const SizedBox(height: 16),
 
-                              // Email (optional)
+                              // Email (required)
                               OnboardingField(
                                 controller: _emailCtrl,
-                                label: sw
-                                    ? 'BARUA PEPE '
-                                    : 'EMAIL (OPTIONAL)',
+                                label: sw ? 'BARUA PEPE' : 'EMAIL',
                                 hint: sw ? 'jina@mfano.com' : 'you@example.com',
                                 keyboardType: TextInputType.emailAddress,
                                 textInputAction: TextInputAction.done,
@@ -298,7 +296,7 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                     size: 18,
                                     color: AppColors.textMuted),
                                 validator: (v) => OnboardingValidator.validateEmail(
-                                    v ?? '', isSwahili: sw),
+                                    v ?? '', isSwahili: sw, optional: false),
                                 onFieldSubmitted: (_) => _submit(),
                               ),
                               SizedBox(height: 8),

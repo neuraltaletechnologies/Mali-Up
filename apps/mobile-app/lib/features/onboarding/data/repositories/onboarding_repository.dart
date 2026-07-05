@@ -223,6 +223,7 @@ class OnboardingRepository {
     required String businessId,
     required String memberId,
     String inviteId = '',
+    String realEmail = '',
   }) async {
     final email = _emailFromPhone(phone);
     final password = buildAuthPasswordFromPin(phone: phone, pin: pin);
@@ -257,6 +258,7 @@ class OnboardingRepository {
       'name': name,
       'firstName': firstName,
       'lastName': lastName,
+      'email': realEmail,
       'role': role,
       'isTeamMember': true,
       'ownerUid': ownerUid,
@@ -292,6 +294,7 @@ class OnboardingRepository {
           'updatedAt': FieldValue.serverTimestamp(),
           'role': role,
           'permissions': permissions,
+          if (realEmail.isNotEmpty) 'email': realEmail,
         },
         SetOptions(merge: true),
       );
