@@ -400,6 +400,19 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
       await batch.commit();
 
+      // Mirror the stock deduction into Drift immediately so product numbers
+      // update on screen without waiting for a sync pull (which can miss the
+      // write when the device clock runs ahead of the server).
+      if (confirmingNow) {
+        try {
+          final db = ref.read(appDatabaseProvider);
+          for (final item in _items.where((i) => i.productId.isNotEmpty)) {
+            await db.inventoryDao
+                .applyCommittedDelta(item.productId, -item.qty.toDouble());
+          }
+        } catch (_) {}
+      }
+
       // Update Drift customer balance immediately so the credit-limit check on
       // the next sale in this session uses the correct outstanding amount.
       if (confirmingNow && _payMethod == _PayMethod.credit && _customer != null) {

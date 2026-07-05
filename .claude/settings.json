@@ -93,7 +93,15 @@
       "Bash(xargs -I{} sh -c 'echo ===={}====; head -20 {}')",
       "Bash(git -C /c/SIDE/GIT/Maliapp grep -n \"BEGIN PRIVATE KEY\\\\|AIzaSy\" -- . ':!*.lock' ':!pnpm-lock.yaml')",
       "Bash(xargs grep -l \"pin_auth_password\\\\|PinAuthPassword\\\\|derivePassword\\\\|pinToPassword\")",
-      "Bash(JWT_SECRET=test-secret-for-smoke-test timeout 15 node --loader ts-node/esm -e ' *)"
+      "Bash(JWT_SECRET=test-secret-for-smoke-test timeout 15 node --loader ts-node/esm -e ' *)",
+      "PowerShell(\\(Get-Content \"apps/mobile-app/lib/features/inventory/presentation/screens/inventory_screen.dart\" | Measure-Object -Line\\).Lines; \\(Get-Content \"apps/mobile-app/lib/features/inventory/presentation/screens/inventory_list_screen.dart\" | Measure-Object -Line\\).Lines)",
+      "PowerShell(flutter test test\\\\features\\\\sales\\\\whatsapp_phone_test.dart)",
+      "PowerShell(flutter test)",
+      "PowerShell(flutter analyze)",
+      "PowerShell(dart analyze lib\\\\core\\\\database\\\\daos\\\\inventory_dao.dart lib\\\\core\\\\sync\\\\sync_service.dart lib\\\\features\\\\inventory test\\\\core\\\\database\\\\inventory_dao_test.dart)",
+      "PowerShell(flutter test test/core/database/inventory_dao_test.dart)",
+      "PowerShell(dart analyze lib\\\\features\\\\dashboard 2>$null)",
+      "PowerShell(flutter test 2>$null)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

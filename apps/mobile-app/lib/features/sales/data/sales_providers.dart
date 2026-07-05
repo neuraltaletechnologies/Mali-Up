@@ -126,3 +126,17 @@ DateTime? readTimestamp(Object? value) {
   if (value is String) return DateTime.tryParse(value);
   return null;
 }
+
+/// Normalizes a stored phone number into the digits-only international format
+/// wa.me links require ('+', spaces, dashes and the local leading 0 all make
+/// WhatsApp reject the link as an invalid number). Returns '' when the number
+/// is too short to be dialable, so callers can fall back to a share-picker link.
+String normalizeWhatsAppPhone(String raw) {
+  var digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.startsWith('00')) {
+    digits = digits.substring(2);
+  } else if (digits.startsWith('0')) {
+    digits = '255${digits.substring(1)}';
+  }
+  return digits.length >= 9 ? digits : '';
+}

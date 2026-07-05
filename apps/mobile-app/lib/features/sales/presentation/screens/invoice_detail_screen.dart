@@ -16,6 +16,7 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
 import 'create_invoice_screen.dart';
 import 'sales_return_screen.dart';
@@ -122,6 +123,8 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     return [];
   }
 
+  /// Status-only transitions (sent / cancelled). Paid is money movement and
+  /// must go through [_markPaid] so balances and ledgers stay consistent.
   Future<void> _updateStatus(String newStatus) async {
     // Status changes write straight to Firestore — online-only for now.
     if (!await OnlineGuard.ensureOnline(context)) return;
@@ -129,7 +132,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     setState(() => _updating = true);
     try {
       final scope = await resolveSalesScope(ref);
-      if (scope == null) return;
+      if (scope == null) {
+        if (mounted) setState(() => _updating = false);
+        return;
+      }
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final col = repo.scopeCollection(
           uid: scope.ownerUid,
@@ -138,11 +144,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       await col.doc(_inv['id'] as String).update({
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
-        if (newStatus == 'paid') ...{
-          'paidAt': FieldValue.serverTimestamp(),
-          // Marking paid settles the full balance.
-          'amountPaid': _total,
-        },
       });
       if (newStatus == 'cancelled') {
         unawaited(AuditLogService().logSaleAction(
@@ -159,16 +160,49 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       unawaited(ref.read(syncServiceProvider).syncNow());
       if (!mounted) return;
       setState(() {
-        _inv = {
-          ..._inv,
-          'status': newStatus,
-          if (newStatus == 'paid') 'amountPaid': _total,
-        };
+        _inv = {..._inv, 'status': newStatus};
         _updating = false;
       });
     } catch (e) {
       _showSnack(_tr('Update failed: $e', 'Imeshindwa kusasisha: $e'));
-      setState(() => _updating = false);
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
+  /// "Mark as Paid" settles the full outstanding balance as a payment, so the
+  /// customer balance and the receivable/debt ledgers move together with the
+  /// invoice status instead of silently drifting apart.
+  Future<void> _markPaid() async {
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
+    setState(() => _updating = true);
+    try {
+      // Credit isn't how the money arrived — default the quick action to cash.
+      final method = (_inv['paymentMethod'] ?? '').toString();
+      final result = await settleInvoicePayment(
+        ref,
+        invoice: _inv,
+        amount: _outstanding,
+        method: method.isEmpty || method == 'credit' ? 'cash' : method,
+        auditDetails: 'mark_paid',
+      );
+      if (!mounted) return;
+      if (result == null) {
+        setState(() => _updating = false);
+        return;
+      }
+      setState(() {
+        _inv = {
+          ..._inv,
+          'amountPaid': result.newAmountPaid,
+          'status': result.newStatus,
+        };
+        _updating = false;
+      });
+      _showSnack(_tr('Invoice marked as paid!', 'Ankara imelipwa kamili!'));
+    } catch (e) {
+      _showSnack(_tr('Update failed: $e', 'Imeshindwa kusasisha: $e'));
+      if (mounted) setState(() => _updating = false);
     }
   }
 
@@ -183,7 +217,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     setState(() => _updating = true);
     try {
       final scope = await resolveSalesScope(ref);
-      if (scope == null) return;
+      if (scope == null) {
+        if (mounted) setState(() => _updating = false);
+        return;
+      }
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final col = repo.scopeCollection(
           uid: scope.ownerUid,
@@ -215,6 +252,20 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
             SetOptions(merge: true));
       }
       await batch.commit();
+
+      // Mirror the stock deduction into Drift immediately so product numbers
+      // update on screen without waiting for a sync pull (which can miss the
+      // write when the device clock runs ahead of the server).
+      try {
+        final db = ref.read(appDatabaseProvider);
+        for (final item in _lineItems) {
+          final productId =
+              (item['productId'] ?? item['inventoryItemId'] ?? '').toString();
+          if (productId.isEmpty) continue;
+          final qty = parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1);
+          await db.inventoryDao.applyCommittedDelta(productId, -qty);
+        }
+      } catch (_) {}
 
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,
@@ -293,7 +344,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     setState(() => _updating = true);
     try {
       final scope = await resolveSalesScope(ref);
-      if (scope == null) return;
+      if (scope == null) {
+        if (mounted) setState(() => _updating = false);
+        return;
+      }
       final repo = ref.read(contextFirestoreRepositoryProvider);
 
       // A payment can never exceed what is still owed.
@@ -396,28 +450,38 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   void _shareWhatsApp() async {
-    final text = _buildShareText();
-    final url = 'https://wa.me/?text=${Uri.encodeComponent(text)}';
-    if (_customerPhone.isNotEmpty) {
-      final phone = _customerPhone.replaceAll(RegExp(r'[^0-9+]'), '');
-      final directUrl =
-          'https://wa.me/$phone?text=${Uri.encodeComponent(text)}';
-      await launchUrl(Uri.parse(directUrl),
+    final text = Uri.encodeComponent(_buildShareText());
+    final phone = normalizeWhatsAppPhone(_customerPhone);
+    // No usable customer number → share-picker link instead of a direct chat.
+    final url = phone.isEmpty
+        ? 'https://wa.me/?text=$text'
+        : 'https://wa.me/$phone?text=$text';
+    try {
+      final ok = await launchUrl(Uri.parse(url),
           mode: LaunchMode.externalApplication);
-    } else {
-      await launchUrl(Uri.parse(url),
-          mode: LaunchMode.externalApplication);
+      if (!ok) throw Exception('no handler');
+    } catch (_) {
+      _showSnack(_tr('Could not open WhatsApp. Make sure it is installed.',
+          'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.'));
     }
   }
 
   void _shareEmail() async {
-    final text = _buildShareText();
+    // Email clients don't render WhatsApp markdown — strip it.
+    final text = _buildShareText().replaceAll(RegExp(r'[*_]'), '');
     final subject = Uri.encodeComponent(
         _tr('Invoice $_invoiceNumber', 'Ankara $_invoiceNumber'));
     final body = Uri.encodeComponent(text);
     final customerEmail = (_inv['customerEmail'] ?? '').toString();
     final to = customerEmail.isNotEmpty ? Uri.encodeComponent(customerEmail) : '';
-    await launchUrl(Uri.parse('mailto:$to?subject=$subject&body=$body'));
+    try {
+      final ok =
+          await launchUrl(Uri.parse('mailto:$to?subject=$subject&body=$body'));
+      if (!ok) throw Exception('no handler');
+    } catch (_) {
+      _showSnack(_tr('No email app found on this device.',
+          'Hakuna programu ya barua pepe kwenye kifaa hiki.'));
+    }
   }
 
   void _copyText() {

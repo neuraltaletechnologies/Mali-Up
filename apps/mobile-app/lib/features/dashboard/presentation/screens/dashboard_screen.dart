@@ -17,7 +17,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/emotional_design.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../customer/data/customer_providers.dart';
-import '../../../debt/presentation/screens/debt_tracking_screen.dart';
 import '../../../finance/data/finance_providers.dart';
 import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/models/expense.dart';
@@ -258,11 +257,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       orElse: () => const <CashAccount>[],
     );
     final now2 = DateTime.now();
-    final monthExpenses = expenseItems.where((e) {
+    // Rejected expenses are excluded, matching the P&L / expense reports.
+    final countedExpenses =
+        expenseItems.where((e) => e.status != 'rejected').toList();
+    final monthExpenses = countedExpenses.where((e) {
       final d = DateTime.tryParse(e.date);
       return d != null && d.year == now2.year && d.month == now2.month;
     }).fold<double>(0, (t, e) => t + _numericValue(e.amount));
-    final yearExpenses = expenseItems.where((e) {
+    final yearExpenses = countedExpenses.where((e) {
       final d = DateTime.tryParse(e.date);
       return d != null && d.year == now2.year;
     }).fold<double>(0, (t, e) => t + _numericValue(e.amount));
@@ -309,19 +311,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final netProfit = monthRevenue - monthExpenses;
 
     // ── Receivables ──────────────────────────────────────────────────────────
+    // Anything confirmed but not fully settled counts: credit invoices are
+    // stored with status 'sent', quick credit sales with 'unpaid'/'partial'.
     final now = DateTime.now();
     final unpaidSales = salesItems.where((inv) {
+      if (!_isConfirmedSale(inv)) return false;
       final s = readInvoiceStatus(inv).toLowerCase();
-      return s == 'unpaid' || s == 'partial';
+      return s != 'paid' && s != 'completed';
     }).toList();
     final totalOutstanding = unpaidSales.fold<double>(0, (total, inv) {
       final amt = parseNumericAmount(inv['amount']);
       final paid = parseNumericAmount(inv['amountPaid']);
-      return total + (amt - paid).clamp(0.0, amt);
+      final due = amt - paid;
+      return total + (due > 0 ? due : 0);
     });
 
     // ── Low stock ────────────────────────────────────────────────────────────
     final lowStockItems = inventoryItems.where((item) {
+      // Services and customer returns have no stock to track.
+      final type = (item['productType'] ?? '').toString();
+      if (type == 'service' || type == 'return' || type == 'customerReturn') {
+        return false;
+      }
       final stock = parseStock(item['currentStock'] ?? item['stock']);
       final reorder = parseStock(item['reorderPoint'] ?? 5);
       return stock <= reorder;
@@ -788,207 +799,6 @@ class _RevenueSnapshotCard extends StatelessWidget {
                   ],
                 ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Outstanding Receivables Card ──────────────────────────────────────────────
-class _OutstandingReceivablesCard extends StatelessWidget {
-  final double totalOutstanding;
-  final int overdueCount;
-  final double aging30;
-  final double aging60;
-  final double aging90plus;
-  final VoidCallback onViewAll;
-
-  const _OutstandingReceivablesCard({
-    required this.totalOutstanding,
-    required this.overdueCount,
-    required this.aging30,
-    required this.aging60,
-    required this.aging90plus,
-    required this.onViewAll,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.shadowCard,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _tr('Outstanding Receivables', 'Madeni Yanayosubiri'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navyPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      _fmtAmount(totalOutstanding),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.error,
-                        height: 1.0,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (overdueCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.error.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        '$overdueCount',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.error,
-                        ),
-                      ),
-                      Text(
-                        _tr('Overdue', 'Imechelewa'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 10,
-                          color: AppColors.error,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // Aging chips
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (aging30 > 0)
-                _AgingChip(
-                  label: _tr('0–30 Days', 'Siku 0–30'),
-                  amount: aging30,
-                  color: AppColors.warning,
-                ),
-              if (aging60 > 0)
-                _AgingChip(
-                  label: _tr('31–60 Days', 'Siku 31–60'),
-                  amount: aging60,
-                  color: const Color(0xFFEA580C),
-                ),
-              if (aging90plus > 0)
-                _AgingChip(
-                  label: _tr('90+ Days', 'Siku 90+'),
-                  amount: aging90plus,
-                  color: AppColors.error,
-                ),
-            ],
-          ),
-          SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onViewAll,
-              icon: const Icon(Icons.arrow_forward_rounded, size: 14),
-              label: Text(_tr('View All Debts', 'Ona Madeni Yote')),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.navyPrimary,
-                side: const BorderSide(color: AppColors.border),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                textStyle: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AgingChip extends StatelessWidget {
-  final String label;
-  final double amount;
-  final Color color;
-
-  const _AgingChip({
-    required this.label,
-    required this.amount,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.dmSans(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-          SizedBox(height: 2),
-          Text(
-            _fmtCompactAmount(amount),
-            style: GoogleFonts.dmSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
           ),
         ],
       ),
@@ -1734,141 +1544,6 @@ class _CardStatItem extends StatelessWidget {
   }
 }
 
-// ── Module grid ───────────────────────────────────────────────────────────────
-
-class _ModuleGrid extends StatelessWidget {
-  final bool showHeavyContent;
-
-  const _ModuleGrid({required this.showHeavyContent});
-
-  static const _modules = [
-    (
-      icon: Icons.payments_rounded,
-      labelEn: 'Gharama zangu',
-      labelSw: 'Gharama zangu',
-      color: AppColors.warning,
-      route: AppRouter.expensesPath,
-    ),
-    (
-      icon: Icons.account_balance_rounded,
-      labelEn: 'Madeni',
-      labelSw: 'Madeni',
-      color: AppColors.error,
-      route: AppRouter.debtPath,
-    ),
-    (
-      icon: Icons.account_balance_wallet_rounded,
-      labelEn: 'Mtiririko wa Fedha',
-      labelSw: 'Mtiririko wa Fedha',
-      color: AppColors.purpleAccent,
-      route: AppRouter.cashFlowPath,
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final itemCount = showHeavyContent ? _modules.length : 6;
-
-    return SizedBox(
-      height: 84,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: itemCount,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          if (!showHeavyContent) return const _HorizontalModuleSkeleton();
-
-          final module = _modules[index];
-          final label = _tr(module.labelEn, module.labelSw);
-          return SizedBox(
-            width: 96,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  if (module.route == AppRouter.debtPath) {
-                    _openDebtPanelFromModule(context);
-                    return;
-                  }
-                  context.go(module.route);
-                },
-                borderRadius: BorderRadius.circular(14),
-                child: Ink(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: module.color.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            module.icon,
-                            size: 15,
-                            color: module.color,
-                          ),
-                        ),
-                        SizedBox(width: 7),
-                        Expanded(
-                          child: Text(
-                            label,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.dmSans(
-                              color: AppColors.secondary.withValues(alpha: 0.85),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              height: 1.25,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _openDebtPanelFromModule(BuildContext context) {
-    showAppSheet(
-      context,
-      builder: (_) => const ClipRRect(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        child: Material(
-          color: AppColors.background,
-          child: DebtTrackingScreen(),
-        ),
-      ),
-    );
-  }
-}
-
-class _HorizontalModuleSkeleton extends StatelessWidget {
-  const _HorizontalModuleSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(width: 96, child: ShimmerBox(height: 84));
-  }
-}
-
 // ── Sales chart ───────────────────────────────────────────────────────────────
 
 class _SalesLineChart extends StatelessWidget {
@@ -2225,6 +1900,7 @@ class _TopPerformersSection extends StatelessWidget {
     final monthStart = DateTime(now.year, now.month);
     final result = <String, double>{};
     for (final inv in salesItems) {
+      if (!_isRevenueSale(inv)) continue;
       final ts = readTimestamp(inv['createdAt']);
       if (ts == null || ts.isBefore(monthStart)) continue;
       final invItems = (inv['items'] as List?)?.whereType<Map>().toList() ?? [];
@@ -2242,6 +1918,7 @@ class _TopPerformersSection extends StatelessWidget {
     final monthStart = DateTime(now.year, now.month);
     final result = <String, double>{};
     for (final inv in salesItems) {
+      if (!_isRevenueSale(inv)) continue;
       final ts = readTimestamp(inv['createdAt']);
       if (ts == null || ts.isBefore(monthStart)) continue;
       final key = (inv['customerName'] ?? '').toString().trim();
@@ -2464,6 +2141,8 @@ class _RecentTransactionsList extends StatelessWidget {
   List<Map<String, dynamic>> get _sortedItems {
     final result = <Map<String, dynamic>>[];
     for (final inv in salesItems) {
+      // Quotations, drafts and cancelled invoices are not transactions.
+      if (!_isConfirmedSale(inv)) continue;
       final date = readTimestamp(inv['createdAt']);
       final amount = parseNumericAmount(inv['amount']);
       final customer = (inv['customerName'] ?? '').toString().trim();
@@ -3190,12 +2869,15 @@ double _numericValue(Object? raw) {
 }
 
 String _fmtCompactAmount(double amount) {
-  if (amount >= 1000000) return 'TSh ${(amount / 1000000).toStringAsFixed(1)}M';
-  if (amount >= 1000) return 'TSh ${(amount / 1000).toStringAsFixed(0)}K';
-  return 'TSh ${amount.toStringAsFixed(0)}';
+  final sign = amount < 0 ? '-' : '';
+  final abs = amount.abs();
+  if (abs >= 1000000) return '${sign}TSh ${(abs / 1000000).toStringAsFixed(1)}M';
+  if (abs >= 1000) return '${sign}TSh ${(abs / 1000).toStringAsFixed(0)}K';
+  return '${sign}TSh ${abs.toStringAsFixed(0)}';
 }
 
 String _fmtAmount(double amount) {
+  final sign = amount < 0 ? '-' : '';
   final abs = amount.abs();
   String formatted;
   if (abs >= 1000000) {
@@ -3205,7 +2887,7 @@ String _fmtAmount(double amount) {
   } else {
     formatted = abs.toStringAsFixed(0);
   }
-  return 'TSh $formatted';
+  return '${sign}TSh $formatted';
 }
 
 String _displayName(Map<String, dynamic>? profile) {
@@ -3224,6 +2906,23 @@ String _displayName(Map<String, dynamic>? profile) {
 
 // ── Revenue helpers ───────────────────────────────────────────────────────────
 
+/// True when the record is a confirmed sale (not a quotation, draft or
+/// cancelled invoice) — regardless of whether it has been paid yet.
+bool _isConfirmedSale(Map<String, dynamic> inv) {
+  if ((inv['type'] ?? '').toString().toLowerCase() == 'quotation') return false;
+  final s = readInvoiceStatus(inv).toLowerCase();
+  return s != 'draft' && s != 'cancelled';
+}
+
+/// True when the sale counts toward revenue. Matches the P&L / sales reports
+/// (cash-style): only paid, completed or partially-paid invoices count, so an
+/// unpaid credit sale is a receivable, not revenue.
+bool _isRevenueSale(Map<String, dynamic> inv) {
+  if (!_isConfirmedSale(inv)) return false;
+  final s = readInvoiceStatus(inv).toLowerCase();
+  return s == 'paid' || s == 'completed' || s == 'partial';
+}
+
 double _revenueForPeriod(List<Map<String, dynamic>> invoices, int daysBack) {
   final now = DateTime.now();
   final cutoff = DateTime(
@@ -3232,6 +2931,7 @@ double _revenueForPeriod(List<Map<String, dynamic>> invoices, int daysBack) {
     now.day,
   ).subtract(Duration(days: daysBack));
   return invoices.fold<double>(0, (total, inv) {
+    if (!_isRevenueSale(inv)) return total;
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
@@ -3244,6 +2944,7 @@ double _monthRevenue(List<Map<String, dynamic>> invoices) {
   final now = DateTime.now();
   final monthStart = DateTime(now.year, now.month);
   return invoices.fold<double>(0, (total, inv) {
+    if (!_isRevenueSale(inv)) return total;
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
@@ -3256,6 +2957,7 @@ double _yearRevenue(List<Map<String, dynamic>> invoices) {
   final now = DateTime.now();
   final yearStart = DateTime(now.year);
   return invoices.fold<double>(0, (total, inv) {
+    if (!_isRevenueSale(inv)) return total;
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
@@ -3274,6 +2976,7 @@ double _revenueForRange(
   final from = today.subtract(Duration(days: fromDaysAgo));
   final to = today.subtract(Duration(days: toDaysAgo));
   return invoices.fold<double>(0, (total, inv) {
+    if (!_isRevenueSale(inv)) return total;
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
@@ -3287,6 +2990,7 @@ double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
   final lastMonthStart = DateTime(now.year, now.month - 1);
   final lastMonthEnd = DateTime(now.year, now.month);
   return invoices.fold<double>(0, (total, inv) {
+    if (!_isRevenueSale(inv)) return total;
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) return total;
     final d = DateTime(ts.year, ts.month, ts.day);
@@ -3304,6 +3008,7 @@ double _revenueForLastMonth(List<Map<String, dynamic>> invoices) {
   final today = DateTime(now.year, now.month, now.day);
   final daily = <int, double>{};
   for (final inv in invoices) {
+    if (!_isRevenueSale(inv)) continue;
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null) continue;
     final d = DateTime(ts.year, ts.month, ts.day);
@@ -3363,6 +3068,7 @@ List<String> _generateInsights({
   final customerRevenue = <String, double>{};
   double monthTotal = 0;
   for (final inv in salesItems) {
+    if (!_isRevenueSale(inv)) continue;
     final ts = readTimestamp(inv['createdAt']);
     if (ts == null || ts.isBefore(monthStart)) continue;
     final key = (inv['customerName'] ?? '').toString().trim();

@@ -589,10 +589,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 iconColor: const Color(0xFF25D366),
                 label: _tr('WhatsApp', 'WhatsApp'),
                 onTap: () async {
-                  final url =
-                      'https://wa.me/?text=${Uri.encodeComponent(receipt)}';
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  final phone = normalizeWhatsAppPhone(
+                      (sale['customerPhone'] ?? '').toString());
+                  final url = phone.isEmpty
+                      ? 'https://wa.me/?text=${Uri.encodeComponent(receipt)}'
+                      : 'https://wa.me/$phone?text=${Uri.encodeComponent(receipt)}';
+                  await _launchShare(ctx, Uri.parse(url), external: true);
                 },
               ),
               _ReceiptAction(
@@ -601,14 +603,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 label: _tr('Email', 'Barua pepe'),
                 onTap: () async {
                   final plain = receipt.replaceAll(RegExp(r'\*|_'), '');
-                  final uri = Uri(
-                    scheme: 'mailto',
-                    queryParameters: {
-                      'subject': 'Invoice ${sale['invoiceNumber'] ?? ''}',
-                      'body': plain,
-                    },
-                  );
-                  await launchUrl(uri);
+                  // Built by hand: Uri(queryParameters:) form-encodes spaces
+                  // as '+', which email clients render literally in the body.
+                  final subject = Uri.encodeComponent(
+                      'Invoice ${sale['invoiceNumber'] ?? ''}');
+                  final body = Uri.encodeComponent(plain);
+                  await _launchShare(
+                      ctx, Uri.parse('mailto:?subject=$subject&body=$body'));
                 },
               ),
               _ReceiptAction(
@@ -617,8 +618,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 label: _tr('SMS', 'SMS'),
                 onTap: () async {
                   final plain = receipt.replaceAll(RegExp(r'\*|_'), '');
-                  await launchUrl(Uri.parse(
-                      'sms:?body=${Uri.encodeComponent(plain)}'));
+                  await _launchShare(ctx,
+                      Uri.parse('sms:?body=${Uri.encodeComponent(plain)}'));
                 },
               ),
               _ReceiptAction(
@@ -640,6 +641,26 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         ),
       ),
     );
+  }
+
+  /// Launches a share/compose URL, surfacing a snackbar instead of an
+  /// unhandled exception when no app on the device can handle it.
+  static Future<void> _launchShare(BuildContext context, Uri uri,
+      {bool external = false}) async {
+    try {
+      final ok = await launchUrl(uri,
+          mode: external
+              ? LaunchMode.externalApplication
+              : LaunchMode.platformDefault);
+      if (!ok) throw Exception('no handler');
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_tr('No app available to open this share option.',
+            'Hakuna programu ya kufungua chaguo hili la kushiriki.')),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 }
 
@@ -2184,6 +2205,21 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       }
 
       await batch.commit();
+
+      // Mirror the stock deduction into Drift immediately — the UI reads stock
+      // from Drift, and the incremental sync pull can miss this write whenever
+      // the device clock runs ahead of the Firestore server clock.
+      try {
+        final db = ref.read(appDatabaseProvider);
+        for (final e in _items) {
+          if (e.selectedItem == null) continue;
+          final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
+          if (itemId.isEmpty) continue;
+          await db.inventoryDao.applyCommittedDelta(itemId, -e.qty.toDouble());
+        }
+      } catch (e, st) {
+        unawaited(Sentry.captureException(e, stackTrace: st));
+      }
 
       // Update the Drift customer balance immediately so the credit-limit check
       // on the *next* sale in this session uses the correct outstanding amount,

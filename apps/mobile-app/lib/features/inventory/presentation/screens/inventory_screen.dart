@@ -1711,6 +1711,17 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         ? rawOverheads.whereType<Map<String, dynamic>>().toList()
         : <Map<String, dynamic>>[];
 
+    // On-hand stock per linked material, so the sheet can warn when this
+    // batch would drive a raw material below zero.
+    final repo = ref.read(inventoryRepositoryProvider);
+    final availableStock = <String, double>{};
+    for (final ing in ingredients) {
+      final matId = (ing['matId'] as String?) ?? '';
+      if (matId.isEmpty) continue;
+      final mat = await repo.getById(matId);
+      if (mat != null) availableStock[matId] = mat.currentStock;
+    }
+
     // Show confirmation bottom sheet
     if (!mounted) return;
     final confirmed = await showAppSheet<bool>(
@@ -1721,13 +1732,13 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         unit: unit,
         ingredients: ingredients,
         overheads: overheads,
+        availableStock: availableStock,
       ),
     );
     if (confirmed != true || !mounted) return;
 
     setState(() => _recording = true);
     try {
-      final repo = ref.read(inventoryRepositoryProvider);
 
       // Deduct each ingredient that has a materialId
       for (final ing in ingredients) {
@@ -2286,6 +2297,8 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
   final String unit;
   final List<Map<String, dynamic>> ingredients;
   final List<Map<String, dynamic>> overheads;
+  // On-hand stock per linked material id, for the shortage warning.
+  final Map<String, double> availableStock;
 
   const _RecordProductionConfirmSheet({
     required this.productName,
@@ -2293,11 +2306,22 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
     required this.unit,
     required this.ingredients,
     required this.overheads,
+    this.availableStock = const {},
   });
+
+  bool _isShort(Map<String, dynamic> i) {
+    final matId = (i['matId'] as String?) ?? '';
+    if (matId.isEmpty) return false;
+    final have = availableStock[matId];
+    if (have == null) return false;
+    return ((i['qty'] as num?)?.toDouble() ?? 0) > have;
+  }
 
   @override
   Widget build(BuildContext context) {
     final linkedCount = ingredients.where((i) => ((i['matId'] as String?) ?? '').isNotEmpty).length;
+    final hasShortage = ingredients.any(_isShort);
+    const warn = Color(0xFFD97706);
 
     return Material(
       color: Colors.white,
@@ -2349,23 +2373,35 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                           final qty = (i['qty'] as num?)?.toDouble() ?? 0;
                           final iUnit = (i['unit'] as String?) ?? 'pcs';
                           final hasLink = ((i['matId'] as String?) ?? '').isNotEmpty;
+                          final short = _isShort(i);
+                          final have = availableStock[(i['matId'] as String?) ?? ''];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 4),
                             child: Row(
                               children: [
                                 Icon(
-                                  hasLink ? Icons.remove_circle_outline_rounded : Icons.radio_button_unchecked_rounded,
+                                  short
+                                      ? Icons.warning_amber_rounded
+                                      : hasLink ? Icons.remove_circle_outline_rounded : Icons.radio_button_unchecked_rounded,
                                   size: 13,
-                                  color: hasLink ? AppColors.error : AppColors.textMuted,
+                                  color: short ? warn : hasLink ? AppColors.error : AppColors.textMuted,
                                 ),
                                 SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     '$iName  −  ${qty % 1 == 0 ? qty.toStringAsFixed(0) : qty.toStringAsFixed(2)} $iUnit',
-                                    style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textPrimary),
+                                    style: GoogleFonts.dmSans(fontSize: 12, color: short ? warn : AppColors.textPrimary),
                                   ),
                                 ),
-                                if (!hasLink)
+                                if (short && have != null)
+                                  Text(
+                                    _tr(
+                                      'have ${have % 1 == 0 ? have.toStringAsFixed(0) : have.toStringAsFixed(2)}',
+                                      'zipo ${have % 1 == 0 ? have.toStringAsFixed(0) : have.toStringAsFixed(2)}',
+                                    ),
+                                    style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: warn),
+                                  )
+                                else if (!hasLink)
                                   Text(
                                     _tr('manual', 'mwongozo'),
                                     style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
@@ -2374,6 +2410,33 @@ class _RecordProductionConfirmSheet extends StatelessWidget {
                             ),
                           );
                         }),
+                      ],
+                    ),
+                  ),
+                ],
+                if (hasShortage) ...[
+                  SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: warn.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: warn.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 16, color: warn),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _tr(
+                              'Not enough raw materials — confirming will take their stock below zero.',
+                              'Malighafi hazitoshi — ukithibitisha, stoo yake itashuka chini ya sifuri.',
+                            ),
+                            style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: warn),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -2673,8 +2736,11 @@ class _UnitEntry {
   final nameCtrl  = TextEditingController();
   final qtyCtrl   = TextEditingController(text: '1');
   final priceCtrl = TextEditingController();
+  // Not editable in the form — carried through so editing a product doesn't
+  // wipe a previously stored per-unit cost.
+  final double costPrice;
 
-  _UnitEntry({String name = '', int qty = 1, double price = 0}) {
+  _UnitEntry({String name = '', int qty = 1, double price = 0, this.costPrice = 0}) {
     if (name.isNotEmpty) nameCtrl.text = name;
     if (qty != 1) qtyCtrl.text = '$qty';
     if (price > 0) priceCtrl.text = price.toStringAsFixed(0);
@@ -2690,6 +2756,7 @@ class _UnitEntry {
     name: nameCtrl.text.trim(),
     qty: int.tryParse(qtyCtrl.text) ?? 1,
     price: double.tryParse(priceCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0,
+    costPrice: costPrice,
   );
 }
 
@@ -2831,8 +2898,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       final s = _readSellingPrice(item);
       if (b > 0) _buyCtrl.text  = b.toStringAsFixed(0);
       if (s > 0) _sellCtrl.text = s.toStringAsFixed(0);
-      final stk = _stock(item);
-      _stockCtrl.text   = '$stk';
+      // Keep fractional quantities (e.g. 2.5 kg) — _stock() truncates to int.
+      final stk = (item['currentStock'] as num?)?.toDouble() ??
+          _stock(item).toDouble();
+      _stockCtrl.text   =
+          stk % 1 == 0 ? stk.toStringAsFixed(0) : stk.toString();
       final r = parseStock(item['reorderPoint']);
       _reorderCtrl.text = r > 0 ? '$r' : '5';
       _unit = (item['unit'] ?? 'pcs').toString();
@@ -2846,6 +2916,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
               name:  (u['name']  as String?)?.toString() ?? '',
               qty:   (u['qty']  as num?)?.toInt() ?? 1,
               price: (u['price'] as num?)?.toDouble() ?? 0,
+              costPrice: (u['costPrice'] as num?)?.toDouble() ?? 0,
             ));
           }
         }
@@ -3267,12 +3338,24 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       for (final u in _sellingUnits) { u.dispose(); }
       _sellingUnits.clear();
       for (final u in src.sellingUnits) {
-        _sellingUnits.add(_UnitEntry(name: u.name, qty: u.qty, price: u.price));
+        _sellingUnits.add(_UnitEntry(
+            name: u.name, qty: u.qty, price: u.price, costPrice: u.costPrice));
       }
+
+      // Match the form type to the matched product — the sheet may have been
+      // opened as a different type (e.g. "Add manufactured" matching a stock
+      // item), and a stale manufactured type skips debt/cash recording on
+      // the restock save path.
+      _type = switch (src.productType) {
+        'perishable'                => ProductType.perishable,
+        'service'                   => ProductType.service,
+        'return' || 'customerReturn' => ProductType.customerReturn,
+        'manufactured'              => ProductType.manufactured,
+        _                           => ProductType.stock,
+      };
 
       // Restore BOM data if manufactured
       if (src.isManufactured) {
-        _type = ProductType.manufactured;
         for (final i in _bomIngredients) { i.dispose(); }
         _bomIngredients.clear();
         for (final ing in src.bomIngredients) {

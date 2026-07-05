@@ -74,4 +74,6 @@ class LocalInventoryRepository {
   Future<void> markConflict(String id) => _dao.markConflict(id);
   Future<void> clearQuantityDelta(String id, double mergedQty) =>
       _dao.clearQuantityDelta(id, mergedQty);
+  Future<void> consumeQuantityDelta(String id, double delta) =>
+      _dao.consumeQuantityDelta(id, delta);
 }
