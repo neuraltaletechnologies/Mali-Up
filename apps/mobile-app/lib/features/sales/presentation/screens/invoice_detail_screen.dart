@@ -343,106 +343,33 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
     setState(() => _updating = true);
     try {
-      final scope = await resolveSalesScope(ref);
-      if (scope == null) {
-        if (mounted) setState(() => _updating = false);
+      final method = (result['method'] ?? 'cash').toString();
+      final paymentResult = await settleInvoicePayment(
+        ref,
+        invoice: _inv,
+        amount: amount,
+        method: method,
+        reference: (result['reference'] ?? '').toString(),
+      );
+      if (!mounted) return;
+      if (paymentResult == null) {
+        setState(() => _updating = false);
         return;
       }
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-
-      // A payment can never exceed what is still owed.
-      final received = amount > _outstanding ? _outstanding : amount;
-      final newAmountPaid = _amountPaid + received;
-      final fullySettled = newAmountPaid >= _total - 0.005;
-      final newStatus = fullySettled ? 'paid' : 'partial';
-      final method = (result['method'] ?? 'cash').toString();
-      final reference = (result['reference'] ?? '').toString();
-      final customerId = (_inv['customerId'] ?? '').toString();
-
-      // Atomic: payment record + invoice balance + customer balance.
-      final batch = FirebaseFirestore.instance.batch();
-      final paymentsCol = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'invoice_payments');
-      batch.set(paymentsCol.doc(), {
-        'invoiceId': _inv['id'],
-        'invoiceNumber': _invoiceNumber,
-        'businessId': scope.businessId,
-        if (customerId.isNotEmpty) 'customerId': customerId,
-        'amount': received,
-        'method': method,
-        if (reference.isNotEmpty) 'reference': reference,
-        'recordedBy': scope.userUid,
-        'recordedAt': FieldValue.serverTimestamp(),
-      });
-
-      final invoicesCol = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'sales_invoices');
-      batch.update(invoicesCol.doc(_inv['id'] as String), {
-        'amountPaid': FieldValue.increment(received),
-        'status': newStatus,
-        'paymentMethod': method,
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (fullySettled) 'paidAt': FieldValue.serverTimestamp(),
-      });
-
-      if (customerId.isNotEmpty) {
-        final customersCol = repo.scopeCollection(
-            uid: scope.ownerUid,
-            context: scope.context,
-            childCollection: 'customers');
-        batch.set(
-            customersCol.doc(customerId),
-            {
-              'balance': FieldValue.increment(-received),
-              'lastTransactionDate': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true));
-      }
-
-      await batch.commit();
-
-      if (customerId.isNotEmpty) {
-        try {
-          final db = ref.read(appDatabaseProvider);
-          final row = await db.customerDao.getById(customerId);
-          if (row != null) {
-            final newBalance = (row.balance - received).clamp(0.0, double.maxFinite);
-            await db.customerDao.updateBalance(customerId, newBalance);
-          }
-        } catch (_) {}
-      }
-
-      unawaited(AuditLogService().logSaleAction(
-        ownerUid: scope.ownerUid,
-        businessId: scope.businessId,
-        performedByUid: scope.userUid,
-        performedByRole: ref.read(currentUserRoleProvider),
-        action: AuditLogService.paymentReceived,
-        invoiceId: _inv['id'] as String,
-        invoiceNumber: _invoiceNumber,
-        amount: received,
-        details: method,
-      ));
-      unawaited(ref.read(syncServiceProvider).syncNow());
-      if (!mounted) return;
       setState(() {
         _inv = {
           ..._inv,
-          'amountPaid': newAmountPaid,
-          'status': newStatus,
+          'amountPaid': paymentResult.newAmountPaid,
+          'status': paymentResult.newStatus,
           'paymentMethod': method,
         };
         _updating = false;
       });
-      _showSnack(fullySettled
+      _showSnack(paymentResult.fullySettled
           ? _tr('Invoice fully paid!', 'Ankara imelipwa kamili!')
-          : _tr('Payment recorded — TZS ${_fmtNum(received)} received.',
-              'Malipo yamerekodiwa — TZS ${_fmtNum(received)} imepokelewa.'));
+          : _tr(
+              'Payment recorded — TZS ${_fmtNum(paymentResult.received)} received.',
+              'Malipo yamerekodiwa — TZS ${_fmtNum(paymentResult.received)} imepokelewa.'));
     } catch (e) {
       _showSnack(_tr('Payment failed: $e', 'Malipo yameshindikana: $e'));
       if (mounted) setState(() => _updating = false);
@@ -460,6 +387,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       final ok = await launchUrl(Uri.parse(url),
           mode: LaunchMode.externalApplication);
       if (!ok) throw Exception('no handler');
+      _offerMarkSent();
     } catch (_) {
       _showSnack(_tr('Could not open WhatsApp. Make sure it is installed.',
           'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.'));
@@ -478,10 +406,28 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       final ok =
           await launchUrl(Uri.parse('mailto:$to?subject=$subject&body=$body'));
       if (!ok) throw Exception('no handler');
+      _offerMarkSent();
     } catch (_) {
       _showSnack(_tr('No email app found on this device.',
           'Hakuna programu ya barua pepe kwenye kifaa hiki.'));
     }
+  }
+
+  /// After sharing a draft invoice, offer to move it to 'sent' so the two
+  /// steps don't silently drift apart. Quotations and non-drafts are skipped.
+  void _offerMarkSent() {
+    if (!mounted || _isQuotation || _status != 'draft' || !_canEdit) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(_tr('Invoice shared. Mark it as sent?',
+          'Ankara imeshirikiwa. Uiweke kama imetumwa?')),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      duration: const Duration(seconds: 8),
+      action: SnackBarAction(
+        label: _tr('Mark as Sent', 'Imetumwa'),
+        onPressed: () => _updateStatus('sent'),
+      ),
+    ));
   }
 
   void _copyText() {
@@ -586,7 +532,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
                 status: _status,
                 isQuotation: _isQuotation,
                 updating: _updating,
-                onMarkPaid: _canTakePayment ? () => _updateStatus('paid') : null,
+                onMarkPaid: _canTakePayment ? _markPaid : null,
                 onMarkSent: _canEdit ? () => _updateStatus('sent') : null,
                 onCancel: _canEdit ? () => _confirmCancel() : null,
                 onConvert: _canEdit ? _convertToInvoice : null,
