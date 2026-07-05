@@ -10,11 +10,12 @@ import {
   fetchCatalog,
   postCatalogProduct, patchCatalogProduct, deleteCatalogProduct,
   postCatalogCategory, patchCatalogCategory, deleteCatalogCategory,
+  bulkReassignCatalog,
 } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import type { CatalogProduct, CatalogCategory } from '@/types'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Plus, Pencil, Trash2, AlertCircle, Tag, Package, Snowflake, Pill } from 'lucide-react'
+import { Plus, Pencil, Trash2, AlertCircle, Tag, Package, Snowflake, Pill, ListChecks, TriangleAlert } from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ const ICONS = [
 ]
 
 const EMPTY_PRODUCT = {
-  businessType:        '',
+  businessTypes:       [] as string[],
   categorySlug:        '',
   productName:         '',
   productNameSw:       '',
@@ -72,7 +73,7 @@ const EMPTY_PRODUCT = {
 }
 
 const EMPTY_CATEGORY = {
-  businessType:   '',
+  businessTypes:  [] as string[],
   categoryName:   '',
   categoryNameSw: '',
   icon:           'inventory_2',
@@ -86,7 +87,7 @@ type CategoryForm = typeof EMPTY_CATEGORY
 
 function productToForm(p: CatalogProduct): ProductForm {
   return {
-    businessType:        p.businessType,
+    businessTypes:       [...p.businessTypes],
     categorySlug:        p.categorySlug,
     productName:         p.productName,
     productNameSw:       p.productNameSw,
@@ -104,7 +105,7 @@ function productToForm(p: CatalogProduct): ProductForm {
 
 function productFormToPayload(form: ProductForm) {
   return {
-    businessType:         form.businessType,
+    businessTypes:        form.businessTypes,
     categorySlug:         form.categorySlug,
     productName:          form.productName,
     productNameSw:        form.productNameSw,
@@ -122,7 +123,7 @@ function productFormToPayload(form: ProductForm) {
 
 function categoryToForm(c: CatalogCategory): CategoryForm {
   return {
-    businessType:   c.businessType,
+    businessTypes:  [...c.businessTypes],
     categoryName:   c.categoryName,
     categoryNameSw: c.categoryNameSw,
     icon:           c.icon || 'inventory_2',
@@ -137,6 +138,31 @@ const labelCls = 'text-[12px] font-medium text-[var(--ink-muted)]'
 const selectCls = `${inputCls} appearance-none`
 const sectionHeading = 'text-[11px] uppercase tracking-wide font-semibold text-[var(--ink-faint)] mb-3'
 const checkboxRowCls = 'flex items-center gap-2.5 rounded-md border border-[var(--line)] px-3 py-2.5 hover:bg-[var(--canvas)] cursor-pointer'
+
+// ─── Business type multi-select (toggle pills) ────────────────────────────────
+
+function BusinessTypeToggles({
+  selected, options, onToggle,
+}: {
+  selected: string[]
+  options: string[]
+  onToggle: (type: string) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto rounded-md border border-[var(--line)] p-2.5">
+      {options.map((t) => (
+        <button key={t} type="button" onClick={() => onToggle(t)}
+          className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors border ${
+            selected.includes(t)
+              ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
+              : 'border-[var(--line)] text-[var(--ink-muted)] hover:text-[var(--ink)]'
+          }`}>
+          {t}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -159,6 +185,18 @@ export default function CatalogPage() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
+  // Bulk reassign state
+  const [selectedCatIds,  setSelectedCatIds]  = useState<Set<string>>(new Set())
+  const [selectedProdIds, setSelectedProdIds] = useState<Set<string>>(new Set())
+  const [bulkEntity,   setBulkEntity]   = useState<'category' | 'product' | null>(null)
+  const [bulkMode,     setBulkMode]     = useState<'add' | 'remove' | 'replace'>('add')
+  const [bulkTypes,    setBulkTypes]    = useState<string[]>([])
+  const [bulkSaving,   setBulkSaving]   = useState(false)
+  const [bulkError,    setBulkError]    = useState('')
+
+  // Review: surface products whose business types don't overlap their own category's
+  const [showMismatchesOnly, setShowMismatchesOnly] = useState(false)
+
   const { data, loading, revalidating, error, refetch } = useAdminFetch(
     useCallback(() => fetchCatalog(selectedType || undefined), [selectedType]),
     { key: `catalog-${selectedType || 'all'}` },
@@ -170,15 +208,27 @@ export default function CatalogPage() {
 
   const allTypes = [...new Set([...BUSINESS_TYPES, ...dbTypes])].sort()
 
-  const visibleCats  = selectedType ? categories.filter((c) => c.businessType === selectedType) : categories
-  const visibleProds = selectedType ? products.filter((p) => p.businessType === selectedType)   : products
+  const visibleCats  = selectedType ? categories.filter((c) => c.businessTypes.includes(selectedType)) : categories
+  let visibleProds   = selectedType ? products.filter((p) => p.businessTypes.includes(selectedType))   : products
 
-  const formCats = categories.filter((c) => c.businessType === productForm.businessType)
+  const formCats = categories.filter((c) => c.businessTypes.some((t) => productForm.businessTypes.includes(t)))
+
+  function isMismatched(p: CatalogProduct): boolean {
+    const cat = categories.find((c) => c.categorySlug === p.categorySlug)
+    if (!cat) return true
+    return !cat.businessTypes.some((t) => p.businessTypes.includes(t))
+  }
+
+  const mismatchedCount = products.filter(isMismatched).length
+  if (showMismatchesOnly) visibleProds = visibleProds.filter(isMismatched)
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
   async function handleAddProduct(e: React.FormEvent) {
     e.preventDefault()
+    if (productForm.businessTypes.length === 0) {
+      setFormError('Select at least one business type.'); return
+    }
     setFormError('')
     setSaving(true)
     try {
@@ -194,6 +244,9 @@ export default function CatalogPage() {
   async function handleEditProduct(e: React.FormEvent) {
     e.preventDefault()
     if (!editProduct) return
+    if (productForm.businessTypes.length === 0) {
+      setFormError('Select at least one business type.'); return
+    }
     setFormError('')
     setSaving(true)
     try {
@@ -215,6 +268,9 @@ export default function CatalogPage() {
 
   async function handleAddCat(e: React.FormEvent) {
     e.preventDefault()
+    if (catForm.businessTypes.length === 0) {
+      setFormError('Select at least one business type.'); return
+    }
     setFormError('')
     setSaving(true)
     try {
@@ -230,6 +286,9 @@ export default function CatalogPage() {
   async function handleEditCat(e: React.FormEvent) {
     e.preventDefault()
     if (!editCat) return
+    if (catForm.businessTypes.length === 0) {
+      setFormError('Select at least one business type.'); return
+    }
     setFormError('')
     setSaving(true)
     try {
@@ -249,6 +308,52 @@ export default function CatalogPage() {
     refetch()
   }
 
+  // ── Bulk selection + reassign ──────────────────────────────────────────────
+
+  function toggleCatSelected(id: string) {
+    setSelectedCatIds((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function toggleProdSelected(id: string) {
+    setSelectedProdIds((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function toggleBulkType(type: string) {
+    setBulkTypes((ts) => ts.includes(type) ? ts.filter((t) => t !== type) : [...ts, type])
+  }
+
+  function openBulkDrawer(entity: 'category' | 'product') {
+    setBulkEntity(entity)
+    setBulkMode('add')
+    setBulkTypes([])
+    setBulkError('')
+  }
+
+  async function handleBulkApply() {
+    if (!bulkEntity || bulkTypes.length === 0) return
+    const ids = [...(bulkEntity === 'category' ? selectedCatIds : selectedProdIds)]
+    if (ids.length === 0) return
+    setBulkSaving(true); setBulkError('')
+    try {
+      await bulkReassignCatalog(bulkEntity, ids, bulkMode, bulkTypes)
+      setBulkEntity(null)
+      if (bulkEntity === 'category') setSelectedCatIds(new Set()); else setSelectedProdIds(new Set())
+      refetch()
+    } catch (err) {
+      setBulkError((err as Error).message ?? 'Bulk update failed')
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
   function toggleTag(tag: string) {
     setProductForm((f) => ({
       ...f,
@@ -259,6 +364,28 @@ export default function CatalogPage() {
   // ── Column defs ───────────────────────────────────────────────────────────────
 
   const categoryColumns: ColumnDef<CatalogCategory, unknown>[] = [
+    {
+      id: 'select',
+      header: () => (
+        <input
+          type="checkbox"
+          checked={visibleCats.length > 0 && visibleCats.every((c) => selectedCatIds.has(c.id))}
+          onChange={() => setSelectedCatIds((s) =>
+            visibleCats.every((c) => s.has(c.id)) ? new Set() : new Set(visibleCats.map((c) => c.id)))}
+          className="rounded border-[var(--line)]"
+        />
+      ),
+      size: 36,
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={selectedCatIds.has(row.original.id)}
+          onClick={(e) => e.stopPropagation()}
+          onChange={() => toggleCatSelected(row.original.id)}
+          className="rounded border-[var(--line)]"
+        />
+      ),
+    },
     {
       accessorKey: 'icon',
       header: '',
@@ -280,12 +407,16 @@ export default function CatalogPage() {
       ),
     },
     {
-      accessorKey: 'businessType',
-      header: 'Business Type',
+      accessorKey: 'businessTypes',
+      header: 'Business Types',
       cell: ({ row }) => (
-        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
-          {row.original.businessType}
-        </span>
+        <div className="flex flex-wrap gap-1">
+          {row.original.businessTypes.map((t) => (
+            <span key={t} className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+              {t}
+            </span>
+          ))}
+        </div>
       ),
     },
     {
@@ -332,14 +463,43 @@ export default function CatalogPage() {
 
   const productColumns: ColumnDef<CatalogProduct, unknown>[] = [
     {
+      id: 'select',
+      header: () => (
+        <input
+          type="checkbox"
+          checked={visibleProds.length > 0 && visibleProds.every((p) => selectedProdIds.has(p.id))}
+          onChange={() => setSelectedProdIds((s) =>
+            visibleProds.every((p) => s.has(p.id)) ? new Set() : new Set(visibleProds.map((p) => p.id)))}
+          className="rounded border-[var(--line)]"
+        />
+      ),
+      size: 36,
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={selectedProdIds.has(row.original.id)}
+          onClick={(e) => e.stopPropagation()}
+          onChange={() => toggleProdSelected(row.original.id)}
+          className="rounded border-[var(--line)]"
+        />
+      ),
+    },
+    {
       accessorKey: 'productName',
       header: 'Product',
       cell: ({ row }) => (
-        <div>
-          <div className="font-medium text-[var(--ink)]">{row.original.productName}</div>
-          {row.original.productNameSw && (
-            <div className="text-[11px] text-[var(--ink-faint)] mt-0.5">{row.original.productNameSw}</div>
+        <div className="flex items-center gap-1.5">
+          {isMismatched(row.original) && (
+            <span title="Business type doesn't match this product's category">
+              <TriangleAlert className="h-3.5 w-3.5 text-[var(--status-warn)] shrink-0" />
+            </span>
           )}
+          <div>
+            <div className="font-medium text-[var(--ink)]">{row.original.productName}</div>
+            {row.original.productNameSw && (
+              <div className="text-[11px] text-[var(--ink-faint)] mt-0.5">{row.original.productNameSw}</div>
+            )}
+          </div>
         </div>
       ),
     },
@@ -353,12 +513,16 @@ export default function CatalogPage() {
       ),
     },
     {
-      accessorKey: 'businessType',
-      header: 'Type',
+      accessorKey: 'businessTypes',
+      header: 'Business Types',
       cell: ({ row }) => (
-        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
-          {row.original.businessType}
-        </span>
+        <div className="flex flex-wrap gap-1">
+          {row.original.businessTypes.map((t) => (
+            <span key={t} className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+              {t}
+            </span>
+          ))}
+        </div>
       ),
     },
     {
@@ -465,6 +629,23 @@ export default function CatalogPage() {
           ))}
         </div>
 
+        {activeTab === 'products' && (
+          <button
+            onClick={() => setShowMismatchesOnly((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12px] font-medium transition-colors shrink-0 ${
+              showMismatchesOnly
+                ? 'border-[var(--status-warn)] bg-[var(--status-warn-bg)] text-[var(--status-warn)]'
+                : 'border-[var(--line)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)]'
+            }`}
+          >
+            <TriangleAlert className="h-3.5 w-3.5" />
+            Mismatches only
+            <span className="rounded-full bg-[var(--line)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--ink-faint)]">
+              {mismatchedCount}
+            </span>
+          </button>
+        )}
+
         <div className="shrink-0">
           <select
             value={selectedType}
@@ -496,6 +677,15 @@ export default function CatalogPage() {
               searchColumn="categoryName"
               pageSize={25}
               exportFilename="master-categories"
+              toolbar={selectedCatIds.size > 0 && (
+                <button
+                  onClick={() => openBulkDrawer('category')}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-1.5 text-[12px] font-medium text-[var(--accent)] hover:opacity-90 transition-opacity"
+                >
+                  <ListChecks className="h-3.5 w-3.5" />
+                  Bulk edit business types ({selectedCatIds.size})
+                </button>
+              )}
             />
           )}
           {activeTab === 'products' && (
@@ -506,6 +696,15 @@ export default function CatalogPage() {
               searchColumn="productName"
               pageSize={25}
               exportFilename="master-products"
+              toolbar={selectedProdIds.size > 0 && (
+                <button
+                  onClick={() => openBulkDrawer('product')}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-1.5 text-[12px] font-medium text-[var(--accent)] hover:opacity-90 transition-opacity"
+                >
+                  <ListChecks className="h-3.5 w-3.5" />
+                  Bulk edit business types ({selectedProdIds.size})
+                </button>
+              )}
             />
           )}
         </>
@@ -593,6 +792,67 @@ export default function CatalogPage() {
         />
       </DetailDrawer>
 
+      {/* ── Bulk Reassign Drawer ───────────────────────────────────────────── */}
+      <DetailDrawer
+        open={!!bulkEntity}
+        onClose={() => setBulkEntity(null)}
+        title="Bulk Edit Business Types"
+        description={`${(bulkEntity === 'category' ? selectedCatIds : selectedProdIds).size} ${bulkEntity ?? ''}${(bulkEntity === 'category' ? selectedCatIds : selectedProdIds).size === 1 ? '' : 's'} selected`}
+      >
+        <div className="flex flex-col gap-5">
+          {bulkError && (
+            <div className="flex items-center gap-2 rounded-md border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-3 text-[12px] text-[var(--status-bad)]">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {bulkError}
+            </div>
+          )}
+
+          <div>
+            <div className={sectionHeading}>Action</div>
+            <div className="flex gap-2">
+              {([
+                ['add', 'Add'],
+                ['remove', 'Remove'],
+                ['replace', 'Replace all with'],
+              ] as const).map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setBulkMode(m)}
+                  className={`flex-1 rounded-md border px-3 py-2 text-[12px] font-medium transition-colors ${
+                    bulkMode === m
+                      ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                      : 'border-[var(--line)] text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className={sectionHeading}>Business Types</div>
+            <BusinessTypeToggles selected={bulkTypes} options={allTypes} onToggle={toggleBulkType} />
+          </div>
+
+          <div className="flex gap-2 justify-end border-t border-[var(--line)] pt-4">
+            <button type="button" onClick={() => setBulkEntity(null)}
+              className="rounded-md border border-[var(--line)] px-4 py-2 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkApply}
+              disabled={bulkSaving || bulkTypes.length === 0}
+              style={{ backgroundColor: '#0D1B3E' }}
+              className="rounded-md px-4 py-2 text-[12px] font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {bulkSaving ? 'Applying…' : 'Apply'}
+            </button>
+          </div>
+        </div>
+      </DetailDrawer>
+
       {/* Delete confirmations */}
       <ConfirmDialog
         open={!!deleteCat}
@@ -660,13 +920,17 @@ function CategoryForm({
         <div className={sectionHeading}>Classification</div>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className={labelCls}>Business Type <span className="text-[var(--status-bad)]">*</span></label>
-            <select required value={form.businessType}
-              onChange={(e) => setForm((f) => ({ ...f, businessType: e.target.value }))}
-              className={selectCls}>
-              <option value="">Select business type…</option>
-              {allTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <label className={labelCls}>Business Types <span className="text-[var(--status-bad)]">*</span></label>
+            <BusinessTypeToggles
+              selected={form.businessTypes}
+              options={allTypes}
+              onToggle={(t) => setForm((f) => ({
+                ...f,
+                businessTypes: f.businessTypes.includes(t)
+                  ? f.businessTypes.filter((x) => x !== t)
+                  : [...f.businessTypes, t],
+              }))}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -758,15 +1022,19 @@ function ProductForm({
       {/* Classification */}
       <div>
         <div className={sectionHeading}>Classification</div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className={labelCls}>Business Type <span className="text-[var(--status-bad)]">*</span></label>
-            <select required value={form.businessType}
-              onChange={(e) => setForm((f) => ({ ...f, businessType: e.target.value, categorySlug: '' }))}
-              className={selectCls}>
-              <option value="">Select…</option>
-              {allTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <label className={labelCls}>Business Types <span className="text-[var(--status-bad)]">*</span></label>
+            <BusinessTypeToggles
+              selected={form.businessTypes}
+              options={allTypes}
+              onToggle={(t) => setForm((f) => ({
+                ...f,
+                businessTypes: f.businessTypes.includes(t)
+                  ? f.businessTypes.filter((x) => x !== t)
+                  : [...f.businessTypes, t],
+              }))}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className={labelCls}>Category</label>
@@ -784,8 +1052,8 @@ function ProductForm({
             ) : (
               <input value={form.categorySlug}
                 onChange={(e) => setForm((f) => ({ ...f, categorySlug: e.target.value }))}
-                placeholder={form.businessType ? 'Category slug' : 'Select type first'}
-                disabled={!form.businessType} className={inputCls} />
+                placeholder={form.businessTypes.length > 0 ? 'Category slug' : 'Select type(s) first'}
+                disabled={form.businessTypes.length === 0} className={inputCls} />
             )}
           </div>
         </div>

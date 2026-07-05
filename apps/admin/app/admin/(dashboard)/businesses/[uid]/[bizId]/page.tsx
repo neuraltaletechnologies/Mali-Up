@@ -187,12 +187,12 @@ function CatalogAttachPanel({
   }
 
   const filteredCategories = businessType
-    ? categories.filter((c) => c.businessType === businessType)
+    ? categories.filter((c) => c.businessTypes.includes(businessType))
     : categories
 
   const categoryProducts = categorySlug
     ? products.filter((p) => p.categorySlug === categorySlug &&
-        (!businessType || p.businessType === businessType))
+        (!businessType || p.businessTypes.includes(businessType)))
     : []
 
   const selectedCategory = categories.find((c) => c.categorySlug === categorySlug)

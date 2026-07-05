@@ -9,6 +9,9 @@ function toStr(v: unknown, fallback = ''): string {
 function toNum(v: unknown, fallback = 0): number {
   return typeof v === 'number' ? v : (typeof v === 'string' ? Number(v) || fallback : fallback)
 }
+function toStrArr(v: unknown): string[] {
+  return Array.isArray(v) ? (v as unknown[]).filter((x) => typeof x === 'string') as string[] : []
+}
 
 export async function POST(request: Request) {
   const denied = await requireAdminSession()
@@ -17,9 +20,10 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown>
 
-    if (!body.categoryName || !body.businessType) {
+    const businessTypes = toStrArr(body.businessTypes)
+    if (!body.categoryName || businessTypes.length === 0) {
       return NextResponse.json(
-        { error: 'categoryName and businessType are required' },
+        { error: 'categoryName and businessTypes (at least one) are required' },
         { status: 400 },
       )
     }
@@ -28,7 +32,7 @@ export async function POST(request: Request) {
       (body.categoryName as string).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
     const ref = await adminFirestore.collection('master_categories').add({
-      businessType:   toStr(body.businessType),
+      businessTypes,
       categoryName:   toStr(body.categoryName),
       categoryNameSw: toStr(body.categoryNameSw),
       categorySlug,

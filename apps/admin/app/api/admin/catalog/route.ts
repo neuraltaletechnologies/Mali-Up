@@ -15,6 +15,13 @@ function toStrArr(v: unknown): string[] {
 function toNum(v: unknown, fallback = 0): number {
   return typeof v === 'number' ? v : fallback
 }
+// Reads the new `businessTypes` array, falling back to the legacy singular
+// `businessType` string for docs that haven't been migrated yet.
+function toBusinessTypes(d: Record<string, unknown>): string[] {
+  const arr = toStrArr(d.businessTypes)
+  if (arr.length > 0) return arr
+  return typeof d.businessType === 'string' && d.businessType ? [d.businessType] : []
+}
 
 export async function GET(request: Request) {
   const denied = await requireAdminSession()
@@ -34,7 +41,7 @@ export async function GET(request: Request) {
       const d = doc.data()
       return {
         id:             doc.id,
-        businessType:   toStr(d.businessType ?? d.businessTypeId),
+        businessTypes:  toBusinessTypes(d),
         categoryName:   toStr(d.categoryName),
         categoryNameSw: toStr(d.categoryNameSw),
         categorySlug:   toStr(d.categorySlug ?? doc.id),
@@ -45,7 +52,7 @@ export async function GET(request: Request) {
     })
 
     if (businessType) {
-      categories = categories.filter((c) => c.businessType === businessType)
+      categories = categories.filter((c) => c.businessTypes.includes(businessType))
     }
     categories.sort((a, b) => a.displayOrder - b.displayOrder || a.categoryName.localeCompare(b.categoryName))
 
@@ -54,7 +61,7 @@ export async function GET(request: Request) {
       const d = doc.data()
       return {
         id:                   doc.id,
-        businessType:         toStr(d.businessType ?? d.businessTypeId),
+        businessTypes:        toBusinessTypes(d),
         categorySlug:         toStr(d.categorySlug ?? d.categoryId),
         productName:          toStr(d.productName),
         productNameSw:        toStr(d.productNameSw),
@@ -73,7 +80,7 @@ export async function GET(request: Request) {
     })
 
     if (businessType) {
-      products = products.filter((p) => p.businessType === businessType)
+      products = products.filter((p) => p.businessTypes.includes(businessType))
     }
     products.sort((a, b) => a.productName.localeCompare(b.productName))
 
@@ -87,8 +94,8 @@ export async function GET(request: Request) {
     }
 
     const allBusinessTypes = [...new Set([
-      ...categories.map((c) => c.businessType),
-      ...products.map((p) => p.businessType),
+      ...categories.flatMap((c) => c.businessTypes),
+      ...products.flatMap((p) => p.businessTypes),
     ])].filter(Boolean).sort()
 
     return NextResponse.json({
@@ -110,9 +117,10 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown>
 
-    if (!body.productName || !body.businessType || !body.unit) {
+    const businessTypes = toStrArr(body.businessTypes)
+    if (!body.productName || businessTypes.length === 0 || !body.unit) {
       return NextResponse.json(
-        { error: 'productName, businessType, unit are required' },
+        { error: 'productName, businessTypes (at least one), unit are required' },
         { status: 400 },
       )
     }
@@ -121,7 +129,7 @@ export async function POST(request: Request) {
       (body.productName as string).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
     const ref = await adminFirestore.collection('master_products').add({
-      businessType:         toStr(body.businessType),
+      businessTypes,
       categorySlug:         toStr(body.categorySlug),
       productName:          toStr(body.productName),
       productNameSw:        toStr(body.productNameSw),

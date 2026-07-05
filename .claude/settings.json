@@ -107,7 +107,8 @@
       "PowerShell(Set-Location C:\\\\SIDE\\\\GIT\\\\Maliapp\\\\apps\\\\mobile-app; flutter analyze lib\\\\features\\\\sales > $env:TEMP\\\\an2.txt; Select-String -Path $env:TEMP\\\\an2.txt -NotMatch 'prefer_const_constructors|avoid_redundant_argument_values|Analyzing|issues found' | ForEach-Object Line; Select-String -Path $env:TEMP\\\\an2.txt -Pattern 'issues found' | ForEach-Object Line)",
       "PowerShell(\\(Get-Command flutter\\).Source)",
       "Bash(grep -iE \"^package-plus|^check-square|^square\\\\.js$\")",
-      "Bash(pnpm lint *)"
+      "Bash(pnpm lint *)",
+      "Bash(grep -iE \"^list-checks\\\\.js$|^triangle-alert\\\\.js$\")"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

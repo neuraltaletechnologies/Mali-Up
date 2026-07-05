@@ -489,8 +489,8 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
         && request.resource.data.source == 'community'
-        && request.resource.data.businessTypeId is string
-        && request.resource.data.businessTypeId.size() > 0
+        && request.resource.data.businessTypes is list
+        && request.resource.data.businessTypes.size() > 0
         && request.resource.data.categoryName is string
         && request.resource.data.categoryName.size() > 0
         && request.resource.data.categoryName.size() <= 100;
