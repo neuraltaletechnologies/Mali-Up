@@ -163,7 +163,6 @@ class SyncService extends ChangeNotifier {
       await _pushQueue();
       await _pullRemoteChanges();
       final nowMs = DateTime.now().millisecondsSinceEpoch;
-      await _settings.updateLastSyncAt(nowMs);
       await _settings.clearOfflineSince();
       _lastSyncAt = DateTime.fromMillisecondsSinceEpoch(nowMs);
       _lastError = null;
@@ -361,6 +360,9 @@ class SyncService extends ChangeNotifier {
       if (delta != 0) {
         final serverTs = await _remoteInventory
             .applyQuantityDeltaAndGetTimestamp(entry.entityId, delta);
+        // The pushed amount is now on the server — remove it from the local
+        // accumulator so ConflictResolver can't apply it a second time.
+        await _localInventory.consumeQuantityDelta(entry.entityId, delta);
         await _localInventory.markSynced(entry.entityId, serverTs);
       }
       await _queue.markCompleted(entry.id);
@@ -458,7 +460,12 @@ class SyncService extends ChangeNotifier {
 
   Future<void> _processCashAccountEntry(SyncQueueTableData entry) async {
     if (entry.operation == 'delete') {
+      // Writes a tombstone (isDeleted: true) rather than removing the doc,
+      // so other devices see the deletion via their incremental pulls.
       await _remoteCash.deleteAccount(entry.entityId);
+      // Clear pending_delete so future pulls of this row aren't skipped.
+      await _localCash.markAccountSynced(
+          entry.entityId, DateTime.now().millisecondsSinceEpoch);
       await _queue.markCompleted(entry.id);
       return;
     }
@@ -497,11 +504,17 @@ class SyncService extends ChangeNotifier {
   /// Incremental pull — fetches records updated since the last confirmed sync
   /// and hydrates Drift with the latest server state. Skips rows that have
   /// local pending changes (they will win on the next push cycle).
+  ///
+  /// Each pull returns the max server `updatedAt` it saw (null if it skipped
+  /// this cycle). The watermark advances to that max — never to the device
+  /// clock. A device clock running ahead of Firestore's would otherwise set
+  /// the watermark past every new server write and skip them forever (stock
+  /// deducted by online sales would never appear locally).
   Future<void> _pullRemoteChanges() async {
     final settings = await _settings.getUserSettings();
     final sinceMs = settings?.lastSyncAt ?? 0;
 
-    await Future.wait([
+    final results = await Future.wait([
       _pullInvoices(sinceMs),
       _pullCustomers(sinceMs),
       _pullExpenses(sinceMs),
@@ -512,17 +525,30 @@ class SyncService extends ChangeNotifier {
       _pullCashTransactions(sinceMs),
       _pullReconciliations(sinceMs),
     ]);
+
+    // Hold the watermark whenever a pull skipped (pending local deltas) so
+    // the skipped records are retried on the next cycle.
+    if (results.any((r) => r == null)) return;
+    var maxTs = sinceMs;
+    for (final r in results) {
+      if (r! > maxTs) maxTs = r;
+    }
+    if (maxTs > sinceMs) {
+      await _settings.updateLastSyncAt(maxTs);
+    }
   }
 
-  Future<void> _pullInvoices(int sinceMs) async {
+  Future<int?> _pullInvoices(int sinceMs) async {
     final updates = await _remoteInvoice.fetchUpdatedSince(sinceMs);
+    var maxTs = 0;
     for (final update in updates) {
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      if (serverTs > maxTs) maxTs = serverTs;
       final localRaw = await _localInvoice.getRawById(update.id);
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
       final invoice = InvoiceMapper.fromFirestore(update.data, update.id);
-      final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localInvoice.upsert(
         invoice,
         syncStatus: 'synced',
@@ -531,23 +557,26 @@ class SyncService extends ChangeNotifier {
         serverUpdatedAt: serverTs,
       );
     }
+    return maxTs;
   }
 
-  Future<void> _pullCustomers(int sinceMs) async {
+  Future<int?> _pullCustomers(int sinceMs) async {
     // While balance deltas from offline sales are still queued, the server
     // balances don't include them yet — pulling now would make local balances
     // jump backwards (same guard as cash accounts). Push runs first, so this
     // only skips a cycle when the push couldn't complete.
-    if (await _queue.hasPendingForType('customer')) return;
+    if (await _queue.hasPendingForType('customer')) return null;
 
     final updates = await _remoteCustomer.fetchUpdatedSince(sinceMs);
+    var maxTs = 0;
     for (final update in updates) {
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      if (serverTs > maxTs) maxTs = serverTs;
       final localRaw = await _localCustomer.getRawById(update.id);
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
       final customer = CustomerMapper.fromFirestore(update.data, update.id);
-      final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localCustomer.upsert(
         customer,
         syncStatus: 'synced',
@@ -556,17 +585,20 @@ class SyncService extends ChangeNotifier {
         serverUpdatedAt: serverTs,
       );
     }
+    return maxTs;
   }
 
-  Future<void> _pullExpenses(int sinceMs) async {
+  Future<int?> _pullExpenses(int sinceMs) async {
     final updates = await _remoteExpense.fetchUpdatedSince(sinceMs);
+    var maxTs = 0;
     for (final update in updates) {
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      if (serverTs > maxTs) maxTs = serverTs;
       final localRaw = await _localExpense.getRawById(update.id);
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
       final expense = ExpenseMapper.fromFirestore(update.data, update.id);
-      final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localExpense.upsert(
         expense,
         syncStatus: 'synced',
@@ -575,17 +607,25 @@ class SyncService extends ChangeNotifier {
         serverUpdatedAt: serverTs,
       );
     }
+    return maxTs;
   }
 
-  Future<void> _pullInventory(int sinceMs) async {
+  Future<int?> _pullInventory(int sinceMs) async {
+    // While quantity deltas are still queued, server stock doesn't include
+    // them yet — pulling now would overwrite the local quantity and zero the
+    // pending delta (same guard as customers/cash accounts).
+    if (await _queue.hasPendingForType('inventory_item')) return null;
+
     final updates = await _remoteInventory.fetchUpdatedSince(sinceMs);
+    var maxTs = 0;
     for (final update in updates) {
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      if (serverTs > maxTs) maxTs = serverTs;
       final localRaw = await _localInventory.getRawById(update.id);
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
       final item = InventoryMapper.fromFirestore(update.data, update.id);
-      final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localInventory.upsert(
         item,
         syncStatus: 'synced',
@@ -594,18 +634,21 @@ class SyncService extends ChangeNotifier {
         serverUpdatedAt: serverTs,
       );
     }
+    return maxTs;
   }
 
-  Future<void> _pullDebts(int sinceMs) async {
+  Future<int?> _pullDebts(int sinceMs) async {
     final updates = await _remoteDebt.fetchUpdatedSince(sinceMs);
+    var maxTs = 0;
     for (final update in updates) {
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      if (serverTs > maxTs) maxTs = serverTs;
       final localRaw = await _localDebt.getRawById(update.id);
       // Skip rows with local pending changes — local wins on the push cycle.
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
       final debt = DebtMapper.fromFirestore(update.data, update.id);
-      final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localDebt.upsert(
         debt,
         syncStatus: 'synced',
@@ -614,21 +657,24 @@ class SyncService extends ChangeNotifier {
         serverUpdatedAt: serverTs,
       );
     }
+    return maxTs;
   }
 
-  Future<void> _pullTeamMembers(int sinceMs) async {
+  Future<int?> _pullTeamMembers(int sinceMs) async {
     // Team members use a full-fetch if we've never synced; incremental otherwise.
     final updates = sinceMs == 0
         ? await _remoteTeam.fetchAll()
         : await _remoteTeam.fetchUpdatedSince(sinceMs);
 
+    var maxTs = 0;
     for (final update in updates) {
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      if (serverTs > maxTs) maxTs = serverTs;
       final localRaw = await _localTeam.getRawById(update.id);
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
       final member = TeamMemberMapper.fromFirestore(update.data, update.id);
-      final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localTeam.upsert(
         member,
         syncStatus: 'synced',
@@ -636,25 +682,35 @@ class SyncService extends ChangeNotifier {
         serverUpdatedAt: serverTs,
       );
     }
+    return maxTs;
   }
 
-  Future<void> _pullCashAccounts(int sinceMs) async {
+  Future<int?> _pullCashAccounts(int sinceMs) async {
     // If transaction deltas are still queued, the server balances don't yet
     // include them — overwriting the locally-adjusted balance would make cash
     // totals jump backwards. Skip this cycle; the next one (after the queue
     // drains) will reconcile.
-    if (await _queue.hasPendingForType('cash_transaction')) return;
+    if (await _queue.hasPendingForType('cash_transaction')) return null;
 
     final updates = sinceMs == 0
         ? await _remoteCash.fetchAllAccounts()
         : await _remoteCash.fetchAccountsUpdatedSince(sinceMs);
+    var maxTs = 0;
     for (final update in updates) {
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      if (serverTs > maxTs) maxTs = serverTs;
       final localRaw = await _localCash.getRawAccountById(update.id);
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
+      if (update.data['isDeleted'] == true) {
+        // Tombstone from another device — hide the account locally.
+        if (localRaw != null) {
+          await _localCash.applyRemoteAccountDeletion(update.id, serverTs);
+        }
+        continue;
+      }
       final account = CashAccountMapper.fromFirestore(update.data, update.id);
-      final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localCash.upsertAccount(
         account,
         syncStatus: 'synced',
@@ -663,19 +719,22 @@ class SyncService extends ChangeNotifier {
         serverUpdatedAt: serverTs,
       );
     }
+    return maxTs;
   }
 
-  Future<void> _pullCashTransactions(int sinceMs) async {
+  Future<int?> _pullCashTransactions(int sinceMs) async {
     final updates = sinceMs == 0
         ? await _remoteCash.fetchAllTransactions()
         : await _remoteCash.fetchTransactionsUpdatedSince(sinceMs);
+    var maxTs = 0;
     for (final update in updates) {
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      if (serverTs > maxTs) maxTs = serverTs;
       final localRaw = await _localCash.getRawTransactionById(update.id);
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
       final txn = CashTransactionMapper.fromFirestore(update.data, update.id);
-      final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localCash.upsertTransaction(
         txn,
         syncStatus: 'synced',
@@ -683,19 +742,22 @@ class SyncService extends ChangeNotifier {
         serverUpdatedAt: serverTs,
       );
     }
+    return maxTs;
   }
 
-  Future<void> _pullReconciliations(int sinceMs) async {
+  Future<int?> _pullReconciliations(int sinceMs) async {
     final updates = sinceMs == 0
         ? await _remoteCash.fetchAllReconciliations()
         : await _remoteCash.fetchReconciliationsUpdatedSince(sinceMs);
+    var maxTs = 0;
     for (final update in updates) {
+      final serverTs = _extractTimestampMs(update.data['updatedAt']);
+      if (serverTs > maxTs) maxTs = serverTs;
       final localRaw = await _localCash.getRawReconciliationById(update.id);
       if (localRaw != null &&
           localRaw.syncStatus != 'synced' &&
           localRaw.syncStatus != 'conflict') { continue; }
       final rec = ReconciliationMapper.fromFirestore(update.data, update.id);
-      final serverTs = _extractTimestampMs(update.data['updatedAt']);
       await _localCash.upsertReconciliation(
         rec,
         syncStatus: 'synced',
@@ -703,6 +765,7 @@ class SyncService extends ChangeNotifier {
         serverUpdatedAt: serverTs,
       );
     }
+    return maxTs;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

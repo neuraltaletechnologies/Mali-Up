@@ -220,6 +220,24 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
 
       await batch.commit();
 
+      // Mirror the stock changes into Drift immediately — the UI reads stock
+      // from Drift, and the incremental sync pull can miss these writes when
+      // the device clock runs ahead of the Firestore server clock.
+      try {
+        final db = ref.read(appDatabaseProvider);
+        if (_restockAll) {
+          for (final line in selectedLines) {
+            if (line.productId.isEmpty) continue;
+            await db.inventoryDao
+                .applyCommittedDelta(line.productId, line.returnQty.toDouble());
+          }
+        }
+        if (_resolution == _ResolutionType.exchangeProduct &&
+            _exchangeProductId.isNotEmpty) {
+          await db.inventoryDao.applyCommittedDelta(_exchangeProductId, -1);
+        }
+      } catch (_) {}
+
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,
         businessId: scope.businessId,
