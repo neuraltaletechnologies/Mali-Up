@@ -205,6 +205,12 @@ export interface CatalogCategory {
   productCount: number
 }
 
+export interface CatalogImportResult {
+  imported: number
+  skipped: number
+  skippedNames: string[]
+}
+
 export interface AnalyticsOverview {
   totalUsers: number
   totalBusinesses: number

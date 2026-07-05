@@ -44,6 +44,7 @@ const nav: NavItem[] = [
     children: [
       { label: 'Master Catalog', href: '/admin/catalog' },
       { label: 'Submissions',    href: '/admin/catalog/submissions' },
+      { label: 'Lookups',       href: '/admin/lookups' },
     ]
   },
   {
@@ -59,7 +60,6 @@ const nav: NavItem[] = [
       { label: 'System Health', href: '/admin/system' },
       { label: 'Feature Flags', href: '/admin/features' },
       { label: 'Config',        href: '/admin/config' },
-      { label: 'Lookups',       href: '/admin/lookups' },
     ]
   },
   { label: 'My Profile', href: '/admin/profile', icon: UserCircle },
