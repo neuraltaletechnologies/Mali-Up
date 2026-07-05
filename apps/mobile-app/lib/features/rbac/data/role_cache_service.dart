@@ -21,6 +21,12 @@ class RoleCacheService {
   static const _keyBusinessId   = 'mali_role_businessId';
   static const _keyMemberId     = 'mali_role_memberId';
 
+  // Resolved active businessId (owner's `selectedBusinessId` or member's
+  // `businessId`), cached separately from the role fields above so
+  // `currentBusinessIdProvider` can serve it on a cold offline start —
+  // see [saveBusinessId] / [loadBusinessId].
+  static const _keyResolvedBusinessId = 'mali_resolved_business_id';
+
   /// Saves the relevant role fields from [profile] for [uid].
   /// Called every time Firestore emits a new snapshot so the cache stays fresh.
   static Future<void> save(String uid, Map<String, dynamic> profile) async {
@@ -59,6 +65,22 @@ class RoleCacheService {
     };
   }
 
+  /// Saves the resolved active businessId for [uid] so
+  /// `currentBusinessIdProvider` can serve it immediately on a cold offline
+  /// start, before the live Firestore snapshot arrives.
+  static Future<void> saveBusinessId(String uid, String businessId) async {
+    await _storage.write(key: _keyUid, value: uid);
+    await _storage.write(key: _keyResolvedBusinessId, value: businessId);
+  }
+
+  /// Returns the cached resolved businessId for [uid], or null if nothing is
+  /// cached or the cached entry belongs to a different UID.
+  static Future<String?> loadBusinessId(String uid) async {
+    final cachedUid = await _storage.read(key: _keyUid);
+    if (cachedUid != uid) return null;
+    return _storage.read(key: _keyResolvedBusinessId);
+  }
+
   /// Clears the cached role. Call on explicit sign-out so a subsequent user
   /// does not briefly see stale role data before Firestore responds.
   static Future<void> clear() async {
@@ -68,6 +90,7 @@ class RoleCacheService {
       _storage.delete(key: _keyOwnerUid),
       _storage.delete(key: _keyBusinessId),
       _storage.delete(key: _keyMemberId),
+      _storage.delete(key: _keyResolvedBusinessId),
     ]);
     if (kDebugMode) debugPrint('[RBAC] RoleCacheService: cleared');
   }

@@ -176,7 +176,7 @@ export interface MasterProduct {
 /** Real Firestore master catalog product (master_products collection) */
 export interface CatalogProduct {
   id: string
-  businessType: string
+  businessTypes: string[]
   categorySlug: string
   productName: string
   productNameSw: string
@@ -196,7 +196,7 @@ export interface CatalogProduct {
 
 export interface CatalogCategory {
   id: string
-  businessType: string
+  businessTypes: string[]
   categoryName: string
   categoryNameSw: string
   categorySlug: string

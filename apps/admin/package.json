@@ -8,6 +8,7 @@
     "start": "next start --port 3001",
     "lint": "eslint .",
     "provision:admin": "tsx --env-file=.env.local scripts/set-admin-claim.ts",
+    "migrate:catalog-business-types": "tsx --env-file=.env.local scripts/migrate-catalog-business-types.ts",
     "cf:build": "npx @opennextjs/cloudflare build",
     "cf:preview": "npx wrangler dev",
     "cf:deploy": "npx wrangler deploy"

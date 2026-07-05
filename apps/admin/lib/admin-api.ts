@@ -97,6 +97,18 @@ export async function postCatalogProduct(data: Record<string, unknown>): Promise
   return apiFetch('/api/admin/catalog', { method: 'POST', body: JSON.stringify(data) })
 }
 
+export async function bulkReassignCatalog(
+  entity: 'category' | 'product',
+  ids: string[],
+  mode: 'add' | 'remove' | 'replace',
+  businessTypes: string[],
+): Promise<{ success: boolean; updated: number }> {
+  return apiFetch('/api/admin/catalog/bulk-reassign', {
+    method: 'POST',
+    body: JSON.stringify({ entity, ids, mode, businessTypes }),
+  })
+}
+
 // ─── Subscriptions ────────────────────────────────────────────────────────────
 
 export async function fetchSubscriptions(): Promise<{ subscriptions: Subscription[]; total: number }> {
