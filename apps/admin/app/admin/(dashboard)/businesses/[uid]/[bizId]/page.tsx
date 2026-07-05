@@ -10,20 +10,22 @@ import { Tabs } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KPICard } from '@/components/ui/kpi-card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { fetchBusiness, patchBusiness, postBusinessNote, editBusiness } from '@/lib/admin-api'
+import { fetchBusiness, patchBusiness, postBusinessNote, editBusiness, fetchCatalog, attachCatalogToBusiness } from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatDate, timeAgo } from '@/lib/format'
 import {
   ArrowLeft, Ban, RotateCcw, MessageSquarePlus, AlertCircle,
   Users, Receipt, ShoppingBag, UserCheck, Pencil, X, Loader2,
+  PackagePlus, CheckSquare, Square,
 } from 'lucide-react'
-import type { Business, StaffMember } from '@/types'
+import type { Business, StaffMember, CatalogCategory, CatalogProduct } from '@/types'
 
 const TABS = [
   { id: 'overview',      label: 'Overview' },
   { id: 'team',          label: 'Team' },
   { id: 'financial',     label: 'Financial' },
   { id: 'subscription',  label: 'Subscription' },
+  { id: 'catalog',       label: 'Catalog' },
   { id: 'notes',         label: 'Notes' },
 ]
 
@@ -149,6 +151,216 @@ function DField({
         className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
       />
     </label>
+  )
+}
+
+// ─── Catalog Attach Panel ─────────────────────────────────────────────────────
+
+function CatalogAttachPanel({
+  uid, bizId, businessName, industry,
+}: {
+  uid: string; bizId: string; businessName: string; industry: string
+}) {
+  const { data, loading, error } = useAdminFetch(
+    useCallback(() => fetchCatalog(), []),
+    { key: 'catalog-all' },
+  )
+
+  const categories = data?.categories ?? []
+  const products   = data?.products   ?? []
+
+  const [businessType, setBusinessType] = useState('')
+  const [categorySlug, setCategorySlug] = useState('')
+  const [selected,     setSelected]     = useState<Set<string>>(new Set())
+  const [attaching,    setAttaching]    = useState(false)
+  const [result,       setResult]       = useState<{ imported: number; skipped: number } | null>(null)
+  const [err,          setErr]          = useState<string | null>(null)
+
+  // Default the business-type filter to the business's own industry, once, if it matches.
+  const [defaulted, setDefaulted] = useState(false)
+  if (!defaulted && data && !businessType) {
+    const match = data.businessTypes.find(
+      (t) => t.toLowerCase() === industry.toLowerCase(),
+    )
+    if (match) setBusinessType(match)
+    setDefaulted(true)
+  }
+
+  const filteredCategories = businessType
+    ? categories.filter((c) => c.businessType === businessType)
+    : categories
+
+  const categoryProducts = categorySlug
+    ? products.filter((p) => p.categorySlug === categorySlug &&
+        (!businessType || p.businessType === businessType))
+    : []
+
+  const selectedCategory = categories.find((c) => c.categorySlug === categorySlug)
+
+  function toggleProduct(id: string) {
+    setSelected((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    setSelected((s) =>
+      s.size === categoryProducts.length
+        ? new Set()
+        : new Set(categoryProducts.map((p) => p.id)),
+    )
+  }
+
+  async function handleAttach() {
+    if (selected.size === 0) return
+    setAttaching(true); setErr(null); setResult(null)
+    try {
+      const res = await attachCatalogToBusiness(uid, bizId, {
+        categorySlug,
+        categoryName: selectedCategory?.categoryName,
+        productIds: [...selected],
+      })
+      setResult({ imported: res.imported, skipped: res.skipped })
+      setSelected(new Set())
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Failed to attach products')
+    } finally {
+      setAttaching(false)
+    }
+  }
+
+  if (loading) return <SkeletonPanel />
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-4 text-[var(--status-bad)]">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span className="text-[13px]">{error}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <PackagePlus className="h-4 w-4 text-[var(--accent)]" />
+        <h3 className="text-[14px] font-semibold text-[var(--ink)]">Attach Catalog Products</h3>
+      </div>
+      <p className="text-[12px] text-[var(--ink-muted)] mb-5">
+        Pick a category from the Master Catalog and attach its products directly to {businessName}&apos;s inventory.
+        Items are created with zero stock and no price — the business fills those in.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-[var(--ink-faint)]">Business Type</span>
+          <select
+            value={businessType}
+            onChange={(e) => { setBusinessType(e.target.value); setCategorySlug(''); setSelected(new Set()) }}
+            className="rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+          >
+            <option value="">All business types</option>
+            {data?.businessTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-[var(--ink-faint)]">Category</span>
+          <select
+            value={categorySlug}
+            onChange={(e) => { setCategorySlug(e.target.value); setSelected(new Set()) }}
+            className="rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+          >
+            <option value="">Select a category…</option>
+            {filteredCategories.map((c) => (
+              <option key={c.id} value={c.categorySlug}>
+                {c.categoryName} ({c.productCount})
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {categorySlug && (
+        <>
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={toggleAll}
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--accent)] hover:underline"
+            >
+              {selected.size === categoryProducts.length && categoryProducts.length > 0
+                ? <CheckSquare className="h-3.5 w-3.5" />
+                : <Square className="h-3.5 w-3.5" />}
+              {selected.size === categoryProducts.length && categoryProducts.length > 0 ? 'Deselect all' : 'Select all'}
+            </button>
+            <span className="text-[11px] text-[var(--ink-faint)]">
+              {selected.size} of {categoryProducts.length} selected
+            </span>
+          </div>
+
+          <div className="max-h-72 overflow-y-auto rounded-md border border-[var(--line)] divide-y divide-[var(--line)] mb-4">
+            {categoryProducts.length === 0 ? (
+              <div className="p-4 text-center text-[12px] text-[var(--ink-faint)]">No products in this category.</div>
+            ) : (
+              categoryProducts.map((p: CatalogProduct) => (
+                <label
+                  key={p.id}
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--canvas)] cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(p.id)}
+                    onChange={() => toggleProduct(p.id)}
+                    className="rounded border-[var(--line)]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium text-[var(--ink)] truncate">{p.productName}</div>
+                    {p.productNameSw && (
+                      <div className="text-[11px] text-[var(--ink-faint)] truncate">{p.productNameSw}</div>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-[var(--ink-muted)] shrink-0">{p.unit}</span>
+                </label>
+              ))
+            )}
+          </div>
+
+          {err && (
+            <div className="flex items-center gap-2 rounded-md border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-3 mb-3 text-[12px] text-[var(--status-bad)]">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {err}
+            </div>
+          )}
+
+          {result && (
+            <div className="rounded-md border border-[var(--status-good)] bg-[var(--status-good-bg)] p-3 mb-3 text-[12px] text-[var(--status-good)]">
+              Attached {result.imported} product{result.imported === 1 ? '' : 's'}.
+              {result.skipped > 0 && ` ${result.skipped} already in inventory, skipped.`}
+            </div>
+          )}
+
+          <button
+            onClick={handleAttach}
+            disabled={attaching || selected.size === 0}
+            style={{ backgroundColor: '#FFC107', color: '#0D1B3E' }}
+            className="inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-[12px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {attaching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PackagePlus className="h-3.5 w-3.5" />}
+            {attaching ? 'Attaching…' : `Attach ${selected.size || ''} to ${businessName}`}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+function SkeletonPanel() {
+  return (
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6 space-y-3">
+      <div className="h-4 w-48 bg-[var(--canvas)] rounded animate-pulse" />
+      <div className="h-9 w-full bg-[var(--canvas)] rounded animate-pulse" />
+      <div className="h-24 w-full bg-[var(--canvas)] rounded animate-pulse" />
+    </div>
   )
 }
 
@@ -438,6 +650,16 @@ export default function BusinessDetailPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Catalog */}
+      {tab === 'catalog' && (
+        <CatalogAttachPanel
+          uid={uid}
+          bizId={bizId}
+          businessName={business.name}
+          industry={business.industry}
+        />
       )}
 
       {/* Notes */}

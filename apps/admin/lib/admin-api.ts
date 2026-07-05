@@ -3,6 +3,7 @@ import type {
   Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
+  CatalogImportResult,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -340,6 +341,19 @@ export async function createBusiness(data: {
   district?: string
 }): Promise<{ uid: string; businessId: string }> {
   return apiFetch('/api/admin/businesses', { method: 'POST', body: JSON.stringify(data) })
+}
+
+// ─── Business Catalog Attach ──────────────────────────────────────────────────
+
+export async function attachCatalogToBusiness(
+  uid: string,
+  businessId: string,
+  data: { categorySlug?: string; categoryName?: string; productIds?: string[] },
+): Promise<CatalogImportResult> {
+  return apiFetch(`/api/admin/businesses/${uid}/${businessId}/catalog-import`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
 }
 
 // ─── Business Notes ───────────────────────────────────────────────────────────
