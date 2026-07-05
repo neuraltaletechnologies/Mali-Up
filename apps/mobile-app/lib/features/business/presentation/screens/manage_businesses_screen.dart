@@ -17,6 +17,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
@@ -1218,15 +1219,17 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.background,
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _handleAddBusinessTap(profile),
-            backgroundColor: AppColors.yellowBrand,
-            foregroundColor: AppColors.navyPrimary,
-            elevation: 3,
-            icon: const Icon(Icons.add_business_rounded, size: 20),
-            label: Text(
-              _tr('Add Business', 'Ongeza Biashara'),
-              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          floatingActionButton: NavAwareFab(
+            child: FloatingActionButton.extended(
+              onPressed: () => _handleAddBusinessTap(profile),
+              backgroundColor: AppColors.yellowBrand,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 3,
+              icon: const Icon(Icons.add_business_rounded, size: 20),
+              label: Text(
+                _tr('Add Business', 'Ongeza Biashara'),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
           body: SmartSkeleton(

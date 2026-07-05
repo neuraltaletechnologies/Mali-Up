@@ -13,6 +13,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../data/customer_providers.dart';
@@ -142,15 +143,17 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
 
     return Scaffold(
       floatingActionButton: ps.canManageCustomers || ps.isOwner
-          ? FloatingActionButton.extended(
-              onPressed: () => _showAddDialog(context),
-              backgroundColor: AppColors.yellowBrand,
-              foregroundColor: AppColors.navyPrimary,
-              elevation: 3,
-              icon: Icon(Icons.person_add_alt_1_rounded, size: 20),
-              label: Text(
-                _tr('Add Customer', 'Ongeza Mteja'),
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          ? NavAwareFab(
+              child: FloatingActionButton.extended(
+                onPressed: () => _showAddDialog(context),
+                backgroundColor: AppColors.yellowBrand,
+                foregroundColor: AppColors.navyPrimary,
+                elevation: 3,
+                icon: Icon(Icons.person_add_alt_1_rounded, size: 20),
+                label: Text(
+                  _tr('Add Customer', 'Ongeza Mteja'),
+                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                ),
               ),
             )
           : null,

@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
@@ -74,7 +75,7 @@ class _CashFlowScreenState extends ConsumerState<CashFlowScreen>
           ),
         ],
       ),
-      floatingActionButton: _CashFlowFab(),
+      floatingActionButton: NavAwareFab(child: _CashFlowFab()),
     );
   }
 }

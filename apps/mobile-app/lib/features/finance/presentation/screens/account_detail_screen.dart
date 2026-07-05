@@ -8,6 +8,7 @@ import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
@@ -84,32 +85,34 @@ class AccountDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          // Same gate as the cash flow screen's FAB — a downgraded plan can
-          // still open this screen through existing accounts.
-          final plan = await ref.read(planStatusProvider.future);
-          if (!context.mounted) return;
-          if (!plan.limits.cashFlow) {
-            await showUpgradeSheet(
+      floatingActionButton: NavAwareFab(
+        child: FloatingActionButton(
+          onPressed: () async {
+            // Same gate as the cash flow screen's FAB — a downgraded plan can
+            // still open this screen through existing accounts.
+            final plan = await ref.read(planStatusProvider.future);
+            if (!context.mounted) return;
+            if (!plan.limits.cashFlow) {
+              await showUpgradeSheet(
+                context,
+                currentStatus: plan,
+                featureKey: PlanFeatureKey.cashFlow,
+                triggerReason: _t(
+                  'Required a Growth or Business plan.',
+                  'unahitaji mpango wa Growth au Business.',
+                ),
+              );
+              return;
+            }
+            if (!context.mounted) return;
+            await showAppSheet(
               context,
-              currentStatus: plan,
-              featureKey: PlanFeatureKey.cashFlow,
-              triggerReason: _t(
-                'Required a Growth or Business plan.',
-                'unahitaji mpango wa Growth au Business.',
-              ),
+              builder: (_) => AddTransactionDialog(defaultAccount: liveAccount),
             );
-            return;
-          }
-          if (!context.mounted) return;
-          await showAppSheet(
-            context,
-            builder: (_) => AddTransactionDialog(defaultAccount: liveAccount),
-          );
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: AppColors.secondary),
+          },
+          backgroundColor: AppColors.primary,
+          child: const Icon(Icons.add, color: AppColors.secondary),
+        ),
       ),
     );
   }
