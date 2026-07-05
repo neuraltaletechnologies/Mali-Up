@@ -101,7 +101,10 @@
       "PowerShell(dart analyze lib\\\\core\\\\database\\\\daos\\\\inventory_dao.dart lib\\\\core\\\\sync\\\\sync_service.dart lib\\\\features\\\\inventory test\\\\core\\\\database\\\\inventory_dao_test.dart)",
       "PowerShell(flutter test test/core/database/inventory_dao_test.dart)",
       "PowerShell(dart analyze lib\\\\features\\\\dashboard 2>$null)",
-      "PowerShell(flutter test 2>$null)"
+      "PowerShell(flutter test 2>$null)",
+      "PowerShell(flutter analyze lib\\\\features\\\\sales lib\\\\features\\\\invoice > $env:TEMP\\\\analyze_out.txt; Select-String -Path $env:TEMP\\\\analyze_out.txt -Pattern '^\\\\s+\\(error|warning\\)' ; Select-String -Path $env:TEMP\\\\analyze_out.txt -Pattern 'issues found')",
+      "PowerShell(Select-String -Path $env:TEMP\\\\analyze_out.txt -NotMatch 'prefer_const_constructors' | Select-Object -First 20 | ForEach-Object Line)",
+      "PowerShell(Set-Location C:\\\\SIDE\\\\GIT\\\\Maliapp\\\\apps\\\\mobile-app; flutter analyze lib\\\\features\\\\sales > $env:TEMP\\\\an2.txt; Select-String -Path $env:TEMP\\\\an2.txt -NotMatch 'prefer_const_constructors|avoid_redundant_argument_values|Analyzing|issues found' | ForEach-Object Line; Select-String -Path $env:TEMP\\\\an2.txt -Pattern 'issues found' | ForEach-Object Line)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

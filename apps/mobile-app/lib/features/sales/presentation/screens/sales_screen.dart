@@ -35,6 +35,7 @@ import '../../../invoice/domain/models/invoice.dart';
 import '../../../invoice/presentation/providers/invoice_providers.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
 import 'invoice_detail_screen.dart';
 
@@ -3981,69 +3982,28 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
     if (!mounted) return;
     setState(() => _updating = true);
     try {
-      final scope = await resolveSalesScope(ref);
-      if (scope == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-      final col = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'sales_invoices');
-
-      final batch = FirebaseFirestore.instance.batch();
-      batch.update(col.doc(_inv['id'] as String), {
-        'status': 'paid',
-        'amountPaid': _total,
-        'paidAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      final customerId = (_inv['customerId'] ?? '').toString();
-      if (customerId.isNotEmpty && _outstanding > 0) {
-        final customersCol = repo.scopeCollection(
-            uid: scope.ownerUid,
-            context: scope.context,
-            childCollection: 'customers');
-        batch.set(
-            customersCol.doc(customerId),
-            {
-              'balance': FieldValue.increment(-_outstanding),
-              'lastTransactionDate': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true));
-      }
-
-      await batch.commit();
-
-      if (customerId.isNotEmpty && _outstanding > 0) {
-        try {
-          final db = ref.read(appDatabaseProvider);
-          final row = await db.customerDao.getById(customerId);
-          if (row != null) {
-            final newBalance = (row.balance - _outstanding).clamp(0.0, double.maxFinite);
-            await db.customerDao.updateBalance(customerId, newBalance);
-          }
-        } catch (e, st) {
-          unawaited(Sentry.captureException(e, stackTrace: st));
-        }
-      }
-
-      unawaited(AuditLogService().logSaleAction(
-        ownerUid: scope.ownerUid,
-        businessId: scope.businessId,
-        performedByUid: scope.userUid,
-        performedByRole: ref.read(currentUserRoleProvider),
-        action: AuditLogService.paymentReceived,
-        invoiceId: _inv['id'] as String,
-        invoiceNumber: _invoiceNumber,
-        amount: _total,
-        details: 'mark_paid',
-      ));
-      unawaited(ref.read(syncServiceProvider).syncNow());
-
+      // Full-outstanding payment through the shared settlement path so the
+      // payment record, customer balance and receivable/debt ledgers all move
+      // together with the invoice status.
+      final method = (_inv['paymentMethod'] ?? '').toString();
+      final result = await settleInvoicePayment(
+        ref,
+        invoice: _inv,
+        amount: _outstanding,
+        method: method.isEmpty || method == 'credit' ? 'cash' : method,
+        auditDetails: 'mark_paid',
+      );
       if (!mounted) return;
+      if (result == null) {
+        setState(() => _updating = false);
+        return;
+      }
       setState(() {
-        _inv = {..._inv, 'status': 'paid', 'amountPaid': _total};
+        _inv = {
+          ..._inv,
+          'status': result.newStatus,
+          'amountPaid': result.newAmountPaid,
+        };
         _updating = false;
       });
       _showSnack(_tr('Invoice marked as paid!', 'Ankara imewekwa kama imelipwa!'));

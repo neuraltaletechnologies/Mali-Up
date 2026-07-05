@@ -35,8 +35,13 @@ class InvoicePaymentResult {
 ///   created on the credit sale, matched by invoiceRef) are mirrored
 ///   immediately so offline screens don't keep showing the money as owed.
 ///
-/// Returns null when no sales scope could be resolved (caller shows nothing
-/// happened); throws on Firestore failures so callers can surface them.
+/// An invoice whose amount is already fully paid but whose status is stuck
+/// (legacy mark-paid writes, sync conflicts) settles as a reconciliation:
+/// the status is corrected and stale receivable/ledger entries are closed,
+/// but no payment is fabricated and the customer balance is not touched.
+///
+/// Returns null when no sales scope could be resolved or there is nothing to
+/// settle; throws on Firestore failures so callers can surface them.
 Future<InvoicePaymentResult?> settleInvoicePayment(
   WidgetRef ref, {
   required Map<String, dynamic> invoice,
@@ -62,12 +67,18 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
   final fullySettled = newAmountPaid >= total - 0.005;
   final newStatus = fullySettled ? 'paid' : 'partial';
 
+  // received == 0 with a fully-paid amount means the status is stuck (legacy
+  // mark-paid writes, sync conflicts). That's a reconciliation, not a payment:
+  // correct the status and close stale receivable/ledger entries below, but
+  // never fabricate a payment record or move the customer balance.
+  if (received <= 0 && !fullySettled) return null;
+
   // Look up the receivable mirror created on the credit sale before building
   // the batch, so its settlement commits atomically with everything else.
   // Best-effort: older sales have no receivable doc.
   DocumentReference<Map<String, dynamic>>? receivableRef;
   double receivableOutstanding = 0;
-  if (received > 0) {
+  if (received > 0 || fullySettled) {
     try {
       final recCol = repo.scopeCollection(
           uid: scope.ownerUid,
@@ -109,9 +120,11 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
       context: scope.context,
       childCollection: 'sales_invoices');
   batch.update(invoicesCol.doc(invoiceId), {
-    'amountPaid': FieldValue.increment(received),
+    // On a pure status reconciliation nothing was received now — leave the
+    // recorded amounts and payment method untouched.
+    if (received > 0) 'amountPaid': FieldValue.increment(received),
+    if (received > 0) 'paymentMethod': method,
     'status': newStatus,
-    'paymentMethod': method,
     'updatedAt': FieldValue.serverTimestamp(),
     if (fullySettled) 'paidAt': FieldValue.serverTimestamp(),
   });
@@ -132,8 +145,12 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
   }
 
   if (receivableRef != null) {
-    final newOutstanding =
-        (receivableOutstanding - received).clamp(0.0, double.maxFinite);
+    // A fully-settled invoice closes its receivable entirely, even when the
+    // mirror's own outstanding drifted (payments recorded before this
+    // settlement path existed never reached it).
+    final newOutstanding = fullySettled
+        ? 0.0
+        : (receivableOutstanding - received).clamp(0.0, double.maxFinite);
     batch.update(receivableRef, {
       'outstanding': newOutstanding,
       'status': newOutstanding <= 0.005 ? 'settled' : 'open',
@@ -161,6 +178,7 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
     ref,
     invoiceNumber: invoiceNumber,
     received: received,
+    fullySettled: fullySettled,
     method: method,
     recordedBy: scope.userUid,
   );
@@ -174,7 +192,10 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
     invoiceId: invoiceId,
     invoiceNumber: invoiceNumber,
     amount: received,
-    details: auditDetails ?? method,
+    // Zero-amount entries are status corrections, not money — say so.
+    details: received > 0
+        ? (auditDetails ?? method)
+        : '${auditDetails ?? method} (status reconciliation)',
   ));
   unawaited(ref.read(syncServiceProvider).syncNow());
 
@@ -187,16 +208,20 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
 
 /// Applies the payment to the offline debt ledger: finds the open receivable
 /// created for this invoice and records the payment against it, so the Debts
-/// screen stops counting the settled money as owed. Best-effort — the ledger
-/// entry may not exist (cash sales, manually deleted debts).
+/// screen stops counting the settled money as owed. When the invoice ends
+/// fully settled the debt is closed for its whole remainder — an invoice with
+/// no balance due must not leave an open receivable behind, even if earlier
+/// payments (recorded before this settlement path existed) never reached the
+/// ledger. Best-effort — the entry may not exist (cash sales, deleted debts).
 Future<void> _settleLedgerReceivable(
   WidgetRef ref, {
   required String invoiceNumber,
   required double received,
+  required bool fullySettled,
   required String method,
   required String recordedBy,
 }) async {
-  if (received <= 0 || invoiceNumber.isEmpty) return;
+  if ((received <= 0 && !fullySettled) || invoiceNumber.isEmpty) return;
   try {
     final debtRepo = ref.read(debtRepositoryProvider);
     final debts = await debtRepo.watchAll().first;
@@ -212,7 +237,9 @@ Future<void> _settleLedgerReceivable(
     }
     if (match == null) return;
 
-    final applied = received.clamp(0.0, match.remainingAmount);
+    final applied = fullySettled
+        ? match.remainingAmount
+        : received.clamp(0.0, match.remainingAmount);
     if (applied <= 0) return;
     final now = DateTime.now();
     final dateStr =
@@ -224,7 +251,11 @@ Future<void> _settleLedgerReceivable(
         amount: applied,
         date: dateStr,
         method: method,
-        note: 'Invoice $invoiceNumber',
+        // The reconciliation note marks ledger closures that exceed the money
+        // received in this action, so the trail stays honest.
+        note: applied > received
+            ? 'Invoice $invoiceNumber — reconciled on settlement'
+            : 'Invoice $invoiceNumber',
         recordedBy: recordedBy,
       ),
     );
