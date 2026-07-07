@@ -4,6 +4,7 @@ import '../../customer/data/customer_providers.dart';
 import '../domain/models/cash_account.dart';
 import '../domain/models/cash_transaction.dart';
 import '../domain/models/daily_reconciliation.dart';
+import '../domain/payment_method_accounts.dart';
 import 'finance_providers.dart';
 
 // ── Month selector for cash flow screens ──────────────────────────────────────
@@ -108,6 +109,21 @@ final cfByActivityProvider =
     }
   }
   return map;
+});
+
+// ── Built-in payment-method accounts ─────────────────────────────────────────
+
+/// The activated built-in payment accounts, keyed by their deterministic id
+/// (pm_cash, pm_mpesa, pm_bank, pm_card). A method missing from this map has
+/// not been activated yet — it cannot receive sale money or pay for stock.
+final activatedMethodAccountsProvider = Provider<Map<String, CashAccount>>((ref) {
+  final accounts = ref
+      .watch(cashAccountListProvider)
+      .maybeWhen(data: (d) => d, orElse: () => <CashAccount>[]);
+  return {
+    for (final a in accounts)
+      if (PaymentMethodAccounts.isMethodAccountId(a.id)) a.id: a,
+  };
 });
 
 // ── Daily reconciliations (offline-first, backed by Drift) ───────────────────

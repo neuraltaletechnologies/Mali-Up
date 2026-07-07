@@ -31,6 +31,9 @@ class RemoteCashRepository {
   Future<int> createAccountAndGetTimestamp(CashAccount account) async {
     final data = {
       ...account.toFirestore(),
+      // Re-activating a previously deleted built-in account must clear the
+      // tombstone, or other devices would keep hiding it after their pulls.
+      'isDeleted': false,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };

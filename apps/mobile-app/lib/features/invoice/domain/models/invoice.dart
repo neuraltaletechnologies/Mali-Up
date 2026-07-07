@@ -218,6 +218,10 @@ class InvoiceItem {
   Map<String, dynamic> toFirestore() {
     return {
       'id': id,
+      // Stock flows (returns, draft confirm, quotation convert) look the
+      // product up by this key — without it lines lose their product link
+      // after a round-trip through the local database.
+      'productId': id,
       'name': name,
       'description': description,
       'quantity': quantity,

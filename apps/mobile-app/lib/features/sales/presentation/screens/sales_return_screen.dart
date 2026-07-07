@@ -118,6 +118,20 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
 
       final selectedLines = _lines.where((l) => l.selected && l.returnQty > 0);
 
+      // Restock only lines still linked to a product that exists locally —
+      // free-text sale lines carry a generated row id, and a merge-set on
+      // that id would create a phantom inventory document.
+      final db = ref.read(appDatabaseProvider);
+      final restockableIds = <String>{};
+      if (_restockAll) {
+        for (final line in selectedLines) {
+          if (line.productId.isEmpty) continue;
+          if (await db.inventoryDao.getById(line.productId) != null) {
+            restockableIds.add(line.productId);
+          }
+        }
+      }
+
       // Credit note number
       final now = DateTime.now();
       final rand =
@@ -179,7 +193,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
             context: scope.context,
             childCollection: 'inventory_items');
         for (final line in selectedLines) {
-          if (line.productId.isNotEmpty) {
+          if (restockableIds.contains(line.productId)) {
             batch.set(
                 invCol.doc(line.productId),
                 {
@@ -224,10 +238,9 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
       // from Drift, and the incremental sync pull can miss these writes when
       // the device clock runs ahead of the Firestore server clock.
       try {
-        final db = ref.read(appDatabaseProvider);
         if (_restockAll) {
           for (final line in selectedLines) {
-            if (line.productId.isEmpty) continue;
+            if (!restockableIds.contains(line.productId)) continue;
             await db.inventoryDao
                 .applyCommittedDelta(line.productId, line.returnQty.toDouble());
           }

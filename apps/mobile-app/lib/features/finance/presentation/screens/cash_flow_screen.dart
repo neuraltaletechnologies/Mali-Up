@@ -15,6 +15,8 @@ import '../../data/cash_flow_providers.dart';
 import '../../data/finance_providers.dart';
 import '../../domain/models/cash_account.dart';
 import '../../domain/models/cash_transaction.dart';
+import '../../domain/payment_method_accounts.dart';
+import '../widgets/activate_account_sheet.dart';
 import '../widgets/add_account_dialog.dart';
 import '../widgets/add_transaction_dialog.dart';
 import 'account_detail_screen.dart';
@@ -375,27 +377,54 @@ class _OverviewTab extends ConsumerWidget {
           SizedBox(
             height: 150,
             child: accountsAsync.when(
-              data: (accounts) => accounts.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _NoAccountsCard(),
-                    )
-                  : ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: accounts.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 12),
-                      itemBuilder: (context, i) => _AccountCard(
-                        account: accounts[i],
+              data: (accounts) {
+                // The four built-in payment channels always show first —
+                // activated ones as live accounts, the rest as "activate"
+                // prompts. Custom accounts follow.
+                final byId = {for (final a in accounts) a.id: a};
+                final custom = accounts
+                    .where((a) =>
+                        !PaymentMethodAccounts.isMethodAccountId(a.id))
+                    .toList();
+                final specs = PaymentMethodAccounts.specs;
+
+                return ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: specs.length + custom.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  itemBuilder: (context, i) {
+                    if (i < specs.length) {
+                      final spec = specs[i];
+                      final account = byId[spec.accountId];
+                      if (account == null) {
+                        return _ActivateMethodCard(spec: spec);
+                      }
+                      return _AccountCard(
+                        account: account,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) =>
-                                AccountDetailScreen(account: accounts[i]),
+                                AccountDetailScreen(account: account),
                           ),
                         ),
+                      );
+                    }
+                    final account = custom[i - specs.length];
+                    return _AccountCard(
+                      account: account,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AccountDetailScreen(account: account),
+                        ),
                       ),
-                    ),
+                    );
+                  },
+                );
+              },
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: SkeletonList(itemCount: 3),
@@ -634,11 +663,12 @@ class _AccountCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Icon(
-                  account.type == 'Cash'
-                      ? Icons.payments_outlined
-                      : account.type == 'Bank'
-                          ? Icons.account_balance_outlined
-                          : Icons.smartphone_outlined,
+                  switch (account.type) {
+                    'Cash' => Icons.payments_outlined,
+                    'Bank' => Icons.account_balance_outlined,
+                    'Card' => Icons.credit_card_outlined,
+                    _ => Icons.smartphone_outlined,
+                  },
                   color: AppColors.textMuted,
                   size: 18,
                 ),
@@ -673,29 +703,69 @@ class _AccountCard extends StatelessWidget {
   }
 }
 
-class _NoAccountsCard extends StatelessWidget {
+/// A built-in payment channel that has not been activated yet. Tapping it
+/// opens the activation sheet where the user enters the money actually
+/// present in the channel. Until then the channel cannot move money.
+class _ActivateMethodCard extends StatelessWidget {
+  final PaymentMethodSpec spec;
+  const _ActivateMethodCard({required this.spec});
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+    final name =
+        spec.nameFor(LocalizationService.isSwahili ? 'sw' : 'en');
+    return GestureDetector(
+      onTap: () => showAppSheet(
+        context,
+        builder: (_) => ActivateAccountSheet(spec: spec),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.add_card_outlined,
-              color: AppColors.textMuted, size: 28),
-          SizedBox(height: 8),
-          Text(
-            _tr('Add your first account', 'Ongeza akaunti yako ya kwanza'),
-            style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(spec.icon, color: AppColors.textMuted, size: 18),
+                const Icon(Icons.lock_outline,
+                    color: AppColors.warning, size: 16),
+              ],
+            ),
+            Spacer(),
+            Text(
+              name,
+              style: GoogleFonts.dmSans(
+                color: AppColors.navyPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: 4),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _tr('Tap to activate', 'Gusa kuwasha'),
+                style: GoogleFonts.dmSans(
+                  color: AppColors.warning,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

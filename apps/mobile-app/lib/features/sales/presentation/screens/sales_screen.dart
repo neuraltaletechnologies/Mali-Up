@@ -28,14 +28,17 @@ import '../../../customer/domain/models/customer.dart';
 import '../../../customer/presentation/widgets/add_customer_dialog.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
+import '../../../finance/data/cash_flow_providers.dart';
+import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/payment_method_accounts.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../../inventory/domain/models/inventory_item.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
-import '../../../invoice/data/mappers/invoice_mapper.dart';
 import '../../../invoice/domain/models/invoice.dart';
 import '../../../invoice/presentation/providers/invoice_providers.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
 import 'invoice_detail_screen.dart';
@@ -50,38 +53,38 @@ enum _QuickPayMethod { cash, mpesa, bank, card }
 
 extension _QuickPayMethodX on _QuickPayMethod {
   String get label => switch (this) {
-        _QuickPayMethod.cash => _tr('Cash', 'Taslimu'),
-        _QuickPayMethod.mpesa => 'M-Pesa',
-        _QuickPayMethod.bank => _tr('Bank', 'Benki'),
-        _QuickPayMethod.card => _tr('Card', 'Kadi'),
-      };
+    _QuickPayMethod.cash => _tr('Cash', 'Taslimu'),
+    _QuickPayMethod.mpesa => 'M-Pesa',
+    _QuickPayMethod.bank => _tr('Bank', 'Benki'),
+    _QuickPayMethod.card => _tr('Card', 'Kadi'),
+  };
 
   IconData get icon => switch (this) {
-        _QuickPayMethod.cash => Icons.payments_rounded,
-        _QuickPayMethod.mpesa => Icons.phone_android_rounded,
-        _QuickPayMethod.bank => Icons.account_balance_rounded,
-        _QuickPayMethod.card => Icons.credit_card_rounded,
-      };
+    _QuickPayMethod.cash => Icons.payments_rounded,
+    _QuickPayMethod.mpesa => Icons.phone_android_rounded,
+    _QuickPayMethod.bank => Icons.account_balance_rounded,
+    _QuickPayMethod.card => Icons.credit_card_rounded,
+  };
 
   String get firestoreKey => switch (this) {
-        _QuickPayMethod.cash => 'cash',
-        _QuickPayMethod.mpesa => 'mpesa',
-        _QuickPayMethod.bank => 'bank_transfer',
-        _QuickPayMethod.card => 'card',
-      };
+    _QuickPayMethod.cash => 'cash',
+    _QuickPayMethod.mpesa => 'mpesa',
+    _QuickPayMethod.bank => 'bank_transfer',
+    _QuickPayMethod.card => 'card',
+  };
 }
 
 enum _SalesFilter { all, paid, sent, overdue, draft, cancelled }
 
 extension _SalesFilterX on _SalesFilter {
   String get label => switch (this) {
-        _SalesFilter.all => _tr('All', 'Zote'),
-        _SalesFilter.paid => _tr('Paid', 'Imelipwa'),
-        _SalesFilter.sent => _tr('Sent', 'Imetumwa'),
-        _SalesFilter.overdue => _tr('Overdue', 'Imechelewa'),
-        _SalesFilter.draft => _tr('Draft', 'Rasimu'),
-        _SalesFilter.cancelled => _tr('Cancelled', 'Imefutwa'),
-      };
+    _SalesFilter.all => _tr('All', 'Zote'),
+    _SalesFilter.paid => _tr('Paid', 'Imelipwa'),
+    _SalesFilter.sent => _tr('Sent', 'Imetumwa'),
+    _SalesFilter.overdue => _tr('Overdue', 'Imechelewa'),
+    _SalesFilter.draft => _tr('Draft', 'Rasimu'),
+    _SalesFilter.cancelled => _tr('Cancelled', 'Imefutwa'),
+  };
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -132,8 +135,18 @@ String _fmtAmt(double v) {
 String _fmtDate(DateTime? d) {
   if (d == null) return '-';
   const months = [
-    'Jan','Feb','Mar','Apr','May','Jun',
-    'Jul','Aug','Sep','Oct','Nov','Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${d.day} ${months[d.month - 1]}';
 }
@@ -165,7 +178,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       final q = _query.toLowerCase();
       list = list.where((i) {
         final cn = (i['customerName'] ?? '').toString().toLowerCase();
-        final inv = (i['invoiceNumber'] ?? i['id'] ?? '').toString().toLowerCase();
+        final inv = (i['invoiceNumber'] ?? i['id'] ?? '')
+            .toString()
+            .toLowerCase();
         return cn.contains(q) || inv.contains(q);
       }).toList();
     }
@@ -175,19 +190,27 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   Map<_SalesFilter, int> _buildCounts(List<Map<String, dynamic>> items) {
     return {
       _SalesFilter.all: items.length,
-      _SalesFilter.paid:
-          items.where((i) => _normalizeStatus(i) == 'paid').length,
-      _SalesFilter.sent:
-          items.where((i) => _matchesFilter(i, _SalesFilter.sent)).length,
+      _SalesFilter.paid: items
+          .where((i) => _normalizeStatus(i) == 'paid')
+          .length,
+      _SalesFilter.sent: items
+          .where((i) => _matchesFilter(i, _SalesFilter.sent))
+          .length,
       _SalesFilter.overdue: items.where(_isOverdue).length,
-      _SalesFilter.draft:
-          items.where((i) => _normalizeStatus(i) == 'draft').length,
-      _SalesFilter.cancelled:
-          items.where((i) => _normalizeStatus(i) == 'cancelled').length,
+      _SalesFilter.draft: items
+          .where((i) => _normalizeStatus(i) == 'draft')
+          .length,
+      _SalesFilter.cancelled: items
+          .where((i) => _normalizeStatus(i) == 'cancelled')
+          .length,
     };
   }
 
-  Future<void> _deleteSale(BuildContext context, WidgetRef ref, Map<String, dynamic> sale) async {
+  Future<void> _deleteSale(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> sale,
+  ) async {
     final id = (sale['id'] as String?)?.trim() ?? '';
     if (id.isEmpty) return;
     final saleNo = (sale['invoiceNumber'] ?? sale['id'] ?? '').toString();
@@ -195,10 +218,20 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(_tr('Delete Invoice?', 'Futa Ankara?'),
-            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, color: AppColors.navyPrimary)),
-        content: Text(_tr('Delete $saleNo? This cannot be undone.', 'Futa $saleNo? Haiwezi kurejeshwa.'),
-            style: GoogleFonts.dmSans(fontSize: 14)),
+        title: Text(
+          _tr('Delete Invoice?', 'Futa Ankara?'),
+          style: GoogleFonts.dmSans(
+            fontWeight: FontWeight.w700,
+            color: AppColors.navyPrimary,
+          ),
+        ),
+        content: Text(
+          _tr(
+            'Delete $saleNo? This cannot be undone.',
+            'Futa $saleNo? Haiwezi kurejeshwa.',
+          ),
+          style: GoogleFonts.dmSans(fontSize: 14),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -207,7 +240,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: Text(_tr('Delete', 'Futa'), style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+            child: Text(
+              _tr('Delete', 'Futa'),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -219,23 +255,32 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       // Offline-first: soft-delete locally + queue the remote delete. A direct
       // Firestore delete would leave a stale row in the local database.
       await ref.read(invoiceRepositoryProvider).delete(id);
-      unawaited(AuditLogService().logSaleAction(
-        ownerUid: scope.ownerUid,
-        businessId: scope.businessId,
-        performedByUid: scope.userUid,
-        performedByRole: ref.read(currentUserRoleProvider),
-        action: AuditLogService.invoiceDeleted,
-        invoiceId: id,
-        invoiceNumber: saleNo,
-      ));
+      unawaited(
+        AuditLogService().logSaleAction(
+          ownerUid: scope.ownerUid,
+          businessId: scope.businessId,
+          performedByUid: scope.userUid,
+          performedByRole: ref.read(currentUserRoleProvider),
+          action: AuditLogService.invoiceDeleted,
+          invoiceId: id,
+          invoiceNumber: saleNo,
+        ),
+      );
       unawaited(ref.read(syncServiceProvider).syncNow());
     } catch (e, st) {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(_tr('Could not delete invoice. Please try again.', 'Imeshindwa kufuta ankara. Jaribu tena.')),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.error,
+            content: Text(
+              _tr(
+                'Could not delete invoice. Please try again.',
+                'Imeshindwa kufuta ankara. Jaribu tena.',
+              ),
+            ),
+          ),
+        );
       }
     }
   }
@@ -244,19 +289,18 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final plan = await ref.read(planStatusProvider.future);
     if (!ctx.mounted) return;
     if (!plan.canCreateInvoice) {
-      await showUpgradeSheet(ctx,
-          currentStatus: plan,
-          triggerReason: _tr(
-            'You\'ve reached the ${plan.limits.monthlyInvoices}-invoice monthly limit.',
-            'Umefika kikomo cha ankara ${plan.limits.monthlyInvoices} kwa mwezi.',
-          ));
+      await showUpgradeSheet(
+        ctx,
+        currentStatus: plan,
+        triggerReason: _tr(
+          'You\'ve reached the ${plan.limits.monthlyInvoices}-invoice monthly limit.',
+          'Umefika kikomo cha ankara ${plan.limits.monthlyInvoices} kwa mwezi.',
+        ),
+      );
       return;
     }
     if (!ctx.mounted) return;
-    await showAppSheet<void>(
-      ctx,
-      builder: (_) => const _NewSaleSheet(),
-    );
+    await showAppSheet<void>(ctx, builder: (_) => const _NewSaleSheet());
   }
 
   @override
@@ -278,9 +322,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   label: Text(
                     _tr('New Sale', 'Mauzo Mapya'),
                     style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navyPrimary),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navyPrimary,
+                    ),
                   ),
                 ),
               ),
@@ -291,8 +336,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           child: EmptyState(
             icon: Icons.wifi_off_rounded,
             title: _tr('Could not load sales', 'Imeshindikana kupakia mauzo'),
-            subtitle: _tr('Check your connection and try again.',
-                'Angalia muunganiko wako na ujaribu tena.'),
+            subtitle: _tr(
+              'Check your connection and try again.',
+              'Angalia muunganiko wako na ujaribu tena.',
+            ),
           ),
         ),
         data: (items) {
@@ -300,23 +347,25 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
           final filtered = _applyFilters(items);
 
           final today = DateTime.now();
-          final todayRevenue = items.where((i) {
-            final d = readTimestamp(i['createdAt'] ?? i['date']);
-            return d != null &&
-                d.year == today.year &&
-                d.month == today.month &&
-                d.day == today.day;
-          }).fold<double>(0, (s, i) => s + readInvoiceTotal(i));
+          final todayRevenue = items
+              .where((i) {
+                final d = readTimestamp(i['createdAt'] ?? i['date']);
+                return d != null &&
+                    d.year == today.year &&
+                    d.month == today.month &&
+                    d.day == today.day;
+              })
+              .fold<double>(0, (s, i) => s + readInvoiceTotal(i));
 
           final pendingTotal = items
               .where((i) => _matchesFilter(i, _SalesFilter.sent))
               .fold<double>(
-                  0,
-                  (s, i) =>
-                      s +
-                      (readInvoiceTotal(i) -
-                              parseNumericAmount(i['amountPaid']))
-                          .clamp(0, double.infinity));
+                0,
+                (s, i) =>
+                    s +
+                    (readInvoiceTotal(i) - parseNumericAmount(i['amountPaid']))
+                        .clamp(0, double.infinity),
+              );
 
           final overdueCount = counts[_SalesFilter.overdue] ?? 0;
 
@@ -409,7 +458,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       final data = doc.data();
       printedBy =
           ((data?['displayName'] ?? data?['name']) as String?)?.trim() ??
-              'User';
+          'User';
       final list = data?['businesses'];
       if (list is List && businessId != null) {
         for (final b in list) {
@@ -439,11 +488,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     required String businessName,
     required String printedBy,
   }) {
-    final invoiceNo =
-        (sale['invoiceNumber'] ?? sale['id'] ?? '-').toString();
-    final customer =
-        (sale['customerName'] ?? _tr('Walk-in', 'Mteja wa kawaida'))
-            .toString();
+    final invoiceNo = (sale['invoiceNumber'] ?? sale['id'] ?? '-').toString();
+    final rawCustomer = (sale['customerName'] ?? '').toString().trim();
+    final customer = rawCustomer.isNotEmpty
+        ? rawCustomer
+        : _tr('Walk-in', 'Mteja wa kawaida');
     final createdAt = readTimestamp(sale['createdAt'] ?? sale['date']);
     final dueDate = readTimestamp(sale['dueDate']);
     final amount = readInvoiceTotal(sale);
@@ -453,10 +502,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         (sale['items'] as List?)?.whereType<Map>().toList() ?? const [];
     final isQuotation =
         (sale['type'] ?? '').toString().toLowerCase() == 'quotation';
-    final docType =
-        isQuotation ? _tr('QUOTATION', 'NUKUU') : _tr('INVOICE', 'ANKARA');
-    final payMethod =
-        (sale['paymentMethod'] ?? '').toString().toLowerCase();
+    final docType = isQuotation
+        ? _tr('QUOTATION', 'NUKUU')
+        : _tr('INVOICE', 'ANKARA');
+    final payMethod = (sale['paymentMethod'] ?? '').toString().toLowerCase();
 
     const line = '────────────────────────────';
     const dline = '════════════════════════════';
@@ -469,11 +518,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     if (createdAt != null) {
       b.writeln(
-          '*${_tr("Date", "Tarehe")}:* ${_fmtDate(createdAt)} ${createdAt.year}');
+        '*${_tr("Date", "Tarehe")}:* ${_fmtDate(createdAt)} ${createdAt.year}',
+      );
     }
     if (dueDate != null && !isQuotation) {
       b.writeln(
-          '*${_tr("Due", "Malipo")}:* ${_fmtDate(dueDate)} ${dueDate.year}');
+        '*${_tr("Due", "Malipo")}:* ${_fmtDate(dueDate)} ${dueDate.year}',
+      );
     }
     b.writeln('*${_tr("No", "Na")}.:* $invoiceNo');
     b.writeln('*${_tr("Customer", "Mteja")}:* $customer');
@@ -483,13 +534,16 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       b.writeln('*${_tr("ITEMS", "BIDHAA")}:*');
       for (var i = 0; i < items.length; i++) {
         final item = items[i];
-        final name = (item['name'] ?? '-').toString();
-        final qty =
-            (item['qty'] ?? item['quantity'] ?? 1).toString();
+        var name = (item['name'] ?? item['productName'] ?? '')
+            .toString()
+            .trim();
+        if (name.isEmpty) name = '-';
+        final qty = (item['qty'] ?? item['quantity'] ?? 1).toString();
         final unitPrice = parseNumericAmount(item['unitPrice']);
         final total = parseNumericAmount(item['total']);
         b.writeln(
-            '${i + 1}. $name\n   $qty × TSh ${unitPrice.toStringAsFixed(0)} = *TSh ${total.toStringAsFixed(0)}*');
+          '${i + 1}. $name\n   $qty × TSh ${unitPrice.toStringAsFixed(0)} = *TSh ${total.toStringAsFixed(0)}*',
+        );
       }
       b.writeln(line);
     }
@@ -502,23 +556,27 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
     if (discount > 0) {
       b.writeln(
-          '${_tr("Subtotal", "Jumla Bidhaaa")}: TSh ${subtotal.toStringAsFixed(0)}');
+        '${_tr("Subtotal", "Jumla Bidhaaa")}: TSh ${subtotal.toStringAsFixed(0)}',
+      );
       b.writeln(
-          '${_tr("Discount", "Punguzo")}: -TSh ${discount.toStringAsFixed(0)}');
+        '${_tr("Discount", "Punguzo")}: -TSh ${discount.toStringAsFixed(0)}',
+      );
     }
     if (vat > 0) {
-      b.writeln(
-          'VAT (18%): TSh ${vat.toStringAsFixed(0)}');
+      b.writeln('VAT (18%): TSh ${vat.toStringAsFixed(0)}');
     }
     b.writeln(
-        '*${_tr("TOTAL", "JUMLA KUU")}: TSh ${amount.toStringAsFixed(0)}*');
+      '*${_tr("TOTAL", "JUMLA KUU")}: TSh ${amount.toStringAsFixed(0)}*',
+    );
 
     if (!isQuotation) {
       b.writeln(
-          '*${_tr("Paid", "Imelipwa")}:* TSh ${amountPaid.toStringAsFixed(0)}');
+        '*${_tr("Paid", "Imelipwa")}:* TSh ${amountPaid.toStringAsFixed(0)}',
+      );
       if (outstanding > 0) {
         b.writeln(
-            '*${_tr("Balance Due", "Baki")}:* TSh ${outstanding.toStringAsFixed(0)}');
+          '*${_tr("Balance Due", "Baki")}:* TSh ${outstanding.toStringAsFixed(0)}',
+        );
       }
       if (payMethod.isNotEmpty) {
         final pm = switch (payMethod) {
@@ -549,9 +607,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final scope = await resolveSalesScope(ref);
     if (scope == null) return;
     final meta = await _loadReceiptMeta(
-        uid: scope.userUid,
-        ownerUid: scope.ownerUid,
-        businessId: scope.businessId);
+      uid: scope.userUid,
+      ownerUid: scope.ownerUid,
+      businessId: scope.businessId,
+    );
     final receipt = _buildReceiptText(
       sale: sale,
       businessName: meta['businessName'] ?? 'Business',
@@ -577,15 +636,18 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               Text(
                 _tr('Share Receipt', 'Shiriki Risiti'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navyPrimary),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navyPrimary,
+                ),
               ),
               SizedBox(height: 4),
               Text(
                 (sale['invoiceNumber'] ?? sale['id'] ?? '').toString(),
                 style: GoogleFonts.jetBrainsMono(
-                    fontSize: 12, color: AppColors.textMuted),
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
               ),
               const Divider(height: 20, color: AppColors.border),
               _ReceiptAction(
@@ -594,7 +656,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 label: _tr('WhatsApp', 'WhatsApp'),
                 onTap: () async {
                   final phone = normalizeWhatsAppPhone(
-                      (sale['customerPhone'] ?? '').toString());
+                    (sale['customerPhone'] ?? '').toString(),
+                  );
                   final url = phone.isEmpty
                       ? 'https://wa.me/?text=${Uri.encodeComponent(receipt)}'
                       : 'https://wa.me/$phone?text=${Uri.encodeComponent(receipt)}';
@@ -610,10 +673,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   // Built by hand: Uri(queryParameters:) form-encodes spaces
                   // as '+', which email clients render literally in the body.
                   final subject = Uri.encodeComponent(
-                      'Invoice ${sale['invoiceNumber'] ?? ''}');
+                    'Invoice ${sale['invoiceNumber'] ?? ''}',
+                  );
                   final body = Uri.encodeComponent(plain);
                   await _launchShare(
-                      ctx, Uri.parse('mailto:?subject=$subject&body=$body'));
+                    ctx,
+                    Uri.parse('mailto:?subject=$subject&body=$body'),
+                  );
                 },
               ),
               _ReceiptAction(
@@ -622,8 +688,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 label: _tr('SMS', 'SMS'),
                 onTap: () async {
                   final plain = receipt.replaceAll(RegExp(r'\*|_'), '');
-                  await _launchShare(ctx,
-                      Uri.parse('sms:?body=${Uri.encodeComponent(plain)}'));
+                  await _launchShare(
+                    ctx,
+                    Uri.parse('sms:?body=${Uri.encodeComponent(plain)}'),
+                  );
                 },
               ),
               _ReceiptAction(
@@ -634,10 +702,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   await Clipboard.setData(ClipboardData(text: receipt));
                   if (!ctx.mounted) return;
                   Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(_tr('Copied.', 'Imenakiliwa.')),
-                    behavior: SnackBarBehavior.floating,
-                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(_tr('Copied.', 'Imenakiliwa.')),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
                 },
               ),
             ],
@@ -649,21 +719,32 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
   /// Launches a share/compose URL, surfacing a snackbar instead of an
   /// unhandled exception when no app on the device can handle it.
-  static Future<void> _launchShare(BuildContext context, Uri uri,
-      {bool external = false}) async {
+  static Future<void> _launchShare(
+    BuildContext context,
+    Uri uri, {
+    bool external = false,
+  }) async {
     try {
-      final ok = await launchUrl(uri,
-          mode: external
-              ? LaunchMode.externalApplication
-              : LaunchMode.platformDefault);
+      final ok = await launchUrl(
+        uri,
+        mode: external
+            ? LaunchMode.externalApplication
+            : LaunchMode.platformDefault,
+      );
       if (!ok) throw Exception('no handler');
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_tr('No app available to open this share option.',
-            'Hakuna programu ya kufungua chaguo hili la kushiriki.')),
-        behavior: SnackBarBehavior.floating,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'No app available to open this share option.',
+              'Hakuna programu ya kufungua chaguo hili la kushiriki.',
+            ),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 }
@@ -710,8 +791,9 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
       _ctrl.clear();
       _focus.unfocus();
     } else if (widget.searchExpanded && !old.searchExpanded) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _focus.requestFocus());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _focus.requestFocus(),
+      );
     }
   }
 
@@ -732,189 +814,215 @@ class _SalesDarkHeaderState extends State<_SalesDarkHeader> {
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
     return Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              color: AppColors.navyPrimary,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
-              ),
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.navyPrimary,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
             ),
-            padding: EdgeInsets.fromLTRB(
-                20, top + AppTheme.headerTopPadding, 20, _SalesDarkHeader._pillHalf + 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _tr('Sales', 'Mauzo'),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
-                        ),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            top + AppTheme.headerTopPadding,
+            20,
+            _SalesDarkHeader._pillHalf + 16,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _tr('Sales', 'Mauzo'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    // Search icon
-                    GestureDetector(
-                      onTap: widget.onSearchToggle,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
+                  ),
+                  // Search icon
+                  GestureDetector(
+                    onTap: widget.onSearchToggle,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: widget.searchExpanded
+                            ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                            : Colors.white12,
+                        shape: BoxShape.circle,
+                        border: Border.all(
                           color: widget.searchExpanded
-                              ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                              : Colors.white12,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: widget.searchExpanded ? AppColors.yellowBrand : Colors.transparent,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Icon(
-                          widget.searchExpanded ? Icons.close_rounded : Icons.search_rounded,
-                          color: widget.searchExpanded ? AppColors.yellowBrand : Colors.white,
-                          size: 20,
+                              ? AppColors.yellowBrand
+                              : Colors.transparent,
+                          width: 1.5,
                         ),
                       ),
+                      child: Icon(
+                        widget.searchExpanded
+                            ? Icons.close_rounded
+                            : Icons.search_rounded,
+                        color: widget.searchExpanded
+                            ? AppColors.yellowBrand
+                            : Colors.white,
+                        size: 20,
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    // Filter icon
-                    GestureDetector(
-                      onTap: widget.onFilterTap,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
+                  ),
+                  const SizedBox(width: 10),
+                  // Filter icon
+                  GestureDetector(
+                    onTap: widget.onFilterTap,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: widget.activeFilters > 0
+                                ? AppColors.yellowBrand.withValues(alpha: 0.18)
+                                : Colors.white12,
+                            shape: BoxShape.circle,
+                            border: Border.all(
                               color: widget.activeFilters > 0
-                                  ? AppColors.yellowBrand.withValues(alpha: 0.18)
-                                  : Colors.white12,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: widget.activeFilters > 0 ? AppColors.yellowBrand : Colors.transparent,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.tune_rounded,
-                              color: widget.activeFilters > 0 ? AppColors.yellowBrand : Colors.white,
-                              size: 20,
+                                  ? AppColors.yellowBrand
+                                  : Colors.transparent,
+                              width: 1.5,
                             ),
                           ),
-                          if (_alertDotColor != Colors.transparent)
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: Container(
-                                width: 7,
-                                height: 7,
-                                decoration: BoxDecoration(
-                                  color: _alertDotColor,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: AppColors.navyPrimary, width: 1.5),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            color: widget.activeFilters > 0
+                                ? AppColors.yellowBrand
+                                : Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        if (_alertDotColor != Colors.transparent)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: _alertDotColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppColors.navyPrimary,
+                                  width: 1.5,
                                 ),
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
-                  ],
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  child: widget.searchExpanded
-                      ? Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: TextField(
-                            controller: _ctrl,
-                            focusNode: _focus,
-                            onChanged: widget.onSearchChanged,
-                            style: GoogleFonts.dmSans(
-                                color: Colors.white, fontSize: 14),
-                            decoration: InputDecoration(
-                              hintText: _tr(
-                                'Customer name or invoice #…',
-                                'Jina la mteja au namba ya ankara…',
-                              ),
-                              hintStyle: GoogleFonts.dmSans(
-                                  color: Colors.white54, fontSize: 14),
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              filled: true,
-                              fillColor: Colors.white.withValues(alpha: 0.10),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
-                              ),
-                              prefixIcon: const Icon(Icons.search_rounded,
-                                  color: Colors.white54, size: 18),
+                  ),
+                ],
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                child: widget.searchExpanded
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: TextField(
+                          controller: _ctrl,
+                          focusNode: _focus,
+                          onChanged: widget.onSearchChanged,
+                          style: GoogleFonts.dmSans(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: _tr(
+                              'Customer name or invoice #…',
+                              'Jina la mteja au namba ya ankara…',
+                            ),
+                            hintStyle: GoogleFonts.dmSans(
+                              color: Colors.white54,
+                              fontSize: 14,
+                            ),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search_rounded,
+                              color: Colors.white54,
+                              size: 18,
                             ),
                           ),
-                        )
-                      : const SizedBox.shrink(),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+        // Stats pill
+        Positioned(
+          bottom: -_SalesDarkHeader._pillHalf,
+          left: 24,
+          right: 24,
+          child: Container(
+            height: _SalesDarkHeader._pillHalf * 2,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(_SalesDarkHeader._pillHalf),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.navyPrimary.withValues(alpha: 0.10),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _PillStat(
+                  value: _fmtAmt(widget.todayRevenue),
+                  label: _tr('Today', 'Leo'),
+                  valueColor: AppColors.tealAccent,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: _fmtAmt(widget.pendingTotal),
+                  label: _tr('Pending', 'Inasubiri'),
+                  valueColor: widget.pendingTotal > 0
+                      ? AppColors.warning
+                      : AppColors.success,
+                ),
+                const _PillDivider(),
+                _PillStat(
+                  value: widget.overdueCount.toString(),
+                  label: _tr('Overdue', 'Imechelewa'),
+                  valueColor: widget.overdueCount > 0
+                      ? AppColors.error
+                      : AppColors.success,
                 ),
               ],
             ),
           ),
-          // Stats pill
-          Positioned(
-            bottom: -_SalesDarkHeader._pillHalf,
-            left: 24,
-            right: 24,
-            child: Container(
-              height: _SalesDarkHeader._pillHalf * 2,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(_SalesDarkHeader._pillHalf),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.navyPrimary.withValues(alpha: 0.10),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _PillStat(
-                    value: _fmtAmt(widget.todayRevenue),
-                    label: _tr('Today', 'Leo'),
-                    valueColor: AppColors.tealAccent,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    value: _fmtAmt(widget.pendingTotal),
-                    label: _tr('Pending', 'Inasubiri'),
-                    valueColor: widget.pendingTotal > 0
-                        ? AppColors.warning
-                        : AppColors.success,
-                  ),
-                  const _PillDivider(),
-                  _PillStat(
-                    value: widget.overdueCount.toString(),
-                    label: _tr('Overdue', 'Imechelewa'),
-                    valueColor: widget.overdueCount > 0
-                        ? AppColors.error
-                        : AppColors.success,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
+      ],
     );
   }
 }
@@ -960,11 +1068,7 @@ class _PillDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 28,
-      color: AppColors.border,
-    );
+    return Container(width: 1, height: 28, color: AppColors.border);
   }
 }
 
@@ -974,10 +1078,7 @@ class _SalesFilterSheet extends StatefulWidget {
   final _SalesFilter selected;
   final ValueChanged<_SalesFilter> onApply;
 
-  const _SalesFilterSheet({
-    required this.selected,
-    required this.onApply,
-  });
+  const _SalesFilterSheet({required this.selected, required this.onApply});
 
   @override
   State<_SalesFilterSheet> createState() => _SalesFilterSheetState();
@@ -1009,11 +1110,13 @@ class _SalesFilterSheetState extends State<_SalesFilterSheet> {
               spacing: 8,
               runSpacing: 8,
               children: _SalesFilter.values
-                  .map((f) => _SortChip(
-                        label: f.label,
-                        selected: _pick == f,
-                        onTap: () => setState(() => _pick = f),
-                      ))
+                  .map(
+                    (f) => _SortChip(
+                      label: f.label,
+                      selected: _pick == f,
+                      onTap: () => setState(() => _pick = f),
+                    ),
+                  )
                   .toList(),
             ),
             SizedBox(height: 20),
@@ -1029,12 +1132,15 @@ class _SalesFilterSheetState extends State<_SalesFilterSheet> {
                   backgroundColor: AppColors.navyPrimary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: Text(
                   _tr('Apply', 'Tumia'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 15, fontWeight: FontWeight.w700),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
@@ -1105,10 +1211,7 @@ class _SortChip extends StatelessWidget {
 class _ActiveSalesFilterChip extends StatelessWidget {
   final _SalesFilter filter;
   final VoidCallback onRemove;
-  const _ActiveSalesFilterChip({
-    required this.filter,
-    required this.onRemove,
-  });
+  const _ActiveSalesFilterChip({required this.filter, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -1117,13 +1220,13 @@ class _ActiveSalesFilterChip extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.navyPrimary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.20)),
+                color: AppColors.navyPrimary.withValues(alpha: 0.20),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1139,8 +1242,11 @@ class _ActiveSalesFilterChip extends StatelessWidget {
                 const SizedBox(width: 6),
                 GestureDetector(
                   onTap: onRemove,
-                  child: const Icon(Icons.close_rounded,
-                      size: 14, color: AppColors.navyPrimary),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: AppColors.navyPrimary,
+                  ),
                 ),
               ],
             ),
@@ -1171,36 +1277,38 @@ class _InvoiceCard extends StatelessWidget {
     final status = _normalizeStatus(item);
     final overdue = _isOverdue(item);
 
-    final customer =
-        (item['customerName'] ?? _tr('Walk-in', 'Mteja wa Kawaida'))
-            .toString();
-    final invoiceNo =
-        (item['invoiceNumber'] ?? item['id'] ?? '').toString();
+    // Drift-backed maps always carry the key with '' (never null), so an
+    // empty check — not a null check — decides the walk-in fallback.
+    final rawCustomer = (item['customerName'] ?? '').toString().trim();
+    final customer = rawCustomer.isNotEmpty
+        ? rawCustomer
+        : _tr('Walk-in', 'Mteja wa Kawaida');
+    final invoiceNo = (item['invoiceNumber'] ?? item['id'] ?? '').toString();
     final amount = readInvoiceTotal(item);
     final amountPaid = parseNumericAmount(item['amountPaid']);
     final outstanding = (amount - amountPaid).clamp(0.0, amount);
     final date = readTimestamp(item['createdAt'] ?? item['date']);
     final dueDate = readTimestamp(item['dueDate']);
-    final items = (item['items'] as List?) ?? const [];
+    // Quick sales store 'items' (name); the full editor stores
+    // 'lineItems' (productName) — accept both shapes.
+    final items = ((item['items'] as List?)?.isNotEmpty ?? false)
+        ? item['items'] as List
+        : (item['lineItems'] as List?) ?? const [];
     final itemCount = items.length;
 
     // Main heading: customer name if set, otherwise first product name
     final String cardTitle;
-    final hasCustomerName =
-        (item['customerName'] ?? '').toString().trim().isNotEmpty;
-    if (hasCustomerName) {
+    if (rawCustomer.isNotEmpty) {
       cardTitle = customer;
     } else if (items.isNotEmpty) {
-      final firstName = (items.first is Map
-              ? (items.first as Map)['name']
-              : null)
-          ?.toString()
-          .trim() ??
-          '';
+      final first = items.first;
+      final firstName = first is Map
+          ? (first['name'] ?? first['productName'] ?? '').toString().trim()
+          : '';
       cardTitle = firstName.isNotEmpty
           ? (itemCount > 1
-              ? '$firstName & ${itemCount - 1} ${_tr('more', 'zaidi')}'
-              : firstName)
+                ? '$firstName & ${itemCount - 1} ${_tr('more', 'zaidi')}'
+                : firstName)
           : customer;
     } else {
       cardTitle = customer;
@@ -1244,19 +1352,20 @@ class _InvoiceCard extends StatelessWidget {
           label: _tr('Cancelled', 'Imefutwa'),
           icon: Icons.cancel_rounded,
         ),
-        _ => isQuotation
-            ? (
-                bg: AppColors.infoBg,
-                text: AppColors.tealAccent,
-                label: _tr('Quotation', 'Nukuu'),
-                icon: Icons.description_outlined,
-              )
-            : (
-                bg: AppColors.errorBg,
-                text: AppColors.error,
-                label: _tr('Unpaid', 'Haijalipwa'),
-                icon: Icons.hourglass_empty_rounded,
-              ),
+        _ =>
+          isQuotation
+              ? (
+                  bg: AppColors.infoBg,
+                  text: AppColors.tealAccent,
+                  label: _tr('Quotation', 'Nukuu'),
+                  icon: Icons.description_outlined,
+                )
+              : (
+                  bg: AppColors.errorBg,
+                  text: AppColors.error,
+                  label: _tr('Unpaid', 'Haijalipwa'),
+                  icon: Icons.hourglass_empty_rounded,
+                ),
       };
     }
 
@@ -1291,7 +1400,9 @@ class _InvoiceCard extends StatelessWidget {
                             SizedBox(width: 5),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 1),
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.surfaceVariant,
                                 borderRadius: BorderRadius.circular(4),
@@ -1299,10 +1410,11 @@ class _InvoiceCard extends StatelessWidget {
                               child: Text(
                                 _tr('QUO', 'NUK'),
                                 style: GoogleFonts.dmSans(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textMuted,
-                                    letterSpacing: 0.5),
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textMuted,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                             ),
                           ],
@@ -1339,7 +1451,9 @@ class _InvoiceCard extends StatelessWidget {
                     SizedBox(height: 3),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: chipData.bg,
                         borderRadius: BorderRadius.circular(20),
@@ -1347,8 +1461,7 @@ class _InvoiceCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(chipData.icon,
-                              size: 9, color: chipData.text),
+                          Icon(chipData.icon, size: 9, color: chipData.text),
                           SizedBox(width: 3),
                           Text(
                             chipData.label,
@@ -1393,7 +1506,9 @@ class _InvoiceCard extends StatelessWidget {
                   onTap: onReceiptAction,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(7),
@@ -1428,8 +1543,11 @@ class _InvoiceCard extends StatelessWidget {
               SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.schedule_rounded,
-                      size: 11, color: AppColors.error),
+                  const Icon(
+                    Icons.schedule_rounded,
+                    size: 11,
+                    color: AppColors.error,
+                  ),
                   SizedBox(width: 4),
                   Text(
                     '${_tr("Due was", "Malipo ilikuwa")} ${_fmtDate(dueDate)} ${dueDate.year}',
@@ -1445,8 +1563,11 @@ class _InvoiceCard extends StatelessWidget {
               SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.account_balance_wallet_outlined,
-                      size: 11, color: AppColors.warning),
+                  const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 11,
+                    color: AppColors.warning,
+                  ),
                   SizedBox(width: 4),
                   Text(
                     '${_tr("Balance due", "Baki")}: ${_fmtAmt(outstanding)}',
@@ -1484,31 +1605,36 @@ class _EmptySalesState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (IconData icon, String title, String subtitle) content =
-        switch (filter) {
+    final (IconData icon, String title, String subtitle)
+    content = switch (filter) {
       _SalesFilter.paid => (
         Icons.check_circle_outline_rounded,
         _tr('All paid up', 'Yote yalilipwa'),
-        _tr('Paid invoices will show up here once customers settle.',
-            'Ankara zilizolipwa zitaonekana hapa.'),
+        _tr(
+          'Paid invoices will show up here once customers settle.',
+          'Ankara zilizolipwa zitaonekana hapa.',
+        ),
       ),
       _SalesFilter.overdue => (
         Icons.hourglass_empty_rounded,
         _tr('Nothing overdue — nice!', 'Hakuna zilizochelewa — vizuri!'),
-        _tr('All your invoices are on track.',
-            'Ankara zako zote ziko sawa.'),
+        _tr('All your invoices are on track.', 'Ankara zako zote ziko sawa.'),
       ),
       _SalesFilter.draft => (
         Icons.edit_note_rounded,
         _tr('No drafts saved', 'Hakuna rasimu zilizohifadhiwa'),
-        _tr('Unfinished sales will be saved here as drafts.',
-            'Mauzo ambayo hayajakamilika yatahifadhiwa hapa kama rasimu.'),
+        _tr(
+          'Unfinished sales will be saved here as drafts.',
+          'Mauzo ambayo hayajakamilika yatahifadhiwa hapa kama rasimu.',
+        ),
       ),
       _ => (
         Icons.receipt_long_outlined,
         _tr('Your first sale is waiting!', 'Mauzo yako ya kwanza yanangoja!'),
-        _tr('Tap New Sale to record a payment.',
-            'Bonyeza Mauzo Mapya kurekodi malipo.'),
+        _tr(
+          'Tap New Sale to record a payment.',
+          'Bonyeza Mauzo Mapya kurekodi malipo.',
+        ),
       ),
     };
 
@@ -1557,13 +1683,17 @@ class _ReceiptAction extends StatelessWidget {
             Text(
               label,
               style: GoogleFonts.dmSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navyPrimary),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.navyPrimary,
+              ),
             ),
             const Spacer(),
-            const Icon(Icons.chevron_right_rounded,
-                color: AppColors.textMuted, size: 18),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textMuted,
+              size: 18,
+            ),
           ],
         ),
       ),
@@ -1586,10 +1716,10 @@ class _ItemEntry {
   bool showSuggs = false;
 
   _ItemEntry({String name = '', String price = ''})
-      : nameCtrl = TextEditingController(text: name),
-        priceCtrl = TextEditingController(text: price),
-        qtyCtrl = TextEditingController(text: '1'),
-        _qty = 1;
+    : nameCtrl = TextEditingController(text: name),
+      priceCtrl = TextEditingController(text: price),
+      qtyCtrl = TextEditingController(text: '1'),
+      _qty = 1;
 
   int get qty => _qty;
   set qty(int v) {
@@ -1605,18 +1735,17 @@ class _ItemEntry {
 
   double get lineTotal => unitPrice * qty;
 
-  bool get _isService =>
-      (selectedItem?['productType'] as String?) == 'service';
+  bool get _isService => (selectedItem?['productType'] as String?) == 'service';
 
   int get maxStock {
     if (selectedItem == null) return 9999;
     if (_isService) return 9999;
     return parseStock(
-        selectedItem!['currentStock'] ?? selectedItem!['stock'] ?? 9999);
+      selectedItem!['currentStock'] ?? selectedItem!['stock'] ?? 9999,
+    );
   }
 
-  bool get isOutOfStock =>
-      selectedItem != null && !_isService && maxStock <= 0;
+  bool get isOutOfStock => selectedItem != null && !_isService && maxStock <= 0;
 
   void dispose() {
     nameCtrl.dispose();
@@ -1654,8 +1783,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   // Discount can never exceed the subtotal — otherwise VAT (computed on the
   // discounted base) and the grand total would go negative.
   double get _discountAmt {
-    final raw = double.tryParse(
-            _discountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+    final raw =
+        double.tryParse(
+          _discountCtrl.text.replaceAll(RegExp(r'[^0-9.]'), ''),
+        ) ??
         0.0;
     return raw.clamp(0.0, _subtotal);
   }
@@ -1803,9 +1934,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     }
 
     final matched = customers
-        .where((c) =>
-            c.name.toLowerCase().contains(query.toLowerCase()) ||
-            c.phone.contains(query))
+        .where(
+          (c) =>
+              c.name.toLowerCase().contains(query.toLowerCase()) ||
+              c.phone.contains(query),
+        )
         .take(5)
         .toList();
 
@@ -1847,7 +1980,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         );
         if (matched.isEmpty) return null;
         final name = (matched['name'] ?? '').toString();
-        final price = parseUnitPrice(matched['unitPrice'] ?? matched['price'] ?? 0);
+        final price = parseUnitPrice(
+          matched['unitPrice'] ?? matched['price'] ?? 0,
+        );
         return PosCartEntry(barcode: barcode, name: name, price: price);
       },
     );
@@ -1856,8 +1991,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
     // Remove any blank placeholder items first.
     final toRemove = _items
-        .where((e) =>
-            e.nameCtrl.text.trim().isEmpty && e.selectedItem == null)
+        .where((e) => e.nameCtrl.text.trim().isEmpty && e.selectedItem == null)
         .toList();
     for (final e in toRemove) {
       e.dispose();
@@ -1912,13 +2046,21 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final e = _items[i];
       final name = e.nameCtrl.text.trim();
       if (name.isEmpty) {
-        _snack(_tr(
-            'Enter name for item ${i + 1}', 'Ingiza jina la bidhaaa ${i + 1}'));
+        _snack(
+          _tr(
+            'Enter name for item ${i + 1}',
+            'Ingiza jina la bidhaaa ${i + 1}',
+          ),
+        );
         return;
       }
       if (e.unitPrice <= 0) {
-        _snack(_tr(
-            'Enter price for item ${i + 1}', 'Ingiza bei ya bidhaaa ${i + 1}'));
+        _snack(
+          _tr(
+            'Enter price for item ${i + 1}',
+            'Ingiza bei ya bidhaaa ${i + 1}',
+          ),
+        );
         return;
       }
       if (e.isOutOfStock) {
@@ -1926,18 +2068,24 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         return;
       }
       if (e.selectedItem != null && e.qty > e.maxStock) {
-        _snack(_tr('Only ${e.maxStock} of $name in stock.',
-            'Kuna ${e.maxStock} tu za $name stokuni.'));
+        _snack(
+          _tr(
+            'Only ${e.maxStock} of $name in stock.',
+            'Kuna ${e.maxStock} tu za $name stokuni.',
+          ),
+        );
         return;
       }
     }
 
     // Require a customer when payment is not fully settled
     if (_payStatus != _PayStatus.paid && _selectedCustomer == null) {
-      _snack(_tr(
-        'Please select a customer before recording a credit sale.',
-        'Tafadhali chagua mteja kabla ya kurekodi mauzo ya mkopo.',
-      ));
+      _snack(
+        _tr(
+          'Please select a customer before recording a credit sale.',
+          'Tafadhali chagua mteja kabla ya kurekodi mauzo ya mkopo.',
+        ),
+      );
       return;
     }
 
@@ -1961,6 +2109,19 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       amountPaid = 0;
     }
 
+    // Money received now must land in an activated payment channel —
+    // an unactivated Taslimu/M-Pesa/Benki/Kadi cannot take sale money.
+    if (payStatus != _PayStatus.unpaid && amountPaid > 0) {
+      final account = await activatedAccountForMethod(
+        ref,
+        _payMethod.firestoreKey,
+      );
+      if (account == null) {
+        _snack(activationRequiredMessage(_payMethod.firestoreKey));
+        return;
+      }
+    }
+
     // Enforce credit limit: block the sale if the projected balance after
     // this outstanding amount would exceed the customer's set credit limit.
     if (payStatus != _PayStatus.paid &&
@@ -1970,10 +2131,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final projectedBalance = _selectedCustomer!.balanceAmount + outstanding;
       if (projectedBalance > _selectedCustomer!.creditLimit) {
         final available = _selectedCustomer!.availableCredit;
-        _snack(_tr(
-          'Credit limit exceeded. ${_selectedCustomer!.name} can only borrow TZS ${available.toStringAsFixed(0)} more.',
-          'Kikomo cha mkopo kimezidiwa. ${_selectedCustomer!.name} anaweza kukopa TZS ${available.toStringAsFixed(0)} tu zaidi.',
-        ));
+        _snack(
+          _tr(
+            'Credit limit exceeded. ${_selectedCustomer!.name} can only borrow TZS ${available.toStringAsFixed(0)} more.',
+            'Kikomo cha mkopo kimezidiwa. ${_selectedCustomer!.name} anaweza kukopa TZS ${available.toStringAsFixed(0)} tu zaidi.',
+          ),
+        );
         return;
       }
     }
@@ -1989,24 +2152,27 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final statusStr = payStatus == _PayStatus.paid
           ? 'paid'
           : payStatus == _PayStatus.partial
-              ? 'partial'
-              : 'unpaid';
+          ? 'partial'
+          : 'unpaid';
 
-      final customerName = _selectedCustomer?.name ??
+      final customerName =
+          _selectedCustomer?.name ??
           (_customerCtrl.text.trim().isNotEmpty
               ? _customerCtrl.text.trim()
               : null);
 
       final itemsData = _items
-          .map((e) => {
-                'name': e.nameCtrl.text.trim(),
-                'qty': e.qty,
-                'unitPrice': e.unitPrice,
-                'basePrice': e.basePrice ?? e.unitPrice,
-                'total': e.lineTotal,
-                if (e.selectedItem != null)
-                  'inventoryItemId': (e.selectedItem!['id'] as String?) ?? '',
-              })
+          .map(
+            (e) => {
+              'name': e.nameCtrl.text.trim(),
+              'qty': e.qty,
+              'unitPrice': e.unitPrice,
+              'basePrice': e.basePrice ?? e.unitPrice,
+              'total': e.lineTotal,
+              if (e.selectedItem != null)
+                'inventoryItemId': (e.selectedItem!['id'] as String?) ?? '',
+            },
+          )
           .toList();
 
       final notes = _notesCtrl.text.trim();
@@ -2014,13 +2180,17 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final outstanding = _grandTotal - amountPaid;
 
       final invoiceItems = _items
-          .map((e) => InvoiceItem(
-                id: '',
-                name: e.nameCtrl.text.trim(),
-                quantity: e.qty.toDouble(),
-                unitPrice: e.unitPrice,
-                total: e.lineTotal,
-              ))
+          .map(
+            (e) => InvoiceItem(
+              // Keep the product link — returns restock by this id, and
+              // offline sales sync this payload to Firestore verbatim.
+              id: ((e.selectedItem?['id'] as String?) ?? '').trim(),
+              name: e.nameCtrl.text.trim(),
+              quantity: e.qty.toDouble(),
+              unitPrice: e.unitPrice,
+              total: e.lineTotal,
+            ),
+          )
           .toList();
       final invoiceObj = Invoice(
         id: invoiceId,
@@ -2036,8 +2206,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         tax: _vatAmt,
         total: _grandTotal,
         amountPaid: amountPaid,
-        paymentMethod:
-            payStatus != _PayStatus.unpaid ? _payMethod.firestoreKey : '',
+        paymentMethod: payStatus != _PayStatus.unpaid
+            ? _payMethod.firestoreKey
+            : '',
         items: invoiceItems,
         note: notes,
         createdAt: now.toIso8601String(),
@@ -2068,20 +2239,36 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           await ref
               .read(customerRepositoryProvider)
               .adjustBalance(_selectedCustomer!.id, outstanding);
-          await ref.read(debtRepositoryProvider).save(Debt(
-                id: '',
-                partyName: _selectedCustomer!.name,
-                partyPhone: _selectedCustomer!.phone,
-                partyId: _selectedCustomer!.id,
-                type: 'receivable',
-                originalAmount: _grandTotal,
-                paidAmount: amountPaid,
-                dueDate: _dueDate?.toIso8601String().split('T').first ?? '',
-                invoiceRef: invoiceNumber,
-                note: notes,
-                createdBy: user.uid,
-                createdAt: now.toIso8601String(),
-              ));
+          await ref
+              .read(debtRepositoryProvider)
+              .save(
+                Debt(
+                  id: '',
+                  partyName: _selectedCustomer!.name,
+                  partyPhone: _selectedCustomer!.phone,
+                  partyId: _selectedCustomer!.id,
+                  type: 'receivable',
+                  originalAmount: _grandTotal,
+                  paidAmount: amountPaid,
+                  dueDate: _dueDate?.toIso8601String().split('T').first ?? '',
+                  invoiceRef: invoiceNumber,
+                  note: notes,
+                  createdBy: user.uid,
+                  createdAt: now.toIso8601String(),
+                ),
+              );
+        }
+
+        // Money received lands in the activated payment channel — Drift
+        // balance moves instantly, the queued op replays on Firestore later.
+        if (payStatus != _PayStatus.unpaid) {
+          await depositSaleIntoMethodAccount(
+            ref,
+            method: _payMethod.firestoreKey,
+            amount: amountPaid,
+            invoiceNumber: invoiceNumber,
+            createdBy: user.uid,
+          );
         }
 
         await _showQuickSaleReceipt(
@@ -2103,9 +2290,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final role = ref.read(currentUserRoleProvider);
 
       final invoicesRef = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'sales_invoices');
+        uid: scope.ownerUid,
+        context: scope.context,
+        childCollection: 'sales_invoices',
+      );
 
       // One atomic batch: invoice + stock deduction + customer balance +
       // debt record all commit together, so a crash or permission failure
@@ -2151,45 +2339,42 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       });
 
       final inventoryRef = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'inventory_items');
+        uid: scope.ownerUid,
+        context: scope.context,
+        childCollection: 'inventory_items',
+      );
       for (final e in _items) {
         if (e.selectedItem == null) continue;
         final itemId = ((e.selectedItem!['id'] as String?) ?? '').trim();
         if (itemId.isEmpty) continue;
-        batch.set(
-            inventoryRef.doc(itemId),
-            {
-              'currentStock': FieldValue.increment(-e.qty),
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true));
+        batch.set(inventoryRef.doc(itemId), {
+          'currentStock': FieldValue.increment(-e.qty),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
 
       if (_selectedCustomer != null) {
         final customersRef = repo.scopeCollection(
-            uid: scope.ownerUid,
-            context: scope.context,
-            childCollection: 'customers');
-        batch.set(
-            customersRef.doc(_selectedCustomer!.id),
-            {
-              'lastTransactionDate': FieldValue.serverTimestamp(),
-              if (outstanding > 0) ...{
-                'balance': FieldValue.increment(outstanding),
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-            },
-            SetOptions(merge: true));
+          uid: scope.ownerUid,
+          context: scope.context,
+          childCollection: 'customers',
+        );
+        batch.set(customersRef.doc(_selectedCustomer!.id), {
+          'lastTransactionDate': FieldValue.serverTimestamp(),
+          if (outstanding > 0) ...{
+            'balance': FieldValue.increment(outstanding),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+        }, SetOptions(merge: true));
 
         // Receivable record for any sale that is not fully paid, linked to
         // the customer, invoice and business.
         if (outstanding > 0) {
           final debtsRef = repo.scopeCollection(
-              uid: scope.ownerUid,
-              context: scope.context,
-              childCollection: 'debts');
+            uid: scope.ownerUid,
+            context: scope.context,
+            childCollection: 'debts',
+          );
           batch.set(debtsRef.doc(), {
             'partyId': _selectedCustomer!.id,
             'partyName': _selectedCustomer!.name,
@@ -2242,42 +2427,33 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
 
       // Write to Drift immediately so the sale appears in the list right away
       // without waiting for the next Firestore sync pull.
-      // syncStatus='synced' because the record is already in Firestore — no
-      // push needed and no conflict will be flagged.
-      try {
-        final bizId =
-            ref.read(currentBusinessIdProvider).valueOrNull ?? '';
-        final db = ref.read(appDatabaseProvider);
-        final nowMs = now.millisecondsSinceEpoch;
-        await db.invoiceDao.upsert(
-          InvoiceMapper.toCompanion(
-            invoiceObj,
-            businessId: bizId,
-            syncStatus: 'synced',
-            localVersion: 1,
-            createdAtMs: nowMs,
-          ),
+      await mirrorInvoiceToDrift(ref, invoiceObj);
+
+      // Money received lands in the activated payment channel — Drift
+      // balance moves instantly, the queued op replays on Firestore later.
+      if (payStatus != _PayStatus.unpaid) {
+        await depositSaleIntoMethodAccount(
+          ref,
+          method: _payMethod.firestoreKey,
+          amount: amountPaid,
+          invoiceNumber: invoiceNumber,
+          createdBy: scope.userUid,
         );
-        await db.invoiceDao.replaceItems(
-          invoiceId,
-          InvoiceMapper.toItemCompanions(invoiceItems, invoiceId),
-        );
-      } catch (e, st) {
-        // Drift write is best-effort — syncNow() below is the fallback
-        unawaited(Sentry.captureException(e, stackTrace: st));
       }
 
-      unawaited(AuditLogService().logSaleAction(
-        ownerUid: scope.ownerUid,
-        businessId: scope.businessId,
-        performedByUid: scope.userUid,
-        performedByRole: role,
-        action: AuditLogService.saleCreated,
-        invoiceId: invoiceDoc.id,
-        invoiceNumber: invoiceNumber,
-        amount: _grandTotal,
-        details: statusStr,
-      ));
+      unawaited(
+        AuditLogService().logSaleAction(
+          ownerUid: scope.ownerUid,
+          businessId: scope.businessId,
+          performedByUid: scope.userUid,
+          performedByRole: role,
+          action: AuditLogService.saleCreated,
+          invoiceId: invoiceDoc.id,
+          invoiceNumber: invoiceNumber,
+          amount: _grandTotal,
+          details: statusStr,
+        ),
+      );
       // Pull the new sale into the local database right away so it appears
       // in the sales list without waiting for the next connectivity event.
       unawaited(ref.read(syncServiceProvider).syncNow());
@@ -2296,9 +2472,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() => _isSaving = false);
-      messenger.showSnackBar(SnackBar(
-          content: Text(_tr(
-              'Failed to save. Try again.', 'Imeshindikana. Jaribu tena.'))));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr('Failed to save. Try again.', 'Imeshindikana. Jaribu tena.'),
+          ),
+        ),
+      );
     }
   }
 
@@ -2314,10 +2494,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     required String statusStr,
     required DateTime now,
   }) async {
-    SentryMetricsService.salesCreated(
-      amount: _grandTotal,
-      status: statusStr,
-    );
+    SentryMetricsService.salesCreated(amount: _grandTotal, status: statusStr);
 
     // Build a plain data map for the receipt popup — no server timestamps,
     // just the values we already have in memory.
@@ -2344,8 +2521,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         pageBuilder: (_, _, _) =>
             _SaleSuccessScreen(saleData: saleReceipt, ref: ref),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
-          opacity:
-              CurvedAnimation(parent: animation, curve: Curves.easeIn),
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
           child: child,
         ),
         transitionDuration: const Duration(milliseconds: 250),
@@ -2375,10 +2551,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
-                    20,
-                    16,
-                    20,
-                    MediaQuery.of(context).viewInsets.bottom + 32),
+                  20,
+                  16,
+                  20,
+                  MediaQuery.of(context).viewInsets.bottom + 32,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -2431,22 +2608,27 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             child: Text(
               _tr('New Sale', 'Mauzo Mapya'),
               style: GoogleFonts.dmSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.navyPrimary),
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
+              ),
             ),
           ),
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
               color: sc.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Text(sl,
-                style: GoogleFonts.dmSans(
-                    color: sc, fontSize: 12, fontWeight: FontWeight.w700)),
+            child: Text(
+              sl,
+              style: GoogleFonts.dmSans(
+                color: sc,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -2461,11 +2643,14 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       children: [
         Row(
           children: [
-            Text(_tr('Customer', 'Mteja'),
-                style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: needsCustomer ? AppColors.warning : AppColors.textMuted)),
+            Text(
+              _tr('Customer', 'Mteja'),
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: needsCustomer ? AppColors.warning : AppColors.textMuted,
+              ),
+            ),
             if (needsCustomer) ...[
               SizedBox(width: 6),
               Container(
@@ -2477,9 +2662,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 child: Text(
                   _tr('Required for debt', 'Inahitajika kwa deni'),
                   style: GoogleFonts.dmSans(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.warning),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.warning,
+                  ),
                 ),
               ),
             ],
@@ -2497,21 +2683,24 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 ? Icons.business_outlined
                 : Icons.person_outline_rounded,
             suffix: _selectedCustomer != null
-                ? const Icon(Icons.check_circle_rounded,
-                    color: AppColors.success, size: 20)
+                ? const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                    size: 20,
+                  )
                 : (_customerCtrl.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 18),
-                        onPressed: () {
-                          _customerCtrl.clear();
-                          setState(() {
-                            _selectedCustomer = null;
-                            _customerSuggs = [];
-                            _showCustomerSuggs = false;
-                          });
-                        },
-                      )
-                    : null),
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () {
+                            _customerCtrl.clear();
+                            setState(() {
+                              _selectedCustomer = null;
+                              _customerSuggs = [];
+                              _showCustomerSuggs = false;
+                            });
+                          },
+                        )
+                      : null),
           ),
         ),
         if (_showCustomerSuggs) _buildCustomerSuggestions(),
@@ -2528,51 +2717,65 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 14,
-              offset: const Offset(0, 4)),
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         children: [
-          ..._customerSuggs.map((c) => Column(
-                children: [
-                  InkWell(
-                    onTap: () => _selectCustomer(c),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      child: Row(
-                        children: [
-                          Icon(
-                              c.isOrganisation
-                                  ? Icons.business_outlined
-                                  : Icons.person_outline_rounded,
-                              size: 18,
-                              color: AppColors.textSecondary),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(c.name,
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.navyPrimary)),
+          ..._customerSuggs.map(
+            (c) => Column(
+              children: [
+                InkWell(
+                  onTap: () => _selectCustomer(c),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          c.isOrganisation
+                              ? Icons.business_outlined
+                              : Icons.person_outline_rounded,
+                          size: 18,
+                          color: AppColors.textSecondary,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            c.name,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.navyPrimary,
+                            ),
                           ),
-                          if (c.phone.isNotEmpty)
-                            Text(c.phone,
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 12, color: AppColors.textMuted)),
-                        ],
-                      ),
+                        ),
+                        if (c.phone.isNotEmpty)
+                          Text(
+                            c.phone,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                  const Divider(
-                      height: 1,
-                      indent: 14,
-                      endIndent: 14,
-                      color: AppColors.border),
-                ],
-              )),
+                ),
+                const Divider(
+                  height: 1,
+                  indent: 14,
+                  endIndent: 14,
+                  color: AppColors.border,
+                ),
+              ],
+            ),
+          ),
           InkWell(
             onTap: () => showAppSheet<void>(
               context,
@@ -2581,21 +2784,27 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 onAdded: _selectCustomer,
               ),
             ),
-            borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(14)),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(14),
+            ),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.person_add_outlined,
-                      size: 18, color: AppColors.navyPrimary),
+                  const Icon(
+                    Icons.person_add_outlined,
+                    size: 18,
+                    color: AppColors.navyPrimary,
+                  ),
                   SizedBox(width: 10),
-                  Text(_tr('Add new customer', 'Ongeza mteja mpya'),
-                      style: GoogleFonts.dmSans(
-                          color: AppColors.navyPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13)),
+                  Text(
+                    _tr('Add new customer', 'Ongeza mteja mpya'),
+                    style: GoogleFonts.dmSans(
+                      color: AppColors.navyPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2611,44 +2820,59 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       children: [
         Row(
           children: [
-            Text(_tr('Items', 'Bidhaa'),
-                style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textMuted)),
+            Text(
+              _tr('Items', 'Bidhaa'),
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textMuted,
+              ),
+            ),
             const Spacer(),
             // POS continuous scan button
             GestureDetector(
               onTap: _openPosScanner,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.tealAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                      color: AppColors.tealAccent.withValues(alpha: 0.4)),
+                    color: AppColors.tealAccent.withValues(alpha: 0.4),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.qr_code_scanner_rounded,
-                        size: 14, color: AppColors.tealAccent),
+                    const Icon(
+                      Icons.qr_code_scanner_rounded,
+                      size: 14,
+                      color: AppColors.tealAccent,
+                    ),
                     SizedBox(width: 5),
-                    Text(_tr('Scan Mode', 'Skani'),
-                        style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.tealAccent)),
+                    Text(
+                      _tr('Scan Mode', 'Skani'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.tealAccent,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
             SizedBox(width: 8),
             Text(
-                '${_items.length} ${_tr("item", "kitu")}${_items.length != 1 ? "s" : ""}',
-                style: GoogleFonts.dmSans(
-                    fontSize: 11, color: AppColors.textMuted)),
+              '${_items.length} ${_tr("item", "kitu")}${_items.length != 1 ? "s" : ""}',
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                color: AppColors.textMuted,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -2660,25 +2884,31 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           onTap: _addItem,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
               color: AppColors.navyPrimary.withValues(alpha: 0.06),
               border: Border.all(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.25)),
+                color: AppColors.navyPrimary.withValues(alpha: 0.25),
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.add_circle_outline_rounded,
-                    size: 18, color: AppColors.navyPrimary),
+                const Icon(
+                  Icons.add_circle_outline_rounded,
+                  size: 18,
+                  color: AppColors.navyPrimary,
+                ),
                 SizedBox(width: 8),
-                Text(_tr('Add Item', 'Ongeza Bidhaaa'),
-                    style: GoogleFonts.dmSans(
-                        color: AppColors.navyPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13)),
+                Text(
+                  _tr('Add Item', 'Ongeza Bidhaaa'),
+                  style: GoogleFonts.dmSans(
+                    color: AppColors.navyPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
           ),
@@ -2695,14 +2925,16 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: entry.isOutOfStock
-                ? AppColors.error.withValues(alpha: 0.4)
-                : AppColors.border),
+          color: entry.isOutOfStock
+              ? AppColors.error.withValues(alpha: 0.4)
+              : AppColors.border,
+        ),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard,
-              blurRadius: 6,
-              offset: Offset(0, 1)),
+            color: AppColors.shadowCard,
+            blurRadius: 6,
+            offset: Offset(0, 1),
+          ),
         ],
       ),
       child: Column(
@@ -2713,16 +2945,20 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               Text(
                 '${_tr("Item", "Bidhaaa")} ${index + 1}',
                 style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textMuted),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                ),
               ),
               const Spacer(),
               if (_items.length > 1)
                 GestureDetector(
                   onTap: () => _removeItem(index),
-                  child: const Icon(Icons.close_rounded,
-                      size: 18, color: AppColors.textMuted),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
                 ),
             ],
           ),
@@ -2736,73 +2972,87 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               label: _tr('Product name', 'Jina la bidhaaa'),
               prefix: Icons.inventory_2_outlined,
               suffix: entry.selectedItem != null
-                  ? const Icon(Icons.check_circle_rounded,
-                      color: AppColors.success, size: 20)
+                  ? const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.success,
+                      size: 20,
+                    )
                   : (entry.nameCtrl.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18),
-                          onPressed: () {
-                            entry.nameCtrl.clear();
-                            setState(() {
-                              entry.selectedItem = null;
-                              entry.basePrice = null;
-                              entry.suggs = [];
-                              entry.showSuggs = false;
-                            });
-                          },
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.qr_code_scanner_rounded,
-                              size: 22, color: AppColors.tealAccent),
-                          tooltip: _tr('Scan mode', 'Hali ya skani'),
-                          onPressed: _openPosScanner,
-                        )),
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 18),
+                            onPressed: () {
+                              entry.nameCtrl.clear();
+                              setState(() {
+                                entry.selectedItem = null;
+                                entry.basePrice = null;
+                                entry.suggs = [];
+                                entry.showSuggs = false;
+                              });
+                            },
+                          )
+                        : IconButton(
+                            icon: const Icon(
+                              Icons.qr_code_scanner_rounded,
+                              size: 22,
+                              color: AppColors.tealAccent,
+                            ),
+                            tooltip: _tr('Scan mode', 'Hali ya skani'),
+                            onPressed: _openPosScanner,
+                          )),
             ),
           ),
           if (entry.showSuggs) _buildProductSuggestions(index),
           // Quick suggestions: frequently sold products, one tap to add.
           if (entry.nameCtrl.text.isEmpty && entry.selectedItem == null)
-            Builder(builder: (_) {
-              final frequent = _frequentProducts();
-              if (frequent.isEmpty) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: frequent.map((item) {
-                    final name = (item['name'] ?? '').toString();
-                    return GestureDetector(
-                      onTap: () => _selectProduct(entry, item),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.history_rounded,
-                                size: 12, color: AppColors.textMuted),
-                            SizedBox(width: 4),
-                            Text(
-                              name,
-                              style: GoogleFonts.dmSans(
+            Builder(
+              builder: (_) {
+                final frequent = _frequentProducts();
+                if (frequent.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: frequent.map((item) {
+                      final name = (item['name'] ?? '').toString();
+                      return GestureDetector(
+                        onTap: () => _selectProduct(entry, item),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.history_rounded,
+                                size: 12,
+                                color: AppColors.textMuted,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                name,
+                                style: GoogleFonts.dmSans(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary),
-                            ),
-                          ],
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              );
-            }),
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
+            ),
           if (entry.nameCtrl.text.isNotEmpty &&
               entry.selectedItem == null &&
               !entry.showSuggs)
@@ -2819,30 +3069,38 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 8),
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.navyPrimary.withValues(alpha: 0.06),
                     border: Border.all(
-                        color: AppColors.navyPrimary.withValues(alpha: 0.25)),
+                      color: AppColors.navyPrimary.withValues(alpha: 0.25),
+                    ),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.add_circle_outline_rounded,
-                          size: 15, color: AppColors.navyPrimary),
+                      const Icon(
+                        Icons.add_circle_outline_rounded,
+                        size: 15,
+                        color: AppColors.navyPrimary,
+                      ),
                       SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           _tr(
-                              'Add "${entry.nameCtrl.text}" to inventory',
-                              'Ongeza "${entry.nameCtrl.text}" kwa bidhaa'),
+                            'Add "${entry.nameCtrl.text}" to inventory',
+                            'Ongeza "${entry.nameCtrl.text}" kwa bidhaa',
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.dmSans(
-                              color: AppColors.navyPrimary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12),
+                            color: AppColors.navyPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -2857,10 +3115,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               Expanded(
                 child: TextField(
                   controller: entry.priceCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                   ],
                   onChanged: (_) => setState(() {}),
                   decoration: _fieldDec(
@@ -2884,44 +3143,54 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     if (clamped != parsed) {
                       entry.qtyCtrl.text = '$clamped';
                       entry.qtyCtrl.selection = TextSelection.collapsed(
-                          offset: '$clamped'.length);
+                        offset: '$clamped'.length,
+                      );
                     }
                   },
-                  decoration: _fieldDec(
-                    label: _tr('Qty', 'Idadi'),
-                    prefix: Icons.remove_rounded,
-                  ).copyWith(
-                    prefixIcon: GestureDetector(
-                      onTap: entry.qty > 1
-                          ? () => setState(() => entry.qty--)
-                          : null,
-                      child: Icon(Icons.remove_rounded,
-                          size: 18,
-                          color: entry.qty > 1
-                              ? AppColors.navyPrimary
-                              : AppColors.textMuted),
-                    ),
-                    suffixIcon: GestureDetector(
-                      onTap:
-                          (entry.selectedItem == null ||
+                  decoration:
+                      _fieldDec(
+                        label: _tr('Qty', 'Idadi'),
+                        prefix: Icons.remove_rounded,
+                      ).copyWith(
+                        prefixIcon: GestureDetector(
+                          onTap: entry.qty > 1
+                              ? () => setState(() => entry.qty--)
+                              : null,
+                          child: Icon(
+                            Icons.remove_rounded,
+                            size: 18,
+                            color: entry.qty > 1
+                                ? AppColors.navyPrimary
+                                : AppColors.textMuted,
+                          ),
+                        ),
+                        suffixIcon: GestureDetector(
+                          onTap:
+                              (entry.selectedItem == null ||
                                   entry.qty < entry.maxStock)
                               ? () => setState(() => entry.qty++)
                               : null,
-                      child: Icon(Icons.add_rounded,
-                          size: 18,
-                          color: (entry.selectedItem == null ||
-                                  entry.qty < entry.maxStock)
-                              ? AppColors.navyPrimary
-                              : AppColors.textMuted),
-                    ),
-                    helperText: entry.selectedItem != null &&
-                            !entry._isService &&
-                            entry.maxStock < 9999
-                        ? '/ ${entry.maxStock}'
-                        : null,
-                    helperStyle: GoogleFonts.dmSans(
-                        fontSize: 11, color: AppColors.textMuted),
-                  ),
+                          child: Icon(
+                            Icons.add_rounded,
+                            size: 18,
+                            color:
+                                (entry.selectedItem == null ||
+                                    entry.qty < entry.maxStock)
+                                ? AppColors.navyPrimary
+                                : AppColors.textMuted,
+                          ),
+                        ),
+                        helperText:
+                            entry.selectedItem != null &&
+                                !entry._isService &&
+                                entry.maxStock < 9999
+                            ? '/ ${entry.maxStock}'
+                            : null,
+                        helperStyle: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
                 ),
               ),
             ],
@@ -2932,34 +3201,38 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               if (entry.selectedItem != null)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    color: (entry._isService
-                            ? AppColors.tealAccent
-                            : entry.isOutOfStock
+                    color:
+                        (entry._isService
+                                ? AppColors.tealAccent
+                                : entry.isOutOfStock
                                 ? AppColors.error
                                 : entry.maxStock <= 5
-                                    ? AppColors.warning
-                                    : AppColors.success)
-                        .withValues(alpha: 0.1),
+                                ? AppColors.warning
+                                : AppColors.success)
+                            .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     entry._isService
                         ? _tr('Service', 'Huduma')
                         : entry.isOutOfStock
-                            ? _tr('Out of stock', 'Imekwisha')
-                            : '${entry.maxStock} ${_tr("in stock", "stokuni")}',
+                        ? _tr('Out of stock', 'Imekwisha')
+                        : '${entry.maxStock} ${_tr("in stock", "stokuni")}',
                     style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: entry._isService
-                            ? AppColors.tealAccent
-                            : entry.isOutOfStock
-                                ? AppColors.error
-                                : entry.maxStock <= 5
-                                    ? AppColors.warning
-                                    : AppColors.success),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: entry._isService
+                          ? AppColors.tealAccent
+                          : entry.isOutOfStock
+                          ? AppColors.error
+                          : entry.maxStock <= 5
+                          ? AppColors.warning
+                          : AppColors.success,
+                    ),
                   ),
                 ),
               const Spacer(),
@@ -2967,9 +3240,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 Text(
                   'TSh ${entry.lineTotal.toStringAsFixed(0)}',
                   style: GoogleFonts.jetBrainsMono(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.navyPrimary),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
                 ),
             ],
           ),
@@ -2988,9 +3262,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard,
-              blurRadius: 12,
-              offset: Offset(0, 3)),
+            color: AppColors.shadowCard,
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
       child: ClipRRect(
@@ -3001,16 +3276,23 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             final item = e.value;
             final name = (item['name'] ?? '') as String;
             final category = (item['category'] ?? '') as String;
-            final price = parseUnitPrice(item['unitPrice'] ?? item['price'] ?? 0);
-            final stock = parseStock(item['currentStock'] ?? item['stock'] ?? 0);
+            final price = parseUnitPrice(
+              item['unitPrice'] ?? item['price'] ?? 0,
+            );
+            final stock = parseStock(
+              item['currentStock'] ?? item['stock'] ?? 0,
+            );
             final isService = (item['productType'] as String?) == 'service';
             final oos = !isService && stock <= 0;
-            final isLow = !isService && !oos && stock <= parseStock(item['reorderPoint'] ?? 5);
+            final isLow =
+                !isService &&
+                !oos &&
+                stock <= parseStock(item['reorderPoint'] ?? 5);
             final stockColor = oos
                 ? AppColors.error
                 : isLow
-                    ? AppColors.warning
-                    : AppColors.success;
+                ? AppColors.warning
+                : AppColors.success;
             final iconData = isService
                 ? Icons.design_services_rounded
                 : Icons.inventory_2_outlined;
@@ -3021,7 +3303,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                   onTap: oos ? null : () => _selectProduct(entry, item),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: [
                         // Inventory-style tinted icon
@@ -3031,26 +3315,31 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                             color: stockColor.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(iconData,
-                              size: 18, color: stockColor),
+                          child: Icon(iconData, size: 18, color: stockColor),
                         ),
                         SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(name,
-                                  style: GoogleFonts.dmSans(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                      color: oos
-                                          ? AppColors.textMuted
-                                          : AppColors.navyPrimary)),
+                              Text(
+                                name,
+                                style: GoogleFonts.dmSans(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: oos
+                                      ? AppColors.textMuted
+                                      : AppColors.navyPrimary,
+                                ),
+                              ),
                               if (category.isNotEmpty)
-                                Text(category,
-                                    style: GoogleFonts.dmSans(
-                                        fontSize: 11,
-                                        color: AppColors.textMuted)),
+                                Text(
+                                  category,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -3061,29 +3350,34 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                             Text(
                               'TZS ${price.toStringAsFixed(0)}',
                               style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.navyPrimary),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navyPrimary,
+                              ),
                             ),
                             const SizedBox(height: 3),
                             if (!isService)
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 2),
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: stockColor.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                      color: stockColor.withValues(alpha: 0.3)),
+                                    color: stockColor.withValues(alpha: 0.3),
+                                  ),
                                 ),
                                 child: Text(
                                   oos
                                       ? _tr('Out', 'Imekwisha')
                                       : '$stock ${_tr("left", "zimebaki")}',
                                   style: GoogleFonts.dmSans(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                      color: stockColor),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: stockColor,
+                                  ),
                                 ),
                               ),
                           ],
@@ -3094,10 +3388,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 ),
                 if (!isLast)
                   const Divider(
-                      height: 1,
-                      indent: 14,
-                      endIndent: 14,
-                      color: AppColors.border),
+                    height: 1,
+                    indent: 14,
+                    endIndent: 14,
+                    color: AppColors.border,
+                  ),
               ],
             );
           }).toList(),
@@ -3114,9 +3409,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-              color: AppColors.shadowCard,
-              blurRadius: 6,
-              offset: Offset(0, 1)),
+            color: AppColors.shadowCard,
+            blurRadius: 6,
+            offset: Offset(0, 1),
+          ),
         ],
       ),
       child: Column(
@@ -3126,51 +3422,62 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             child: Column(
               children: [
                 _TotalRow(
-                    label: _tr('Subtotal', 'Jumla Bidhaaa'),
-                    value: 'TSh ${_subtotal.toStringAsFixed(0)}'),
+                  label: _tr('Subtotal', 'Jumla Bidhaaa'),
+                  value: 'TSh ${_subtotal.toStringAsFixed(0)}',
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _discountCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                   ],
                   onChanged: (_) => setState(() {}),
                   decoration: _fieldDec(
                     label: _tr(
-                        'Discount (TSh, optional)', 'Punguzo (TSh, hiari)'),
+                      'Discount (TSh, optional)',
+                      'Punguzo (TSh, hiari)',
+                    ),
                     prefix: Icons.discount_outlined,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.receipt_long_rounded,
-                        size: 16, color: AppColors.tealAccent),
+                    Icon(
+                      Icons.receipt_long_rounded,
+                      size: 16,
+                      color: AppColors.tealAccent,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                          _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
-                          style: GoogleFonts.dmSans(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500)),
+                        _tr('VAT (18%)', 'Kodi ya Ongezeko (18%)'),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                     Switch.adaptive(
                       value: _vatEnabled,
                       onChanged: (v) => setState(() => _vatEnabled = v),
                       activeThumbColor: AppColors.tealAccent,
-                      activeTrackColor:
-                          AppColors.tealAccent.withValues(alpha: 0.4),
+                      activeTrackColor: AppColors.tealAccent.withValues(
+                        alpha: 0.4,
+                      ),
                     ),
                   ],
                 ),
                 if (_vatEnabled) ...[
                   const SizedBox(height: 4),
                   _TotalRow(
-                      label: 'VAT (18%)',
-                      value: 'TSh ${_vatAmt.toStringAsFixed(0)}'),
+                    label: 'VAT (18%)',
+                    value: 'TSh ${_vatAmt.toStringAsFixed(0)}',
+                  ),
                 ],
                 const SizedBox(height: 12),
               ],
@@ -3188,19 +3495,23 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_tr('TOTAL', 'JUMLA KUU'),
-                    style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white70,
-                        letterSpacing: 1)),
+                Text(
+                  _tr('TOTAL', 'JUMLA KUU'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white70,
+                    letterSpacing: 1,
+                  ),
+                ),
                 Text(
                   'TSh ${_grandTotal.toStringAsFixed(0)}',
                   style: GoogleFonts.jetBrainsMono(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: -0.5),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ],
             ),
@@ -3214,11 +3525,14 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_tr('Payment Status', 'Hali ya Malipo'),
-            style: GoogleFonts.dmSans(
-                fontSize: 12,
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w600)),
+        Text(
+          _tr('Payment Status', 'Hali ya Malipo'),
+          style: GoogleFonts.dmSans(
+            fontSize: 12,
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
@@ -3242,8 +3556,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 icon: Icons.timelapse_rounded,
                 active: _payStatus == _PayStatus.partial,
                 activeColor: AppColors.warning,
-                onTap: () =>
-                    setState(() => _payStatus = _PayStatus.partial),
+                onTap: () => setState(() => _payStatus = _PayStatus.partial),
               ),
               const SizedBox(width: 4),
               _PayBtn(
@@ -3251,8 +3564,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 icon: Icons.cancel_outlined,
                 active: _payStatus == _PayStatus.unpaid,
                 activeColor: AppColors.error,
-                onTap: () =>
-                    setState(() => _payStatus = _PayStatus.unpaid),
+                onTap: () => setState(() => _payStatus = _PayStatus.unpaid),
               ),
             ],
           ),
@@ -3262,19 +3574,31 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           Text(
             _tr('Payment Method', 'Njia ya Malipo'),
             style: GoogleFonts.dmSans(
-                fontSize: 12,
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w600),
+              fontSize: 12,
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 8),
           Row(
             children: _QuickPayMethod.values.map((m) {
               final active = m == _payMethod;
+              final activated = ref
+                  .watch(activatedMethodAccountsProvider)
+                  .containsKey(
+                    PaymentMethodAccounts.accountIdForMethod(m.firestoreKey),
+                  );
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: GestureDetector(
-                    onTap: () => setState(() => _payMethod = m),
+                    onTap: () {
+                      if (!activated) {
+                        _snack(activationRequiredMessage(m.firestoreKey));
+                        return;
+                      }
+                      setState(() => _payMethod = m);
+                    },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 160),
                       padding: const EdgeInsets.symmetric(vertical: 9),
@@ -3292,11 +3616,15 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(m.icon,
-                              size: 16,
-                              color: active
-                                  ? Colors.white
-                                  : AppColors.textMuted),
+                          Icon(
+                            activated ? m.icon : Icons.lock_outline,
+                            size: 16,
+                            color: active
+                                ? Colors.white
+                                : activated
+                                ? AppColors.textMuted
+                                : AppColors.textDisabled,
+                          ),
                           SizedBox(height: 3),
                           Text(
                             m.label,
@@ -3306,7 +3634,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                               fontWeight: FontWeight.w700,
                               color: active
                                   ? Colors.white
-                                  : AppColors.textMuted,
+                                  : activated
+                                  ? AppColors.textMuted
+                                  : AppColors.textDisabled,
                             ),
                           ),
                         ],
@@ -3324,8 +3654,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               textCapitalization: TextCapitalization.characters,
               decoration: _fieldDec(
                 label: _tr(
-                    'M-Pesa Reference (optional)',
-                    'Nambari ya M-Pesa (hiari)'),
+                  'M-Pesa Reference (optional)',
+                  'Nambari ya M-Pesa (hiari)',
+                ),
                 prefix: Icons.tag_rounded,
               ),
             ),
@@ -3335,10 +3666,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _amtPaidCtrl,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
             ],
             onChanged: (_) => setState(() {}),
             decoration: _fieldDec(
@@ -3363,8 +3693,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_today_outlined,
-                size: 18, color: AppColors.textSecondary),
+            const Icon(
+              Icons.calendar_today_outlined,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
             SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -3372,22 +3705,27 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                     ? '${_tr("Due", "Malipo")} ${_fmtDate(_dueDate!)}'
                     : _tr(
                         'Set due date (optional)',
-                        'Weka tarehe ya malipo (hiari)'),
+                        'Weka tarehe ya malipo (hiari)',
+                      ),
                 style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    color: _dueDate != null
-                        ? AppColors.navyPrimary
-                        : AppColors.textMuted,
-                    fontWeight: _dueDate != null
-                        ? FontWeight.w600
-                        : FontWeight.w400),
+                  fontSize: 14,
+                  color: _dueDate != null
+                      ? AppColors.navyPrimary
+                      : AppColors.textMuted,
+                  fontWeight: _dueDate != null
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                ),
               ),
             ),
             if (_dueDate != null)
               GestureDetector(
                 onTap: () => setState(() => _dueDate = null),
-                child: const Icon(Icons.close_rounded,
-                    size: 16, color: AppColors.textMuted),
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
               ),
           ],
         ),
@@ -3440,7 +3778,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           foregroundColor: AppColors.navyPrimary,
           disabledBackgroundColor: disabledBg,
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 0,
         ),
         child: _isSaving
@@ -3448,11 +3787,17 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: AppColors.navyPrimary))
+                  strokeWidth: 2.5,
+                  color: AppColors.navyPrimary,
+                ),
+              )
             : Text(
                 buttonLabel,
                 style: GoogleFonts.dmSans(
-                    fontSize: 15, fontWeight: FontWeight.w700)),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
       ),
     );
   }
@@ -3461,26 +3806,26 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     required String label,
     required IconData prefix,
     Widget? suffix,
-  }) =>
-      InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(prefix, size: 20),
-        suffixIcon: suffix,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.border)),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide:
-                const BorderSide(color: AppColors.navyPrimary, width: 1.5)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      );
+  }) => InputDecoration(
+    labelText: label,
+    prefixIcon: Icon(prefix, size: 20),
+    suffixIcon: suffix,
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: AppColors.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: AppColors.navyPrimary, width: 1.5),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  );
 }
 
 // ── Totals row ─────────────────────────────────────────────────────────────────
@@ -3495,17 +3840,23 @@ class _TotalRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(label,
-            style: GoogleFonts.dmSans(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500)),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         Spacer(),
-        Text(value,
-            style: GoogleFonts.jetBrainsMono(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary)),
+        Text(
+          value,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
       ],
     );
   }
@@ -3541,17 +3892,20 @@ class _PayBtn extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon,
-                  size: 16,
-                  color: active ? Colors.white : AppColors.textMuted),
+              Icon(
+                icon,
+                size: 16,
+                color: active ? Colors.white : AppColors.textMuted,
+              ),
               SizedBox(height: 3),
               Text(
                 label,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
-                    color: active ? Colors.white : AppColors.textMuted),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                  color: active ? Colors.white : AppColors.textMuted,
+                ),
               ),
             ],
           ),
@@ -3567,12 +3921,10 @@ class _AddProductSheet extends ConsumerStatefulWidget {
   final String initialName;
   final void Function(Map<String, dynamic>) onAdded;
 
-  const _AddProductSheet(
-      {required this.initialName, required this.onAdded});
+  const _AddProductSheet({required this.initialName, required this.onAdded});
 
   @override
-  ConsumerState<_AddProductSheet> createState() =>
-      _AddProductSheetState();
+  ConsumerState<_AddProductSheet> createState() => _AddProductSheetState();
 }
 
 class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
@@ -3585,7 +3937,14 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
   bool _isSaving = false;
 
   final List<String> _units = [
-    'pcs','kg','liters','boxes','bottles','bags','meters','sets',
+    'pcs',
+    'kg',
+    'liters',
+    'boxes',
+    'bottles',
+    'bags',
+    'meters',
+    'sets',
   ];
 
   @override
@@ -3608,20 +3967,24 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     final name = _nameCtrl.text.trim();
     final price =
         double.tryParse(_priceCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
-            0;
+        0;
     final stock = int.tryParse(_stockCtrl.text.trim()) ?? 1;
     final category = _categoryCtrl.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              _tr('Enter product name', 'Ingiza jina la bidhaaa'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_tr('Enter product name', 'Ingiza jina la bidhaaa')),
+        ),
+      );
       return;
     }
     if (price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text(_tr('Enter a valid price', 'Ingiza bei sahihi'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_tr('Enter a valid price', 'Ingiza bei sahihi')),
+        ),
+      );
       return;
     }
 
@@ -3633,18 +3996,22 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       // works with no connection and pushes to Firestore on reconnect.
       final id = const Uuid().v4();
       final nowIso = DateTime.now().toIso8601String();
-      await ref.read(inventoryRepositoryProvider).save(InventoryItem(
-            id: id,
-            name: name,
-            category: category.isNotEmpty ? category : 'General',
-            sku: _skuCtrl.text.trim(),
-            currentStock: stock.toDouble(),
-            reorderPoint: 5,
-            unitPrice: price,
-            unit: _selectedUnit,
-            createdAt: nowIso,
-            updatedAt: nowIso,
-          ));
+      await ref
+          .read(inventoryRepositoryProvider)
+          .save(
+            InventoryItem(
+              id: id,
+              name: name,
+              category: category.isNotEmpty ? category : 'General',
+              sku: _skuCtrl.text.trim(),
+              currentStock: stock.toDouble(),
+              reorderPoint: 5,
+              unitPrice: price,
+              unit: _selectedUnit,
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            ),
+          );
 
       navigator.pop();
       widget.onAdded({
@@ -3659,9 +4026,13 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_tr(
-              'Failed to add product', 'Imeshindikana kuongeza bidhaaa'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr('Failed to add product', 'Imeshindikana kuongeza bidhaaa'),
+          ),
+        ),
+      );
     }
   }
 
@@ -3671,12 +4042,15 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       height: MediaQuery.sizeOf(context).height * 0.85,
       child: Material(
         color: Colors.white,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         clipBehavior: Clip.antiAlias,
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
-              24, 0, 24, MediaQuery.of(context).viewInsets.bottom + 28),
+            24,
+            0,
+            24,
+            MediaQuery.of(context).viewInsets.bottom + 28,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3685,16 +4059,18 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               Text(
                 _tr('Add New Product', 'Ongeza Bidhaaa Mpya'),
                 style: GoogleFonts.dmSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.secondary),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.secondary,
+                ),
               ),
               const SizedBox(height: 20),
               _field(
-                  ctrl: _nameCtrl,
-                  label: _tr('Product Name *', 'Jina la Bidhaaa *'),
-                  icon: Icons.inventory_2_outlined,
-                  caps: TextCapitalization.words),
+                ctrl: _nameCtrl,
+                label: _tr('Product Name *', 'Jina la Bidhaaa *'),
+                icon: Icons.inventory_2_outlined,
+                caps: TextCapitalization.words,
+              ),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -3704,10 +4080,11 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                       ctrl: _priceCtrl,
                       label: _tr('Unit Price (TSh) *', 'Bei ya Kitengo *'),
                       icon: Icons.sell_outlined,
-                      keyboard:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboard: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       formatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                       ],
                     ),
                   ),
@@ -3740,27 +4117,33 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                       initialValue: _selectedUnit,
                       decoration: InputDecoration(
                         labelText: _tr('Unit', 'Kitengo'),
-                        prefixIcon:
-                            const Icon(Icons.scale_outlined, size: 20),
+                        prefixIcon: const Icon(Icons.scale_outlined, size: 20),
                         filled: true,
                         fillColor: AppColors.surface,
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none),
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
                         enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide:
-                                const BorderSide(color: AppColors.border)),
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
                         focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(
-                                color: AppColors.navyPrimary, width: 1.5)),
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: AppColors.navyPrimary,
+                            width: 1.5,
+                          ),
+                        ),
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                       ),
                       items: _units
-                          .map((u) =>
-                              DropdownMenuItem(value: u, child: Text(u)))
+                          .map(
+                            (u) => DropdownMenuItem(value: u, child: Text(u)),
+                          )
                           .toList(),
                       onChanged: (v) => setState(() => _selectedUnit = v!),
                     ),
@@ -3769,10 +4152,11 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
               ),
               const SizedBox(height: 14),
               _field(
-                  ctrl: _skuCtrl,
-                  label: _tr('SKU (Optional)', 'SKU (Hiari)'),
-                  icon: Icons.tag_outlined,
-                  caps: TextCapitalization.characters),
+                ctrl: _skuCtrl,
+                label: _tr('SKU (Optional)', 'SKU (Hiari)'),
+                icon: Icons.tag_outlined,
+                caps: TextCapitalization.characters,
+              ),
               SizedBox(height: 24),
               SizedBox(
                 height: 52,
@@ -3781,10 +4165,12 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.secondary,
-                    disabledBackgroundColor:
-                        AppColors.primary.withValues(alpha: 0.5),
+                    disabledBackgroundColor: AppColors.primary.withValues(
+                      alpha: 0.5,
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
                   child: _isSaving
@@ -3792,12 +4178,17 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: AppColors.secondary))
+                            strokeWidth: 2.5,
+                            color: AppColors.secondary,
+                          ),
+                        )
                       : Text(
                           _tr('Add to Inventory', 'Ongeza kwa Bidhaa'),
                           style: GoogleFonts.dmSans(
-                              fontSize: 15, fontWeight: FontWeight.w700)),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -3814,31 +4205,31 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     TextInputType? keyboard,
     List<TextInputFormatter>? formatters,
     TextCapitalization caps = TextCapitalization.none,
-  }) =>
-      TextField(
-        controller: ctrl,
-        keyboardType: keyboard,
-        inputFormatters: formatters,
-        textCapitalization: caps,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, size: 20),
-          filled: true,
-          fillColor: AppColors.surface,
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.border)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide:
-                  const BorderSide(color: AppColors.navyPrimary, width: 1.5)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-      );
+  }) => TextField(
+    controller: ctrl,
+    keyboardType: keyboard,
+    inputFormatters: formatters,
+    textCapitalization: caps,
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 20),
+      filled: true,
+      fillColor: AppColors.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.navyPrimary, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    ),
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3891,8 +4282,11 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
   String get _invoiceNumber =>
       _inv['invoiceNumber']?.toString() ?? _inv['id']?.toString() ?? '—';
 
-  String get _customerName =>
-      _inv['customerName']?.toString() ?? _tr('Walk-in', 'Mteja wa Njiani');
+  String get _customerName {
+    // Drift maps store '' (not null) when the sale had no customer.
+    final raw = (_inv['customerName'] ?? '').toString().trim();
+    return raw.isNotEmpty ? raw : _tr('Walk-in', 'Mteja wa Njiani');
+  }
 
   DateTime? get _invoiceDate =>
       readTimestamp(_inv['createdAt'] ?? _inv['date']);
@@ -3913,13 +4307,18 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
     }
     final fallback = _inv['items'];
     if (fallback is List) {
-      return fallback.whereType<Map<String, dynamic>>().map((it) => {
-            'productName': it['productName'] ?? it['name'] ?? '',
-            'qty': it['qty'] ?? it['quantity'] ?? 1,
-            'unitPrice': it['unitPrice'],
-            'lineTotal': it['lineTotal'] ?? it['total'],
-            'unit': it['unit'] ?? '',
-          }).toList();
+      return fallback
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (it) => {
+              'productName': it['productName'] ?? it['name'] ?? '',
+              'qty': it['qty'] ?? it['quantity'] ?? 1,
+              'unitPrice': it['unitPrice'],
+              'lineTotal': it['lineTotal'] ?? it['total'],
+              'unit': it['unit'] ?? '',
+            },
+          )
+          .toList();
     }
     return [];
   }
@@ -3961,10 +4360,10 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
       _ => (
         bg: AppColors.infoBg,
         text: AppColors.tealAccent,
-        label: _isQuotation ? _tr('Quotation', 'Nukuu') : _tr('Sent', 'Imetumwa'),
-        icon: _isQuotation
-            ? Icons.description_outlined
-            : Icons.send_rounded,
+        label: _isQuotation
+            ? _tr('Quotation', 'Nukuu')
+            : _tr('Sent', 'Imetumwa'),
+        icon: _isQuotation ? Icons.description_outlined : Icons.send_rounded,
       ),
     };
   }
@@ -4009,7 +4408,9 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
         };
         _updating = false;
       });
-      _showSnack(_tr('Invoice marked as paid!', 'Ankara imewekwa kama imelipwa!'));
+      _showSnack(
+        _tr('Invoice marked as paid!', 'Ankara imewekwa kama imelipwa!'),
+      );
     } catch (e, st) {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
@@ -4020,18 +4421,22 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
 
   void _openFullDetail() {
     Navigator.of(context).pop();
-    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
-      builder: (_) => InvoiceDetailScreen(invoice: Map.from(_inv)),
-    ));
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        builder: (_) => InvoiceDetailScreen(invoice: Map.from(_inv)),
+      ),
+    );
   }
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────────
@@ -4096,7 +4501,9 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                                     SizedBox(width: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 1),
+                                        horizontal: 6,
+                                        vertical: 1,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: AppColors.surfaceVariant,
                                         borderRadius: BorderRadius.circular(4),
@@ -4131,7 +4538,9 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                         SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: chip.bg,
                             borderRadius: BorderRadius.circular(20),
@@ -4160,26 +4569,36 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                     Row(
                       children: [
                         if (invoiceDate != null) ...[
-                          const Icon(Icons.calendar_today_rounded,
-                              size: 11, color: AppColors.textMuted),
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 11,
+                            color: AppColors.textMuted,
+                          ),
                           SizedBox(width: 4),
                           Text(
                             _fmtDate(invoiceDate),
                             style: GoogleFonts.dmSans(
-                                fontSize: 12, color: AppColors.textMuted),
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ],
                         if (dueDate != null) ...[
                           if (invoiceDate != null) SizedBox(width: 8),
-                          Text('·',
-                              style:
-                                  GoogleFonts.dmSans(color: AppColors.textMuted)),
+                          Text(
+                            '·',
+                            style: GoogleFonts.dmSans(
+                              color: AppColors.textMuted,
+                            ),
+                          ),
                           const SizedBox(width: 8),
-                          Icon(Icons.event_rounded,
-                              size: 11,
-                              color: overdue
-                                  ? AppColors.error
-                                  : AppColors.textMuted),
+                          Icon(
+                            Icons.event_rounded,
+                            size: 11,
+                            color: overdue
+                                ? AppColors.error
+                                : AppColors.textMuted,
+                          ),
                           SizedBox(width: 4),
                           Text(
                             '${_tr("Due", "Mwisho")}: ${_fmtDate(dueDate)}',
@@ -4214,13 +4633,15 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                         if (!isPaidOrCancelled && _outstanding > 0)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.error.withValues(alpha: 0.07),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                  color: AppColors.error
-                                      .withValues(alpha: 0.2)),
+                                color: AppColors.error.withValues(alpha: 0.2),
+                              ),
                             ),
                             child: Text(
                               '${_tr("Due", "Baki")}: TZS ${_sNum(_outstanding)}',
@@ -4273,28 +4694,32 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                           children: lineItems.asMap().entries.map((e) {
                             final idx = e.key;
                             final it = e.value;
-                            final name = (it['productName'] ??
-                                    it['name'] ??
-                                    '—')
+                            final name =
+                                (it['productName'] ?? it['name'] ?? '—')
+                                    .toString();
+                            final qty = (it['qty'] ?? it['quantity'] ?? 1)
                                 .toString();
-                            final qty =
-                                (it['qty'] ?? it['quantity'] ?? 1).toString();
-                            final unitPrice =
-                                parseNumericAmount(it['unitPrice']);
+                            final unitPrice = parseNumericAmount(
+                              it['unitPrice'],
+                            );
                             final lineTotal = parseNumericAmount(
-                                it['lineTotal'] ?? it['total']);
+                              it['lineTotal'] ?? it['total'],
+                            );
                             return Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (idx > 0)
                                   const Divider(
-                                      height: 1,
-                                      indent: 16,
-                                      endIndent: 16,
-                                      color: AppColors.border),
+                                    height: 1,
+                                    indent: 16,
+                                    endIndent: 16,
+                                    color: AppColors.border,
+                                  ),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
                                   child: Row(
                                     children: [
                                       Expanded(
@@ -4404,20 +4829,26 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                             width: 28,
                             height: 28,
                             decoration: BoxDecoration(
-                              color: AppColors.navyPrimary
-                                  .withValues(alpha: 0.07),
+                              color: AppColors.navyPrimary.withValues(
+                                alpha: 0.07,
+                              ),
                               borderRadius: BorderRadius.circular(7),
                             ),
-                            child: const Icon(Icons.payments_rounded,
-                                size: 14, color: AppColors.textMuted),
+                            child: const Icon(
+                              Icons.payments_rounded,
+                              size: 14,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                           SizedBox(width: 10),
                           Text(
                             switch (payMethod) {
                               'cash' => _tr('Cash', 'Taslimu'),
                               'mpesa' => 'M-Pesa',
-                              'bank_transfer' =>
-                                _tr('Bank Transfer', 'Uhamisho wa Benki'),
+                              'bank_transfer' => _tr(
+                                'Bank Transfer',
+                                'Uhamisho wa Benki',
+                              ),
                               'card' => _tr('Card', 'Kadi'),
                               'credit' => _tr('On Account', 'Mkopo'),
                               _ => payMethod,
@@ -4428,14 +4859,16 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                               color: AppColors.textSecondary,
                             ),
                           ),
-                          if ((_inv['mpesaRef'] ?? '').toString().isNotEmpty)
-                            ...[
+                          if ((_inv['mpesaRef'] ?? '')
+                              .toString()
+                              .isNotEmpty) ...[
                             SizedBox(width: 8),
                             Text(
                               (_inv['mpesaRef'] ?? '').toString(),
                               style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11,
-                                  color: AppColors.textMuted),
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
                             ),
                           ],
                         ],
@@ -4450,8 +4883,11 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.notes_rounded,
-                              size: 14, color: AppColors.textMuted),
+                          const Icon(
+                            Icons.notes_rounded,
+                            size: 14,
+                            color: AppColors.textMuted,
+                          ),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -4484,13 +4920,16 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                         label: Text(
                           _tr('Share Receipt', 'Shiriki Risiti'),
                           style: GoogleFonts.dmSans(
-                              fontSize: 14, fontWeight: FontWeight.w600),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.navyPrimary,
                           side: const BorderSide(color: AppColors.border),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -4507,20 +4946,27 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                               ? const SizedBox.square(
                                   dimension: 16,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white))
-                              : const Icon(Icons.check_circle_rounded,
-                                  size: 16),
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 16,
+                                ),
                           label: Text(
                             _tr('Mark as Paid', 'Weka kama Imelipwa'),
                             style: GoogleFonts.dmSans(
-                                fontSize: 14, fontWeight: FontWeight.w700),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.success,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             elevation: 0,
                           ),
                         ),
@@ -4538,13 +4984,16 @@ class _SaleInfoSheetState extends ConsumerState<_SaleInfoSheet> {
                         label: Text(
                           _tr('View Full Details', 'Ona Maelezo Kamili'),
                           style: GoogleFonts.dmSans(
-                              fontSize: 14, fontWeight: FontWeight.w700),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.navyPrimary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                           elevation: 0,
                         ),
                       ),
@@ -4579,7 +5028,9 @@ class _SaleSheetRow extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.dmSans(
-              fontSize: 13, color: AppColors.textSecondary),
+            fontSize: 13,
+            color: AppColors.textSecondary,
+          ),
         ),
         Text(
           value,
@@ -4642,19 +5093,18 @@ class _SaleSuccessScreenState extends State<_SaleSuccessScreen>
       duration: const Duration(milliseconds: 500),
     );
 
-    _checkScale =
-        CurvedAnimation(parent: _checkCtrl, curve: Curves.elasticOut);
+    _checkScale = CurvedAnimation(parent: _checkCtrl, curve: Curves.elasticOut);
     _checkFade = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
-          parent: _checkCtrl,
-          curve: const Interval(0, 0.4, curve: Curves.easeIn)),
+        parent: _checkCtrl,
+        curve: const Interval(0, 0.4, curve: Curves.easeIn),
+      ),
     );
-    _cardSlide =
-        Tween<Offset>(begin: const Offset(0, 0.18), end: Offset.zero)
-            .animate(CurvedAnimation(
-                parent: _cardCtrl, curve: Curves.easeOutCubic));
-    _cardFade =
-        CurvedAnimation(parent: _cardCtrl, curve: Curves.easeOut);
+    _cardSlide = Tween<Offset>(
+      begin: const Offset(0, 0.18),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _cardCtrl, curve: Curves.easeOutCubic));
+    _cardFade = CurvedAnimation(parent: _cardCtrl, curve: Curves.easeOut);
 
     _checkCtrl.forward();
     Future.delayed(const Duration(milliseconds: 350), () {
@@ -4676,114 +5126,122 @@ class _SaleSuccessScreenState extends State<_SaleSuccessScreen>
     final amount = (sale['amount'] as num?)?.toDouble() ?? 0;
     final amountPaid = (sale['amountPaid'] as num?)?.toDouble() ?? 0;
     final invoiceNo = (sale['invoiceNumber'] ?? '').toString();
-    final customerName =
-        (sale['customerName'] ?? _tr('Walk-in', 'Mteja wa kawaida'))
-            .toString();
+    final rawCustomer = (sale['customerName'] ?? '').toString().trim();
+    final customerName = rawCustomer.isNotEmpty
+        ? rawCustomer
+        : _tr('Walk-in', 'Mteja wa kawaida');
     final statusStr = (sale['status'] ?? 'paid').toString();
     final items =
         (sale['items'] as List?)?.whereType<Map>().toList() ?? const [];
     final createdAt = sale['createdAt'] as DateTime? ?? DateTime.now();
 
-    return Scaffold(
-      backgroundColor: AppColors.navyPrimary,
-      body: Column(
-        children: [
-          // ── Top hero — navy background ────────────────────────────────────────
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
-              child: Column(
-                children: [
-                  ScaleTransition(
-                    scale: _checkScale,
-                    child: FadeTransition(
-                      opacity: _checkFade,
-                      child: Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.1),
-                          border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.25),
-                              width: 2),
-                        ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppTheme.statusBarLightIcons,
+      child: Scaffold(
+        backgroundColor: AppColors.navyPrimary,
+        body: Column(
+          children: [
+            // ── Top hero — navy background ────────────────────────────────────────
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
+                child: Column(
+                  children: [
+                    ScaleTransition(
+                      scale: _checkScale,
+                      child: FadeTransition(
+                        opacity: _checkFade,
                         child: Container(
-                          margin: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppColors.success,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Color(0x4005966A),
-                                blurRadius: 20,
-                                offset: Offset(0, 6),
-                              ),
-                            ],
+                            color: Colors.white.withValues(alpha: 0.1),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25),
+                              width: 2,
+                            ),
                           ),
-                          child: const Icon(Icons.check_rounded,
-                              color: Colors.white, size: 36),
+                          child: Container(
+                            margin: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.success,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0x4005966A),
+                                  blurRadius: 20,
+                                  offset: Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 36,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: 18),
-                  Text(
-                    _tr('Sale Successful!', 'Mauzo Yamefanikiwa!'),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: -0.3,
+                    SizedBox(height: 18),
+                    Text(
+                      _tr('Sale Successful!', 'Mauzo Yamefanikiwa!'),
+                      style: GoogleFonts.dmSans(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.3,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'TSh ${_sNum(amount)}',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -1.0,
-                      height: 1.1,
+                    SizedBox(height: 6),
+                    Text(
+                      'TSh ${_sNum(amount)}',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -1.0,
+                        height: 1.1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  _SuccessStatusBadge(statusStr),
-                ],
-              ),
-            ),
-          ),
-
-          // ── Ticket receipt card — white ───────────────────────────────────────
-          Expanded(
-            child: FadeTransition(
-              opacity: _cardFade,
-              child: SlideTransition(
-                position: _cardSlide,
-                child: _TicketReceiptCard(
-                  invoiceNo: invoiceNo,
-                  customerName: customerName,
-                  amount: amount,
-                  amountPaid: amountPaid,
-                  items: items,
-                  sale: sale,
-                  statusStr: statusStr,
-                  createdAt: createdAt,
-                  onShare: () async {
-                    await _SalesScreenState._openReceiptActions(
-                      context: context,
-                      sale: widget.saleData,
-                      ref: widget.ref,
-                    );
-                  },
-                  onDone: () => Navigator.of(context).pop(),
+                    const SizedBox(height: 10),
+                    _SuccessStatusBadge(statusStr),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
+
+            // ── Ticket receipt card — white ───────────────────────────────────────
+            Expanded(
+              child: FadeTransition(
+                opacity: _cardFade,
+                child: SlideTransition(
+                  position: _cardSlide,
+                  child: _TicketReceiptCard(
+                    invoiceNo: invoiceNo,
+                    customerName: customerName,
+                    amount: amount,
+                    amountPaid: amountPaid,
+                    items: items,
+                    sale: sale,
+                    statusStr: statusStr,
+                    createdAt: createdAt,
+                    onShare: () async {
+                      await _SalesScreenState._openReceiptActions(
+                        context: context,
+                        sale: widget.saleData,
+                        ref: widget.ref,
+                      );
+                    },
+                    onDone: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -4950,7 +5408,7 @@ class _TicketReceiptCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              '${item['name'] ?? '-'}  ×${item['qty'] ?? 1}',
+                              '${item['name'] ?? item['productName'] ?? '-'}  ×${item['qty'] ?? item['quantity'] ?? 1}',
                               style: GoogleFonts.dmSans(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
@@ -4985,8 +5443,9 @@ class _TicketReceiptCard extends StatelessWidget {
                   ],
                   if (vat > 0) ...[
                     _SuccessTotalRow(
-                        label: 'VAT (18%)',
-                        value: 'TSh ${_sNum(vat)}'),
+                      label: 'VAT (18%)',
+                      value: 'TSh ${_sNum(vat)}',
+                    ),
                     const SizedBox(height: 6),
                   ],
                   _SuccessTotalRow(
@@ -5013,21 +5472,32 @@ class _TicketReceiptCard extends StatelessWidget {
                     SizedBox(height: 12),
                     Row(
                       children: [
-                        Icon(_pmIcon(payMethod),
-                            size: 14, color: AppColors.textMuted),
+                        Icon(
+                          _pmIcon(payMethod),
+                          size: 14,
+                          color: AppColors.textMuted,
+                        ),
                         SizedBox(width: 6),
                         Text(
                           _pmLabel(payMethod),
                           style: GoogleFonts.dmSans(
-                              fontSize: 12, color: AppColors.textMuted),
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                         if (mpesaRef.isNotEmpty) ...[
-                          Text(' · ',
-                              style: GoogleFonts.dmSans(color: AppColors.textMuted)),
+                          Text(
+                            ' · ',
+                            style: GoogleFonts.dmSans(
+                              color: AppColors.textMuted,
+                            ),
+                          ),
                           Text(
                             mpesaRef,
                             style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11, color: AppColors.textMuted),
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ],
                       ],
@@ -5045,16 +5515,19 @@ class _TicketReceiptCard extends StatelessWidget {
                           label: Text(
                             _tr('Share', 'Shiriki'),
                             style: GoogleFonts.dmSans(
-                                fontWeight: FontWeight.w600),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           style: OutlinedButton.styleFrom(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             foregroundColor: AppColors.tealAccent,
                             side: const BorderSide(
-                                color: AppColors.tealAccent, width: 1.5),
+                              color: AppColors.tealAccent,
+                              width: 1.5,
+                            ),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
                         ),
                       ),
@@ -5063,13 +5536,13 @@ class _TicketReceiptCard extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: onDone,
                           style: ElevatedButton.styleFrom(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             backgroundColor: AppColors.navyPrimary,
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
                           child: Text(
                             _tr('Done', 'Maliza'),
@@ -5093,19 +5566,19 @@ class _TicketReceiptCard extends StatelessWidget {
   }
 
   IconData _pmIcon(String m) => switch (m) {
-        'mpesa' => Icons.phone_android_rounded,
-        'bank_transfer' => Icons.account_balance_rounded,
-        'card' => Icons.credit_card_rounded,
-        _ => Icons.payments_rounded,
-      };
+    'mpesa' => Icons.phone_android_rounded,
+    'bank_transfer' => Icons.account_balance_rounded,
+    'card' => Icons.credit_card_rounded,
+    _ => Icons.payments_rounded,
+  };
 
   String _pmLabel(String m) => switch (m) {
-        'mpesa' => 'M-Pesa',
-        'bank_transfer' => _tr('Bank Transfer', 'Uhamisho wa Benki'),
-        'card' => _tr('Card', 'Kadi'),
-        'credit' => _tr('Credit', 'Mkopo'),
-        _ => _tr('Cash', 'Taslimu'),
-      };
+    'mpesa' => 'M-Pesa',
+    'bank_transfer' => _tr('Bank Transfer', 'Uhamisho wa Benki'),
+    'card' => _tr('Card', 'Kadi'),
+    'credit' => _tr('Credit', 'Mkopo'),
+    _ => _tr('Cash', 'Taslimu'),
+  };
 }
 
 // Dashed perforated line (mimics a ticket tear edge)
@@ -5118,8 +5591,7 @@ class _PerforatedLine extends StatelessWidget {
       builder: (context, constraints) {
         const dashW = 5.0;
         const gap = 4.0;
-        final count =
-            ((constraints.maxWidth) / (dashW + gap)).floor();
+        final count = ((constraints.maxWidth) / (dashW + gap)).floor();
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(
@@ -5161,23 +5633,18 @@ class _SuccessTotalRow extends StatelessWidget {
           label,
           style: GoogleFonts.dmSans(
             fontSize: isBold ? 14 : 13,
-            fontWeight:
-                isBold ? FontWeight.w700 : FontWeight.w400,
-            color: isBold
-                ? AppColors.navyPrimary
-                : AppColors.textSecondary,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w400,
+            color: isBold ? AppColors.navyPrimary : AppColors.textSecondary,
           ),
         ),
         Text(
           value,
           style: GoogleFonts.jetBrainsMono(
             fontSize: isBold ? 15 : 13,
-            fontWeight:
-                isBold ? FontWeight.w800 : FontWeight.w600,
-            color: valueColor ??
-                (isBold
-                    ? AppColors.navyPrimary
-                    : AppColors.textPrimary),
+            fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+            color:
+                valueColor ??
+                (isBold ? AppColors.navyPrimary : AppColors.textPrimary),
           ),
         ),
       ],

@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,7 +29,8 @@ class MainShellPage extends ConsumerStatefulWidget {
   ConsumerState<MainShellPage> createState() => _MainShellPageState();
 }
 
-class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTickerProviderStateMixin {
+class _MainShellPageState extends ConsumerState<MainShellPage>
+    with SingleTickerProviderStateMixin {
   User? _currentUser;
   late Future<Map<String, dynamic>?> _profileFuture;
   late final VoidCallback _languageListener;
@@ -77,7 +79,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     });
   }
 
-  List<Map<String, dynamic>> _businessesFromProfile(Map<String, dynamic>? profile) {
+  List<Map<String, dynamic>> _businessesFromProfile(
+    Map<String, dynamic>? profile,
+  ) {
     final businessesRaw = profile?['businesses'];
     if (businessesRaw is! List) return const [];
 
@@ -85,15 +89,18 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
         .whereType<Map>()
         .map((entry) {
           // Support both old field names and new Firestore schema field names.
-          final name = ((entry['businessName'] as String?)?.trim().isNotEmpty == true
+          final name =
+              ((entry['businessName'] as String?)?.trim().isNotEmpty == true
                   ? entry['businessName'] as String
                   : (entry['name'] as String?)?.trim()) ??
               '';
-          final category = ((entry['businessCategory'] as String?)?.trim().isNotEmpty == true
+          final category =
+              ((entry['businessCategory'] as String?)?.trim().isNotEmpty == true
                   ? entry['businessCategory'] as String
                   : (entry['category'] as String?)?.trim()) ??
               '';
-          final place = ((entry['city'] as String?)?.trim().isNotEmpty == true
+          final place =
+              ((entry['city'] as String?)?.trim().isNotEmpty == true
                   ? entry['city'] as String
                   : (entry['placeOfBusiness'] as String?)?.trim()) ??
               '';
@@ -121,9 +128,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
 
     final businesses = _businessesFromProfile(profile);
     final selectedBusinessId = _selectedBusinessId(profile);
-    
+
     // Default to business context
-    final businessId = selectedBusinessId ?? (businesses.isNotEmpty ? businesses.first['id'] as String : null);
+    final businessId =
+        selectedBusinessId ??
+        (businesses.isNotEmpty ? businesses.first['id'] as String : null);
     if (businessId != null && businessId.isNotEmpty) {
       return 'business:$businessId';
     }
@@ -141,18 +150,22 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     final requestedBusinessId = normalized.contains(':')
         ? normalized.split(':').sublist(1).join(':').trim()
         : null;
-    final fallbackBusinessId = _selectedBusinessId(profile) ??
+    final fallbackBusinessId =
+        _selectedBusinessId(profile) ??
         (businesses.isNotEmpty ? businesses.first['id'] as String : null);
-    final resolvedNextContext = requestedBusinessId != null && requestedBusinessId.isNotEmpty
+    final resolvedNextContext =
+        requestedBusinessId != null && requestedBusinessId.isNotEmpty
         ? 'business:$requestedBusinessId'
         : fallbackBusinessId != null
-            ? 'business:$fallbackBusinessId'
-            : 'business';
+        ? 'business:$fallbackBusinessId'
+        : 'business';
 
     final currentContext = _defaultContextFromProfile(profile);
     if (currentContext == resolvedNextContext) {
       if (!mounted) return;
-      final route = DefaultContextRoutingService.routeFromContextValue(resolvedNextContext);
+      final route = DefaultContextRoutingService.routeFromContextValue(
+        resolvedNextContext,
+      );
       context.go(route);
       return;
     }
@@ -171,7 +184,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     _refreshProfile();
 
     if (!mounted) return;
-    final route = DefaultContextRoutingService.routeFromContextValue(resolvedNextContext);
+    final route = DefaultContextRoutingService.routeFromContextValue(
+      resolvedNextContext,
+    );
     context.go(route);
   }
 
@@ -179,7 +194,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     if (user == null) return null;
     final fs = FirebaseFirestore.instance;
 
-    final userSnap = await fs.collection('users').doc(user.uid).get(const GetOptions());
+    final userSnap = await fs
+        .collection('users')
+        .doc(user.uid)
+        .get(const GetOptions());
     final profile = userSnap.data();
     if (profile == null) return null;
 
@@ -189,9 +207,14 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
       // Team members belong to one business — load it directly.
       final bizId = (profile['businessId'] as String?)?.trim() ?? '';
       if (bizId.isNotEmpty) {
-        final bizSnap = await fs.collection('businesses').doc(bizId).get(const GetOptions());
+        final bizSnap = await fs
+            .collection('businesses')
+            .doc(bizId)
+            .get(const GetOptions());
         if (bizSnap.exists) {
-          profile['businesses'] = [{'id': bizId, ...?bizSnap.data()}];
+          profile['businesses'] = [
+            {'id': bizId, ...?bizSnap.data()},
+          ];
         }
       }
     } else {
@@ -200,7 +223,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
           .collection('businesses')
           .where('ownerUid', isEqualTo: user.uid)
           .get(const GetOptions());
-      profile['businesses'] = bizSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      profile['businesses'] = bizSnap.docs
+          .map((d) => {'id': d.id, ...d.data()})
+          .toList();
     }
 
     return profile;
@@ -231,19 +256,22 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
       barrierColor: AppColors.overlay,
       transitionDuration: const Duration(milliseconds: 300),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
-        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
         final fade = Tween<double>(begin: 0, end: 1).animate(curved);
         return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10 * fade.value, sigmaY: 10 * fade.value),
+          filter: ImageFilter.blur(
+            sigmaX: 10 * fade.value,
+            sigmaY: 10 * fade.value,
+          ),
           child: SlideTransition(
             position: Tween<Offset>(
               begin: const Offset(-1, 0),
               end: Offset.zero,
             ).animate(curved),
-            child: FadeTransition(
-              opacity: fade,
-              child: child,
-            ),
+            child: FadeTransition(opacity: fade, child: child),
           ),
         );
       },
@@ -268,7 +296,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                       topRight: Radius.circular(24),
                       bottomRight: Radius.circular(24),
                     ),
-                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.12)),
+                    border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.12),
+                    ),
                     boxShadow: AppTheme.modalShadow,
                   ),
                   child: Column(
@@ -278,9 +308,15 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                         decoration: BoxDecoration(
                           color: AppColors.secondary,
                           border: Border(
-                            bottom: BorderSide(color: AppColors.secondary.withValues(alpha: 0.18)),
+                            bottom: BorderSide(
+                              color: AppColors.secondary.withValues(
+                                alpha: 0.18,
+                              ),
+                            ),
                           ),
-                          borderRadius: const BorderRadius.only(topRight: Radius.circular(24)),
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(24),
+                          ),
                         ),
                         child: SafeArea(
                           bottom: false,
@@ -297,10 +333,16 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.28), width: 2),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.28,
+                                          ),
+                                          width: 2,
+                                        ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: AppColors.secondary.withValues(alpha: 0.25),
+                                            color: AppColors.secondary
+                                                .withValues(alpha: 0.25),
                                             blurRadius: 12,
                                             offset: const Offset(0, 4),
                                           ),
@@ -308,7 +350,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                       ),
                                       child: Center(
                                         child: Text(
-                                          profile.fullName.isNotEmpty ? profile.fullName.trim()[0].toUpperCase() : 'M',
+                                          profile.fullName.isNotEmpty
+                                              ? profile.fullName
+                                                    .trim()[0]
+                                                    .toUpperCase()
+                                              : 'M',
                                           style: GoogleFonts.dmSans(
                                             color: AppColors.secondary,
                                             fontSize: 22,
@@ -320,7 +366,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                     SizedBox(width: 14),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             profile.fullName,
@@ -347,8 +394,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                       ),
                                     ),
                                     IconButton(
-                                      onPressed: () => Navigator.of(dialogContext).pop(),
-                                      icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 22),
+                                      onPressed: () =>
+                                          Navigator.of(dialogContext).pop(),
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                        color: AppColors.textMuted,
+                                        size: 22,
+                                      ),
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
                                     ),
@@ -359,16 +411,31 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                   Row(
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.14),
-                                          borderRadius: BorderRadius.circular(999),
-                                          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.14,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.28,
+                                            ),
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.stars_rounded, size: 12, color: Colors.white),
+                                            const Icon(
+                                              Icons.stars_rounded,
+                                              size: 12,
+                                              color: Colors.white,
+                                            ),
                                             SizedBox(width: 4),
                                             Text(
                                               _tr('Free', 'Bure'),
@@ -383,11 +450,20 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                       ),
                                       SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius: BorderRadius.circular(999),
-                                          border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.24,
+                                            ),
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -413,16 +489,29 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                   )
                                 else if (member != null)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.18),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.18,
+                                      ),
                                       borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.32,
+                                        ),
+                                      ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.badge_outlined, size: 12, color: Colors.white),
+                                        const Icon(
+                                          Icons.badge_outlined,
+                                          size: 12,
+                                          color: Colors.white,
+                                        ),
                                         SizedBox(width: 4),
                                         Text(
                                           member.role.label,
@@ -448,77 +537,172 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                             _DrawerItemLight(
                               icon: Icons.grid_view_rounded,
                               iconColor: AppColors.secondary,
-                              label: _tr('Hali ya biashara', 'Hali ya biashara'),
-                              semanticsLabel: _tr('Dashboard, business overview', 'Hali ya biashara, muhtasari wa biashara'),
+                              label: _tr(
+                                'Hali ya biashara',
+                                'Hali ya biashara',
+                              ),
+                              semanticsLabel: _tr(
+                                'Dashboard, business overview',
+                                'Hali ya biashara, muhtasari wa biashara',
+                              ),
                               selected: isDashboard,
-                              onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.dashboardPath),
+                              onTap: () => _closeNavigationPanelThenNavigate(
+                                dialogContext,
+                                context,
+                                AppRouter.dashboardPath,
+                              ),
                             ),
-                            if (ps.canViewSales || ps.canViewInventory || ps.canViewCustomers)
-                              _DrawerSectionLabel(label: _tr('BUSINESS', 'BIASHARA')),
+                            if (ps.canViewSales ||
+                                ps.canViewInventory ||
+                                ps.canViewCustomers)
+                              _DrawerSectionLabel(
+                                label: _tr('BUSINESS', 'BIASHARA'),
+                              ),
                             if (ps.canViewSales)
                               _DrawerItemLight(
                                 icon: Icons.receipt_long_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr('Tuma ankara', 'Tuma ankara'),
-                                semanticsLabel: _tr('Sales and invoices', 'Tuma ankara, mauzo na ankara'),
-                                selected: _isSelected(location, AppRouter.salesPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.salesPath),
+                                semanticsLabel: _tr(
+                                  'Sales and invoices',
+                                  'Tuma ankara, mauzo na ankara',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.salesPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.salesPath,
+                                ),
                               ),
                             if (ps.canViewInventory)
                               _DrawerItemLight(
                                 icon: Icons.inventory_2_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr('Bidhaa zangu', 'Bidhaa zangu'),
-                                semanticsLabel: _tr('My stock and inventory', 'Bidhaa zangu, usimamizi wa bidhaaa'),
-                                selected: _isSelected(location, AppRouter.inventoryPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.inventoryPath),
+                                semanticsLabel: _tr(
+                                  'My stock and inventory',
+                                  'Bidhaa zangu, usimamizi wa bidhaaa',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.inventoryPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.inventoryPath,
+                                ),
                               ),
                             if (ps.canViewCustomers)
                               _DrawerItemLight(
                                 icon: Icons.people_alt_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr('Wateja wangu', 'Wateja wangu'),
-                                semanticsLabel: _tr('My customers', 'Wateja wangu, usimamizi wa wateja'),
-                                selected: _isSelected(location, AppRouter.crmPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.crmPath),
+                                semanticsLabel: _tr(
+                                  'My customers',
+                                  'Wateja wangu, usimamizi wa wateja',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.crmPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.crmPath,
+                                ),
                               ),
-                            if (ps.canViewDebt || ps.canManageExpenses || ps.canViewCashFlow || ps.canViewFinancialReports)
-                              _DrawerSectionLabel(label: _tr('FINANCE', 'FEDHA')),
+                            if (ps.canViewDebt ||
+                                ps.canManageExpenses ||
+                                ps.canViewCashFlow ||
+                                ps.canViewFinancialReports)
+                              _DrawerSectionLabel(
+                                label: _tr('FINANCE', 'FEDHA'),
+                              ),
                             if (ps.canViewDebt)
                               _DrawerItemLight(
                                 icon: Icons.account_balance_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr('Madeni', 'Madeni'),
-                                semanticsLabel: _tr('Debt tracking', 'Madeni, ufuatiliaji wa madeni'),
-                                selected: _isSelected(location, AppRouter.debtPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.debtPath),
+                                semanticsLabel: _tr(
+                                  'Debt tracking',
+                                  'Madeni, ufuatiliaji wa madeni',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.debtPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.debtPath,
+                                ),
                               ),
                             if (ps.canManageExpenses)
                               _DrawerItemLight(
                                 icon: Icons.payments_outlined,
                                 iconColor: AppColors.secondary,
                                 label: _tr('Gharama zangu', 'Gharama zangu'),
-                                semanticsLabel: _tr('My expenses', 'Gharama zangu, usimamizi wa matumizi'),
-                                selected: _isSelected(location, AppRouter.expensesPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.expensesPath),
+                                semanticsLabel: _tr(
+                                  'My expenses',
+                                  'Gharama zangu, usimamizi wa matumizi',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.expensesPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.expensesPath,
+                                ),
                               ),
                             if (ps.canViewCashFlow)
                               _DrawerItemLight(
                                 icon: Icons.account_balance_wallet_outlined,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Mtiririko wa Fedha', 'Mtiririko wa Fedha'),
-                                semanticsLabel: _tr('Cash flow and accounts', 'Mtiririko wa fedha na akaunti'),
-                                selected: _isSelected(location, AppRouter.cashFlowPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.cashFlowPath),
+                                label: _tr(
+                                  'Mtiririko wa Fedha',
+                                  'Mtiririko wa Fedha',
+                                ),
+                                semanticsLabel: _tr(
+                                  'Cash flow and accounts',
+                                  'Mtiririko wa fedha na akaunti',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.cashFlowPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.cashFlowPath,
+                                ),
                               ),
                             if (ps.canViewFinancialReports)
                               _DrawerItemLight(
                                 icon: Icons.bar_chart_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Ripoti za Fedha', 'Ripoti za Fedha'),
-                                semanticsLabel: _tr('Financial reports — P&L, Balance Sheet, VAT', 'Ripoti za fedha — P&L, Mizania, VAT'),
-                                selected: _isSelected(location, AppRouter.reportsPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.reportsPath),
+                                label: _tr(
+                                  'Ripoti za Fedha',
+                                  'Ripoti za Fedha',
+                                ),
+                                semanticsLabel: _tr(
+                                  'Financial reports — P&L, Balance Sheet, VAT',
+                                  'Ripoti za fedha — P&L, Mizania, VAT',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.reportsPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.reportsPath,
+                                ),
                               ),
                             if (ps.canManageTeam) ...[
                               _DrawerSectionLabel(label: _tr('TEAM', 'TIMU')),
@@ -526,28 +710,63 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
                                 icon: Icons.group_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr('My Team', 'Timu yangu'),
-                                semanticsLabel: _tr('Team and role management', 'Timu yangu, usimamizi wa majukumu'),
-                                selected: _isSelected(location, AppRouter.teamPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.teamPath),
+                                semanticsLabel: _tr(
+                                  'Team and role management',
+                                  'Timu yangu, usimamizi wa majukumu',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.teamPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.teamPath,
+                                ),
                               ),
                             ],
                             if (ps.isOwner) ...[
-                              _DrawerSectionLabel(label: _tr('SETTINGS', 'MIPANGILIO')),
+                              _DrawerSectionLabel(
+                                label: _tr('SETTINGS', 'MIPANGILIO'),
+                              ),
                               _DrawerItemLight(
                                 icon: Icons.storefront_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Simamia Biashara', 'Simamia Biashara'),
-                                semanticsLabel: _tr('Add or switch businesses', 'Ongeza au badili biashara'),
-                                selected: _isSelected(location, AppRouter.businessesPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.businessesPath),
+                                label: _tr(
+                                  'Simamia Biashara',
+                                  'Simamia Biashara',
+                                ),
+                                semanticsLabel: _tr(
+                                  'Add or switch businesses',
+                                  'Ongeza au badili biashara',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.businessesPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.businessesPath,
+                                ),
                               ),
                               _DrawerItemLight(
                                 icon: Icons.settings_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr('Mipangilio', 'Mipangilio'),
-                                semanticsLabel: _tr('App settings', 'Mipangilio ya programu'),
-                                selected: _isSelected(location, AppRouter.settingsPath),
-                                onTap: () => _closeNavigationPanelThenNavigate(dialogContext, context, AppRouter.settingsPath),
+                                semanticsLabel: _tr(
+                                  'App settings',
+                                  'Mipangilio ya programu',
+                                ),
+                                selected: _isSelected(
+                                  location,
+                                  AppRouter.settingsPath,
+                                ),
+                                onTap: () => _closeNavigationPanelThenNavigate(
+                                  dialogContext,
+                                  context,
+                                  AppRouter.settingsPath,
+                                ),
                               ),
                             ],
                           ],
@@ -564,8 +783,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     );
   }
 
-  static int _calculateIndex(String location, List<_NavDestination> destinations) {
-    final index = destinations.indexWhere((destination) => _isSelected(location, destination.route));
+  static int _calculateIndex(
+    String location,
+    List<_NavDestination> destinations,
+  ) {
+    final index = destinations.indexWhere(
+      (destination) => _isSelected(location, destination.route),
+    );
     return index >= 0 ? index : 0;
   }
 
@@ -605,14 +829,18 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     return location == route || location.startsWith('$route/');
   }
 
-  _DrawerProfileData _buildProfileData(User? user, Map<String, dynamic>? profile) {
-    final fullName = ((profile?['displayName'] as String?)?.trim().isNotEmpty ?? false)
+  _DrawerProfileData _buildProfileData(
+    User? user,
+    Map<String, dynamic>? profile,
+  ) {
+    final fullName =
+        ((profile?['displayName'] as String?)?.trim().isNotEmpty ?? false)
         ? (profile?['displayName'] as String).trim()
         : ((profile?['name'] as String?)?.trim().isNotEmpty ?? false)
-            ? (profile?['name'] as String).trim()
-            : ((user?.displayName?.trim().isNotEmpty ?? false)
-                ? user!.displayName!.trim()
-                : _tr('Mali Up User', 'Mtumiaji wa Mali Up'));
+        ? (profile?['name'] as String).trim()
+        : ((user?.displayName?.trim().isNotEmpty ?? false)
+              ? user!.displayName!.trim()
+              : _tr('Mali Up User', 'Mtumiaji wa Mali Up'));
 
     final authPhone = user?.phoneNumber?.trim();
     final profilePhone = (profile?['phone'] as String?)?.trim();
@@ -620,26 +848,28 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     final authEmail = user?.email?.trim();
 
     final contactLine = (authPhone != null && authPhone.isNotEmpty)
-      ? authPhone
-      : (profilePhone != null && profilePhone.isNotEmpty)
+        ? authPhone
+        : (profilePhone != null && profilePhone.isNotEmpty)
         ? profilePhone
         : (profileEmail != null && profileEmail.isNotEmpty)
-          ? profileEmail
-          : ((authEmail != null && authEmail.isNotEmpty)
-            ? authEmail
-            : _tr('No contact details available', 'Hakuna maelezo ya mawasiliano'));
+        ? profileEmail
+        : ((authEmail != null && authEmail.isNotEmpty)
+              ? authEmail
+              : _tr(
+                  'No contact details available',
+                  'Hakuna maelezo ya mawasiliano',
+                ));
 
-    return _DrawerProfileData(
-      fullName: fullName,
-      contactLine: contactLine,
-    );
+    return _DrawerProfileData(fullName: fullName, contactLine: contactLine);
   }
 
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     final currentUser = _currentUser;
-    ref.watch(syncServiceProvider); // starts SyncService (local→Firestore push) when uid + bizId are ready
+    ref.watch(
+      syncServiceProvider,
+    ); // starts SyncService (local→Firestore push) when uid + bizId are ready
     // Drive the Dynamic Island Live Activity whenever the sync state changes.
     ref.listen<SyncState>(syncStateProvider, (prev, next) {
       if (prev == next) return;
@@ -648,8 +878,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
     });
     // Select only the bool we need so the shell doesn't rebuild on every
     // intermediate SyncState transition (e.g. idle→syncing→idle).
-    final isOnline = ref.watch(syncStateProvider.select(
-        (s) => s == SyncState.idle || s == SyncState.syncing));
+    final isOnline = ref.watch(
+      syncStateProvider.select(
+        (s) => s == SyncState.idle || s == SyncState.syncing,
+      ),
+    );
     final permissionsLoaded = ref.watch(permissionsLoadedProvider);
     // Use owner-equivalent permissions while loading to avoid a flash of the
     // one-icon nav bar on first login (no role cache yet on the device).
@@ -659,146 +892,182 @@ class _MainShellPageState extends ConsumerState<MainShellPage> with SingleTicker
         ? ref.watch(permissionServiceProvider)
         : PermissionService.owner();
     if (kDebugMode) {
-      debugPrint('[Shell] build: permissionsLoaded=$permissionsLoaded '
-          'isOwner=${ps.isOwner} '
-          'canSales=${ps.canViewSales} '
-          'canInventory=${ps.canViewInventory}');
+      debugPrint(
+        '[Shell] build: permissionsLoaded=$permissionsLoaded '
+        'isOwner=${ps.isOwner} '
+        'canSales=${ps.canViewSales} '
+        'canInventory=${ps.canViewInventory}',
+      );
     }
     // Select valueOrNull so the shell only rebuilds when the member record
     // itself changes, not on every AsyncValue wrapper transition.
-    final member = ref.watch(currentMemberProvider.select((a) => a.valueOrNull));
+    final member = ref.watch(
+      currentMemberProvider.select((a) => a.valueOrNull),
+    );
 
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _profileFuture,
-      builder: (context, snapshot) {
-        final profileData = snapshot.data;
-        final profile = _buildProfileData(currentUser, profileData);
-        final businesses = _businessesFromProfile(profileData);
-        final selectedContext = _defaultContextFromProfile(profileData);
-        final canSwitch = businesses.length > 1;
-        final destinations = _buildNavDestinations(ps);
-        final currentIndex = _calculateIndex(location, destinations);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // Shell pages (dashboard, sales, reports…) have a white top background,
+      // so keep dark status bar icons even when returning from navy screens.
+      value: AppTheme.statusBarDarkIcons,
+      child: FutureBuilder<Map<String, dynamic>?>(
+        future: _profileFuture,
+        builder: (context, snapshot) {
+          final profileData = snapshot.data;
+          final profile = _buildProfileData(currentUser, profileData);
+          final businesses = _businessesFromProfile(profileData);
+          final selectedContext = _defaultContextFromProfile(profileData);
+          final canSwitch = businesses.length > 1;
+          final destinations = _buildNavDestinations(ps);
+          final currentIndex = _calculateIndex(location, destinations);
 
-        return Scaffold(
-          extendBodyBehindAppBar: true,
-          extendBody: true,
-          drawerScrimColor: Colors.transparent,
-          appBar: PreferredSize(
-            preferredSize: Size.fromHeight(54 + MediaQuery.of(context).padding.top),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-                child: Container(
-                      height: 46,
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.menu_rounded, color: AppColors.secondary, size: 28),
-                            tooltip: _tr('Open navigation menu', 'Fungua menyu ya urambazaji'),
-                            onPressed: () => _openNavigationPanel(
-                              context: context,
-                              location: location,
-                              profile: profile,
-                              ps: ps,
-                              member: member,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: _FinanceContextSwitcher(
-                              selectedContext: selectedContext,
-                              canSwitch: canSwitch,
-                              businesses: businesses,
-                              isOnline: isOnline,
-                              onChanged: _switchFinanceContext,
-                              onManageBusinesses: () async {
-                                await context.push(AppRouter.businessesPath);
-                                _refreshProfile();
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+          return Scaffold(
+            extendBodyBehindAppBar: true,
+            extendBody: true,
+            drawerScrimColor: Colors.transparent,
+            appBar: PreferredSize(
+              preferredSize: Size.fromHeight(
+                54 + MediaQuery.of(context).padding.top,
               ),
-            ),
-          ),
-          body: Builder(
-            // With extendBody, Scaffold injects the bottom nav's height into
-            // the body's MediaQuery padding — republish it as NavBarLift so
-            // FABs (whose slot strips MediaQuery padding) can clear the nav.
-            builder: (bodyContext) => NavBarLift(
-              lift: MediaQuery.of(bodyContext).padding.bottom,
-              child: widget.child,
-            ),
-          ),
-          bottomNavigationBar: ValueListenableBuilder<int>(
-            valueListenable: sheetOpenNotifier,
-            builder: (_, sheetCount, child) => ClipRect(
-              child: AnimatedAlign(
-                alignment: Alignment.topCenter,
-                heightFactor: sheetCount > 0 ? 0.0 : 1.0,
-                duration: const Duration(milliseconds: 280),
-                curve: sheetCount > 0 ? Curves.easeIn : Curves.easeOut,
-                child: child,
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    24, 8, 24,
-                    MediaQuery.of(context).padding.bottom > 0
-                        ? MediaQuery.of(context).padding.bottom + 8
-                        : 16.0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12.0,
+                    vertical: 4.0,
                   ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    height: 46,
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
                     decoration: BoxDecoration(
-                      color: AppColors.navyPrimary,
-                      borderRadius: BorderRadius.circular(30),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.28),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                    clipBehavior: Clip.antiAlias,
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: List.generate(destinations.length, (index) {
-                        final destination = destinations[index];
-                        final isSelected = index == currentIndex;
-                        return _buildBottomNavItem(context, destination, isSelected, index);
-                      }),
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.menu_rounded,
+                            color: AppColors.secondary,
+                            size: 28,
+                          ),
+                          tooltip: _tr(
+                            'Open navigation menu',
+                            'Fungua menyu ya urambazaji',
+                          ),
+                          onPressed: () => _openNavigationPanel(
+                            context: context,
+                            location: location,
+                            profile: profile,
+                            ps: ps,
+                            member: member,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: _FinanceContextSwitcher(
+                            selectedContext: selectedContext,
+                            canSwitch: canSwitch,
+                            businesses: businesses,
+                            isOnline: isOnline,
+                            onChanged: _switchFinanceContext,
+                            onManageBusinesses: () async {
+                              await context.push(AppRouter.businessesPath);
+                              _refreshProfile();
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+            body: Builder(
+              // With extendBody, Scaffold injects the bottom nav's height into
+              // the body's MediaQuery padding — republish it as NavBarLift so
+              // FABs (whose slot strips MediaQuery padding) can clear the nav.
+              builder: (bodyContext) => NavBarLift(
+                lift: MediaQuery.of(bodyContext).padding.bottom,
+                child: widget.child,
+              ),
+            ),
+            bottomNavigationBar: ValueListenableBuilder<int>(
+              valueListenable: sheetOpenNotifier,
+              builder: (_, sheetCount, child) => ClipRect(
+                child: AnimatedAlign(
+                  alignment: Alignment.topCenter,
+                  heightFactor: sheetCount > 0 ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 280),
+                  curve: sheetCount > 0 ? Curves.easeIn : Curves.easeOut,
+                  child: child,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      8,
+                      24,
+                      MediaQuery.of(context).padding.bottom > 0
+                          ? MediaQuery.of(context).padding.bottom + 8
+                          : 16.0,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.navyPrimary,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.28),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: List.generate(destinations.length, (index) {
+                          final destination = destinations[index];
+                          final isSelected = index == currentIndex;
+                          return _buildBottomNavItem(
+                            context,
+                            destination,
+                            isSelected,
+                            index,
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildBottomNavItem(BuildContext context, _NavDestination destination, bool isSelected, int index) {
+  Widget _buildBottomNavItem(
+    BuildContext context,
+    _NavDestination destination,
+    bool isSelected,
+    int index,
+  ) {
     return GestureDetector(
       onTap: () => context.go(destination.route),
       behavior: HitTestBehavior.opaque,
@@ -915,8 +1184,8 @@ class _FinanceContextSwitcher extends StatelessWidget {
     return name != null && name.isNotEmpty
         ? name
         : LocalizationService.isSwahili
-            ? 'Muktadha wa Biashara'
-            : 'Business Context';
+        ? 'Muktadha wa Biashara'
+        : 'Business Context';
   }
 
   /// Returns the first meaningful word for compact display in the navbar.
@@ -954,15 +1223,15 @@ class _FinanceContextSwitcher extends StatelessWidget {
                 Text(
                   tr('Switch business', 'Badili biashara'),
                   style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   tr('Tap a business to open it.', 'Gusa biashara kuifungua.'),
                   style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 SizedBox(height: 12),
                 Flexible(
@@ -977,7 +1246,9 @@ class _FinanceContextSwitcher extends StatelessWidget {
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
-                          backgroundColor: AppColors.secondary.withValues(alpha: 0.12),
+                          backgroundColor: AppColors.secondary.withValues(
+                            alpha: 0.12,
+                          ),
                           child: const Icon(
                             Icons.business_center_rounded,
                             color: AppColors.secondary,
@@ -985,13 +1256,18 @@ class _FinanceContextSwitcher extends StatelessWidget {
                         ),
                         title: Text(
                           _businessLabel(business),
-                          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+                          style: GoogleFonts.dmSans(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         subtitle: Text(
                           '${(business['category'] ?? '').toString()} • ${(business['placeOfBusiness'] ?? '').toString()}',
                         ),
                         trailing: isActive
-                            ? const Icon(Icons.check_circle_rounded, color: AppColors.success)
+                            ? const Icon(
+                                Icons.check_circle_rounded,
+                                color: AppColors.success,
+                              )
                             : null,
                         onTap: () async {
                           Navigator.of(sheetContext).pop();
@@ -1003,16 +1279,16 @@ class _FinanceContextSwitcher extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.of(sheetContext).pop();
-                        onManageBusinesses();
-                      },
-                      icon: const Icon(Icons.settings_rounded),
-                      label: Text(tr('Manage businesses', 'Simamia biashara')),
-                    ),
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      onManageBusinesses();
+                    },
+                    icon: const Icon(Icons.settings_rounded),
+                    label: Text(tr('Manage businesses', 'Simamia biashara')),
                   ),
+                ),
               ],
             ),
           ),
@@ -1024,8 +1300,12 @@ class _FinanceContextSwitcher extends StatelessWidget {
   void _switchToNextBusiness() {
     if (!canSwitch || businesses.length < 2) return;
     final currentBusinessId = _selectedBusinessId();
-    final currentIndex = businesses.indexWhere((business) => business['id'] == currentBusinessId);
-    final nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % businesses.length;
+    final currentIndex = businesses.indexWhere(
+      (business) => business['id'] == currentBusinessId,
+    );
+    final nextIndex = currentIndex < 0
+        ? 0
+        : (currentIndex + 1) % businesses.length;
     onChanged('business:${businesses[nextIndex]['id']}');
   }
 
@@ -1044,14 +1324,18 @@ class _FinanceContextSwitcher extends StatelessWidget {
       }
     }
     final rawName = (selectedBusiness?['name'] as String?)?.trim() ?? '';
-    final label = rawName.isNotEmpty ? _shortName(rawName) : tr('Business', 'Biashara');
+    final label = rawName.isNotEmpty
+        ? _shortName(rawName)
+        : tr('Business', 'Biashara');
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
         GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: canSwitch ? () => _openBusinessSwitcherSheet(context, selectedBusinessId) : null,
+          onTap: canSwitch
+              ? () => _openBusinessSwitcherSheet(context, selectedBusinessId)
+              : null,
           onDoubleTap: canSwitch ? _switchToNextBusiness : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
@@ -1070,7 +1354,11 @@ class _FinanceContextSwitcher extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.business_center_rounded, size: 16, color: AppColors.primary),
+                const Icon(
+                  Icons.business_center_rounded,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
                 SizedBox(width: 8),
                 ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: 130),
@@ -1078,7 +1366,9 @@ class _FinanceContextSwitcher extends StatelessWidget {
                     label,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.dmSans(
-                      color: canSwitch ? AppColors.primary : AppColors.secondary,
+                      color: canSwitch
+                          ? AppColors.primary
+                          : AppColors.secondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
@@ -1092,7 +1382,7 @@ class _FinanceContextSwitcher extends StatelessWidget {
                     size: 16,
                     color: AppColors.primary,
                   ),
-                ]
+                ],
               ],
             ),
           ),
@@ -1133,10 +1423,7 @@ class _DrawerProfileData {
   final String fullName;
   final String contactLine;
 
-  const _DrawerProfileData({
-    required this.fullName,
-    required this.contactLine,
-  });
+  const _DrawerProfileData({required this.fullName, required this.contactLine});
 }
 
 class _DrawerItemLight extends StatelessWidget {
@@ -1171,15 +1458,24 @@ class _DrawerItemLight extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(12),
-            splashColor: (selected ? activeColor : iconColor).withValues(alpha: 0.1),
-            highlightColor: (selected ? activeColor : iconColor).withValues(alpha: 0.05),
+            splashColor: (selected ? activeColor : iconColor).withValues(
+              alpha: 0.1,
+            ),
+            highlightColor: (selected ? activeColor : iconColor).withValues(
+              alpha: 0.05,
+            ),
             child: Container(
               height: 50,
               decoration: BoxDecoration(
                 color: selected ? activeColor : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 border: selected
-                    ? Border(left: BorderSide(color: Colors.white.withValues(alpha: 0.7), width: 3))
+                    ? Border(
+                        left: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          width: 3,
+                        ),
+                      )
                     : null,
               ),
               padding: EdgeInsets.only(left: selected ? 9 : 12, right: 16),
@@ -1206,7 +1502,9 @@ class _DrawerItemLight extends StatelessWidget {
                       label,
                       style: GoogleFonts.dmSans(
                         color: selected ? Colors.white : AppColors.secondary,
-                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         fontSize: 14,
                         letterSpacing: -0.1,
                       ),
