@@ -1283,7 +1283,6 @@ class _InvoiceCard extends StatelessWidget {
     final customer = rawCustomer.isNotEmpty
         ? rawCustomer
         : _tr('Walk-in', 'Mteja wa Kawaida');
-    final invoiceNo = (item['invoiceNumber'] ?? item['id'] ?? '').toString();
     final amount = readInvoiceTotal(item);
     final amountPaid = parseNumericAmount(item['amountPaid']);
     final outstanding = (amount - amountPaid).clamp(0.0, amount);
@@ -1377,111 +1376,66 @@ class _InvoiceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row 1: [invoiceNo + customer] left | [amount + status] right
+            // Row 1: [customer] left | [amount] right
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          if (invoiceNo.isNotEmpty)
-                            Text(
-                              invoiceNo,
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                color: AppColors.textMuted,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          if (isQuotation) ...[
-                            SizedBox(width: 5),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceVariant,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                _tr('QUO', 'NUK'),
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textMuted,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        cardTitle,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary,
+                      Flexible(
+                        child: Text(
+                          cardTitle,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
+                      if (isQuotation) ...[
+                        SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _tr('QUO', 'NUK'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Amount + status chip stacked on right
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _fmtAmt(amount),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: chipData.bg,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(chipData.icon, size: 9, color: chipData.text),
-                          SizedBox(width: 3),
-                          Text(
-                            chipData.label,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: chipData.text,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                Text(
+                  _fmtAmt(amount),
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ],
             ),
 
             const SizedBox(height: 4),
 
-            // Row 2: date + item count | share button
+            // Row 2: date + item count | status pill + share button
             Row(
               children: [
                 Text(
@@ -1502,6 +1456,32 @@ class _InvoiceCard extends StatelessWidget {
                   ),
                 ],
                 Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: chipData.bg,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(chipData.icon, size: 9, color: chipData.text),
+                      SizedBox(width: 3),
+                      Text(
+                        chipData.label,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: chipData.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
                 GestureDetector(
                   onTap: onReceiptAction,
                   child: Container(
