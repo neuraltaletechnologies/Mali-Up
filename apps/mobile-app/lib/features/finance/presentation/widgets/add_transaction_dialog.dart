@@ -535,11 +535,12 @@ class _AccountDropdown extends StatelessWidget {
                 child: Row(
                   children: [
                     Icon(
-                      a.type == 'Cash'
-                          ? Icons.payments_outlined
-                          : a.type == 'Bank'
-                              ? Icons.account_balance_outlined
-                              : Icons.smartphone_outlined,
+                      switch (a.type) {
+                        'Cash' => Icons.payments_outlined,
+                        'Bank' => Icons.account_balance_outlined,
+                        'Card' => Icons.credit_card_outlined,
+                        _ => Icons.smartphone_outlined,
+                      },
                       size: 16,
                       color: AppColors.textMuted,
                     ),

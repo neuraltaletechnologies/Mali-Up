@@ -7,7 +7,10 @@ import '../../../core/providers/sync_provider.dart';
 import '../../customer/data/customer_providers.dart';
 import '../../debt/data/debt_providers.dart';
 import '../../debt/domain/models/debt.dart';
+import '../../finance/data/payment_account_service.dart';
+import '../../finance/domain/payment_method_accounts.dart';
 import '../../rbac/data/audit_log_service.dart';
+import 'invoice_local_mirror.dart';
 import 'sales_providers.dart';
 
 /// Outcome of [settleInvoicePayment], used by callers to update local UI state.
@@ -72,6 +75,15 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
   // correct the status and close stale receivable/ledger entries below, but
   // never fabricate a payment record or move the customer balance.
   if (received <= 0 && !fullySettled) return null;
+
+  // Money can only be received into an activated payment channel — the same
+  // rule the sale flows enforce. Status reconciliations move no money.
+  if (received > 0 &&
+      PaymentMethodAccounts.accountIdForMethod(method) != null &&
+      await activatedAccountForMethod(ref, method) == null) {
+    throw PaymentChannelNotActivatedException(
+        activationRequiredMessage(method));
+  }
 
   // Look up the receivable mirror created on the credit sale before building
   // the batch, so its settlement commits atomically with everything else.
@@ -173,6 +185,26 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
       }
     } catch (_) {}
   }
+
+  // The received money lands in the activated payment channel — Drift
+  // balance moves instantly, the queued op replays on Firestore idempotently.
+  await depositSaleIntoMethodAccount(
+    ref,
+    method: method,
+    amount: received,
+    invoiceNumber: invoiceNumber,
+    createdBy: scope.userUid,
+  );
+
+  // Mirror the new balance/status into Drift so the dashboard revenue and
+  // the sales list update immediately instead of waiting for a sync pull.
+  await mirrorInvoiceFieldsToDrift(
+    ref,
+    invoiceId,
+    status: newStatus,
+    amountPaid: newAmountPaid,
+    paymentMethod: received > 0 ? method : null,
+  );
 
   await _settleLedgerReceivable(
     ref,

@@ -867,7 +867,6 @@ class _ProductRow extends ConsumerWidget {
     final sell       = _readSellingPrice(item);
     final qty        = _stock(item);
     final name       = (item['name'] ?? item['productName'] ?? '—').toString();
-    final cat        = (item['category'] ?? '').toString();
     final unit       = (item['unit'] ?? 'pcs').toString();
     final sku        = (item['sku'] ?? '').toString();
     final fullStatus = _fullStatusLevel(item);
@@ -933,15 +932,15 @@ class _ProductRow extends ConsumerWidget {
         },
         child: Container(
           color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Column(
             children: [
               Row(
                 children: [
                   // ── Circular avatar ────────────────────────────────
                   Container(
-                    width: 46,
-                    height: 46,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
                       color: fColor.withValues(alpha: 0.10),
                       shape: BoxShape.circle,
@@ -950,14 +949,14 @@ class _ProductRow extends ConsumerWidget {
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : '?',
                         style: GoogleFonts.dmSans(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
                           color: fColor,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
 
                   // ── Name + subtitle + stock ────────────────────────
                   Expanded(
@@ -984,19 +983,18 @@ class _ProductRow extends ConsumerWidget {
                             ],
                           ],
                         ),
-                        SizedBox(height: 2),
-                        Text(
-                          [
-                            if (cat.isNotEmpty) cat,
-                            if (sku.isNotEmpty) sku,
-                          ].join(' · '),
-                          style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
+                        if (sku.isNotEmpty) ...[
+                          SizedBox(height: 2),
+                          Text(
+                            sku,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        ],
                         if (type != ProductType.service) ...[
                           SizedBox(height: 3),
                           Text(
@@ -1045,7 +1043,7 @@ class _ProductRow extends ConsumerWidget {
               ),
               if (!isLast)
                 const Padding(
-                  padding: EdgeInsets.only(top: 13, left: 60),
+                  padding: EdgeInsets.only(top: 10, left: 52),
                   child: Divider(height: 1, color: AppColors.border, thickness: 0.8),
                 ),
             ],
@@ -6175,8 +6173,8 @@ class _AccountDropdown extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     _tr(
-                      'No accounts yet. Add one in Cash Flow first.',
-                      'Hakuna akaunti bado. Ongeza kwanza katika Mtiririko wa Fedha.',
+                      'No active payment account. Activate Taslimu, M-Pesa, Benki or Kadi in Cash Flow first.',
+                      'Hakuna akaunti ya malipo iliyowashwa. Washa Taslimu, M-Pesa, Benki au Kadi katika Mtiririko wa Fedha kwanza.',
                     ),
                     style: GoogleFonts.dmSans(
                         fontSize: 12, color: AppColors.warning),

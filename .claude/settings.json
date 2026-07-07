@@ -115,7 +115,10 @@
       "Bash(git -C c:/SIDE/GIT/Maliapp diff apps/mobile-app/android/app/build.gradle.kts apps/mobile-app/android/keystore/README.md)",
       "Bash(keytool -version)",
       "Bash(gh auth *)",
-      "Bash(gh secret *)"
+      "Bash(gh secret *)",
+      "PowerShell(git log --oneline -5 -L 1185,1210:apps/mobile-app/lib/features/sales/presentation/screens/sales_screen.dart)",
+      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp diff --stat)",
+      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp diff apps/mobile-app/lib/features/sales/presentation/screens/sales_screen.dart)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

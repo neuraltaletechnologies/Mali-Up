@@ -14,8 +14,12 @@ import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../finance/data/cash_flow_providers.dart';
+import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/payment_method_accounts.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../data/invoice_local_mirror.dart';
 import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
 import 'create_invoice_screen.dart';
@@ -145,6 +149,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      // Mirror into Drift so the sales list and dashboard revenue update
+      // immediately (a cancelled invoice must drop out of revenue now).
+      await mirrorInvoiceFieldsToDrift(ref, _inv['id'] as String,
+          status: newStatus);
       if (newStatus == 'cancelled') {
         unawaited(AuditLogService().logSaleAction(
           ownerUid: scope.ownerUid,
@@ -231,6 +239,23 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
           context: scope.context,
           childCollection: 'inventory_items');
 
+      // Deduct stock only for lines whose product exists locally — lines
+      // round-tripped through the local mirror carry a generated row id for
+      // free-text entries, and deducting against that id would create a
+      // phantom inventory document.
+      final db = ref.read(appDatabaseProvider);
+      final deductions = <({String id, double qty})>[];
+      for (final item in _lineItems) {
+        final productId =
+            (item['productId'] ?? item['inventoryItemId'] ?? '').toString();
+        if (productId.isEmpty) continue;
+        if (await db.inventoryDao.getById(productId) == null) continue;
+        deductions.add((
+          id: productId,
+          qty: parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1),
+        ));
+      }
+
       final batch = FirebaseFirestore.instance.batch();
       batch.update(col.doc(_inv['id'] as String), {
         'type': 'invoice',
@@ -238,15 +263,11 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         'convertedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      for (final item in _lineItems) {
-        final productId =
-            (item['productId'] ?? item['inventoryItemId'] ?? '').toString();
-        if (productId.isEmpty) continue;
-        final qty = parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1);
+      for (final d in deductions) {
         batch.set(
-            inventoryCol.doc(productId),
+            inventoryCol.doc(d.id),
             {
-              'currentStock': FieldValue.increment(-qty),
+              'currentStock': FieldValue.increment(-d.qty),
               'updatedAt': FieldValue.serverTimestamp(),
             },
             SetOptions(merge: true));
@@ -257,15 +278,15 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       // update on screen without waiting for a sync pull (which can miss the
       // write when the device clock runs ahead of the server).
       try {
-        final db = ref.read(appDatabaseProvider);
-        for (final item in _lineItems) {
-          final productId =
-              (item['productId'] ?? item['inventoryItemId'] ?? '').toString();
-          if (productId.isEmpty) continue;
-          final qty = parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1);
-          await db.inventoryDao.applyCommittedDelta(productId, -qty);
+        for (final d in deductions) {
+          await db.inventoryDao.applyCommittedDelta(d.id, -d.qty);
         }
       } catch (_) {}
+
+      // Mirror the conversion into Drift so the sales list reflects the new
+      // invoice immediately.
+      await mirrorInvoiceFieldsToDrift(ref, _inv['id'] as String,
+          type: 'invoice', status: 'sent');
 
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,
@@ -1567,8 +1588,21 @@ class _RecordPaymentSheetState
                   'card': _tr('Card', 'Kadi'),
                 };
                 final active = m == _method;
+                final activated = ref
+                    .watch(activatedMethodAccountsProvider)
+                    .containsKey(
+                        PaymentMethodAccounts.accountIdForMethod(m));
                 return GestureDetector(
-                  onTap: () => setState(() => _method = m),
+                  onTap: () {
+                    if (!activated) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(activationRequiredMessage(m)),
+                        backgroundColor: AppColors.error,
+                      ));
+                      return;
+                    }
+                    setState(() => _method = m);
+                  },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.symmetric(
@@ -1579,13 +1613,26 @@ class _RecordPaymentSheetState
                           : AppColors.surfaceVariant,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      labels[m]!,
-                      style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color:
-                              active ? Colors.white : AppColors.textSecondary),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!activated) ...[
+                          Icon(Icons.lock_outline,
+                              size: 13, color: AppColors.textDisabled),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          labels[m]!,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: active
+                                  ? Colors.white
+                                  : activated
+                                      ? AppColors.textSecondary
+                                      : AppColors.textDisabled),
+                        ),
+                      ],
                     ),
                   ),
                 );

@@ -13,10 +13,15 @@ import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
+import '../../../finance/data/cash_flow_providers.dart';
+import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/payment_method_accounts.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
+import '../../../invoice/domain/models/invoice.dart';
 import '../../../rbac/data/audit_log_service.dart';
+import '../../data/invoice_local_mirror.dart';
 import '../../data/sales_providers.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
@@ -290,6 +295,24 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
           previousStatus != 'draft';
       final confirmingNow = !asDraft && !_isQuotation && !wasConfirmed;
 
+      // Money received now must land in an activated payment channel — an
+      // unactivated Taslimu/M-Pesa/Benki/Kadi cannot take sale money. Credit
+      // moves no money at confirmation, so it needs no account.
+      if (confirmingNow && _payMethod != _PayMethod.credit) {
+        final account =
+            await activatedAccountForMethod(ref, _payMethod.name);
+        if (account == null) {
+          if (mounted) {
+            setState(() => _saving = false);
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(activationRequiredMessage(_payMethod.name)),
+              backgroundColor: AppColors.error,
+            ));
+          }
+          return;
+        }
+      }
+
       final lineItemsData = _items
           .where((i) => i.productName.trim().isNotEmpty)
           .map((i) => {
@@ -330,6 +353,20 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
+      // Deduct stock only for lines whose product exists locally — draft
+      // lines restored from the local mirror carry a generated row id for
+      // free-text entries, and deducting against that id would create a
+      // phantom inventory document.
+      final stockLines = <_LineItem>[];
+      if (confirmingNow) {
+        final db = ref.read(appDatabaseProvider);
+        for (final item in _items.where((i) => i.productId.isNotEmpty)) {
+          if (await db.inventoryDao.getById(item.productId) != null) {
+            stockLines.add(item);
+          }
+        }
+      }
+
       // One atomic batch: invoice + stock deduction + receivable.
       final batch = FirebaseFirestore.instance.batch();
       final DocumentReference<Map<String, dynamic>> docRef;
@@ -351,7 +388,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
             uid: scope.ownerUid,
             context: scope.context,
             childCollection: 'inventory_items');
-        for (final item in _items.where((i) => i.productId.isNotEmpty)) {
+        for (final item in stockLines) {
           batch.set(
               invCol.doc(item.productId),
               {
@@ -406,7 +443,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       if (confirmingNow) {
         try {
           final db = ref.read(appDatabaseProvider);
-          for (final item in _items.where((i) => i.productId.isNotEmpty)) {
+          for (final item in stockLines) {
             await db.inventoryDao
                 .applyCommittedDelta(item.productId, -item.qty.toDouble());
           }
@@ -447,6 +484,64 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
           createdBy: scope.userUid,
           createdAt: DateTime.now().toIso8601String(),
         ));
+      }
+
+      // Mirror the invoice into Drift immediately so the sales list and the
+      // dashboard revenue/profit update without waiting for a sync pull.
+      final nowIso = DateTime.now().toIso8601String();
+      final amountPaidNow = confirmingNow
+          ? (_payMethod == _PayMethod.credit ? 0.0 : _grandTotal)
+          : parseNumericAmount(widget.invoiceToEdit?['amountPaid']);
+      await mirrorInvoiceToDrift(
+        ref,
+        Invoice(
+          id: docRef.id,
+          customerId: _customer?.id ?? '',
+          customerName: _customer?.name ?? '',
+          customerPhone: _customer?.phone ?? '',
+          invoiceNumber: invNumber,
+          date: _invoiceDate.toIso8601String(),
+          dueDate: _dueDate?.toIso8601String() ?? '',
+          status: status,
+          type: _isQuotation ? 'quotation' : 'invoice',
+          subtotal: _subtotal,
+          discountAmount: _effectiveDiscount,
+          tax: _vatAmount,
+          total: _grandTotal,
+          amountPaid: amountPaidNow,
+          paymentMethod: _payMethod.name,
+          items: [
+            for (final i in _items)
+              if (i.productName.trim().isNotEmpty)
+                InvoiceItem(
+                  id: i.productId,
+                  name: i.productName,
+                  quantity: i.qty.toDouble(),
+                  unitPrice: i.unitPrice,
+                  total: i.lineTotal,
+                ),
+          ],
+          note: _notes,
+          createdAt: isEdit
+              ? (readTimestamp(widget.invoiceToEdit?['createdAt'])
+                      ?.toIso8601String() ??
+                  nowIso)
+              : nowIso,
+          updatedAt: nowIso,
+        ),
+      );
+
+      // Money received on confirmation lands in the activated payment
+      // channel — Drift balance moves instantly, the queued op replays the
+      // increment on Firestore idempotently.
+      if (confirmingNow && _payMethod != _PayMethod.credit) {
+        await depositSaleIntoMethodAccount(
+          ref,
+          method: _payMethod.name,
+          amount: _grandTotal,
+          invoiceNumber: invNumber,
+          createdBy: scope.userUid,
+        );
       }
 
       unawaited(AuditLogService().logSaleAction(
@@ -573,6 +668,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                     mpesaCtrl: _mpesaCtrl,
                     onMethod: (m) => setState(() => _payMethod = m),
                     onMpesaRef: (v) => _mpesaRef = v,
+                    lockUnactivated: !_isQuotation,
                   ),
                   const SizedBox(height: 16),
                   _NotesField(
@@ -1553,12 +1649,17 @@ class _TotalRow extends StatelessWidget {
 
 // ── Payment Section ───────────────────────────────────────────────────────────
 
-class _PaymentSection extends StatelessWidget {
+class _PaymentSection extends ConsumerWidget {
   final _PayMethod selected;
   final String mpesaRef;
   final TextEditingController mpesaCtrl;
   final ValueChanged<_PayMethod> onMethod;
   final ValueChanged<String> onMpesaRef;
+
+  /// True when picking an unactivated channel would move money right now
+  /// (a real invoice). Quotations only note the intended method, so they
+  /// may pick anything — the block happens if/when money actually arrives.
+  final bool lockUnactivated;
 
   const _PaymentSection({
     required this.selected,
@@ -1566,10 +1667,12 @@ class _PaymentSection extends StatelessWidget {
     required this.mpesaCtrl,
     required this.onMethod,
     required this.onMpesaRef,
+    required this.lockUnactivated,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activatedIds = ref.watch(activatedMethodAccountsProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1587,8 +1690,22 @@ class _PaymentSection extends StatelessWidget {
           runSpacing: 8,
           children: _PayMethod.values.map((m) {
             final active = m == selected;
+            final accountId =
+                PaymentMethodAccounts.accountIdForMethod(m.name);
+            // Credit maps to no account and is always available.
+            final activated =
+                accountId == null || activatedIds.containsKey(accountId);
             return GestureDetector(
-              onTap: () => onMethod(m),
+              onTap: () {
+                if (!activated && lockUnactivated) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(activationRequiredMessage(m.name)),
+                    backgroundColor: AppColors.error,
+                  ));
+                  return;
+                }
+                onMethod(m);
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(
@@ -1606,11 +1723,13 @@ class _PaymentSection extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(m.icon,
+                    Icon(activated ? m.icon : Icons.lock_outline,
                         size: 15,
                         color: active
                             ? Colors.white
-                            : AppColors.textMuted),
+                            : activated
+                                ? AppColors.textMuted
+                                : AppColors.textDisabled),
                     SizedBox(width: 6),
                     Text(
                       m.label,
@@ -1619,7 +1738,9 @@ class _PaymentSection extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           color: active
                               ? Colors.white
-                              : AppColors.textSecondary),
+                              : activated
+                                  ? AppColors.textSecondary
+                                  : AppColors.textDisabled),
                     ),
                   ],
                 ),

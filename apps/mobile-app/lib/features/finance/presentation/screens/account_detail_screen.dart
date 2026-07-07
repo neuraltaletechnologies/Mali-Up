@@ -144,11 +144,12 @@ class _AccountHeader extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  account.type == 'Cash'
-                      ? Icons.payments_outlined
-                      : account.type == 'Bank'
-                          ? Icons.account_balance_outlined
-                          : Icons.smartphone_outlined,
+                  switch (account.type) {
+                    'Cash' => Icons.payments_outlined,
+                    'Bank' => Icons.account_balance_outlined,
+                    'Card' => Icons.credit_card_outlined,
+                    _ => Icons.smartphone_outlined,
+                  },
                   color: Colors.white,
                   size: 22,
                 ),
