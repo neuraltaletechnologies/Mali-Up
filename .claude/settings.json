@@ -118,7 +118,16 @@
       "Bash(gh secret *)",
       "PowerShell(git log --oneline -5 -L 1185,1210:apps/mobile-app/lib/features/sales/presentation/screens/sales_screen.dart)",
       "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp diff --stat)",
-      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp diff apps/mobile-app/lib/features/sales/presentation/screens/sales_screen.dart)"
+      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp diff apps/mobile-app/lib/features/sales/presentation/screens/sales_screen.dart)",
+      "PowerShell(flutter test test\\\\core\\\\database\\\\invoice_dao_test.dart)",
+      "PowerShell(git checkout -- apps/mobile-app/lib/core/theme/app_theme.dart apps/mobile-app/lib/shared/widgets/main_shell_page.dart apps/mobile-app/lib/features/security/presentation/screens/pin_lock_screen.dart)",
+      "PowerShell(git checkout -- lib/core/theme/app_theme.dart lib/shared/widgets/main_shell_page.dart lib/features/security/presentation/screens/pin_lock_screen.dart)",
+      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp status --short)",
+      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp log --oneline -3)",
+      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp show --stat d290300)",
+      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp log -1 --format='%ci %an' d290300)",
+      "PowerShell(flutter test --reporter compact 2>$null)",
+      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp show --stat d290300 -- apps/mobile-app/lib/shared/widgets/main_shell_page.dart apps/mobile-app/lib/features/security/presentation/screens/pin_lock_screen.dart)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
