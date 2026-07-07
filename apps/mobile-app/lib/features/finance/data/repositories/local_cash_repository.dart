@@ -18,9 +18,12 @@ class LocalCashRepository {
       .watchAccounts(businessId)
       .map((rows) => rows.map(CashAccountMapper.fromRow).toList());
 
+  /// Domain-level lookup — a soft-deleted account does not exist.
+  /// Sync/save paths that need tombstones use [getRawAccountById].
   Future<CashAccount?> getAccountById(String id) async {
     final row = await _dao.getAccountById(id);
-    return row != null ? CashAccountMapper.fromRow(row) : null;
+    if (row == null || row.isDeleted != 0) return null;
+    return CashAccountMapper.fromRow(row);
   }
 
   Future<CashAccountsTableData?> getRawAccountById(String id) =>
