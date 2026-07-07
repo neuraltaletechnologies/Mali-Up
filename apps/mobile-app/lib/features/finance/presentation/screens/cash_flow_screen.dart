@@ -375,7 +375,7 @@ class _OverviewTab extends ConsumerWidget {
             ),
           ),
           SizedBox(
-            height: 150,
+            height: 104,
             child: accountsAsync.when(
               data: (accounts) {
                 // The four built-in payment channels always show first —
@@ -392,7 +392,7 @@ class _OverviewTab extends ConsumerWidget {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   itemCount: specs.length + custom.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
                   itemBuilder: (context, i) {
                     if (i < specs.length) {
                       final spec = specs[i];
@@ -649,11 +649,11 @@ class _AccountCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 200,
-        padding: const EdgeInsets.all(16),
+        width: 150,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.border),
         ),
         child: Column(
@@ -670,27 +670,27 @@ class _AccountCard extends StatelessWidget {
                     _ => Icons.smartphone_outlined,
                   },
                   color: AppColors.textMuted,
-                  size: 18,
+                  size: 16,
                 ),
                 const Icon(Icons.chevron_right,
-                    color: AppColors.textMuted, size: 16),
+                    color: AppColors.textMuted, size: 14),
               ],
             ),
-            Spacer(),
+            const Spacer(),
             Text(
               _fmtCompact(account.balance),
               style: GoogleFonts.dmSans(
                 color: AppColors.navyPrimary,
-                fontSize: 18,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            SizedBox(height: 2),
+            const SizedBox(height: 1),
             Text(
               account.name,
               style: GoogleFonts.dmSans(
                 color: AppColors.textMuted,
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
@@ -720,11 +720,11 @@ class _ActivateMethodCard extends StatelessWidget {
         builder: (_) => ActivateAccountSheet(spec: spec),
       ),
       child: Container(
-        width: 200,
-        padding: const EdgeInsets.all(16),
+        width: 150,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
         ),
         child: Column(
@@ -733,24 +733,26 @@ class _ActivateMethodCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(spec.icon, color: AppColors.textMuted, size: 18),
+                Icon(spec.icon, color: AppColors.textMuted, size: 16),
                 const Icon(Icons.lock_outline,
-                    color: AppColors.warning, size: 16),
+                    color: AppColors.warning, size: 14),
               ],
             ),
-            Spacer(),
+            const Spacer(),
             Text(
               name,
               style: GoogleFonts.dmSans(
                 color: AppColors.navyPrimary,
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 3),
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: AppColors.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
@@ -759,7 +761,7 @@ class _ActivateMethodCard extends StatelessWidget {
                 _tr('Tap to activate', 'Gusa kuwasha'),
                 style: GoogleFonts.dmSans(
                   color: AppColors.warning,
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
               ),
