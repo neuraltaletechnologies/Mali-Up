@@ -185,6 +185,11 @@ class InvoiceItem {
   final double unitPrice;
   final double total;
 
+  /// Catalog price at the time of sale. When the cashier lowers the price the
+  /// receipt shows this value and folds the difference into the discount
+  /// line; markups above it stay business-side. 0 = not captured.
+  final double basePrice;
+
   InvoiceItem({
     required this.id,
     required this.name,
@@ -192,6 +197,7 @@ class InvoiceItem {
     required this.quantity,
     required this.unitPrice,
     required this.total,
+    this.basePrice = 0,
   });
 
   factory InvoiceItem.fromFirestore(Map<String, dynamic> data) {
@@ -212,6 +218,7 @@ class InvoiceItem {
       quantity: qty,
       unitPrice: unitPrice,
       total: total,
+      basePrice: Invoice._readNum(data['basePrice']),
     );
   }
 
@@ -228,6 +235,7 @@ class InvoiceItem {
       'qty': quantity,
       'unitPrice': unitPrice,
       'total': total,
+      if (basePrice > 0) 'basePrice': basePrice,
     };
   }
 
@@ -238,6 +246,7 @@ class InvoiceItem {
     double? quantity,
     double? unitPrice,
     double? total,
+    double? basePrice,
   }) {
     return InvoiceItem(
       id: id ?? this.id,
@@ -246,6 +255,7 @@ class InvoiceItem {
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice ?? this.unitPrice,
       total: total ?? this.total,
+      basePrice: basePrice ?? this.basePrice,
     );
   }
 }

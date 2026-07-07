@@ -15,6 +15,7 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
+import '../../../debt/data/customer_debt_sync_service.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../../sales/data/sales_providers.dart';
@@ -656,16 +657,25 @@ class _CustomerDetailScreenState extends ConsumerState<CustomerDetailScreen>
         balance: balance,
         onSave: (amount, method, note) async {
           final newBalance = balance - amount;
+          final user = FirebaseAuth.instance.currentUser;
           try {
-            // Update balance via the offline-first sync path
-            await ref.read(customerRepositoryProvider).save(
-              _customer.copyWith(
-                  balance: newBalance == 0
-                      ? '0'
-                      : newBalance.toStringAsFixed(0)),
+            // Move the balance as a delta (Drift + queued
+            // FieldValue.increment) — Customer.toFirestore() excludes
+            // balance, so a full save would never reach the server.
+            await ref
+                .read(customerRepositoryProvider)
+                .adjustBalance(_customer.id, -amount);
+            // Pay down the customer's open receivables so the Debts screen
+            // reflects this payment too.
+            await applyCustomerPaymentToDebts(
+              ref,
+              customerId: _customer.id,
+              amount: amount,
+              method: method,
+              note: note,
+              recordedBy: user?.uid ?? '',
             );
             // Record the payment event in Firestore subcollection
-            final user = FirebaseAuth.instance.currentUser;
             if (user != null) {
               final ownerUid = ref.read(tenantOwnerUidProvider) ?? user.uid;
               final bizId =

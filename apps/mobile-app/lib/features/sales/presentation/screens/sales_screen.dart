@@ -530,6 +530,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     b.writeln('*${_tr("Customer", "Mteja")}:* $customer');
     b.writeln(line);
 
+    // Items sold below their catalog price print at the catalog price with
+    // the difference folded into the discount line — the total is unchanged.
+    // Prices raised above the catalog price stay business-side: the receipt
+    // simply shows the price as charged.
+    var itemDiscount = 0.0;
     if (items.isNotEmpty) {
       b.writeln('*${_tr("ITEMS", "BIDHAA")}:*');
       for (var i = 0; i < items.length; i++) {
@@ -539,8 +544,15 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             .trim();
         if (name.isEmpty) name = '-';
         final qty = (item['qty'] ?? item['quantity'] ?? 1).toString();
-        final unitPrice = parseNumericAmount(item['unitPrice']);
-        final total = parseNumericAmount(item['total']);
+        final qtyNum = parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1);
+        var unitPrice = parseNumericAmount(item['unitPrice']);
+        var total = parseNumericAmount(item['total']);
+        final basePrice = parseNumericAmount(item['basePrice']);
+        if (unitPrice > 0 && basePrice > unitPrice) {
+          itemDiscount += (basePrice - unitPrice) * qtyNum;
+          unitPrice = basePrice;
+          total = basePrice * qtyNum;
+        }
         b.writeln(
           '${i + 1}. $name\n   $qty × TSh ${unitPrice.toStringAsFixed(0)} = *TSh ${total.toStringAsFixed(0)}*',
         );
@@ -548,10 +560,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
       b.writeln(line);
     }
 
-    final subtotal = parseNumericAmount(sale['subtotal']) > 0
-        ? parseNumericAmount(sale['subtotal'])
-        : amount;
-    final discount = parseNumericAmount(sale['discountAmount']);
+    final subtotal = (parseNumericAmount(sale['subtotal']) > 0
+            ? parseNumericAmount(sale['subtotal'])
+            : amount) +
+        itemDiscount;
+    final discount = parseNumericAmount(sale['discountAmount']) + itemDiscount;
     final vat = parseNumericAmount(sale['vatAmount']);
 
     if (discount > 0) {
@@ -1685,6 +1698,15 @@ class _ReceiptAction extends StatelessWidget {
 // NEW SALE SHEET — unified full-invoice slide-up
 // ══════════════════════════════════════════════════════════════════════════════
 
+/// "12%" / "8.5%" — one decimal below 10% so small edits stay visible.
+String _pctText(double pct) {
+  final a = pct.abs();
+  final s = a >= 10
+      ? a.toStringAsFixed(0)
+      : a.toStringAsFixed(1).replaceAll('.0', '');
+  return '$s%';
+}
+
 class _ItemEntry {
   final TextEditingController nameCtrl;
   final TextEditingController priceCtrl;
@@ -1714,6 +1736,29 @@ class _ItemEntry {
   }
 
   double get lineTotal => unitPrice * qty;
+
+  /// % change of the entered price vs the catalog price. Negative = sold
+  /// below list (an automatic discount, surfaced on the receipt); positive =
+  /// a markup that stays business-side only. Null when there is no catalog
+  /// price to compare against or the price is untouched.
+  double? get priceChangePct {
+    final base = basePrice;
+    if (base == null || base <= 0 || unitPrice <= 0) return null;
+    final pct = ((unitPrice - base) / base) * 100;
+    return pct.abs() < 0.05 ? null : pct;
+  }
+
+  double get lineDiscount {
+    final base = basePrice;
+    if (base == null || unitPrice <= 0 || unitPrice >= base) return 0;
+    return (base - unitPrice) * qty;
+  }
+
+  double get lineMarkup {
+    final base = basePrice;
+    if (base == null || base <= 0 || unitPrice <= base) return 0;
+    return (unitPrice - base) * qty;
+  }
 
   bool get _isService => (selectedItem?['productType'] as String?) == 'service';
 
@@ -1774,6 +1819,14 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   double get _vatAmt => _vatEnabled ? (_subtotal - _discountAmt) * 0.18 : 0.0;
   double get _grandTotal =>
       (_subtotal - _discountAmt + _vatAmt).clamp(0.0, double.infinity);
+
+  // Manual price edits vs the catalog price. Both are already baked into the
+  // unit prices (so they never adjust the totals above) — they are recorded
+  // so the receipt can surface below-list sales as a discount and reports can
+  // see markups, which stay business-side only.
+  double get _itemPriceDiscount =>
+      _items.fold(0.0, (s, e) => s + e.lineDiscount);
+  double get _itemPriceMarkup => _items.fold(0.0, (s, e) => s + e.lineMarkup);
 
   @override
   void initState() {
@@ -2169,6 +2222,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               quantity: e.qty.toDouble(),
               unitPrice: e.unitPrice,
               total: e.lineTotal,
+              basePrice: e.basePrice ?? e.unitPrice,
             ),
           )
           .toList();
@@ -2298,6 +2352,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         'lineItems': itemsData,
         'subtotal': _subtotal,
         'discountAmount': _discountAmt,
+        // Manual price edits vs catalog price — already baked into the item
+        // unit prices, stored for reporting. The markup never appears on
+        // customer receipts.
+        if (_itemPriceDiscount > 0) 'itemPriceDiscount': _itemPriceDiscount,
+        if (_itemPriceMarkup > 0) 'itemPriceMarkup': _itemPriceMarkup,
         'vatAmount': _vatAmt,
         'amount': _grandTotal,
         'totalAmount': _grandTotal,
@@ -2484,6 +2543,8 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       'items': itemsData,
       'subtotal': _subtotal,
       'discountAmount': _discountAmt,
+      if (_itemPriceDiscount > 0) 'itemPriceDiscount': _itemPriceDiscount,
+      if (_itemPriceMarkup > 0) 'itemPriceMarkup': _itemPriceMarkup,
       'vatAmount': _vatAmt,
       'amount': _grandTotal,
       'amountPaid': amountPaid,
@@ -3177,52 +3238,109 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           ),
           SizedBox(height: 6),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (entry.selectedItem != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        (entry._isService
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (entry.selectedItem != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              (entry._isService
+                                      ? AppColors.tealAccent
+                                      : entry.isOutOfStock
+                                      ? AppColors.error
+                                      : entry.maxStock <= 5
+                                      ? AppColors.warning
+                                      : AppColors.success)
+                                  .withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          entry._isService
+                              ? _tr('Service', 'Huduma')
+                              : entry.isOutOfStock
+                              ? _tr('Out of stock', 'Imekwisha')
+                              : '${entry.maxStock} ${_tr("in stock", "stokuni")}',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: entry._isService
                                 ? AppColors.tealAccent
                                 : entry.isOutOfStock
                                 ? AppColors.error
                                 : entry.maxStock <= 5
                                 ? AppColors.warning
-                                : AppColors.success)
-                            .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    entry._isService
-                        ? _tr('Service', 'Huduma')
-                        : entry.isOutOfStock
-                        ? _tr('Out of stock', 'Imekwisha')
-                        : '${entry.maxStock} ${_tr("in stock", "stokuni")}',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: entry._isService
-                          ? AppColors.tealAccent
-                          : entry.isOutOfStock
-                          ? AppColors.error
-                          : entry.maxStock <= 5
-                          ? AppColors.warning
-                          : AppColors.success,
-                    ),
-                  ),
+                                : AppColors.success,
+                          ),
+                        ),
+                      ),
+                    // Manual price edit vs catalog price: below list reads as
+                    // a discount (goes on the receipt), above list is flagged
+                    // for the cashier but stays off the receipt.
+                    if (entry.priceChangePct != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              (entry.priceChangePct! < 0
+                                      ? AppColors.success
+                                      : AppColors.warning)
+                                  .withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              entry.priceChangePct! < 0
+                                  ? Icons.south_rounded
+                                  : Icons.north_rounded,
+                              size: 11,
+                              color: entry.priceChangePct! < 0
+                                  ? AppColors.success
+                                  : AppColors.warning,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              entry.priceChangePct! < 0
+                                  ? '${_pctText(entry.priceChangePct!)} ${_tr("discount", "punguzo")}'
+                                  : '${_pctText(entry.priceChangePct!)} ${_tr("above price", "juu ya bei")}',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: entry.priceChangePct! < 0
+                                    ? AppColors.success
+                                    : AppColors.warning,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
-              const Spacer(),
+              ),
               if (entry.lineTotal > 0)
-                Text(
-                  'TSh ${entry.lineTotal.toStringAsFixed(0)}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navyPrimary,
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(
+                    'TSh ${entry.lineTotal.toStringAsFixed(0)}',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navyPrimary,
+                    ),
                   ),
                 ),
             ],
@@ -5256,7 +5374,23 @@ class _TicketReceiptCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final discount = (sale['discountAmount'] as num?)?.toDouble() ?? 0;
+    // Mirror the shared receipt text: items sold below catalog price show at
+    // the catalog price, with the difference folded into the discount row.
+    var itemDiscount = 0.0;
+    final lineTotals = <double>[];
+    for (final item in items) {
+      final qtyNum = parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1);
+      final unitPrice = parseNumericAmount(item['unitPrice']);
+      final basePrice = parseNumericAmount(item['basePrice']);
+      var total = (item['total'] as num?)?.toDouble() ?? 0;
+      if (unitPrice > 0 && basePrice > unitPrice) {
+        itemDiscount += (basePrice - unitPrice) * qtyNum;
+        total = basePrice * qtyNum;
+      }
+      lineTotals.add(total);
+    }
+    final discount =
+        ((sale['discountAmount'] as num?)?.toDouble() ?? 0) + itemDiscount;
     final vat = (sale['vatAmount'] as num?)?.toDouble() ?? 0;
     final outstanding = (amount - amountPaid).clamp(0.0, amount);
     final payMethod = (sale['paymentMethod'] ?? '').toString();
@@ -5381,14 +5515,14 @@ class _TicketReceiptCard extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   // Line items
-                  for (final item in items)
+                  for (var i = 0; i < items.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
                         children: [
                           Expanded(
                             child: Text(
-                              '${item['name'] ?? item['productName'] ?? '-'}  ×${item['qty'] ?? item['quantity'] ?? 1}',
+                              '${items[i]['name'] ?? items[i]['productName'] ?? '-'}  ×${items[i]['qty'] ?? items[i]['quantity'] ?? 1}',
                               style: GoogleFonts.dmSans(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
@@ -5396,7 +5530,7 @@ class _TicketReceiptCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'TSh ${_sNum((item['total'] as num?)?.toDouble() ?? 0)}',
+                            'TSh ${_sNum(lineTotals[i])}',
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,

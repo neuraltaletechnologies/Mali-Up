@@ -8,6 +8,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/domain/models/customer.dart';
+import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 
@@ -154,6 +155,14 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
       );
 
       await repo.save(debt);
+
+      // Mirror the change into the linked customer's balance so the
+      // customer page shows the same debt.
+      await adjustCustomerBalanceForDebtChange(
+        ref,
+        before: widget.debtToEdit,
+        after: debt,
+      );
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
