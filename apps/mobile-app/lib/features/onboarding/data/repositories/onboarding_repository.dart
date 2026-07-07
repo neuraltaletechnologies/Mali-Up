@@ -432,6 +432,7 @@ class OnboardingRepository {
       'plan': 'Trial',
       'isActive': true,
       'subscriptionStatus': 'trial',
+      'staffCount': 0,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });

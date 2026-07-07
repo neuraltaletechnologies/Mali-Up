@@ -1102,13 +1102,26 @@ class _FinanceContextSwitcher extends StatelessWidget {
           right: -3,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 500),
-            width: 9,
-            height: 9,
+            padding: isOnline
+                ? EdgeInsets.zero
+                : const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
             decoration: BoxDecoration(
               color: isOnline ? AppColors.success : AppColors.error,
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(999),
               border: Border.all(color: Colors.white, width: 1.5),
             ),
+            child: isOnline
+                ? const SizedBox(width: 6, height: 6)
+                : Text(
+                    tr('Offline', 'Offline'),
+                    style: GoogleFonts.dmSans(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                      height: 1.2,
+                    ),
+                  ),
           ),
         ),
       ],
