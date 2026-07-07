@@ -11,6 +11,7 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
+import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 import 'add_debt_screen.dart';
@@ -883,6 +884,9 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
   if (confirmed != true) return;
   try {
     await ref.read(debtRepositoryProvider).delete(debt.id);
+    // Deleting an open receivable removes the claim — release it from
+    // the linked customer's balance.
+    await adjustCustomerBalanceForDebtChange(ref, before: debt);
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
