@@ -534,30 +534,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                           children: [
-                            _DrawerItemLight(
-                              icon: Icons.grid_view_rounded,
-                              iconColor: AppColors.secondary,
-                              label: _tr(
-                                'Hali ya biashara',
-                                'Hali ya biashara',
-                              ),
-                              semanticsLabel: _tr(
-                                'Dashboard, business overview',
-                                'Hali ya biashara, muhtasari wa biashara',
-                              ),
-                              selected: isDashboard,
-                              onTap: () => _closeNavigationPanelThenNavigate(
-                                dialogContext,
-                                context,
-                                AppRouter.dashboardPath,
-                              ),
-                            ),
                             if (ps.canViewSales ||
                                 ps.canViewInventory ||
                                 ps.canViewCustomers)
-                              _DrawerSectionLabel(
-                                label: _tr('BUSINESS', 'BIASHARA'),
-                              ),
                             if (ps.canViewSales)
                               _DrawerItemLight(
                                 icon: Icons.receipt_long_rounded,
