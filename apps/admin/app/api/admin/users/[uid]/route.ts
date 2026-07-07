@@ -27,16 +27,13 @@ export async function GET(
       .where('ownerUid', '==', uid)
       .get()
 
-    const businesses = await Promise.all(
-      bizSnap.docs.map(async (doc) => {
-        let staffCount = 0
-        try {
-          const s = await doc.ref.collection('staff').count().get()
-          staffCount = s.data().count ?? 0
-        } catch { /* staff sub-collection may not exist */ }
-        return mapBusiness(uid, doc.id, doc.data() as Record<string, unknown>, staffCount)
-      })
-    )
+    // staffCount is denormalized onto the business doc by addTeamMember /
+    // deleteTeamMember (mobile app) — no per-business sub-collection read needed.
+    const businesses = bizSnap.docs.map((doc) => {
+      const data = doc.data() as Record<string, unknown>
+      const staffCount = typeof data.staffCount === 'number' ? data.staffCount : 0
+      return mapBusiness(uid, doc.id, data, staffCount)
+    })
 
     return NextResponse.json({ user, businesses })
   } catch (err) {

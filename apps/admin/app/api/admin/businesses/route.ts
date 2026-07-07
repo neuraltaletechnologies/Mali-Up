@@ -31,21 +31,15 @@ async function fetchBusinesses(limitParam: number) {
     .limit(limitParam)
     .get()
 
-  // One collectionGroup scan for every business's staff instead of a
-  // per-business count() query (was 1 extra read per business, N+1 total).
-  const staffSnap = await adminFirestore.collectionGroup('staff').get()
-  const staffCounts = new Map<string, number>()
-  for (const staffDoc of staffSnap.docs) {
-    const bizId = staffDoc.ref.parent.parent?.id
-    if (!bizId) continue
-    staffCounts.set(bizId, (staffCounts.get(bizId) ?? 0) + 1)
-  }
-
+  // staffCount is denormalized onto the business doc by addTeamMember /
+  // deleteTeamMember (mobile app) — no extra read needed per business.
+  // Falls back to 0 for older docs written before the backfill script ran.
   const businesses = snapshot.docs.map((doc) => {
     const data = doc.data() as Record<string, unknown>
     // ownerUid is stored as a field in the business document
     const uid = (data.ownerUid as string) || ''
-    return mapBusiness(uid, doc.id, data, staffCounts.get(doc.id) ?? 0)
+    const staffCount = typeof data.staffCount === 'number' ? data.staffCount : 0
+    return mapBusiness(uid, doc.id, data, staffCount)
   })
 
   businesses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -117,6 +111,7 @@ export async function POST(request: Request) {
       plan:               'Trial',
       isActive:           true,
       subscriptionStatus: 'trial',
+      staffCount:         0,
       createdAt:          now,
       updatedAt:          now,
     })
