@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 // Module-level cache: survives component remounts / client-side navigations
 const _cache = new Map<string, unknown>()
@@ -19,6 +19,8 @@ interface FetchOptions {
   key?: string
   /** Auto-refetch on this interval (ms). Useful for live dashboard panels. */
   pollingInterval?: number
+  /** Skip the focus-triggered refetch if the last fetch is younger than this (ms). */
+  minStaleMs?: number
 }
 
 interface FetchState<T> {
@@ -35,6 +37,7 @@ export function useAdminFetch<T>(
 ): FetchState<T> {
   const key = options?.key
   const pollingInterval = options?.pollingInterval
+  const minStaleMs = options?.minStaleMs
   const initial = key ? (_cache.get(key) as T | undefined) ?? null : null
 
   const [data, setData] = useState<T | null>(initial)
@@ -42,15 +45,20 @@ export function useAdminFetch<T>(
   const [revalidating, setRevalidating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const lastFetchedAtRef = useRef(0)
 
   const refetch = useCallback(() => setTick((t) => t + 1), [])
 
-  // Revalidate whenever the browser tab gains focus
+  // Revalidate whenever the browser tab gains focus — unless data was
+  // fetched too recently (avoids doubling up with a running poll interval).
   useEffect(() => {
-    function onFocus() { setTick((t) => t + 1) }
+    function onFocus() {
+      if (minStaleMs && Date.now() - lastFetchedAtRef.current < minStaleMs) return
+      setTick((t) => t + 1)
+    }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [])
+  }, [minStaleMs])
 
   // Optional polling
   useEffect(() => {
@@ -73,6 +81,7 @@ export function useAdminFetch<T>(
     fetcher()
       .then((result) => {
         if (!cancelled) {
+          lastFetchedAtRef.current = Date.now()
           if (key) _cache.set(key, result)
           setData(result)
           setLoading(false)

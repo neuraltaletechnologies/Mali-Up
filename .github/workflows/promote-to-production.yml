@@ -1,0 +1,33 @@
+name: Promote main to production
+
+# Opens (or updates) a PR from main into production on every push to main.
+# Merging that PR is the human checkpoint before release-android.yml ships
+# a Play Store release -- this workflow never merges anything itself.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Open or update promotion PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base production --head main --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "Promotion PR #$existing already open, nothing to do (it updates itself with new commits)."
+          else
+            gh pr create --repo "$GITHUB_REPOSITORY" \
+              --base production \
+              --head main \
+              --title "Promote main to production" \
+              --body "Auto-generated. Merging this PR triggers release-android.yml and ships a Play Store release. Review the diff before merging."
+          fi

@@ -1,8 +1,9 @@
 name: Release Android (Play Store)
 
-# Auto-releases the mobile app to Google Play's production track.
-# Deliberately scoped to the `production` branch only -- pushes to `main`
-# never trigger a store release.
+# Auto-releases the mobile app to Google Play's production track at 100%
+# rollout. Deliberately scoped to the `production` branch only -- pushes to
+# `main` never trigger a store release; promotion happens via the PR opened
+# by promote-to-production.yml.
 on:
   push:
     branches: [production]
@@ -39,15 +40,14 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: flutter build appbundle --release --build-number=${{ github.run_number }}
 
-      - name: Publish to Play Store (staged rollout)
+      - name: Publish to Play Store (full rollout)
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.neuraltale.maliup
           releaseFiles: apps/mobile-app/build/app/outputs/bundle/release/app-release.aab
           track: production
-          userFraction: 0.2
-          status: inProgress
+          status: completed
 
       - name: Remove decoded keystore
         if: always()

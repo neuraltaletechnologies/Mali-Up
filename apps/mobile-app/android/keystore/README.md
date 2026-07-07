@@ -14,16 +14,18 @@ the upload from a keystore it doesn't recognize.
 3. Once approved, Play Console will show you the new upload key requirements
    (or let you upload a PEM certificate generated from a new keystore).
 4. Generate the new keystore locally, matching the config already wired into
-   `android/app/build.gradle.kts` (alias `mali-up-key`):
+   `android/app/build.gradle.kts` (alias `mali-up-key`). Pick a new password
+   yourself — do not reuse any password that was ever committed to this repo:
    ```bash
    keytool -genkeypair -v \
      -keystore mali-up-release.jks \
      -alias mali-up-key \
      -keyalg RSA -keysize 2048 -validity 10000 \
-     -storepass "MaliUp@2026Key" -keypass "MaliUp@2026Key"
+     -storepass "<your-new-password>" -keypass "<your-new-password>"
    ```
-   (Change the passwords if you'd rather not reuse the ones already committed
-   to this README/build file — just update both places to match.)
+   `build.gradle.kts` reads the password from the `KEYSTORE_PASSWORD`
+   environment variable only (no fallback) — set it locally when building
+   release variants, and as the `KEYSTORE_PASSWORD` repo secret for CI.
 5. Extract the public certificate and upload it wherever Play Console's key
    reset flow asks for it (usually a `.pem` export):
    ```bash
@@ -43,8 +45,8 @@ before the reset is approved — the first automated release will fail.
 ## Keystore Details
 - **File**: `mali-up-release.jks`
 - **Alias**: `mali-up-key`
-- **Store Password**: `MaliUp@2026Key`
-- **Key Password**: `MaliUp@2026Key`
+- **Store/Key Password**: set by you when generating the keystore — kept only
+  in your password manager and the `KEYSTORE_PASSWORD` secret, never in git
 - **Validity**: 10,000 days (≈27 years)
 - **Algorithm**: RSA 2048-bit
 
@@ -55,8 +57,14 @@ before the reset is approved — the first automated release will fail.
 
 ## CI/CD setup checklist (`.github/workflows/release-android.yml`)
 
-The pipeline only runs on pushes to the **`production`** branch — pushes to
-`main` never trigger a store release. Steps to enable it:
+The release pipeline only runs on pushes to the **`production`** branch —
+pushes to `main` never trigger a store release directly.
+
+Promotion is automated but still has a human checkpoint:
+`.github/workflows/promote-to-production.yml` opens (or updates) a PR from
+`main` into `production` on every push to `main`. Nothing ships until someone
+reviews and merges that PR — merging it is what triggers
+`release-android.yml`.
 
 ### 1. Create the `production` branch
 ```bash
@@ -65,7 +73,6 @@ git pull
 git checkout -b production
 git push -u origin production
 ```
-Merge `main` → `production` whenever you want to cut a release.
 
 ### 2. Add repo secrets
 Repo → Settings → Secrets and variables → Actions → New repository secret:
@@ -88,8 +95,14 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
    secret.
 
 ### 4. First automated release
-The workflow ships to the `production` Play track at a 20% staged rollout
-(`status: inProgress`). Bump it to 100% manually in Play Console once you've
-confirmed the rollout is healthy — this is intentional so a bad build doesn't
-reach every user immediately. Adjust `userFraction` in the workflow if you'd
-rather change the starting percentage.
+The workflow ships to the `production` Play track at **100% rollout**
+(`status: completed`) — there is no staged percentage and no manual
+completion step in Play Console. Because there's no automated safety net
+once a build is merged to `production`, reviewing and merging the promotion
+PR (opened by `promote-to-production.yml`, described above) is the only gate
+before a release goes out to every user. Review that diff carefully before
+merging.
+
+Do not merge the first `main` → `production` promotion PR until the upload
+key reset above has been approved — the first automated release will fail
+otherwise.

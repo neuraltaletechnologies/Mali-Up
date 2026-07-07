@@ -29,56 +29,78 @@ class RoleCacheService {
 
   /// Saves the relevant role fields from [profile] for [uid].
   /// Called every time Firestore emits a new snapshot so the cache stays fresh.
+  ///
+  /// Never throws: this cache is an optimisation, and secure storage can fail
+  /// on some Android devices (BadPaddingException after backup restore etc.).
+  /// A cache failure must not take down the RBAC stream it feeds.
   static Future<void> save(String uid, Map<String, dynamic> profile) async {
-    final isTeamMember = profile['isTeamMember'] == true;
-    await _storage.write(key: _keyUid, value: uid);
-    await _storage.write(key: _keyIsTeamMember, value: isTeamMember.toString());
-    if (isTeamMember) {
-      await _storage.write(key: _keyOwnerUid, value: profile['ownerUid'] as String? ?? '');
-      await _storage.write(key: _keyBusinessId, value: profile['businessId'] as String? ?? '');
-      await _storage.write(key: _keyMemberId, value: profile['memberId'] as String? ?? '');
-    } else {
-      await _storage.delete(key: _keyOwnerUid);
-      await _storage.delete(key: _keyBusinessId);
-      await _storage.delete(key: _keyMemberId);
-    }
-    if (kDebugMode) {
-      debugPrint('[RBAC] RoleCacheService: saved uid=$uid isTeamMember=$isTeamMember');
+    try {
+      final isTeamMember = profile['isTeamMember'] == true;
+      await _storage.write(key: _keyUid, value: uid);
+      await _storage.write(key: _keyIsTeamMember, value: isTeamMember.toString());
+      if (isTeamMember) {
+        await _storage.write(key: _keyOwnerUid, value: profile['ownerUid'] as String? ?? '');
+        await _storage.write(key: _keyBusinessId, value: profile['businessId'] as String? ?? '');
+        await _storage.write(key: _keyMemberId, value: profile['memberId'] as String? ?? '');
+      } else {
+        await _storage.delete(key: _keyOwnerUid);
+        await _storage.delete(key: _keyBusinessId);
+        await _storage.delete(key: _keyMemberId);
+      }
+      if (kDebugMode) {
+        debugPrint('[RBAC] RoleCacheService: saved uid=$uid isTeamMember=$isTeamMember');
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[RBAC] RoleCacheService.save failed: $e');
     }
   }
 
-  /// Returns the cached profile for [uid], or null if nothing is cached or
-  /// the cached entry belongs to a different UID.
+  /// Returns the cached profile for [uid], or null if nothing is cached, the
+  /// cached entry belongs to a different UID, or secure storage fails.
   static Future<Map<String, dynamic>?> load(String uid) async {
-    final cachedUid = await _storage.read(key: _keyUid);
-    if (cachedUid != uid) return null;
-    final isTeamMemberRaw = await _storage.read(key: _keyIsTeamMember);
-    if (isTeamMemberRaw == null) return null;
-    final isTeamMember = isTeamMemberRaw == 'true';
-    return {
-      'isTeamMember': isTeamMember,
-      if (isTeamMember) ...{
-        'ownerUid':   await _storage.read(key: _keyOwnerUid)   ?? '',
-        'businessId': await _storage.read(key: _keyBusinessId) ?? '',
-        'memberId':   await _storage.read(key: _keyMemberId)   ?? '',
-      },
-    };
+    try {
+      final cachedUid = await _storage.read(key: _keyUid);
+      if (cachedUid != uid) return null;
+      final isTeamMemberRaw = await _storage.read(key: _keyIsTeamMember);
+      if (isTeamMemberRaw == null) return null;
+      final isTeamMember = isTeamMemberRaw == 'true';
+      return {
+        'isTeamMember': isTeamMember,
+        if (isTeamMember) ...{
+          'ownerUid':   await _storage.read(key: _keyOwnerUid)   ?? '',
+          'businessId': await _storage.read(key: _keyBusinessId) ?? '',
+          'memberId':   await _storage.read(key: _keyMemberId)   ?? '',
+        },
+      };
+    } catch (e) {
+      if (kDebugMode) debugPrint('[RBAC] RoleCacheService.load failed: $e');
+      return null;
+    }
   }
 
   /// Saves the resolved active businessId for [uid] so
   /// `currentBusinessIdProvider` can serve it immediately on a cold offline
-  /// start, before the live Firestore snapshot arrives.
+  /// start, before the live Firestore snapshot arrives. Never throws.
   static Future<void> saveBusinessId(String uid, String businessId) async {
-    await _storage.write(key: _keyUid, value: uid);
-    await _storage.write(key: _keyResolvedBusinessId, value: businessId);
+    try {
+      await _storage.write(key: _keyUid, value: uid);
+      await _storage.write(key: _keyResolvedBusinessId, value: businessId);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[RBAC] RoleCacheService.saveBusinessId failed: $e');
+    }
   }
 
   /// Returns the cached resolved businessId for [uid], or null if nothing is
-  /// cached or the cached entry belongs to a different UID.
+  /// cached, the cached entry belongs to a different UID, or storage fails.
   static Future<String?> loadBusinessId(String uid) async {
-    final cachedUid = await _storage.read(key: _keyUid);
-    if (cachedUid != uid) return null;
-    return _storage.read(key: _keyResolvedBusinessId);
+    try {
+      final cachedUid = await _storage.read(key: _keyUid);
+      if (cachedUid != uid) return null;
+      return await _storage.read(key: _keyResolvedBusinessId);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[RBAC] RoleCacheService.loadBusinessId failed: $e');
+      return null;
+    }
   }
 
   /// Clears the cached role. Call on explicit sign-out so a subsequent user

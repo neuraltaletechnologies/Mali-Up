@@ -20,13 +20,21 @@ export default function DashboardPage() {
     revalidating: analyticsRefreshing,
     error,
     refetch: refetchAnalytics,
-  } = useAdminFetch(useCallback(() => fetchAnalytics(), []), { key: 'analytics', pollingInterval: 60_000 })
+  } = useAdminFetch(useCallback(() => fetchAnalytics(), []), {
+    key: 'analytics',
+    pollingInterval: 120_000,
+    minStaleMs: 120_000,
+  })
 
   const {
     data: healthData,
     loading: healthLoading,
     revalidating: healthRefreshing,
-  } = useAdminFetch(useCallback(() => fetchSystemHealth(), []), { key: 'system-health', pollingInterval: 60_000 })
+  } = useAdminFetch(useCallback(() => fetchSystemHealth(), []), {
+    key: 'system-health',
+    pollingInterval: 60_000,
+    minStaleMs: 60_000,
+  })
 
   const total = data?.planDistribution.reduce((s, d) => s + d.value, 0) ?? 0
 
