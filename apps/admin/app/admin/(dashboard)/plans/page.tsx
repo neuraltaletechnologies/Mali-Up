@@ -328,7 +328,10 @@ function AssignPlanSection() {
   const [result, setResult]               = useState<{ ok: boolean; msg: string } | null>(null)
   const [confirmOpen, setConfirmOpen]     = useState(false)
 
-  const { data: bizData } = useAdminFetch(useCallback(() => fetchBusinesses(500), []))
+  const { data: bizData } = useAdminFetch(useCallback(() => fetchBusinesses(500), []), {
+    key: 'businesses-500',
+    minStaleMs: 60_000,
+  })
   const businesses = bizData?.businesses ?? []
 
   // Derive unique owners from the businesses list (sorted alphabetically)

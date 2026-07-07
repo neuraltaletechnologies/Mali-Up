@@ -45,6 +45,12 @@ final currentBusinessIdProvider = StreamProvider<String>((ref) async* {
       .doc(user.uid)
       .snapshots()) {
     final businessId = repo.resolveContextFromData(snap.data()).businessId ?? '';
+    // Offline, the listener fires an empty from-cache snapshot (persistence
+    // is disabled app-wide, so the cache is always empty). That resolves to
+    // '' and would clobber the cached businessId yielded above — blanking
+    // every Drift-scoped screen. '' from the server, however, is
+    // authoritative (no business yet) and must pass through.
+    if (businessId.isEmpty && snap.metadata.isFromCache) continue;
     if (businessId.isNotEmpty) {
       unawaited(RoleCacheService.saveBusinessId(user.uid, businessId));
     }

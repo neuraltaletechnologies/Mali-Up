@@ -409,7 +409,7 @@ export default function BusinessesPage() {
   const router = useRouter()
   const { data, loading, revalidating, error, refetch } = useAdminFetch(
     useCallback(() => fetchBusinesses(), []),
-    { key: 'businesses' },
+    { key: 'businesses', minStaleMs: 60_000 },
   )
 
   const businesses = data?.businesses ?? []

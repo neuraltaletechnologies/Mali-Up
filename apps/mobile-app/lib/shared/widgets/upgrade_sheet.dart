@@ -111,20 +111,18 @@ class _UpgradeSheetWrapper extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final defsAsync = ref.watch(planDefinitionsProvider);
     return defsAsync.smartWhen(
-      skeleton: () => const SizedBox(
-        height: 300,
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SkeletonPlanCard(),
-              SizedBox(height: 16),
-              SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
-              SizedBox(height: 8),
-              SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
-            ],
-          ),
+      skeleton: () => const Padding(
+        padding: EdgeInsets.fromLTRB(20, 24, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SkeletonPlanCard(),
+            SizedBox(height: 16),
+            SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
+            SizedBox(height: 8),
+            SkeletonCard(height: 56, padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
+          ],
         ),
       ),
       onError: (e, _) => _UpgradeSheet(

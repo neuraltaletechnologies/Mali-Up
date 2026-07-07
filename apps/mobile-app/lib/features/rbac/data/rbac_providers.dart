@@ -140,8 +140,14 @@ final userProfileStreamProvider = StreamProvider<Map<String, dynamic>?>((ref) as
     final data = snap.data();
     if (kDebugMode) {
       debugPrint('[RBAC] userProfile: Firestore snap exists=${snap.exists} '
+          'fromCache=${snap.metadata.isFromCache} '
           'isTeamMember=${data?['isTeamMember']} uid=${user.uid}');
     }
+    // Offline, Firestore fires an empty from-cache snapshot (persistence is
+    // disabled app-wide, so its cache is always empty). That means "unknown",
+    // not "profile deleted" — yielding null here would clobber the
+    // RoleCacheService profile above and flip every permission to denied.
+    if (data == null && snap.metadata.isFromCache) continue;
     if (data != null) {
       // Fire-and-forget: cache update is idempotent and non-critical.
       RoleCacheService.save(user.uid, data);
@@ -242,6 +248,11 @@ final currentMemberProvider = StreamProvider<TeamMember?>((ref) async* {
       .collection('staff')
       .doc(memberId)
       .snapshots()
+      // Offline, the listener fires an empty from-cache snapshot (persistence
+      // is disabled). Mapping it to null would send the session to
+      // memberNotFound and strand the member on the recovery screen — drop it
+      // and keep the last-known member record instead.
+      .where((snap) => snap.exists || !snap.metadata.isFromCache)
       .asyncMap((snap) async {
     if (kDebugMode) {
       debugPrint('[RBAC] currentMember: snap exists=${snap.exists} '
