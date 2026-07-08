@@ -163,12 +163,15 @@
       "Bash(find . -iname \"*.rules\" -not -path \"*/node_modules/*\")",
       "Bash(grep -n \"^  pdf:\" -A1 \"c:/SIDE/GIT/Maliapp/apps/mobile-app/pubspec.yaml\"; find / -ipath \"*pdf-*/lib/src/widgets/multi_page.dart\" 2>/dev/null | head -5)",
       "Bash(git -C \"c:\\\\SIDE\\\\GIT\\\\Maliapp\" status)",
-      "Bash(xargs -I{} sh -c 'echo {}')"
+      "Bash(xargs -I{} sh -c 'echo {}')",
+      "Bash(mkdir -p \"c:\\\\SIDE\\\\GIT\\\\Maliapp\\\\apps\\\\admin\\\\app\\\\api\\\\admin\\\\businesses\\\\[uid]\\\\[businessId]\\\\enterprise-terms\")",
+      "Bash(xargs grep -l \"OnboardingFormNotifier\\\\|onboardingFormProvider\")"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[id]",
-      "C:\\SIDE\\GIT\\Maliapp\\apps\\admin"
+      "C:\\SIDE\\GIT\\Maliapp\\apps\\admin",
+      "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\api\\admin\\businesses\\[uid]\\[businessId]"
     ]
   }
 }

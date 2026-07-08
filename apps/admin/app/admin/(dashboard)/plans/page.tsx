@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { DetailDrawer } from '@/components/ui/detail-drawer'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Toggle } from '@/components/ui/toggle'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import { fetchPlans, patchPlan, assignPlan, fetchBusinesses } from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
@@ -88,22 +89,6 @@ const inputCls = 'w-full rounded-md border border-[var(--line)] bg-[var(--canvas
 const labelCls = 'text-[12px] font-medium text-[var(--ink-muted)]'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-150 ${
-        checked ? 'bg-[var(--accent)]' : 'bg-[var(--line)]'
-      }`}
-    >
-      <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150 mt-0.5 ${
-        checked ? 'translate-x-4' : 'translate-x-0.5'
-      }`} />
-    </button>
-  )
-}
 
 function FeatureCheck({ ok }: { ok: boolean }) {
   return ok
