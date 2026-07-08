@@ -255,14 +255,20 @@ class PlanStatus {
   final DateTime? expiresAt;
   final PlanDefinitions? definitions;
 
+  /// Per-business negotiated Enterprise terms (admin-set), overriding
+  /// specific fields of the shared Enterprise definition. Null for every
+  /// tier except Enterprise businesses with a deal on file.
+  final PlanLimits? overrideLimits;
+
   const PlanStatus({
     required this.tier,
     required this.invoicesUsedThisMonth,
     this.expiresAt,
     this.definitions,
+    this.overrideLimits,
   });
 
-  PlanLimits get limits => limitsFor(tier, definitions);
+  PlanLimits get limits => overrideLimits ?? limitsFor(tier, definitions);
 
   bool get isStarter => tier == PlanTier.starter;
   bool get isPaid    => tier != PlanTier.starter;
@@ -327,11 +333,25 @@ class PlanService {
             ? PlanTier.starter
             : tier;
 
+    // Per-business negotiated Enterprise deal terms (admin-set), partially
+    // overriding the shared Enterprise definition — same merge semantics as
+    // PlanLimits.fromFirestore already uses for tier-wide definitions.
+    PlanLimits? overrideLimits;
+    if (effectiveTier == PlanTier.enterprise) {
+      final overrideRaw = data['enterpriseOverrides'];
+      if (overrideRaw is Map<String, dynamic>) {
+        overrideLimits = PlanLimits.fromFirestore(
+          overrideRaw,
+          limitsFor(effectiveTier, defs),
+        );
+      }
+    }
+
     // Counted for whichever tier actually has a finite cap (admin-editable
     // per tier, not just Starter) — always scoped to the single active
     // business, never summed across a user's other businesses.
     int invoiceCount = 0;
-    if (limitsFor(effectiveTier, defs).monthlyInvoices != -1) {
+    if ((overrideLimits ?? limitsFor(effectiveTier, defs)).monthlyInvoices != -1) {
       final selectedBusinessId =
           (data['selectedBusinessId'] as String?)?.trim() ?? '';
       if (selectedBusinessId.isNotEmpty) {
@@ -353,6 +373,7 @@ class PlanService {
       invoicesUsedThisMonth: invoiceCount,
       expiresAt: expiresAt,
       definitions: defs,
+      overrideLimits: overrideLimits,
     );
   }
 

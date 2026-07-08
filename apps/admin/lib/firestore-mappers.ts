@@ -62,6 +62,17 @@ export function mapBusiness(
   data: Record<string, unknown>,
   staffCount = 0,
 ): Business {
+  const plan = normalisePlan(data.plan as string)
+  const enterpriseOverrides = data.enterpriseOverrides as Business['enterpriseOverrides']
+
+  // A business with negotiated Enterprise terms bills its custom price, not
+  // the flat platform default — reflect that here so this page's MRR is
+  // accurate. (Subscriptions/Analytics keep their own flat-fee totals.)
+  let mrr = mrrForPlan(plan)
+  if (plan === 'enterprise' && enterpriseOverrides?.pricePerCycle && enterpriseOverrides.cycleMonths) {
+    mrr = Math.round(enterpriseOverrides.pricePerCycle / enterpriseOverrides.cycleMonths)
+  }
+
   return {
     id:           businessId,
     name:         (data.businessName as string) || 'Unnamed Business',
@@ -70,14 +81,15 @@ export function mapBusiness(
     ownerPhone:   (data.ownerPhone as string)
                     ? `+255${data.ownerPhone}`
                     : '',
-    plan:         normalisePlan(data.plan as string),
+    plan,
     status:       normaliseBusinessStatus(data),
     staffCount,
     lastActive:   toIso(data.updatedAt),
     createdAt:    toIso(data.createdAt),
-    mrr:          mrrForPlan(normalisePlan(data.plan as string)),
+    mrr,
     industry:     (data.businessType as string) || (data.businessCategory as string) || 'Other',
     location:     (data.placeOfBusiness as string) || undefined,
+    enterpriseOverrides,
   }
 }
 

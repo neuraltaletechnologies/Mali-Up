@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { PageHeader } from '@/components/ui/page-header'
@@ -8,17 +8,19 @@ import { StatusDot } from '@/components/ui/status-dot'
 import { PlanBadge } from '@/components/ui/plan-badge'
 import { Tabs } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 import { KPICard } from '@/components/ui/kpi-card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { fetchBusiness, patchBusiness, postBusinessNote, editBusiness, assignPlan, fetchCatalog, attachCatalogToBusiness } from '@/lib/admin-api'
+import { fetchBusiness, patchBusiness, postBusinessNote, editBusiness, deleteBusiness, assignPlan, fetchCatalog, attachCatalogToBusiness, fetchPlans, setEnterpriseTerms } from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatDate, timeAgo } from '@/lib/format'
 import {
   ArrowLeft, Ban, RotateCcw, MessageSquarePlus, AlertCircle,
   Users, Receipt, ShoppingBag, UserCheck, Pencil, X, Loader2,
-  PackagePlus, CheckSquare, Square,
+  PackagePlus, CheckSquare, Square, Trash2, Star,
 } from 'lucide-react'
-import type { Business, StaffMember, CatalogCategory, CatalogProduct, PlanTier } from '@/types'
+import type { Business, StaffMember, CatalogCategory, CatalogProduct, PlanTier, PlanDefinition } from '@/types'
+import { Toggle } from '@/components/ui/toggle'
 
 const PLAN_OPTIONS: PlanTier[] = ['starter', 'growth', 'business', 'enterprise', 'lifetime']
 
@@ -378,6 +380,174 @@ function CatalogAttachPanel({
   )
 }
 
+// ─── Enterprise Deal Terms Panel ───────────────────────────────────────────────
+
+const OVERRIDE_FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers'>, string> = {
+  cashFlow:            'Cash flow tracking',
+  expenseTracking:     'Expense tracking',
+  manualDebt:          'Manual debt entry',
+  fullReports:         'Full reports',
+  mpesaImport:         'M-Pesa import',
+  smsReminders:        'SMS reminders',
+  allExports:          'All exports',
+  multiLocation:       'Multi-location stock',
+  apiAccess:           'API access',
+  prioritySupport:     'Priority support',
+  customIntegrations:  'Custom integrations',
+  whiteLabel:          'White-label options',
+  dedicatedOnboarding: 'Dedicated onboarding',
+}
+
+function EnterpriseTermsPanel({
+  uid, bizId, business, onSaved,
+}: {
+  uid: string; bizId: string; business: Business; onSaved: () => void
+}) {
+  const { data: plansData } = useAdminFetch(useCallback(() => fetchPlans(), []), { key: 'plans' })
+  const baseline = plansData?.plans.enterprise
+
+  const [form, setForm] = useState<PlanDefinition | null>(null)
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!baseline) return
+    setForm({ ...baseline, ...business.enterpriseOverrides })
+    setNotes(business.enterpriseOverrides?.notes ?? '')
+  }, [baseline, business.enterpriseOverrides])
+
+  function num(field: keyof PlanDefinition) {
+    return (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => f ? { ...f, [field]: Number(e.target.value) } : f)
+  }
+  function bool(field: keyof PlanDefinition) {
+    return (v: boolean) => setForm((f) => f ? { ...f, [field]: v } : f)
+  }
+
+  async function handleSave() {
+    if (!form) return
+    setSaving(true); setErr(null)
+    try {
+      await setEnterpriseTerms(uid, bizId, { ...form, notes: notes.trim() || undefined })
+      onSaved()
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Failed to save terms')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleClear() {
+    setSaving(true); setErr(null)
+    try {
+      await setEnterpriseTerms(uid, bizId, {})
+      onSaved()
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Failed to clear terms')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!form) return <SkeletonPanel />
+
+  const hasOverride = !!business.enterpriseOverrides
+
+  return (
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6">
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          <Star className="h-4 w-4 text-[var(--accent)]" />
+          <h3 className="text-[14px] font-semibold text-[var(--ink)]">Enterprise Deal Terms</h3>
+        </div>
+        {hasOverride && (
+          <button
+            onClick={handleClear}
+            disabled={saving}
+            className="text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
+          >
+            Clear custom terms
+          </button>
+        )}
+      </div>
+      <p className="text-[12px] text-[var(--ink-muted)] mb-5">
+        {hasOverride
+          ? `Custom terms set${business.enterpriseOverrides?.setBy ? ` by ${business.enterpriseOverrides.setBy}` : ''}${business.enterpriseOverrides?.setAt ? ` on ${formatDate(business.enterpriseOverrides.setAt)}` : ''}. Overrides the shared Enterprise defaults for this business only.`
+          : 'This business uses the shared Enterprise defaults. Set custom pricing, limits, or features for this specific deal below.'}
+      </p>
+
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="flex flex-col gap-1.5">
+          <label className={labelCls}>Price per billing cycle (TZS)</label>
+          <input type="number" min="0" value={form.pricePerCycle} onChange={num('pricePerCycle')} className={inputCls} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelCls}>Billing cycle (months)</label>
+          <input type="number" min="1" max="24" value={form.cycleMonths} onChange={num('cycleMonths')} className={inputCls} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelCls}>Max users (−1 = unlimited)</label>
+          <input type="number" min="-1" value={form.maxUsers} onChange={num('maxUsers')} className={inputCls} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelCls}>Monthly invoices (−1 = unlimited)</label>
+          <input type="number" min="-1" value={form.monthlyInvoices} onChange={num('monthlyInvoices')} className={inputCls} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelCls}>Max businesses (−1 = unlimited)</label>
+          <input type="number" min="-1" value={form.maxBusinesses} onChange={num('maxBusinesses')} className={inputCls} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className={labelCls}>Max customers (−1 = unlimited)</label>
+          <input type="number" min="-1" value={form.maxCustomers} onChange={num('maxCustomers')} className={inputCls} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 mb-5">
+        {(Object.keys(OVERRIDE_FEATURE_LABELS) as (keyof typeof OVERRIDE_FEATURE_LABELS)[]).map((key) => (
+          <div key={key} className="flex items-center justify-between py-1 border-b border-[var(--line)] last:border-0">
+            <span className="text-[13px] text-[var(--ink-muted)]">{OVERRIDE_FEATURE_LABELS[key]}</span>
+            <Toggle checked={form[key]} onChange={bool(key)} />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-1.5 mb-4">
+        <label className={labelCls}>Deal notes (internal)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          placeholder="e.g. negotiated Jan 2026, 24-month contract, discount for early payment…"
+          className={`${inputCls} resize-none`}
+        />
+      </div>
+
+      {err && (
+        <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-3 text-[12px] text-[var(--status-bad)]">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {err}
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{ backgroundColor: '#0D1B3E' }}
+          className="rounded-md px-4 py-2 text-[12px] font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : 'Save deal terms'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const inputCls = 'w-full rounded-md border border-[var(--line)] bg-[var(--canvas)] px-3 py-2 text-[13px] text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]'
+const labelCls = 'text-[12px] font-medium text-[var(--ink-muted)]'
+
 function SkeletonPanel() {
   return (
     <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-6 space-y-3">
@@ -402,6 +572,8 @@ export default function BusinessDetailPage() {
   const [noteInput, setNoteInput] = useState('')
   const [savingNote, setSavingNote] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const { data, loading, error, refetch } = useAdminFetch(
     useCallback(() => fetchBusiness(uid, bizId), [uid, bizId])
@@ -421,6 +593,19 @@ export default function BusinessDetailPage() {
       setActionPending(false)
       setShowSuspend(false)
       setShowUnsuspend(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!business) return
+    setDeleting(true)
+    try {
+      await deleteBusiness(uid, bizId)
+      invalidateAdminCache(['analytics', 'businesses', 'users'])
+      router.push('/admin/businesses')
+    } finally {
+      setDeleting(false)
+      setShowDelete(false)
     }
   }
 
@@ -505,6 +690,13 @@ export default function BusinessDetailPage() {
               Suspend
             </button>
           )}
+          <button
+            onClick={() => setShowDelete(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--status-bad)] px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </button>
         </div>
       </PageHeader>
 
@@ -675,6 +867,11 @@ export default function BusinessDetailPage() {
           )}
         </div>
       )}
+      {tab === 'subscription' && business.plan === 'enterprise' && (
+        <div className="mt-4">
+          <EnterpriseTermsPanel uid={uid} bizId={bizId} business={business} onSaved={refetch} />
+        </div>
+      )}
 
       {/* Catalog */}
       {tab === 'catalog' && (
@@ -740,6 +937,16 @@ export default function BusinessDetailPage() {
         consequence="Restoring access will allow all staff to sign in immediately. Make sure the reason for suspension has been resolved."
         confirmLabel={actionPending ? 'Saving…' : 'Unsuspend business'}
         variant="warning"
+      />
+
+      <DeleteConfirmDialog
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        resourceLabel="business"
+        resourceName={business.name}
+        consequence={`This permanently deletes ${business.name} and all of its data — invoices, customers, staff, inventory, expenses, and everything else. This cannot be undone.`}
+        loading={deleting}
       />
 
       <EditBusinessDrawer
