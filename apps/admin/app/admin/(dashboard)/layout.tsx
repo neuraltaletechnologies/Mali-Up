@@ -18,8 +18,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)] text-[13px]">
       <Sidebar />
       <TopBar />
-      <main className="pl-[240px] pt-12">
-        <div className="max-w-[1400px] mx-auto px-8 py-8">
+      <main className="pt-12 lg:pl-[240px]">
+        <div className="max-w-[1400px] mx-auto px-4 py-6 sm:px-8 sm:py-8">
           {children}
         </div>
       </main>
