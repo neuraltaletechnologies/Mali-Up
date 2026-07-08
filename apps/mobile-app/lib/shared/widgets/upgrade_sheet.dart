@@ -5,12 +5,15 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/services/plan_request_service.dart';
 import '../../core/services/plan_service.dart';
+import '../../core/services/localization_service.dart';
 import '../../core/utils/online_guard.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_sheet.dart';
 import 'mali_components.dart';
 import 'skeleton_widgets.dart';
 import 'smart_skeleton.dart';
+
+String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Feature keys — lets the sheet show context-aware locked-feature notice.
@@ -202,7 +205,8 @@ class _PendingRequestNotice extends StatelessWidget {
                     color: AppColors.tealAccent, size: 36),
                 const SizedBox(height: 10),
                 Text(
-                  'Ombi lako la $tierLabel bado linashughulikiwa',
+                  _t('Your $tierLabel request is still being processed',
+                      'Ombi lako la $tierLabel bado linashughulikiwa'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
                     fontSize: 15,
@@ -212,7 +216,10 @@ class _PendingRequestNotice extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Timu yetu inathibitisha ombi lako. Huwezi kutuma ombi jingine mpaka hili likamilike.',
+                  _t(
+                      'Our team is verifying your request. You cannot submit '
+                      'another request until this one is done.',
+                      'Timu yetu inathibitisha ombi lako. Huwezi kutuma ombi jingine mpaka hili likamilike.'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
@@ -234,7 +241,7 @@ class _PendingRequestNotice extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text(
-                      'Nimeelewa',
+                      _t('Got It', 'Nimeelewa'),
                       style: GoogleFonts.dmSans(
                           fontSize: 14, fontWeight: FontWeight.w700),
                     ),
@@ -349,7 +356,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
 
               // ── Headline ─────────────────────────────────────────────────
               Text(
-                'Inua Biashara Yako',
+                _t('Grow Your Business', 'Inua Biashara Yako'),
                 style: GoogleFonts.dmSans(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -359,7 +366,10 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               ),
               SizedBox(height: 3),
               Text(
-                'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.',
+                _t(
+                    'Costs less than an hour of accountant fees — reach '
+                    'further every day.',
+                    'Lipa chini ya saa moja ya mhasibu — ufike zaidi kila siku.'),
                 style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: AppColors.textMuted,
@@ -432,8 +442,9 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                         const Icon(Icons.rocket_launch_rounded, size: 16),
                         SizedBox(width: 8),
                         Text(
-                          'Panda ${_selected == PlanTier.growth ? "Growth" : "Business"}'
-                          ' — ${_fmtPrice(_priceMonthly)}/mwezi',
+                          '${_t("Upgrade to", "Panda")} '
+                          '${_selected == PlanTier.growth ? "Growth" : "Business"}'
+                          ' — ${_fmtPrice(_priceMonthly)}${_t("/mo", "/mwezi")}',
                           style: GoogleFonts.dmSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
@@ -446,7 +457,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 SizedBox(height: 6),
                 Center(
                   child: Text(
-                    '${_fmtPrice(_priceCycle)} ulipwa kwa miezi ${_selLimits.cycleMonths} mbele',
+                    '${_fmtPrice(_priceCycle)} ${_t("billed every ${_selLimits.cycleMonths} months upfront", "ulipwa kwa miezi ${_selLimits.cycleMonths} mbele")}',
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
                       color: AppColors.textMuted,
@@ -489,7 +500,9 @@ class _LockedFeatureNotice extends StatelessWidget {
     if (featureKey == null && triggerReason == null) return const SizedBox.shrink();
 
     final icon  = featureKey?.icon ?? Icons.lock_rounded;
-    final label = featureKey?.labelSw;
+    final label = LocalizationService.isSwahili
+        ? featureKey?.labelSw
+        : featureKey?.labelEn;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -528,7 +541,9 @@ class _LockedFeatureNotice extends StatelessWidget {
                     const SizedBox(height: 1),
                   ],
                   Text(
-                    triggerReason ?? 'Kipengele hiki kinahitaji mpango wa juu.',
+                    triggerReason ??
+                        _t('This feature requires a higher plan.',
+                            'Kipengele hiki kinahitaji mpango wa juu.'),
                     style: GoogleFonts.dmSans(
                       fontSize: 12,
                       color: AppColors.textMuted,
@@ -648,7 +663,7 @@ class _TierCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        'Maarufu',
+                        _t('Popular', 'Maarufu'),
                         style: GoogleFonts.dmSans(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
@@ -659,7 +674,8 @@ class _TierCard extends StatelessWidget {
                   ],
                   SizedBox(width: 6),
                   Text(
-                    '${_fmtPrice(limits.pricePerCycle)} / miezi ${limits.cycleMonths}',
+                    '${_fmtPrice(limits.pricePerCycle)} / '
+                    '${_t("${limits.cycleMonths} mo", "miezi ${limits.cycleMonths}")}',
                     style: GoogleFonts.dmSans(
                       fontSize: 10,
                       color: isSelected
@@ -684,7 +700,7 @@ class _TierCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '/mwezi',
+                  _t('/mo', '/mwezi'),
                   style: GoogleFonts.dmSans(
                     fontSize: 9,
                     color: isSelected
@@ -755,7 +771,8 @@ class _EnterpriseCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Minyororo, NGO, wasambazaji — bei maalum',
+                    _t('Chains, NGOs, distributors — custom pricing',
+                        'Minyororo, NGO, wasambazaji — bei maalum'),
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
                       color: AppColors.textMuted,
@@ -837,7 +854,9 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
       if (!mounted) return;
       setState(() {
         _state = _EnterpriseFormState.form;
-        _error = 'Imeshindwa kutuma ombi. Hakikisha una intaneti kisha jaribu tena.';
+        _error = _t(
+            'Failed to send request. Check your internet connection and try again.',
+            'Imeshindwa kutuma ombi. Hakikisha una intaneti kisha jaribu tena.');
       });
     }
   }
@@ -874,8 +893,9 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
               SizedBox(height: 10),
               Text(
                 alreadyPending
-                    ? 'Tayari umetuma ombi la Enterprise'
-                    : 'Ombi limetumwa!',
+                    ? _t('You already submitted an Enterprise request',
+                        'Tayari umetuma ombi la Enterprise')
+                    : _t('Request sent!', 'Ombi limetumwa!'),
                 style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -884,7 +904,10 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
               ),
               SizedBox(height: 4),
               Text(
-                'Timu yetu itawasiliana nawe ndani ya masaa 24 kuhusu bei maalum ya biashara yako.',
+                _t(
+                    'Our team will contact you within 24 hours about custom '
+                    'pricing for your business.',
+                    'Timu yetu itawasiliana nawe ndani ya masaa 24 kuhusu bei maalum ya biashara yako.'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.dmSans(
                   fontSize: 12,
@@ -906,7 +929,7 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
                         borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Text(
-                    'Sawa',
+                    _t('OK', 'Sawa'),
                     style: GoogleFonts.dmSans(
                         fontSize: 14, fontWeight: FontWeight.w700),
                   ),
@@ -923,7 +946,8 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Tuambie kuhusu biashara yako (hiari)',
+              _t('Tell us about your business (optional)',
+                  'Tuambie kuhusu biashara yako (hiari)'),
               style: GoogleFonts.dmSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -938,8 +962,9 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
               enabled: !busy,
               style: GoogleFonts.dmSans(fontSize: 13),
               decoration: InputDecoration(
-                hintText:
-                    'Mf. matawi 5, wafanyakazi 30, tunahitaji API na ripoti maalum…',
+                hintText: _t(
+                    'E.g. 5 branches, 30 staff, need API and custom reports…',
+                    'Mf. matawi 5, wafanyakazi 30, tunahitaji API na ripoti maalum…'),
                 hintStyle: GoogleFonts.dmSans(
                     fontSize: 12, color: AppColors.textMuted),
                 filled: true,
@@ -981,7 +1006,10 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
                       )
                     : const Icon(Icons.send_rounded, size: 16),
                 label: Text(
-                  busy ? 'Inatuma…' : 'Tuma Ombi la Enterprise',
+                  busy
+                      ? _t('Sending…', 'Inatuma…')
+                      : _t('Send Enterprise Request',
+                          'Tuma Ombi la Enterprise'),
                   style: GoogleFonts.dmSans(
                       fontSize: 14, fontWeight: FontWeight.w800),
                 ),
@@ -997,7 +1025,8 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
             SizedBox(height: 6),
             Center(
               child: Text(
-                'Ombi lako litaonekana na timu yetu mara moja.',
+                _t('Your request will reach our team immediately.',
+                    'Ombi lako litaonekana na timu yetu mara moja.'),
                 style: GoogleFonts.dmSans(
                     fontSize: 11, color: AppColors.textMuted),
               ),
@@ -1039,7 +1068,8 @@ class _PaymentSubmittedCard extends StatelessWidget {
               color: AppColors.success, size: 36),
           SizedBox(height: 10),
           Text(
-            'Tumepokea taarifa yako ya malipo!',
+            _t('We received your payment info!',
+                'Tumepokea taarifa yako ya malipo!'),
             style: GoogleFonts.dmSans(
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -1048,8 +1078,12 @@ class _PaymentSubmittedCard extends StatelessWidget {
           ),
           SizedBox(height: 4),
           Text(
-            'Tunathibitisha malipo yako ya $tierName ($paymentRef) — mpango wako '
-            'utawashwa ndani ya masaa 24. Utaona taarifa hapa mara ukiwashwa.',
+            _t(
+                'We are confirming your $tierName payment ($paymentRef) — '
+                'your plan will be activated within 24 hours. You will see '
+                'a notice here once it is active.',
+                'Tunathibitisha malipo yako ya $tierName ($paymentRef) — mpango wako '
+                'utawashwa ndani ya masaa 24. Utaona taarifa hapa mara ukiwashwa.'),
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
               fontSize: 12,
@@ -1071,7 +1105,7 @@ class _PaymentSubmittedCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12)),
               ),
               child: Text(
-                'Sawa',
+                _t('OK', 'Sawa'),
                 style: GoogleFonts.dmSans(
                     fontSize: 14, fontWeight: FontWeight.w700),
               ),
@@ -1125,7 +1159,7 @@ class _PaymentInstructions extends StatelessWidget {
                   size: 16, color: AppColors.textSecondary),
               SizedBox(width: 4),
               Text(
-                'Rudi',
+                _t('Back', 'Rudi'),
                 style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: AppColors.textSecondary,
@@ -1158,7 +1192,7 @@ class _PaymentInstructions extends StatelessWidget {
                   ),
                   SizedBox(width: 10),
                   Text(
-                    'Hatua za Malipo ya M-Pesa',
+                    _t('M-Pesa Payment Steps', 'Hatua za Malipo ya M-Pesa'),
                     style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -1168,17 +1202,21 @@ class _PaymentInstructions extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              const _Step(number: '1', text: 'Fungua M-Pesa kwenye simu yako'),
-              const _Step(
+              _Step(
+                  number: '1',
+                  text: _t('Open M-Pesa on your phone',
+                      'Fungua M-Pesa kwenye simu yako')),
+              _Step(
                 number: '2',
-                text: 'Chagua "Lipa Biashara" (Lipa Number)',
+                text: _t('Select "Pay Bill" (Lipa Number)',
+                    'Chagua "Lipa Biashara" (Lipa Number)'),
               ),
               _Step(
                 number: '3',
                 child: _CopyRow(
-                  label: 'Namba: $mpesaNumber',
+                  label: '${_t("Number", "Namba")}: $mpesaNumber',
                   copyValue: mpesaNumber,
-                  snackLabel: 'Namba imenakiliwa',
+                  snackLabel: _t('Number copied', 'Namba imenakiliwa'),
                   context: context,
                 ),
               ),
@@ -1188,12 +1226,13 @@ class _PaymentInstructions extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Kiasi: ${_fmtPrice(priceCycle)} (miezi $cycleMonths)',
+                      '${_t("Amount", "Kiasi")}: ${_fmtPrice(priceCycle)} '
+                      '(${_t("$cycleMonths months", "miezi $cycleMonths")})',
                       style: GoogleFonts.dmSans(
                           fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                     Text(
-                      '(${_fmtPrice(priceMonthly)}/mwezi × $cycleMonths)',
+                      '(${_fmtPrice(priceMonthly)}${_t("/mo", "/mwezi")} × $cycleMonths)',
                       style: GoogleFonts.dmSans(
                           fontSize: 11, color: AppColors.textMuted),
                     ),
@@ -1204,9 +1243,9 @@ class _PaymentInstructions extends StatelessWidget {
                 number: '5',
                 child: _CopyRow(
                   label: ref,
-                  sublabel: 'Maelezo / Kumbukumbu:',
+                  sublabel: _t('Reference:', 'Maelezo / Kumbukumbu:'),
                   copyValue: ref,
-                  snackLabel: 'Kumbukumbu imenakiliwa',
+                  snackLabel: _t('Reference copied', 'Kumbukumbu imenakiliwa'),
                   context: context,
                   bold: true,
                 ),
@@ -1228,7 +1267,9 @@ class _PaymentInstructions extends StatelessWidget {
                     SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Baada ya kulipa, timu yetu itathibitisha ndani ya masaa 24.',
+                        _t(
+                            'After paying, our team will confirm within 24 hours.',
+                            'Baada ya kulipa, timu yetu itathibitisha ndani ya masaa 24.'),
                         style: GoogleFonts.dmSans(
                           fontSize: 11,
                           color: AppColors.warning,
@@ -1254,7 +1295,9 @@ class _PaymentInstructions extends StatelessWidget {
                           ),
                         )
                       : const Icon(Icons.check_circle_outline_rounded, size: 18),
-                  label: Text(busy ? 'Inatuma…' : 'Nimemaliza Kulipa'),
+                  label: Text(busy
+                      ? _t('Sending…', 'Inatuma…')
+                      : _t('I Have Paid', 'Nimemaliza Kulipa')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
                     foregroundColor: Colors.white,

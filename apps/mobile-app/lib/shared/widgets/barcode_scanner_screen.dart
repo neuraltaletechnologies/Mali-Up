@@ -7,17 +7,20 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/services/sentry_metrics_service.dart';
+import '../../core/services/localization_service.dart';
+
+String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 /// Single-scan mode: returns the raw barcode string via Navigator.pop, or null.
 class BarcodeScannerScreen extends StatefulWidget {
-  final String title;
+  final String? title;
 
-  const BarcodeScannerScreen({super.key, this.title = 'Scan Barcode'});
+  const BarcodeScannerScreen({super.key, this.title});
 
   static Future<String?> show(BuildContext context, {String? title}) {
     return Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => BarcodeScannerScreen(title: title ?? 'Scan Barcode'),
+        builder: (_) => BarcodeScannerScreen(title: title),
         fullscreenDialog: true,
       ),
     );
@@ -69,17 +72,17 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: Text(widget.title),
+        title: Text(widget.title ?? _t('Scan Barcode', 'Skani Nambari')),
         actions: [
           IconButton(
             icon: const Icon(Icons.flash_on),
             onPressed: () => _ctrl.toggleTorch(),
-            tooltip: 'Toggle flashlight',
+            tooltip: _t('Toggle flashlight', 'Washa/Zima taa'),
           ),
           IconButton(
             icon: const Icon(Icons.flip_camera_ios),
             onPressed: () => _ctrl.switchCamera(),
-            tooltip: 'Switch camera',
+            tooltip: _t('Switch camera', 'Badilisha kamera'),
           ),
         ],
       ),
@@ -100,7 +103,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Text(
-                  'Point camera at barcode or QR code',
+                  _t('Point camera at barcode or QR code',
+                      'Elekeza kamera kwenye barcode au QR code'),
                   style: GoogleFonts.dmSans(color: Colors.white, fontSize: 13),
                 ),
               ),
@@ -507,7 +511,9 @@ class _MiniCart extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '$itemCount ${itemCount == 1 ? "item" : "items"} added',
+                  _t(
+                      '$itemCount ${itemCount == 1 ? "item" : "items"} added',
+                      '$itemCount ${itemCount == 1 ? "bidhaa" : "bidhaa"} zimeongezwa'),
                   style: GoogleFonts.dmSans(
                     color: Colors.white70,
                     fontSize: 11,
@@ -536,7 +542,7 @@ class _MiniCart extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                'Done',
+                _t('Done', 'Maliza'),
                 style: GoogleFonts.dmSans(
                   color: AppColors.navyPrimary,
                   fontWeight: FontWeight.w800,

@@ -281,10 +281,32 @@ class OnboardingRepository {
     );
 
     if (businessId.isNotEmpty && memberId.isNotEmpty) {
-      // 3. Activate the staff record, stamp workerUid, and merge permissions.
-      final teamRole = TeamRole.fromString(role);
-      final permissions =
-          defaultPermissionsFor(teamRole).map((p) => p.name).toList();
+      // Read the invite's actual permissions via a limited *query* (not a direct
+      // .doc().get()) — Firestore rules only allow reading this collection's staff
+      // docs pre-acceptance through limit(1) queries; a direct get() by ID is
+      // owner/self-only and this caller isn't either yet. Falling back to
+      // defaultPermissionsFor(role) would silently wipe out an owner's custom
+      // permission selection (defaultPermissionsFor('custom') is empty).
+      final existingStaffSnap = await _db
+          .collection('businesses')
+          .doc(businessId)
+          .collection('staff')
+          .where('phone', isEqualTo: phone)
+          .limit(1)
+          .get();
+      final existingPermissions = existingStaffSnap.docs.isNotEmpty
+          ? ((existingStaffSnap.docs.first.data()['permissions'] as List?)
+                  ?.map((p) => p.toString())
+                  .toList() ??
+              const <String>[])
+          : defaultPermissionsFor(TeamRole.fromString(role))
+              .map((p) => p.name)
+              .toList();
+
+      // 3. Activate the staff record and stamp workerUid. Role/permissions are
+      //    left untouched — they were already set correctly by the owner when
+      //    the invite was created. (Firestore rules also only permit
+      //    status/acceptedAt/workerUid/updatedAt/email to change here.)
       batch.set(
         _db.collection('businesses').doc(businessId).collection('staff').doc(memberId),
         {
@@ -292,8 +314,6 @@ class OnboardingRepository {
           'workerUid': uid,
           'acceptedAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
-          'role': role,
-          'permissions': permissions,
           if (realEmail.isNotEmpty) 'email': realEmail,
         },
         SetOptions(merge: true),
@@ -308,7 +328,7 @@ class OnboardingRepository {
         {
           'workerUid': uid,
           'memberId': memberId,
-          'permissions': permissions,
+          'permissions': existingPermissions,
           'phone': phone,
           'status': 'active',
           'createdAt': FieldValue.serverTimestamp(),
