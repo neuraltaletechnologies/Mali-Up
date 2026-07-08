@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/localization_service.dart';
+
+String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 /// Consent Screen - PDPA Compliance
 /// Users must accept privacy policy before signup (PDPA requirement)
@@ -48,7 +51,9 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
 
   void _proceedToSignup() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Privacy preferences saved')),
+      SnackBar(
+          content:
+              Text(_t('Privacy preferences saved', 'Mapendeleo ya faragha yamehifadhiwa'))),
     );
     widget.onConsentAccepted();
   }
@@ -57,7 +62,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Privacy Policy'),
+        title: Text(_t('Privacy Policy', 'Sera ya Faragha')),
         content: SingleChildScrollView(
           child: Text(
             _getPrivacyPolicyText(),
@@ -67,7 +72,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(_t('Close', 'Funga')),
           ),
         ],
       ),
@@ -188,7 +193,8 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                             // Title
                             Center(
                               child: Text(
-                                'Your Privacy & Permissions',
+                                _t('Your Privacy & Permissions',
+                                    'Faragha na Ruhusa Zako'),
                                 textAlign: TextAlign.center,
                                 style: headingStyle,
                               ),
@@ -196,7 +202,9 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                             const SizedBox(height: 8),
                             Center(
                               child: Text(
-                                'Mali Up respects your privacy. Please review our privacy policy and consent preferences.',
+                                _t(
+                                    'Mali Up respects your privacy. Please review our privacy policy and consent preferences.',
+                                    'Mali Up inaheshimu faragha yako. Tafadhali pitia sera yetu ya faragha na mapendeleo ya idhini.'),
                                 textAlign: TextAlign.center,
                                 style: subtitleStyle,
                               ),
@@ -218,7 +226,8 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                               ),
                               child: CheckboxListTile(
                                 title: Text(
-                                  'I accept the Privacy Policy',
+                                  _t('I accept the Privacy Policy',
+                                      'Nakubali Sera ya Faragha'),
                                   style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.navyPrimary,
@@ -228,7 +237,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                 subtitle: GestureDetector(
                                   onTap: () => _showPrivacyPolicy(context),
                                   child: Text(
-                                    'Read full policy',
+                                    _t('Read full policy', 'Soma sera kamili'),
                                     style: GoogleFonts.dmSans(
                                       color: AppColors.navyPrimary,
                                       decoration: TextDecoration.underline,
@@ -255,7 +264,8 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                               ),
                               child: CheckboxListTile(
                                 title: Text(
-                                  'Help improve Mali Up',
+                                  _t('Help improve Mali Up',
+                                      'Saidia kuboresha Mali Up'),
                                   style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.navyPrimary,
@@ -263,7 +273,8 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                   ),
                                 ),
                                 subtitle: Text(
-                                  'Send usage analytics (non-financial)',
+                                  _t('Send usage analytics (non-financial)',
+                                      'Tuma takwimu za matumizi (si za kifedha)'),
                                   style: GoogleFonts.dmSans(
                                       fontSize: 12,
                                       color: AppColors.textMuted),
@@ -287,7 +298,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                               ),
                               child: CheckboxListTile(
                                 title: Text(
-                                  'Enable notifications',
+                                  _t('Enable notifications', 'Washa arifa'),
                                   style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.navyPrimary,
@@ -295,7 +306,9 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                   ),
                                 ),
                                 subtitle: Text(
-                                  'Get updates about invoices, expenses, and important events',
+                                  _t(
+                                      'Get updates about invoices, expenses, and important events',
+                                      'Pata taarifa kuhusu ankara, matumizi, na matukio muhimu'),
                                   style: GoogleFonts.dmSans(
                                       fontSize: 12,
                                       color: AppColors.textMuted),
@@ -331,7 +344,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                 onPressed:
                                     privacyAccepted ? _proceedToSignup : null,
                                 child: Text(
-                                  'Continue to Signup',
+                                  _t('Continue to Signup', 'Endelea kujisajili'),
                                   style: GoogleFonts.dmSans(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
@@ -363,7 +376,8 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                           color: AppColors.navyPrimary),
                                       SizedBox(width: 8),
                                       Text(
-                                        'Your Data Rights (PDPA)',
+                                        _t('Your Data Rights (PDPA)',
+                                            'Haki Zako za Taarifa (PDPA)'),
                                         style: GoogleFonts.dmSans(
                                           fontWeight: FontWeight.w700,
                                           color: AppColors.navyPrimary,
@@ -374,10 +388,16 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                   ),
                                   SizedBox(height: 10),
                                   Text(
-                                    '• You own all your business data\n'
-                                    '• Download it anytime as JSON/CSV\n'
-                                    '• Delete it permanently with one click\n'
-                                    '• Your financial data is never sold',
+                                    _t(
+                                      '• You own all your business data\n'
+                                      '• Download it anytime as JSON/CSV\n'
+                                      '• Delete it permanently with one click\n'
+                                      '• Your financial data is never sold',
+                                      '• Wewe ndiye mmiliki wa taarifa zote za biashara yako\n'
+                                      '• Zipakue wakati wowote kama JSON/CSV\n'
+                                      '• Zifute kabisa kwa mbofyo mmoja\n'
+                                      '• Taarifa zako za kifedha hazitauzwi kamwe',
+                                    ),
                                     style: GoogleFonts.dmSans(
                                       height: 1.6,
                                       fontSize: 13,
