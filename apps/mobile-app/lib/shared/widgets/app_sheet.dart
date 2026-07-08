@@ -17,6 +17,14 @@ Future<T?> showAppSheet<T>(
 }) {
   return showModalBottomSheet<T>(
     context: context,
+    // Attach to the root Navigator, not the nearest one. Screens like
+    // ManageBusinessesScreen live inside a ShellRoute's own nested Navigator,
+    // and GoRouter reconciles that Navigator's page stack on every redirect
+    // (system back button included). If the sheet were pushed onto that same
+    // nested Navigator, a back-button pop could tear down the underlying
+    // page's Elements while the sheet's subtree above it is still live,
+    // tripping the `_dependents.isEmpty` assertion in InheritedElement.
+    useRootNavigator: true,
     isScrollControlled: isScrollControlled,
     backgroundColor: backgroundColor,
     showDragHandle: showDragHandle,

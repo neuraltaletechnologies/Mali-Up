@@ -142,7 +142,14 @@
       "Bash(echo \"wt:$?\")",
       "Read(//c/Users/NTALE/**)",
       "Bash(git lfs *)",
-      "Bash(dart format *)"
+      "Bash(dart format *)",
+      "Read(//c/Flutter SDK/flutter_windows_3.44.1-stable/flutter/packages/flutter/lib/src/widgets/**)",
+      "Read(//c/Flutter SDK/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/admin/subscriptions)",
+      "Bash(curl -s -o /dev/null -w \"revenue:%{http_code}\\\\n\" http://localhost:3000/admin/revenue)",
+      "Bash(curl -s -o /dev/null -w \"subscriptions:%{http_code}\\\\n\" http://localhost:3000/admin/subscriptions)",
+      "Bash(curl -s -o /dev/null -w \"plan-requests:%{http_code}\\\\n\" http://localhost:3000/admin/plan-requests)",
+      "Bash(curl -s -o /dev/null -w \"plans:%{http_code}\\\\n\" http://localhost:3000/admin/plans)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

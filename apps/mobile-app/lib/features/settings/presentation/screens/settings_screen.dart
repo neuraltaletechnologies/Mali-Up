@@ -14,6 +14,7 @@ import 'legal_compliance_screen.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/motion_service.dart';
+import '../../../../core/services/plan_request_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -658,6 +659,39 @@ class _ProfileAndPlanCard extends ConsumerWidget {
                             expiresAt: s.expiresAt,
                             tr: tr,
                           ),
+                        ),
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final pending =
+                                ref.watch(pendingPlanRequestProvider).valueOrNull;
+                            if (pending == null) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.hourglass_top_rounded,
+                                    color: AppColors.yellowBrand,
+                                    size: 14,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      tr(
+                                        'Your upgrade request is being processed',
+                                        'Ombi lako la kupandisha mpango linashughulikiwa',
+                                      ),
+                                      style: GoogleFonts.dmSans(
+                                        color: Colors.white.withValues(alpha: 0.75),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

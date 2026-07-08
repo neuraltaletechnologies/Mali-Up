@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
+import 'plan_request_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tiers
@@ -301,6 +302,48 @@ class PlanStatus {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PlanService {
+  static Future<PlanStatus> _statusFromUserData(
+    Map<String, dynamic> data, {
+    PlanDefinitions? defs,
+  }) async {
+    final tier = PlanTierX.fromString(data['plan'] as String?);
+
+    final expiresRaw = data['planExpiresAt'] ?? data['premiumExpiresAt'];
+    DateTime? expiresAt;
+    if (expiresRaw is Timestamp) expiresAt = expiresRaw.toDate();
+
+    // Revert to Starter if subscription has expired
+    final effectiveTier =
+        (tier != PlanTier.starter && expiresAt != null && expiresAt.isBefore(DateTime.now()))
+            ? PlanTier.starter
+            : tier;
+
+    int invoiceCount = 0;
+    if (effectiveTier == PlanTier.starter) {
+      final selectedBusinessId =
+          (data['selectedBusinessId'] as String?)?.trim() ?? '';
+      if (selectedBusinessId.isNotEmpty) {
+        final now = DateTime.now();
+        final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
+        final snap = await _db
+            .collection('businesses')
+            .doc(selectedBusinessId)
+            .collection('sales_invoices')
+            .where('createdAt', isGreaterThanOrEqualTo: monthStart)
+            .count()
+            .get();
+        invoiceCount = snap.count ?? 0;
+      }
+    }
+
+    return PlanStatus(
+      tier: effectiveTier,
+      invoicesUsedThisMonth: invoiceCount,
+      expiresAt: expiresAt,
+      definitions: defs,
+    );
+  }
+
   static Future<PlanStatus> fetchStatus({PlanDefinitions? defs}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -310,48 +353,30 @@ class PlanService {
 
     try {
       final doc = await _db.collection('users').doc(user.uid).get();
-      final data = doc.data() ?? {};
-
-      final tier = PlanTierX.fromString(data['plan'] as String?);
-
-      final expiresRaw = data['planExpiresAt'] ?? data['premiumExpiresAt'];
-      DateTime? expiresAt;
-      if (expiresRaw is Timestamp) expiresAt = expiresRaw.toDate();
-
-      // Revert to Starter if subscription has expired
-      final effectiveTier =
-          (tier != PlanTier.starter && expiresAt != null && expiresAt.isBefore(DateTime.now()))
-              ? PlanTier.starter
-              : tier;
-
-      int invoiceCount = 0;
-      if (effectiveTier == PlanTier.starter) {
-        final selectedBusinessId =
-            (data['selectedBusinessId'] as String?)?.trim() ?? '';
-        if (selectedBusinessId.isNotEmpty) {
-          final now = DateTime.now();
-          final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
-          final snap = await _db
-              .collection('businesses')
-              .doc(selectedBusinessId)
-              .collection('sales_invoices')
-              .where('createdAt', isGreaterThanOrEqualTo: monthStart)
-              .count()
-              .get();
-          invoiceCount = snap.count ?? 0;
-        }
-      }
-
-      return PlanStatus(
-        tier: effectiveTier,
-        invoicesUsedThisMonth: invoiceCount,
-        expiresAt: expiresAt,
-        definitions: defs,
-      );
+      return _statusFromUserData(doc.data() ?? {}, defs: defs);
     } catch (_) {
       return PlanStatus(
           tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
     }
+  }
+
+  /// Live plan status — re-derived whenever the user's Firestore doc changes,
+  /// so an admin approving a plan request reflects in the app immediately.
+  static Stream<PlanStatus> watchStatus({PlanDefinitions? defs}) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return Stream.value(PlanStatus(
+          tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs));
+    }
+
+    return _db.collection('users').doc(user.uid).snapshots().asyncMap((doc) async {
+      try {
+        return await _statusFromUserData(doc.data() ?? {}, defs: defs);
+      } catch (_) {
+        return PlanStatus(
+            tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
+      }
+    });
   }
 
   /// Activate a paid tier for [months] months (admin-side only, kept for completeness).
@@ -373,11 +398,85 @@ class PlanService {
 // Riverpod providers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Full plan status with dynamic limits baked in.
-final planStatusProvider = FutureProvider.autoDispose<PlanStatus>((ref) async {
+/// Full plan status with dynamic limits baked in. Live — updates automatically
+/// when an admin approves/activates a plan change in Firestore.
+final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
   final defs = await ref.watch(planDefinitionsProvider.future);
-  return PlanService.fetchStatus(defs: defs);
+  yield* PlanService.watchStatus(defs: defs);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PlanPendingBanner — "your upgrade request is being processed"
+// ─────────────────────────────────────────────────────────────────────────────
+
+class PlanPendingBanner extends ConsumerWidget {
+  const PlanPendingBanner({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(pendingPlanRequestProvider).valueOrNull;
+    if (pending == null) return const SizedBox.shrink();
+
+    final tierLabel = switch (pending.tier) {
+      PlanTier.growth => 'Growth',
+      PlanTier.business => 'Business',
+      PlanTier.enterprise => 'Enterprise',
+      PlanTier.lifetime => 'Lifetime',
+      PlanTier.starter => 'Starter',
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.tealAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.tealAccent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.hourglass_top_rounded,
+              color: AppColors.tealAccent,
+              size: 18,
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Ombi lako la $tierLabel linashughulikiwa',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Timu yetu inathibitisha malipo yako — utapata taarifa mara mpango ukiwashwa.',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PlanUpgradeCard — inline warning when approaching or at the limit
