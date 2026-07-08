@@ -59,6 +59,7 @@ const nav: NavItem[] = [
       { label: 'System Health', href: '/admin/system' },
       { label: 'Feature Flags', href: '/admin/features' },
       { label: 'Config',        href: '/admin/config' },
+      { label: 'Version Gate',  href: '/admin/version-gate' },
     ]
   },
   { label: 'My Profile', href: '/admin/profile', icon: UserCircle },

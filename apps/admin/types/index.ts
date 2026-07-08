@@ -358,3 +358,15 @@ export interface PlatformConfig {
   }
   platform: { maintenanceMode: boolean; maintenanceBanner: string }
 }
+
+// Mirrors the Firestore doc at platform_config/version_gate — kept separate
+// from PlatformConfig/platform_config/main since that doc must stay public
+// read (checked by the mobile app before sign-in) while main stays private.
+export interface VersionGateConfig {
+  minSupportedBuildNumber: number
+  recommendedBuildNumber: number
+  updateUrlAndroid: string
+  updateUrlIOS: string
+  messageEn: string
+  messageSw: string
+}

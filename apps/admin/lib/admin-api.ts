@@ -3,7 +3,7 @@ import type {
   Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
-  CatalogImportResult, AdminNotification, EnterpriseOverride,
+  CatalogImportResult, AdminNotification, EnterpriseOverride, VersionGateConfig,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -199,6 +199,17 @@ export async function fetchConfig(): Promise<PlatformConfig> {
 
 export async function saveConfig(config: PlatformConfig): Promise<void> {
   await apiFetch('/api/admin/config', {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  })
+}
+
+export async function fetchVersionGate(): Promise<VersionGateConfig> {
+  return apiFetch('/api/admin/version-gate')
+}
+
+export async function saveVersionGate(config: VersionGateConfig): Promise<void> {
+  await apiFetch('/api/admin/version-gate', {
     method: 'PATCH',
     body: JSON.stringify(config),
   })
