@@ -160,7 +160,8 @@
       "Bash(find . -iname \"firestore.rules\" -not -path \"*/node_modules/*\")",
       "Bash(find . -maxdepth 2 -iname \"functions\" -not -path \"*/node_modules/*\")",
       "Bash(find . -maxdepth 3 -iname \"functions\" -not -path \"*/node_modules/*\")",
-      "Bash(find . -iname \"*.rules\" -not -path \"*/node_modules/*\")"
+      "Bash(find . -iname \"*.rules\" -not -path \"*/node_modules/*\")",
+      "Bash(grep -n \"^  pdf:\" -A1 \"c:/SIDE/GIT/Maliapp/apps/mobile-app/pubspec.yaml\"; find / -ipath \"*pdf-*/lib/src/widgets/multi_page.dart\" 2>/dev/null | head -5)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

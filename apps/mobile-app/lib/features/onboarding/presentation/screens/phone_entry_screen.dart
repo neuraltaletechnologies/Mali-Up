@@ -742,7 +742,7 @@ class _CountryPickerSheetState extends State<_CountryPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final maxH = MediaQuery.sizeOf(context).height * 0.85;
+    final maxH = MediaQuery.sizeOf(context).height * 0.8;
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxH),
