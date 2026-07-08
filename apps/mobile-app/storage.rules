@@ -41,6 +41,12 @@ service firebase.storage {
       allow write: if isSignedIn() && isOwner(userId);
     }
 
+    // Allow users to upload and manage their own expense receipt photos
+    match /receipts/{userId}/{allPaths=**} {
+      allow read: if isSignedIn() && isOwner(userId);
+      allow write: if isSignedIn() && isOwner(userId);
+    }
+
     // Deny all other access
     match /{allPaths=**} {
       allow read, write: if false;
