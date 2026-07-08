@@ -953,7 +953,7 @@ class _BizTypePickerSheetState extends State<_BizTypePickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final maxH = MediaQuery.sizeOf(context).height * 0.88;
+    final maxH = MediaQuery.sizeOf(context).height * 0.8;
     final sw = widget.isSwahili;
 
     return Container(
