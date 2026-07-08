@@ -165,7 +165,8 @@
       "Bash(git -C \"c:\\\\SIDE\\\\GIT\\\\Maliapp\" status)",
       "Bash(xargs -I{} sh -c 'echo {}')",
       "Bash(mkdir -p \"c:\\\\SIDE\\\\GIT\\\\Maliapp\\\\apps\\\\admin\\\\app\\\\api\\\\admin\\\\businesses\\\\[uid]\\\\[businessId]\\\\enterprise-terms\")",
-      "Bash(xargs grep -l \"OnboardingFormNotifier\\\\|onboardingFormProvider\")"
+      "Bash(xargs grep -l \"OnboardingFormNotifier\\\\|onboardingFormProvider\")",
+      "Bash(node -e ' *)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

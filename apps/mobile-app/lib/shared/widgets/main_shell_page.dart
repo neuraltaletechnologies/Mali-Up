@@ -179,12 +179,30 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         ? resolvedNextContext.split(':').sublist(1).join(':')
         : null;
 
-    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-      'defaultContext': resolvedNextContext,
-      'defaultAccountType': 'business',
-      'selectedBusinessId': selectedBusinessId,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    // Drift is the source of truth for every screen — if this business has
+    // never synced to this device before, its local tables are empty and
+    // navigating immediately would land the user on a screen that looks
+    // broken even though the business has data. Block on a first pull so
+    // the target business's data is in Drift before we route to it.
+    final targetName = selectedBusinessId == null
+        ? null
+        : _businessLabelForId(businesses, selectedBusinessId);
+    _showSwitchingBusinessDialog(targetName);
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'defaultContext': resolvedNextContext,
+        'defaultAccountType': 'business',
+        'selectedBusinessId': selectedBusinessId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (selectedBusinessId != null && selectedBusinessId.isNotEmpty) {
+        await _pullBusinessDataBeforeSwitch(user.uid, selectedBusinessId);
+      }
+    } finally {
+      _dismissSwitchingBusinessDialog();
+    }
 
     _refreshProfile();
 
@@ -193,6 +211,78 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       resolvedNextContext,
     );
     context.go(route);
+  }
+
+  String? _businessLabelForId(
+    List<Map<String, dynamic>> businesses,
+    String id,
+  ) {
+    for (final business in businesses) {
+      if (business['id'] == id) {
+        final name = (business['name'] as String?)?.trim();
+        return name != null && name.isNotEmpty ? name : null;
+      }
+    }
+    return null;
+  }
+
+  bool _switchingDialogOpen = false;
+
+  void _showSwitchingBusinessDialog(String? businessName) {
+    if (!mounted) return;
+    _switchingDialogOpen = true;
+    final label = businessName == null
+        ? _tr('Switching business…', 'Inabadilisha biashara…')
+        : _tr('Switching to $businessName…', 'Inabadilisha kwenda $businessName…');
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 16),
+              Expanded(child: Text(label)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _dismissSwitchingBusinessDialog() {
+    if (!_switchingDialogOpen) return;
+    _switchingDialogOpen = false;
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+
+  /// Performs a one-off pull of [businessId]'s Firestore data into Drift so
+  /// the destination screens have data to render as soon as we navigate.
+  /// Best-effort: on failure/timeout (e.g. offline) we fall through and let
+  /// the regular [syncServiceProvider] retry in the background as usual.
+  Future<void> _pullBusinessDataBeforeSwitch(
+    String uid,
+    String businessId,
+  ) async {
+    if (!ref.read(isOnlineProvider)) return;
+
+    final db = ref.read(appDatabaseProvider);
+    final syncService = SyncService(db: db, uid: uid, businessId: businessId);
+    try {
+      await syncService.syncNow().timeout(const Duration(seconds: 12));
+    } catch (_) {
+      // Offline or slow network — proceed anyway rather than stranding the
+      // user on the switching dialog indefinitely.
+    } finally {
+      syncService.dispose();
+    }
   }
 
   static Future<Map<String, dynamic>?> _fetchUserProfile(User? user) async {
