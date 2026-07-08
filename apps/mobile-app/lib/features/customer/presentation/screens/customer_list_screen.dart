@@ -8,12 +8,14 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/data/repositories/context_firestore_repository.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
+import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../data/customer_providers.dart';
@@ -145,7 +147,7 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
       floatingActionButton: ps.canManageCustomers || ps.isOwner
           ? NavAwareFab(
               child: FloatingActionButton.extended(
-                onPressed: () => _showAddDialog(context),
+                onPressed: () => _showAddDialog(context, all.length),
                 backgroundColor: AppColors.yellowBrand,
                 foregroundColor: AppColors.navyPrimary,
                 elevation: 3,
@@ -203,7 +205,26 @@ class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
     );
   }
 
-  void _showAddDialog(BuildContext context) {
+  /// Add-customer entry point (FAB): users who have reached their plan's
+  /// customer limit are gated behind the shared slide-up upgrade sheet
+  /// instead of the add-customer form. The limit is plan-driven (Firestore
+  /// `maxCustomers`, admin-editable) and defaults to unlimited.
+  Future<void> _showAddDialog(BuildContext context, int currentCount) async {
+    final tier = ref.read(planStatusProvider).valueOrNull?.tier ?? PlanTier.starter;
+    final defs = ref.read(planDefinitionsProvider).valueOrNull;
+    final maxCustomers = limitsFor(tier, defs).maxCustomers;
+    if (maxCustomers != -1 && currentCount >= maxCustomers) {
+      await showUpgradeSheet(
+        context,
+        featureKey: PlanFeatureKey.customerLimit,
+        triggerReason: _tr(
+          'You have reached the customer limit for your plan. Upgrade to add more customers.',
+          'Umefika kikomo cha wateja kwa mpango wako. Panda mpango kuongeza wateja zaidi.',
+        ),
+      );
+      return;
+    }
+    if (!context.mounted) return;
     showAppSheet(
       context,
       builder: (_) => const AddCustomerDialog(),

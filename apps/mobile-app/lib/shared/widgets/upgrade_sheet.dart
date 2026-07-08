@@ -30,6 +30,7 @@ enum PlanFeatureKey {
   allExports,
   manualDebt,
   multiBusiness,
+  customerLimit,
 }
 
 extension PlanFeatureKeyX on PlanFeatureKey {
@@ -44,6 +45,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
         PlanFeatureKey.allExports      => Icons.ios_share_rounded,
         PlanFeatureKey.manualDebt      => Icons.edit_note_rounded,
         PlanFeatureKey.multiBusiness   => Icons.store_mall_directory_rounded,
+        PlanFeatureKey.customerLimit   => Icons.people_alt_rounded,
       };
 
   String get labelSw => switch (this) {
@@ -57,6 +59,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
         PlanFeatureKey.allExports      => 'Uhamishaji wa Data',
         PlanFeatureKey.manualDebt      => 'Kuongeza Deni/Dai Mkononi',
         PlanFeatureKey.multiBusiness   => 'Biashara Nyingi',
+        PlanFeatureKey.customerLimit   => 'Kikomo cha Wateja',
       };
 
   String get labelEn => switch (this) {
@@ -70,6 +73,7 @@ extension PlanFeatureKeyX on PlanFeatureKey {
         PlanFeatureKey.allExports      => 'Data Exports',
         PlanFeatureKey.manualDebt      => 'Manual Debt Entry',
         PlanFeatureKey.multiBusiness   => 'Multiple Businesses',
+        PlanFeatureKey.customerLimit   => 'Customer Limit',
       };
 }
 

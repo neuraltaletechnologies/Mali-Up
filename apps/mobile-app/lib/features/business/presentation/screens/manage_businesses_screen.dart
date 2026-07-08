@@ -74,21 +74,18 @@ class _ManageBusinessesScreenState
     } catch (_) {}
   }
 
-  bool _isStarterPlan(Map<String, dynamic>? profile) {
-    final tier = PlanTierX.fromString(profile?['plan'] as String?);
-    if (tier == PlanTier.starter) return true;
-    final expiresRaw = profile?['planExpiresAt'] ?? profile?['premiumExpiresAt'];
-    if (expiresRaw is Timestamp) {
-      return expiresRaw.toDate().isBefore(DateTime.now());
-    }
-    return false;
-  }
-
-  /// Add-business entry point (FAB): starter-plan users with an existing
-  /// business are gated behind the shared slide-up upgrade sheet instead of
-  /// the old blocking dialog, matching the rest of the app's paywall UX.
+  /// Add-business entry point (FAB): users who have reached their plan's
+  /// business limit are gated behind the shared slide-up upgrade sheet
+  /// instead of the old blocking dialog, matching the rest of the app's
+  /// paywall UX. The limit itself is plan-driven (Firestore `maxBusinesses`,
+  /// admin-editable), not hardcoded.
   Future<void> _handleAddBusinessTap(Map<String, dynamic>? profile) async {
-    if (_isStarterPlan(profile) && _businessesFromProfile(profile).isNotEmpty) {
+    final tier = ref.read(planStatusProvider).valueOrNull?.tier ??
+        PlanTierX.fromString(profile?['plan'] as String?);
+    final defs = ref.read(planDefinitionsProvider).valueOrNull;
+    final maxBusinesses = limitsFor(tier, defs).maxBusinesses;
+    final currentCount = _businessesFromProfile(profile).length;
+    if (maxBusinesses != -1 && currentCount >= maxBusinesses) {
       await showUpgradeSheet(
         context,
         featureKey: PlanFeatureKey.multiBusiness,
@@ -1223,6 +1220,8 @@ class _ManageBusinessesScreenState
         );
         final tier = livePlanTier ??
             PlanTierX.fromString(profile?['plan'] as String?);
+        final defs = ref.watch(planDefinitionsProvider).valueOrNull;
+        final maxBusinesses = limitsFor(tier, defs).maxBusinesses;
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -1249,6 +1248,7 @@ class _ManageBusinessesScreenState
                     children: [
                       _BusinessDarkHeader(
                         businessCount: businesses.length,
+                        maxBusinesses: maxBusinesses,
                         tier: tier,
                         searchCtrl: _searchCtrl,
                         searchExpanded: _searchExpanded,
@@ -1289,6 +1289,7 @@ class _ManageBusinessesScreenState
 
 class _BusinessDarkHeader extends StatelessWidget {
   final int businessCount;
+  final int maxBusinesses;
   final PlanTier tier;
   final TextEditingController searchCtrl;
   final bool searchExpanded;
@@ -1296,6 +1297,7 @@ class _BusinessDarkHeader extends StatelessWidget {
 
   const _BusinessDarkHeader({
     required this.businessCount,
+    required this.maxBusinesses,
     required this.tier,
     required this.searchCtrl,
     required this.searchExpanded,
@@ -1321,6 +1323,7 @@ class _BusinessDarkHeader extends StatelessWidget {
 
   Widget _buildPill() {
     final isStarter = tier == PlanTier.starter;
+    final atLimit = maxBusinesses != -1 && businessCount >= maxBusinesses;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
       decoration: BoxDecoration(
@@ -1351,8 +1354,8 @@ class _BusinessDarkHeader extends StatelessWidget {
           const _PillDivider(),
           _PillStat(
             label: _tr('Limit', 'Kikomo'),
-            value: isStarter ? '1' : '∞',
-            color: isStarter ? AppColors.warning : AppColors.success,
+            value: maxBusinesses == -1 ? '∞' : '$maxBusinesses',
+            color: atLimit ? AppColors.warning : AppColors.success,
           ),
         ],
       ),
