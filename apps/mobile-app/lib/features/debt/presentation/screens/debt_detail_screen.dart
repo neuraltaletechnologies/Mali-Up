@@ -357,10 +357,8 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
   // ── Edit / Delete ─────────────────────────────────────────────────────────
 
   Future<void> _edit() async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    await showAppSheet<void>(
+      context,
       builder: (_) => AddDebtScreen(debtToEdit: _debt),
     );
     _refreshDebt();

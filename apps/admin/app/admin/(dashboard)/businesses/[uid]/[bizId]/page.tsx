@@ -10,7 +10,7 @@ import { Tabs } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KPICard } from '@/components/ui/kpi-card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { fetchBusiness, patchBusiness, postBusinessNote, editBusiness, fetchCatalog, attachCatalogToBusiness } from '@/lib/admin-api'
+import { fetchBusiness, patchBusiness, postBusinessNote, editBusiness, assignPlan, fetchCatalog, attachCatalogToBusiness } from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatDate, timeAgo } from '@/lib/format'
 import {
@@ -18,7 +18,9 @@ import {
   Users, Receipt, ShoppingBag, UserCheck, Pencil, X, Loader2,
   PackagePlus, CheckSquare, Square,
 } from 'lucide-react'
-import type { Business, StaffMember, CatalogCategory, CatalogProduct } from '@/types'
+import type { Business, StaffMember, CatalogCategory, CatalogProduct, PlanTier } from '@/types'
+
+const PLAN_OPTIONS: PlanTier[] = ['starter', 'growth', 'business', 'enterprise', 'lifetime']
 
 const TABS = [
   { id: 'overview',      label: 'Overview' },
@@ -56,11 +58,13 @@ function EditBusinessDrawer({
   const [name,     setName]     = useState(business.name)
   const [category, setCategory] = useState(business.industry)
   const [location, setLocation] = useState(business.location ?? '')
-  const [plan,     setPlan]     = useState(business.plan)
+  const [plan,     setPlan]     = useState<PlanTier>(business.plan)
+  const [cycleMonths, setCycleMonths] = useState(6)
   const [saving,   setSaving]   = useState(false)
   const [err,      setErr]      = useState<string | null>(null)
 
-  const PLANS = ['starter', 'growth', 'business', 'enterprise', 'lifetime']
+  const planChanged = plan !== business.plan
+  const paidPlan     = plan !== 'starter' && plan !== 'enterprise' && plan !== 'lifetime'
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -71,8 +75,10 @@ function EditBusinessDrawer({
         businessName:     name.trim(),
         businessCategory: category.trim() || undefined,
         placeOfBusiness:  location.trim() || undefined,
-        plan:             plan || undefined,
       })
+      if (planChanged) {
+        await assignPlan(uid, bizId, plan, cycleMonths)
+      }
       onSaved()
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : 'Failed to save')
@@ -99,19 +105,37 @@ function EditBusinessDrawer({
           <DField label="Location / City" value={location} onChange={setLocation} placeholder="e.g. Dar es Salaam" />
 
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-slate-400">Plan</span>
+            <span className="text-[11px] text-slate-400">Plan — current: {business.plan}</span>
             <select
               value={plan}
-              onChange={(e) => setPlan(e.target.value as typeof plan)}
+              onChange={(e) => setPlan(e.target.value as PlanTier)}
               className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
             >
-              {PLANS.map((p) => (
+              {PLAN_OPTIONS.map((p) => (
                 <option key={p} value={p} className="bg-[#0D1B3E]">
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </option>
               ))}
             </select>
           </label>
+
+          {planChanged && paidPlan && (
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-slate-400">Duration (months)</span>
+              <input
+                type="number" min="1" max="60"
+                value={cycleMonths}
+                onChange={(e) => setCycleMonths(Number(e.target.value))}
+                className="rounded-md border border-white/10 bg-white/[0.05] px-3 py-2 text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              />
+            </label>
+          )}
+
+          {planChanged && (
+            <p className="text-[11px] text-amber-400">
+              Plan: {business.plan} → {plan}{paidPlan ? ` (${cycleMonths} months)` : ''}
+            </p>
+          )}
 
           {err && (
             <div className="flex items-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2">

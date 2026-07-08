@@ -266,6 +266,50 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         return;
       }
     }
+
+    // Stock + receivable side effects must run exactly once — on the first
+    // confirmation. Re-saving an already-confirmed invoice must NOT deduct
+    // stock again or duplicate the receivable.
+    final isEdit = widget.invoiceToEdit != null;
+    final previousStatus =
+        (widget.invoiceToEdit?['status'] ?? '').toString().toLowerCase();
+    final wasConfirmed =
+        isEdit && previousStatus.isNotEmpty && previousStatus != 'draft';
+    final confirmingNow = !asDraft && !_isQuotation && !wasConfirmed;
+
+    // A confirmed sale must never oversell stock — a line's product may have
+    // sold out (elsewhere, or via another draft) since it was added here.
+    if (confirmingNow) {
+      final inventory = ref.read(inventoryItemListProvider).value ?? const [];
+      for (final item in _items) {
+        if (item.productId.isEmpty || item.productName.trim().isEmpty) {
+          continue;
+        }
+        final inv = inventory.firstWhere(
+          (i) => (i['id'] ?? '').toString() == item.productId,
+          orElse: () => const <String, dynamic>{},
+        );
+        if (inv.isEmpty || (inv['productType'] as String?) == 'service') {
+          continue;
+        }
+        final stock = parseStock(inv['currentStock'] ?? inv['stock'] ?? 0);
+        if (item.qty > stock) {
+          _showSnack(
+            stock <= 0
+                ? _tr(
+                    '${item.productName} is out of stock.',
+                    '${item.productName} imekwisha stokuni.',
+                  )
+                : _tr(
+                    'Only $stock of ${item.productName} in stock.',
+                    'Kuna $stock tu za ${item.productName} stokuni.',
+                  ),
+          );
+          return;
+        }
+      }
+    }
+
     setState(() => _saving = true);
 
     try {
@@ -278,22 +322,12 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
           context: scope.context,
           childCollection: 'sales_invoices');
 
-      final isEdit = widget.invoiceToEdit != null;
       final invNumber = widget.invoiceToEdit?['invoiceNumber'] as String? ??
           _invoiceNumber();
 
       final status = asDraft
           ? 'draft'
           : (_isQuotation ? 'sent' : (_payMethod == _PayMethod.credit ? 'sent' : 'paid'));
-
-      // Stock + receivable side effects must run exactly once — on the first
-      // confirmation. Re-saving an already-confirmed invoice must NOT deduct
-      // stock again or duplicate the receivable.
-      final previousStatus =
-          (widget.invoiceToEdit?['status'] ?? '').toString().toLowerCase();
-      final wasConfirmed = isEdit && previousStatus.isNotEmpty &&
-          previousStatus != 'draft';
-      final confirmingNow = !asDraft && !_isQuotation && !wasConfirmed;
 
       // Money received now must land in an activated payment channel — an
       // unactivated Taslimu/M-Pesa/Benki/Kadi cannot take sale money. Credit
@@ -1326,7 +1360,7 @@ class _SuggestionList extends StatelessWidget {
 
           return Column(children: [
           InkWell(
-            onTap: () => onTap(inv),
+            onTap: isOut ? null : () => onTap(inv),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(

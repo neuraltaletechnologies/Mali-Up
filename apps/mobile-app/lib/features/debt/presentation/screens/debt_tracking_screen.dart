@@ -145,11 +145,13 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
           'Kuongeza deni kunahitaji mpango wa malipo.',
         ),
       );
+      // Locked feature — the upgrade sheet was the whole interaction.
+      // Don't fall through to the add-debt form regardless of how it closed.
+      return;
     }
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    if (!mounted) return;
+    await showAppSheet<void>(
+      context,
       builder: (_) => AddDebtScreen(
         initialIsReceivable: isReceivable,
         debtToEdit: edit,
