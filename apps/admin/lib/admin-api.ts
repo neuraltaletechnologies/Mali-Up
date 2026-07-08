@@ -3,7 +3,7 @@ import type {
   Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
-  CatalogImportResult, AdminNotification,
+  CatalogImportResult, AdminNotification, EnterpriseOverride,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -47,6 +47,10 @@ export async function editUser(
   })
 }
 
+export async function deleteUser(uid: string): Promise<void> {
+  await apiFetch(`/api/admin/users/${uid}`, { method: 'DELETE' })
+}
+
 // ─── Businesses ──────────────────────────────────────────────────────────────
 
 export async function fetchBusinesses(limit = 300): Promise<{ businesses: Business[]; total: number }> {
@@ -72,6 +76,21 @@ export async function editBusiness(
   await apiFetch(`/api/admin/businesses/${uid}/${businessId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
+  })
+}
+
+export async function deleteBusiness(uid: string, businessId: string): Promise<void> {
+  await apiFetch(`/api/admin/businesses/${uid}/${businessId}`, { method: 'DELETE' })
+}
+
+export async function setEnterpriseTerms(
+  uid: string,
+  businessId: string,
+  terms: EnterpriseOverride,
+): Promise<void> {
+  await apiFetch(`/api/admin/businesses/${uid}/${businessId}/enterprise-terms`, {
+    method: 'PATCH',
+    body: JSON.stringify(terms),
   })
 }
 

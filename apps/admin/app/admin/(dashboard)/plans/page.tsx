@@ -294,11 +294,11 @@ function EditPlanDrawer({
             </div>
             <div className="flex flex-col gap-1.5">
               <label className={labelCls}>Max businesses (−1 = unlimited)</label>
-              <input type="number" min="-1" value={form.maxBusinesses} onChange={num('maxBusinesses')} className={inputCls} />
+              <input type="number" min="-1" value={form.maxBusinesses ?? 0} onChange={num('maxBusinesses')} className={inputCls} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className={labelCls}>Max customers (−1 = unlimited)</label>
-              <input type="number" min="-1" value={form.maxCustomers} onChange={num('maxCustomers')} className={inputCls} />
+              <input type="number" min="-1" value={form.maxCustomers ?? 0} onChange={num('maxCustomers')} className={inputCls} />
             </div>
           </div>
         </div>
