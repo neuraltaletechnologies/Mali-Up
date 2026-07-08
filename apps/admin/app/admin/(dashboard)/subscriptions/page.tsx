@@ -105,7 +105,7 @@ function MonthlyTab() {
   return (
     <>
       {revalidating && <RevalidatingBar />}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KPICard label="Monthly Recurring Revenue" value={`TZS ${formatTZSCompact(mrr)}`} />
         <KPICard label="Active Subscriptions" value={active.toString()} mono={false} />
         <KPICard label="Past Due" value={pastDue.toString()} mono={false} />
@@ -238,7 +238,7 @@ function LifetimeTab() {
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KPICard label="Total Lifetime Users" value={lifetime.length.toString()} mono={false} />
         <KPICard label="Total Principal in UTT AMIS" value={`TZS ${formatTZSCompact(totalPrincipal)}`} />
         <KPICard label="This Month's Interest" value={`TZS ${formatTZSCompact(thisMonthReturn)}`} />
