@@ -400,9 +400,31 @@ class PlanService {
 
 /// Full plan status with dynamic limits baked in. Live — updates automatically
 /// when an admin approves/activates a plan change in Firestore.
+///
+/// Both awaits below are bounded: Firestore persistence is deliberately
+/// disabled app-wide, so a `.get()`/`.snapshots()` with no connectivity would
+/// otherwise never emit and every `await plan.future` call site (the cash
+/// flow, debt, team, expense and sales "add" buttons) would hang forever with
+/// no error shown. Falling back to Starter after a short timeout keeps those
+/// buttons responsive offline; live updates still take over once a snapshot
+/// arrives.
 final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
-  final defs = await ref.watch(planDefinitionsProvider.future);
-  yield* PlanService.watchStatus(defs: defs);
+  PlanDefinitions? defs;
+  try {
+    defs = await ref.watch(planDefinitionsProvider.future).timeout(
+          const Duration(seconds: 6),
+        );
+  } catch (_) {
+    defs = null;
+  }
+  yield* PlanService.watchStatus(defs: defs).timeout(
+    const Duration(seconds: 6),
+    onTimeout: (sink) => sink.add(PlanStatus(
+      tier: PlanTier.starter,
+      invoicesUsedThisMonth: 0,
+      definitions: defs,
+    )),
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

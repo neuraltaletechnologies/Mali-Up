@@ -156,7 +156,11 @@
       "Bash(curl -s -o /dev/null -w \"plans:%{http_code}\\\\n\" http://localhost:3001/admin/plans)",
       "Bash(curl -s -o /dev/null -w \"login:%{http_code}\\\\n\" http://localhost:3001/admin/login)",
       "Bash(curl -s -o /dev/null -w \"lifetime\\(old\\):%{http_code}\\\\n\" http://localhost:3001/admin/lifetime)",
-      "Bash(curl -s -o /dev/null -w \"refunds\\(old\\):%{http_code}\\\\n\" http://localhost:3001/admin/refunds)"
+      "Bash(curl -s -o /dev/null -w \"refunds\\(old\\):%{http_code}\\\\n\" http://localhost:3001/admin/refunds)",
+      "Bash(find . -iname \"firestore.rules\" -not -path \"*/node_modules/*\")",
+      "Bash(find . -maxdepth 2 -iname \"functions\" -not -path \"*/node_modules/*\")",
+      "Bash(find . -maxdepth 3 -iname \"functions\" -not -path \"*/node_modules/*\")",
+      "Bash(find . -iname \"*.rules\" -not -path \"*/node_modules/*\")"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

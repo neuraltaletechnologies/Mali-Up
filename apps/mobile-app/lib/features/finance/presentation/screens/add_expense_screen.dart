@@ -13,6 +13,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../domain/models/expense.dart';
 import '../../domain/models/recurring_expense_template.dart';
@@ -730,25 +731,18 @@ class _AmountSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.navyPrimary, AppColors.navySecondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+    return HeroCard.business(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _tr('Amount', 'Kiasi'),
+            _tr('AMOUNT', 'KIASI'),
             style: GoogleFonts.dmSans(
-              fontSize: 12,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
               color: Colors.white54,
-              letterSpacing: 0.5,
+              letterSpacing: 1.2,
             ),
           ),
           SizedBox(height: 8),
@@ -776,6 +770,7 @@ class _AmountSection extends StatelessWidget {
                     fontSize: 36,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
+                    letterSpacing: -0.5,
                   ),
                   cursorColor: AppColors.yellowBrand,
                   decoration: InputDecoration(
@@ -835,7 +830,7 @@ class _CategoryGrid extends StatelessWidget {
                         offset: const Offset(0, 4),
                       ),
                     ]
-                  : [],
+                  : AppTheme.cardShadow,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -883,6 +878,7 @@ class _DateChip extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -990,6 +986,7 @@ class _ReceiptSection extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.tealAccent),
+            boxShadow: AppTheme.cardShadow,
           ),
           clipBehavior: Clip.hardEdge,
           child: Stack(
@@ -1068,6 +1065,7 @@ class _ReceiptSection extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.border),
+          boxShadow: AppTheme.cardShadow,
         ),
         child: Column(
           children: [
@@ -1124,6 +1122,7 @@ class _FieldCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: child,
     );
