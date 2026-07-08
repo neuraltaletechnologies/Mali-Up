@@ -38,6 +38,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   late Future<Map<String, dynamic>?> _profileFuture;
   late final VoidCallback _languageListener;
   final _liveActivity = LiveActivityService();
+  final _planActivationWatcher = _PlanActivationWatcher();
   String _currentBusinessName = '';
 
   @override
@@ -251,6 +252,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     required _DrawerProfileData profile,
     required PermissionService ps,
     TeamMember? member,
+    PlanStatus? planStatus,
   }) async {
     await showGeneralDialog<void>(
       context: context,
@@ -411,18 +413,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                 ),
                                 const SizedBox(height: 14),
                                 if (ps.isOwner)
-                                  Row(
-                                    children: [
-                                      _HeaderTag(
-                                        icon: Icons.stars_rounded,
-                                        label: _tr('Free', 'Bure'),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _HeaderTag(
-                                        icon: Icons.business_center_rounded,
-                                        label: _tr('Business', 'Biashara'),
-                                      ),
-                                    ],
+                                  _HeaderTag(
+                                    icon: Icons.stars_rounded,
+                                    label: planStatus != null
+                                        ? (_isSwahili
+                                            ? planStatus.tierLabelSw
+                                            : planStatus.tierLabel)
+                                        : _tr('Starter', 'Bure'),
                                   )
                                 else if (member != null)
                                   _HeaderTag(
@@ -789,6 +786,28 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       currentMemberProvider.select((a) => a.valueOrNull),
     );
 
+    // Live plan status — drives the sidebar plan tag and the congrats popup
+    // below when an admin activates an upgrade.
+    final planStatus = ref.watch(
+      planStatusProvider.select((a) => a.valueOrNull),
+    );
+    ref.listen<AsyncValue<PlanStatus>>(planStatusProvider, (prev, next) {
+      final status = next.valueOrNull;
+      if (status == null) return;
+      _planActivationWatcher.checkAndUpdate(status.tier).then((previousTier) {
+        if (!mounted) return;
+        // No baseline yet (first load on this device) — just seed it.
+        if (previousTier == null) return;
+        // Only celebrate genuine upgrades, not no-ops or expiry downgrades.
+        if (_planTierRank(status.tier) <= _planTierRank(previousTier)) return;
+        PlanActivatedDialog.show(
+          context,
+          tier: status.tier,
+          defs: status.definitions,
+        );
+      });
+    });
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       // Shell pages (dashboard, sales, reports…) have a white top background,
       // so keep dark status bar icons even when returning from navy screens.
@@ -851,6 +870,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                             profile: profile,
                             ps: ps,
                             member: member,
+                            planStatus: planStatus,
                           ),
                         ),
                         Padding(
@@ -1020,6 +1040,52 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         ),
       ),
     );
+  }
+}
+
+/// Orders tiers so an upgrade (rank increases) can be told apart from a
+/// no-op or an expiry-driven revert to Starter (rank decreases/unchanged).
+int _planTierRank(PlanTier tier) {
+  switch (tier) {
+    case PlanTier.starter:
+      return 0;
+    case PlanTier.growth:
+      return 1;
+    case PlanTier.business:
+      return 2;
+    case PlanTier.enterprise:
+      return 3;
+    case PlanTier.lifetime:
+      return 4;
+  }
+}
+
+/// Remembers, per device, the last plan tier the user has been shown —
+/// so the congrats popup only fires once per activation and never on a
+/// fresh install where the account may already be on a paid tier.
+class _PlanActivationWatcher {
+  static const _prefsKey = 'last_seen_plan_tier';
+
+  PlanTier? _cached;
+  bool _loaded = false;
+
+  /// Compares [tier] against the last recorded tier and persists [tier] as
+  /// the new baseline. Returns the previous tier, or null if this device
+  /// has no baseline yet (the caller should not celebrate in that case).
+  Future<PlanTier?> checkAndUpdate(PlanTier tier) async {
+    if (!_loaded) {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(_prefsKey);
+      _cached = stored != null ? PlanTierX.fromString(stored) : null;
+      _loaded = true;
+    }
+    final previous = _cached;
+    if (previous != tier) {
+      _cached = tier;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefsKey, tier.name);
+    }
+    return previous;
   }
 }
 
