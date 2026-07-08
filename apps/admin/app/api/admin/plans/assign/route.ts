@@ -43,7 +43,23 @@ export async function POST(req: Request) {
     if (expiresAt) update.planExpiresAt = expiresAt
     if (tier === 'starter') update.planExpiresAt = FieldValue.delete()
 
-    await bizRef.set(update, { merge: true })
+    // A subscription belongs to the owner, not a single business — an owner
+    // with several businesses shares one plan across all of them. Mirror the
+    // same fields onto every business owned by this uid so admin views (which
+    // read business.plan for display) don't show a stale tier on the ones
+    // that weren't the "active" business when the request was submitted.
+    const siblingBizSnap = await adminFirestore
+      .collection('businesses')
+      .where('ownerUid', '==', uid)
+      .get()
+
+    const batch = adminFirestore.batch()
+    batch.set(bizRef, update, { merge: true })
+    for (const doc of siblingBizSnap.docs) {
+      if (doc.id === businessId) continue
+      batch.set(doc.ref, update, { merge: true })
+    }
+    await batch.commit()
 
     // Also update the user's top-level plan field (used by mobile app)
     await adminFirestore.collection('users').doc(uid).set(
@@ -64,7 +80,12 @@ export async function POST(req: Request) {
       resourceId: businessId,
       resourceName: (before.businessName as string) || businessId,
       before: { plan: before.plan, subscriptionStatus: before.subscriptionStatus },
-      after: { plan: tier, cycleMonths: months, expiresAt: expiresAt?.toISOString() },
+      after: {
+        plan: tier,
+        cycleMonths: months,
+        expiresAt: expiresAt?.toISOString(),
+        businessesUpdated: siblingBizSnap.docs.filter((d) => d.id !== businessId).length + 1,
+      },
       isDestructive: false,
     })
 
