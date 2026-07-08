@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,10 +9,12 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/default_context_routing_service.dart';
 import '../../core/services/live_activity_service.dart';
 import '../../core/services/localization_service.dart';
 import '../../core/services/plan_service.dart';
+import '../../core/services/version_gate_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
@@ -41,6 +44,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   final _liveActivity = LiveActivityService();
   final _planActivationWatcher = _PlanActivationWatcher();
   String _currentBusinessName = '';
+  late final VoidCallback _versionGateListener;
 
   @override
   void initState() {
@@ -62,13 +66,90 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
     _liveActivity.initialize();
+    // The version-gate fetch kicked off in main.dart may still be in flight
+    // when this shell first mounts, so listen for the result as well as
+    // checking it once immediately in case it already resolved.
+    _versionGateListener = () {
+      if (mounted) _maybeShowUpdateBanner();
+    };
+    VersionGateService.statusNotifier.addListener(_versionGateListener);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowUpdateBanner());
   }
 
   @override
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
+    VersionGateService.statusNotifier.removeListener(_versionGateListener);
     _liveActivity.dispose();
     super.dispose();
+  }
+
+  static const _updateBannerDismissedKey = 'update_banner_dismissed_build';
+
+  Future<void> _maybeShowUpdateBanner() async {
+    final status = VersionGateService.statusNotifier.value;
+    final build = status.recommendedBuildNumber;
+    if (status.tier != VersionGateTier.softNag || build == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getInt(_updateBannerDismissedKey) == build) return;
+    if (!mounted) return;
+    _showUpdateBanner(status, build);
+  }
+
+  void _showUpdateBanner(VersionGateStatus status, int build) {
+    final message = _isSwahili ? status.messageSw : status.messageEn;
+    ScaffoldMessenger.of(context)
+      ..clearMaterialBanners()
+      ..showMaterialBanner(
+        MaterialBanner(
+          backgroundColor: AppColors.infoBg,
+          leading: const Icon(
+            Icons.system_update_rounded,
+            color: AppColors.info,
+          ),
+          content: Text(
+            message.isNotEmpty
+                ? message
+                : _tr(
+                    'A new version of Mali Up is available.',
+                    'Toleo jipya la Mali Up linapatikana.',
+                  ),
+            style: GoogleFonts.dmSans(
+              color: AppColors.info,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => _dismissUpdateBanner(build),
+              child: Text(_tr('Later', 'Baadaye')),
+            ),
+            TextButton(
+              onPressed: () => _openUpdateUrl(status),
+              child: Text(_tr('Update', 'Sasisha')),
+            ),
+          ],
+        ),
+      );
+  }
+
+  Future<void> _dismissUpdateBanner(int build) async {
+    if (mounted) ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_updateBannerDismissedKey, build);
+  }
+
+  Future<void> _openUpdateUrl(VersionGateStatus status) async {
+    final url = Platform.isIOS ? status.updateUrlIOS : status.updateUrlAndroid;
+    if (url.isNotEmpty) {
+      final uri = Uri.tryParse(url);
+      if (uri != null) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+    if (mounted) ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
   }
 
   bool get _isSwahili => LocalizationService.isSwahili;

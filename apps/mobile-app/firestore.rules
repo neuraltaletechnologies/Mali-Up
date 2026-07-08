@@ -505,11 +505,17 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // PLATFORM CONFIG  (plan definitions — edited from the admin portal)
+    // PLATFORM CONFIG  (plan definitions, version gate — edited from the admin portal)
     // =========================================================================
-    // Only the plans doc is exposed; other config docs (e.g. main) stay denied.
+    // Only these docs are exposed; other config docs (e.g. main) stay denied.
     // Writes happen through the admin portal's Admin SDK, which bypasses rules.
     match /platform_config/plans {
+      allow read: if true;
+    }
+
+    // Read pre-auth (checked at app launch, before sign-in) so old clients can
+    // be warned/blocked before they ever reach a signed-in write path.
+    match /platform_config/version_gate {
       allow read: if true;
     }
 
