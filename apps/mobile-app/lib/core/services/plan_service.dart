@@ -43,6 +43,8 @@ extension PlanTierX on PlanTier {
 class PlanLimits {
   final int monthlyInvoices; // -1 = unlimited
   final int maxUsers;        // -1 = unlimited
+  final int maxBusinesses;   // -1 = unlimited
+  final int maxCustomers;    // -1 = unlimited
   final int pricePerCycle;   // TZS total for the billing cycle
   final int cycleMonths;
   final bool fullReports;
@@ -62,6 +64,8 @@ class PlanLimits {
   const PlanLimits({
     required this.monthlyInvoices,
     required this.maxUsers,
+    this.maxBusinesses = -1,
+    this.maxCustomers = -1,
     this.pricePerCycle = 0,
     this.cycleMonths = 6,
     required this.fullReports,
@@ -94,6 +98,8 @@ class PlanLimits {
     return PlanLimits(
       monthlyInvoices:     asInt('monthlyInvoices',    fallback.monthlyInvoices),
       maxUsers:            asInt('maxUsers',            fallback.maxUsers),
+      maxBusinesses:       asInt('maxBusinesses',       fallback.maxBusinesses),
+      maxCustomers:        asInt('maxCustomers',        fallback.maxCustomers),
       pricePerCycle:       asInt('pricePerCycle',       fallback.pricePerCycle),
       cycleMonths:         asInt('cycleMonths',         fallback.cycleMonths),
       fullReports:         asBool('fullReports',        fallback.fullReports),
@@ -123,6 +129,7 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
   PlanTier.starter: PlanLimits(
     monthlyInvoices: 50,
     maxUsers: 1,
+    maxBusinesses: 1,
     fullReports: false,
     mpesaImport: false,
     smsReminders: false,
@@ -320,8 +327,11 @@ class PlanService {
             ? PlanTier.starter
             : tier;
 
+    // Counted for whichever tier actually has a finite cap (admin-editable
+    // per tier, not just Starter) — always scoped to the single active
+    // business, never summed across a user's other businesses.
     int invoiceCount = 0;
-    if (effectiveTier == PlanTier.starter) {
+    if (limitsFor(effectiveTier, defs).monthlyInvoices != -1) {
       final selectedBusinessId =
           (data['selectedBusinessId'] as String?)?.trim() ?? '';
       if (selectedBusinessId.isNotEmpty) {

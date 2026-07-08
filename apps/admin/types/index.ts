@@ -254,6 +254,8 @@ export interface PlanDefinition {
   cycleMonths: number
   maxUsers: number       // -1 = unlimited
   monthlyInvoices: number // -1 = unlimited
+  maxBusinesses: number  // -1 = unlimited
+  maxCustomers: number   // -1 = unlimited
   cashFlow: boolean
   expenseTracking: boolean
   manualDebt: boolean
