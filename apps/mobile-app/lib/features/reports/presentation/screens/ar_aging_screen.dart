@@ -28,7 +28,11 @@ class ArAgingScreen extends ConsumerWidget {
         leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('AR Aging', 'Umri wa Madai'),
-          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 20),
+          style: GoogleFonts.dmSans(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+          ),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -51,13 +55,23 @@ class ArAgingScreen extends ConsumerWidget {
             child: Column(
               children: [
                 Text(
-                  _tr('Total Outstanding Receivables', 'Jumla ya Madai Yanayosubiri'),
-                  style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 12),
+                  _tr(
+                    'Total Outstanding Receivables',
+                    'Jumla ya Madai Yanayosubiri',
+                  ),
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
                 ),
                 SizedBox(height: 6),
                 Text(
                   formatCurrency(report.grandTotal),
-                  style: GoogleFonts.dmSans(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ],
             ),
@@ -99,16 +113,23 @@ class ArAgingScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           ReportExportRow(
-            onPdf: () => ReportExportService.shareArAgingPdf(report, periodLabel),
+            onPdf: () => exportReportPdf(
+              context,
+              () => ReportExportService.shareArAgingPdf(report, periodLabel),
+            ),
             onCsv: () async {
               await ReportExportService.copyToClipboard(
                 ReportExportService.arAgingCsv(report),
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(_tr('CSV copied to clipboard', 'CSV imenakiliwa')),
-                  backgroundColor: AppColors.success,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      _tr('CSV copied to clipboard', 'CSV imenakiliwa'),
+                    ),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
               }
             },
           ),
@@ -139,7 +160,9 @@ class _AgingSummaryBar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReportSectionTitle(title: _tr('Aging Distribution', 'Mgawanyo wa Umri')),
+          ReportSectionTitle(
+            title: _tr('Aging Distribution', 'Mgawanyo wa Umri'),
+          ),
           const SizedBox(height: 8),
           // Stacked visual bar
           if (total > 0)
@@ -147,21 +170,58 @@ class _AgingSummaryBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               child: SizedBox(
                 height: 16,
-                child: Row(children: [
-                  _BarSegment(flex: report.current.total / total, color: AppColors.success),
-                  _BarSegment(flex: report.days31to60.total / total, color: AppColors.yellowBrand),
-                  _BarSegment(flex: report.days61to90.total / total, color: AppColors.warning),
-                  _BarSegment(flex: report.over90.total / total, color: AppColors.error),
-                ]),
+                child: Row(
+                  children: [
+                    _BarSegment(
+                      flex: report.current.total / total,
+                      color: AppColors.success,
+                    ),
+                    _BarSegment(
+                      flex: report.days31to60.total / total,
+                      color: AppColors.yellowBrand,
+                    ),
+                    _BarSegment(
+                      flex: report.days61to90.total / total,
+                      color: AppColors.warning,
+                    ),
+                    _BarSegment(
+                      flex: report.over90.total / total,
+                      color: AppColors.error,
+                    ),
+                  ],
+                ),
               ),
             ),
           const SizedBox(height: 12),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-            _AgingLegend(label: '0–30', amount: report.current.total, color: AppColors.success, count: report.current.items.length),
-            _AgingLegend(label: '31–60', amount: report.days31to60.total, color: AppColors.yellowBrand, count: report.days31to60.items.length),
-            _AgingLegend(label: '61–90', amount: report.days61to90.total, color: AppColors.warning, count: report.days61to90.items.length),
-            _AgingLegend(label: '90+', amount: report.over90.total, color: AppColors.error, count: report.over90.items.length),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _AgingLegend(
+                label: '0–30',
+                amount: report.current.total,
+                color: AppColors.success,
+                count: report.current.items.length,
+              ),
+              _AgingLegend(
+                label: '31–60',
+                amount: report.days31to60.total,
+                color: AppColors.yellowBrand,
+                count: report.days31to60.items.length,
+              ),
+              _AgingLegend(
+                label: '61–90',
+                amount: report.days61to90.total,
+                color: AppColors.warning,
+                count: report.days61to90.items.length,
+              ),
+              _AgingLegend(
+                label: '90+',
+                amount: report.over90.total,
+                color: AppColors.error,
+                count: report.over90.items.length,
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -176,7 +236,10 @@ class _BarSegment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (flex <= 0) return const SizedBox.shrink();
-    return Expanded(flex: (flex * 100).round(), child: Container(color: color));
+    return Expanded(
+      flex: (flex * 100).round(),
+      child: Container(color: color),
+    );
   }
 }
 
@@ -186,16 +249,40 @@ class _AgingLegend extends StatelessWidget {
   final Color color;
   final int count;
 
-  const _AgingLegend({required this.label, required this.amount, required this.color, required this.count});
+  const _AgingLegend({
+    required this.label,
+    required this.amount,
+    required this.color,
+    required this.count,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-      SizedBox(height: 4),
-      Text(label, style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
-      Text('$count inv', style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-    ]);
+    return Column(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
+        ),
+        Text(
+          '$count inv',
+          style: GoogleFonts.dmSans(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -255,17 +342,40 @@ class _AgingBucketCardState extends State<_AgingBucketCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.label, style: GoogleFonts.dmSans(color: widget.color, fontSize: 13, fontWeight: FontWeight.w700)),
-                        Text('${bucket.items.length} ${_tr('invoices', 'ankara')}',
-                            style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11)),
+                        Text(
+                          widget.label,
+                          style: GoogleFonts.dmSans(
+                            color: widget.color,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '${bucket.items.length} ${_tr('invoices', 'ankara')}',
+                          style: GoogleFonts.dmSans(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  Text(formatCurrency(bucket.total),
-                      style: GoogleFonts.dmSans(color: widget.color, fontSize: 14, fontWeight: FontWeight.w800)),
+                  Text(
+                    formatCurrency(bucket.total),
+                    style: GoogleFonts.dmSans(
+                      color: widget.color,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(width: 6),
-                  Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-                      color: AppColors.textMuted, size: 20),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
                 ],
               ),
             ),
@@ -273,7 +383,9 @@ class _AgingBucketCardState extends State<_AgingBucketCard> {
           // Items
           if (_expanded) ...[
             const Divider(height: 1, color: AppColors.border),
-            ...bucket.items.map((inv) => _InvoiceRow(invoice: inv, accentColor: widget.color)),
+            ...bucket.items.map(
+              (inv) => _InvoiceRow(invoice: inv, accentColor: widget.color),
+            ),
           ],
         ],
       ),
@@ -289,8 +401,13 @@ class _InvoiceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final customer = (invoice['customerName'] ?? invoice['customer'] ?? _tr('Unknown', 'Haijulikani')).toString();
-    final number = '#${(invoice['invoiceNumber'] ?? invoice['id'].toString()).toString().characters.take(8)}';
+    final customer =
+        (invoice['customerName'] ??
+                invoice['customer'] ??
+                _tr('Unknown', 'Haijulikani'))
+            .toString();
+    final number =
+        '#${(invoice['invoiceNumber'] ?? invoice['id'].toString()).toString().characters.take(8)}';
     final ageDays = invoice['_ageDays'] as int? ?? 0;
     final amount = invoice['_amount'] as double? ?? 0.0;
 
@@ -302,16 +419,43 @@ class _InvoiceRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(customer, style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
-                Text(number, style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted)),
+                Text(
+                  customer,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.secondary,
+                  ),
+                ),
+                Text(
+                  number,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(formatCurrency(amount), style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondary)),
-              Text('$ageDays ${_tr('days', 'siku')}', style: GoogleFonts.dmSans(fontSize: 11, color: accentColor, fontWeight: FontWeight.w600)),
+              Text(
+                formatCurrency(amount),
+                style: GoogleFonts.dmSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.secondary,
+                ),
+              ),
+              Text(
+                '$ageDays ${_tr('days', 'siku')}',
+                style: GoogleFonts.dmSans(
+                  fontSize: 11,
+                  color: accentColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ],
