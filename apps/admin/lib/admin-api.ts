@@ -3,7 +3,7 @@ import type {
   Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
-  CatalogImportResult,
+  CatalogImportResult, AdminNotification,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -366,6 +366,12 @@ export async function attachCatalogToBusiness(
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
+
+// ─── Notifications (aggregated pending requests) ──────────────────────────────
+
+export async function fetchNotifications(): Promise<{ notifications: AdminNotification[]; count: number }> {
+  return apiFetch('/api/admin/notifications')
 }
 
 // ─── Business Notes ───────────────────────────────────────────────────────────
