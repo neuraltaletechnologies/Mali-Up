@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -24,14 +25,16 @@ import '../../../../shared/widgets/upgrade_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-class ManageBusinessesScreen extends StatefulWidget {
+class ManageBusinessesScreen extends ConsumerStatefulWidget {
   const ManageBusinessesScreen({super.key});
 
   @override
-  State<ManageBusinessesScreen> createState() => _ManageBusinessesScreenState();
+  ConsumerState<ManageBusinessesScreen> createState() =>
+      _ManageBusinessesScreenState();
 }
 
-class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
+class _ManageBusinessesScreenState
+    extends ConsumerState<ManageBusinessesScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late Future<Map<String, dynamic>?> _profileFuture;
   final _searchCtrl = TextEditingController();
@@ -1215,7 +1218,11 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
         final selectedBusinessId = _selectedBusinessId(profile);
         final isLoading =
             snapshot.connectionState != ConnectionState.done && profile == null;
-        final tier = PlanTierX.fromString(profile?['plan'] as String?);
+        final livePlanTier = ref.watch(
+          planStatusProvider.select((a) => a.valueOrNull?.tier),
+        );
+        final tier = livePlanTier ??
+            PlanTierX.fromString(profile?['plan'] as String?);
 
         return Scaffold(
           backgroundColor: AppColors.background,
