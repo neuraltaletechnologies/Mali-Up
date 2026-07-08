@@ -86,7 +86,6 @@ export async function PUT(
       businessName?: string
       businessCategory?: string
       placeOfBusiness?: string
-      plan?: string
     }
 
     const updates: Record<string, unknown> = { updatedAt: new Date() }
@@ -100,7 +99,10 @@ export async function PUT(
       updates.placeOfBusiness = body.placeOfBusiness.trim()
       updates.city            = body.placeOfBusiness.trim()
     }
-    if (body.plan?.trim()) updates.plan = body.plan.trim()
+    // Plan changes go through POST /api/admin/plans/assign — it dual-writes
+    // businesses/{id}.plan and users/{ownerUid}.plan (the field the mobile
+    // app's PlanService actually gates on) and revokes refresh tokens so the
+    // change takes effect immediately.
 
     const bizRef = adminFirestore.collection('businesses').doc(businessId)
     const snap   = await bizRef.get()
@@ -117,7 +119,7 @@ export async function PUT(
       resourceId: businessId,
       resourceName: (updates.businessName as string) || (raw.businessName as string) || businessId,
       isDestructive: false,
-      before: { businessName: raw.businessName, businessCategory: raw.businessCategory, placeOfBusiness: raw.placeOfBusiness, plan: raw.plan },
+      before: { businessName: raw.businessName, businessCategory: raw.businessCategory, placeOfBusiness: raw.placeOfBusiness },
       after:  { ...updates, updatedAt: undefined },
     })
 

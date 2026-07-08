@@ -31,12 +31,10 @@ const nav: NavItem[] = [
   {
     label: 'Revenue', icon: DollarSign,
     children: [
-      { label: 'Overview & Pricing', href: '/admin/revenue' },
-      { label: 'Plans',              href: '/admin/plans' },
-      { label: 'Plan Requests',      href: '/admin/plan-requests' },
-      { label: 'Subscriptions',      href: '/admin/subscriptions' },
-      { label: 'Lifetime',           href: '/admin/lifetime' },
-      { label: 'Refunds',            href: '/admin/refunds' },
+      { label: 'Overview',      href: '/admin/revenue' },
+      { label: 'Plans',         href: '/admin/plans' },
+      { label: 'Subscriptions', href: '/admin/subscriptions' },
+      { label: 'Requests',      href: '/admin/plan-requests' },
     ]
   },
   {

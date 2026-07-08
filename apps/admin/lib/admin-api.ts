@@ -67,7 +67,7 @@ export async function patchBusiness(uid: string, businessId: string, isActive: b
 export async function editBusiness(
   uid: string,
   businessId: string,
-  data: { businessName?: string; businessCategory?: string; placeOfBusiness?: string; plan?: string },
+  data: { businessName?: string; businessCategory?: string; placeOfBusiness?: string },
 ): Promise<void> {
   await apiFetch(`/api/admin/businesses/${uid}/${businessId}`, {
     method: 'PUT',

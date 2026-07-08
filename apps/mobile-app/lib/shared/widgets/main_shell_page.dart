@@ -303,50 +303,44 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                   ),
                   child: Column(
                     children: [
-                      // Profile Header — blue and white
+                      // Profile Header — minimal fintech, deep navy on navy
                       Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          border: Border(
-                            bottom: BorderSide(
-                              color: AppColors.secondary.withValues(
-                                alpha: 0.18,
-                              ),
-                            ),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColors.navyPrimary,
+                              AppColors.navySecondary,
+                            ],
                           ),
-                          borderRadius: const BorderRadius.only(
+                          borderRadius: BorderRadius.only(
                             topRight: Radius.circular(24),
                           ),
                         ),
                         child: SafeArea(
                           bottom: false,
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
+                            padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
                                     Container(
-                                      width: 52,
-                                      height: 52,
+                                      width: 44,
+                                      height: 44,
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.08,
+                                        ),
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                           color: Colors.white.withValues(
-                                            alpha: 0.28,
+                                            alpha: 0.16,
                                           ),
-                                          width: 2,
+                                          width: 1,
                                         ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppColors.secondary
-                                                .withValues(alpha: 0.25),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
                                       ),
                                       child: Center(
                                         child: Text(
@@ -356,14 +350,14 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                                     .toUpperCase()
                                               : 'M',
                                           style: GoogleFonts.dmSans(
-                                            color: AppColors.secondary,
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ),
                                     ),
-                                    SizedBox(width: 14),
+                                    const SizedBox(width: 13),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -375,19 +369,23 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                             overflow: TextOverflow.ellipsis,
                                             style: GoogleFonts.dmSans(
                                               color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                              decoration: TextDecoration.none,
                                             ),
                                           ),
-                                          SizedBox(height: 2),
+                                          const SizedBox(height: 2),
                                           Text(
                                             profile.contactLine,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: GoogleFonts.dmSans(
-                                              color: Colors.white70,
+                                              color: Colors.white.withValues(
+                                                alpha: 0.56,
+                                              ),
                                               fontSize: 12,
                                               fontWeight: FontWeight.w400,
+                                              decoration: TextDecoration.none,
                                             ),
                                           ),
                                         ],
@@ -396,10 +394,12 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                     IconButton(
                                       onPressed: () =>
                                           Navigator.of(dialogContext).pop(),
-                                      icon: const Icon(
+                                      icon: Icon(
                                         Icons.close_rounded,
-                                        color: AppColors.textMuted,
-                                        size: 22,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        size: 20,
                                       ),
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
@@ -410,119 +410,21 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                 if (ps.isOwner)
                                   Row(
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.14,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.28,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.stars_rounded,
-                                              size: 12,
-                                              color: Colors.white,
-                                            ),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              _tr('Free', 'Bure'),
-                                              style: GoogleFonts.dmSans(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                      _HeaderTag(
+                                        icon: Icons.stars_rounded,
+                                        label: _tr('Free', 'Bure'),
                                       ),
-                                      SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.24,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.business_center_rounded,
-                                              size: 12,
-                                              color: AppColors.secondary,
-                                            ),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              _tr('Business', 'Biashara'),
-                                              style: GoogleFonts.dmSans(
-                                                color: AppColors.secondary,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                      const SizedBox(width: 8),
+                                      _HeaderTag(
+                                        icon: Icons.business_center_rounded,
+                                        label: _tr('Business', 'Biashara'),
                                       ),
                                     ],
                                   )
                                 else if (member != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.18,
-                                      ),
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.32,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.badge_outlined,
-                                          size: 12,
-                                          color: Colors.white,
-                                        ),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          member.role.label,
-                                          style: GoogleFonts.dmSans(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  _HeaderTag(
+                                    icon: Icons.badge_outlined,
+                                    label: member.role.label,
                                   ),
                               ],
                             ),
@@ -1016,7 +918,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                           ),
                         ],
                       ),
-                      clipBehavior: Clip.antiAlias,
+                      clipBehavior: Clip.none,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: List.generate(destinations.length, (index) {
@@ -1394,6 +1296,41 @@ class _FinanceContextSwitcher extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HeaderTag extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _HeaderTag({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white.withValues(alpha: 0.85)),
+          SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.dmSans(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.none,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -127,7 +127,9 @@
       "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp show --stat d290300)",
       "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp log -1 --format='%ci %an' d290300)",
       "PowerShell(flutter test --reporter compact 2>$null)",
-      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp show --stat d290300 -- apps/mobile-app/lib/shared/widgets/main_shell_page.dart apps/mobile-app/lib/features/security/presentation/screens/pin_lock_screen.dart)"
+      "PowerShell(git -C c:\\\\SIDE\\\\GIT\\\\Maliapp show --stat d290300 -- apps/mobile-app/lib/shared/widgets/main_shell_page.dart apps/mobile-app/lib/features/security/presentation/screens/pin_lock_screen.dart)",
+      "Bash(ls apps/admin/app)",
+      "Bash(ls apps/admin)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
