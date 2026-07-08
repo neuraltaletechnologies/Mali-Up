@@ -3,6 +3,7 @@ import { adminAuth, adminFirestore } from '@/lib/firebase-admin'
 import { requireAdminSession } from '@/lib/api-guard'
 import { mapUser, mapBusiness } from '@/lib/firestore-mappers'
 import { writeAudit } from '@/lib/write-audit'
+import { deleteUserCascade } from '@/lib/hard-delete'
 
 export async function GET(
   _request: Request,
@@ -151,5 +152,44 @@ export async function PUT(
   } catch (err) {
     console.error(`[PUT /api/admin/users/${uid}]`, err)
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
+  }
+}
+
+// ── DELETE — permanently remove user + owned businesses ─────────────────────
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ uid: string }> },
+) {
+  const denied = await requireAdminSession()
+  if (denied) return denied
+
+  const { uid } = await params
+
+  try {
+    const userRef = adminFirestore.collection('users').doc(uid)
+    const userDoc = await userRef.get()
+    if (!userDoc.exists) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const before = userDoc.data() ?? {}
+    const userName = (before.displayName as string) || (before.name as string) || uid
+
+    const { deletedBusinessIds } = await deleteUserCascade(uid)
+
+    await writeAudit({
+      action: 'delete_user',
+      resourceType: 'user',
+      resourceId: uid,
+      resourceName: userName,
+      isDestructive: true,
+      before: { name: userName, phone: before.phone, email: before.email },
+      after: { businessesDeleted: deletedBusinessIds.length },
+    })
+
+    return NextResponse.json({ success: true, businessesDeleted: deletedBusinessIds })
+  } catch (err) {
+    console.error(`[DELETE /api/admin/users/${uid}]`, err)
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })
   }
 }

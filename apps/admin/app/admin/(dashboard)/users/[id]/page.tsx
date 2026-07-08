@@ -7,8 +7,9 @@ import { StatusDot } from '@/components/ui/status-dot'
 import { PlanBadge } from '@/components/ui/plan-badge'
 import { Tabs } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { fetchUser, patchUser, editUser, assignPlan, fetchUserActivity } from '@/lib/admin-api'
+import { fetchUser, patchUser, editUser, deleteUser, assignPlan, fetchUserActivity } from '@/lib/admin-api'
 import type { ActivityEntry } from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatDate, timeAgo } from '@/lib/format'
@@ -223,6 +224,8 @@ export default function UserDetailPage() {
   const [showSuspend,  setShowSuspend]  = useState(false)
   const [actionPending, setActionPending] = useState(false)
   const [showEdit,     setShowEdit]     = useState(false)
+  const [showDelete,   setShowDelete]   = useState(false)
+  const [deleting,     setDeleting]     = useState(false)
 
   const { data, loading, error, refetch } = useAdminFetch(
     useCallback(() => fetchUser(id), [id])
@@ -246,6 +249,19 @@ export default function UserDetailPage() {
     } finally {
       setActionPending(false)
       setShowSuspend(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!user) return
+    setDeleting(true)
+    try {
+      await deleteUser(user.id)
+      invalidateAdminCache(['analytics', 'users', 'businesses'])
+      router.push('/admin/users')
+    } finally {
+      setDeleting(false)
+      setShowDelete(false)
     }
   }
 
@@ -313,6 +329,13 @@ export default function UserDetailPage() {
               Suspend
             </button>
           )}
+          <button
+            onClick={() => setShowDelete(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--status-bad)] px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </button>
         </div>
       </PageHeader>
 
@@ -407,6 +430,16 @@ export default function UserDetailPage() {
         }
         confirmLabel={actionPending ? 'Saving…' : isSuspended ? 'Unsuspend user' : 'Suspend user'}
         variant={isSuspended ? 'warning' : 'destructive'}
+      />
+
+      <DeleteConfirmDialog
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        resourceLabel="user"
+        resourceName={user.name}
+        consequence={`This permanently deletes ${user.name}'s account, sign-in, and ${businesses.length} owned business${businesses.length !== 1 ? 'es' : ''} (including all invoices, customers, staff, and other data). This cannot be undone.`}
+        loading={deleting}
       />
 
       {user && (

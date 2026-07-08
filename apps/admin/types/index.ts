@@ -49,6 +49,16 @@ export interface Business {
   expenseTotal?: number
   notes?: AdminNote[]
   staffMembers?: StaffMember[]
+  enterpriseOverrides?: EnterpriseOverride
+}
+
+// Per-business negotiated terms for the Enterprise tier — a partial override
+// of PlanDefinition. Absent/empty fields fall back to the shared
+// platform_config/plans.enterprise definition.
+export type EnterpriseOverride = Partial<PlanDefinition> & {
+  notes?: string
+  setAt?: string
+  setBy?: string
 }
 
 export interface AdminNote {

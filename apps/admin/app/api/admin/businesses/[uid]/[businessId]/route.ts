@@ -3,6 +3,8 @@ import { adminFirestore } from '@/lib/firebase-admin'
 import { requireAdminSession } from '@/lib/api-guard'
 import { mapBusiness } from '@/lib/firestore-mappers'
 import { writeAudit } from '@/lib/write-audit'
+import { deleteBusinessCascade } from '@/lib/hard-delete'
+import { invalidateCache } from '@/lib/api-cache'
 import type { AdminNote } from '@/types'
 
 type Params = { uid: string; businessId: string }
@@ -199,6 +201,47 @@ export async function POST(
   } catch (err) {
     console.error(`[POST /api/admin/businesses/${uid}/${businessId}]`, err)
     return NextResponse.json({ error: 'Failed to add note' }, { status: 500 })
+  }
+}
+
+// ── DELETE — permanently remove business ──────────────────────────────────────
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<Params> },
+) {
+  const denied = await requireAdminSession()
+  if (denied) return denied
+
+  const { uid, businessId } = await params
+
+  try {
+    const bizRef = adminFirestore.collection('businesses').doc(businessId)
+    const bizDoc = await bizRef.get()
+    if (!bizDoc.exists) {
+      return NextResponse.json({ error: 'Business not found' }, { status: 404 })
+    }
+
+    const before = bizDoc.data() ?? {}
+    const bizName = (before.businessName as string) || businessId
+    const ownerUid = (before.ownerUid as string) || uid
+
+    await deleteBusinessCascade(businessId, ownerUid)
+    invalidateCache('businesses:300')
+    invalidateCache('businesses:500')
+
+    await writeAudit({
+      action: 'delete_business',
+      resourceType: 'business',
+      resourceId: businessId,
+      resourceName: bizName,
+      isDestructive: true,
+      before: { businessName: bizName, plan: before.plan, ownerUid },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error(`[DELETE /api/admin/businesses/${uid}/${businessId}]`, err)
+    return NextResponse.json({ error: 'Failed to delete business' }, { status: 500 })
   }
 }
 

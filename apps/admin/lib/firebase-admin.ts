@@ -28,6 +28,7 @@ function getAdminApp() {
 export const adminApp = getAdminApp()
 export const adminAuth = admin.auth(adminApp)
 export const adminFirestore = admin.firestore(adminApp)
+export const adminStorage = admin.storage(adminApp).bucket('neuraltale-mali-up.firebasestorage.app')
 
 /**
  * Verify a Firebase ID token and return the decoded claims.
