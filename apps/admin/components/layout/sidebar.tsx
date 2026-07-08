@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 import { clearAdminCache } from '@/hooks/use-admin-fetch'
+import { useSidebarStore } from '@/store/sidebar-store'
 
 interface NavItem {
   label: string
@@ -71,6 +72,7 @@ interface SidebarGroupProps {
 function SidebarGroup({ item, pathname }: SidebarGroupProps) {
   const isActive = item.children?.some((c) => pathname.startsWith(c.href))
   const [open, setOpen] = useState(isActive ?? true)
+  const closeSidebar = useSidebarStore((s) => s.close)
   const Icon = item.icon
 
   if (!item.children) {
@@ -78,6 +80,7 @@ function SidebarGroup({ item, pathname }: SidebarGroupProps) {
     return (
       <Link
         href={item.href!}
+        onClick={closeSidebar}
         className={cn(
           'flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors',
           active
@@ -109,6 +112,7 @@ function SidebarGroup({ item, pathname }: SidebarGroupProps) {
               <Link
                 key={child.href}
                 href={child.href}
+                onClick={closeSidebar}
                 className={cn(
                   'rounded-md px-2.5 py-1.5 text-[12.5px] transition-colors',
                   active
@@ -130,6 +134,8 @@ export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [loggingOut, setLoggingOut] = useState(false)
+  const isOpen = useSidebarStore((s) => s.isOpen)
+  const close = useSidebarStore((s) => s.close)
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -138,7 +144,22 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-[240px] bg-[var(--navy)] border-r border-white/[0.07] flex flex-col z-30">
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          onClick={close}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={cn(
+          'fixed left-0 top-0 h-screen w-[240px] bg-[var(--navy)] border-r border-white/[0.07] flex flex-col z-30',
+          'transition-transform duration-200 ease-out lg:translate-x-0',
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
       {/* Brand */}
       <div className="relative px-5 pt-6 pb-5">
         <div className="flex items-center gap-3">
@@ -190,5 +211,6 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   )
 }

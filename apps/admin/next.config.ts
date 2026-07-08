@@ -49,6 +49,25 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
+      {
+        // Every /admin/* page and /api/admin/* route renders per-request,
+        // gated by a session cookie read in the dashboard layout (there is
+        // no middleware — see wrangler.toml's NEXT_PRIVATE_MINIMAL_MODE note).
+        // Without an explicit no-store, an edge/CDN cache rule that caches
+        // HTML by path (e.g. a zone-wide "Cache Everything" rule) can cache
+        // one admin's authenticated response — Set-Cookie included — and
+        // replay it to every later visitor, handing them that session.
+        source: '/admin/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store, must-revalidate' },
+        ],
+      },
+      {
+        source: '/api/admin/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store, must-revalidate' },
+        ],
+      },
     ]
   },
 }

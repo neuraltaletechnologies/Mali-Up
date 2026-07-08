@@ -1,11 +1,12 @@
 'use client'
 
-import { Search, ChevronRight, Sun, Moon } from 'lucide-react'
+import { Search, ChevronRight, Sun, Moon, Menu } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { NotificationBell } from './notification-bell'
+import { useSidebarStore } from '@/store/sidebar-store'
 
 const routeLabels: Record<string, string> = {
   '':            'Dashboard',
