@@ -25,53 +25,45 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 // Category meta (mirrors expense_list_screen)
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum _Cat {
-  rent,
-  utilities,
-  salaries,
-  transport,
-  marketing,
-  supplies,
-  other,
-}
+enum _Cat { rent, utilities, salaries, transport, marketing, supplies, other }
 
 extension _CatX on _Cat {
   String get key => name;
 
   String get label => switch (this) {
-        _Cat.rent => _tr('Rent', 'Kodi'),
-        _Cat.utilities => _tr('Utilities', 'Huduma'),
-        _Cat.salaries => _tr('Salaries', 'Mishahara'),
-        _Cat.transport => _tr('Transport', 'Usafiri'),
-        _Cat.marketing => _tr('Marketing', 'Masoko'),
-        _Cat.supplies => _tr('Supplies', 'Vifaa'),
-        _Cat.other => _tr('Other', 'Nyingine'),
-      };
+    _Cat.rent => _tr('Rent', 'Kodi'),
+    _Cat.utilities => _tr('Utilities', 'Huduma'),
+    _Cat.salaries => _tr('Salaries', 'Mishahara'),
+    _Cat.transport => _tr('Transport', 'Usafiri'),
+    _Cat.marketing => _tr('Marketing', 'Masoko'),
+    _Cat.supplies => _tr('Supplies', 'Vifaa'),
+    _Cat.other => _tr('Other', 'Nyingine'),
+  };
 
   IconData get icon => switch (this) {
-        _Cat.rent => Icons.home_rounded,
-        _Cat.utilities => Icons.bolt_rounded,
-        _Cat.salaries => Icons.people_rounded,
-        _Cat.transport => Icons.local_shipping_rounded,
-        _Cat.marketing => Icons.campaign_rounded,
-        _Cat.supplies => Icons.inventory_2_rounded,
-        _Cat.other => Icons.more_horiz_rounded,
-      };
+    _Cat.rent => Icons.home_rounded,
+    _Cat.utilities => Icons.bolt_rounded,
+    _Cat.salaries => Icons.people_rounded,
+    _Cat.transport => Icons.local_shipping_rounded,
+    _Cat.marketing => Icons.campaign_rounded,
+    _Cat.supplies => Icons.inventory_2_rounded,
+    _Cat.other => Icons.more_horiz_rounded,
+  };
 
   Color get color => switch (this) {
-        _Cat.rent => AppColors.navyPrimary,
-        _Cat.utilities => AppColors.tealAccent,
-        _Cat.salaries => AppColors.success,
-        _Cat.transport => AppColors.warning,
-        _Cat.marketing => AppColors.purpleAccent,
-        _Cat.supplies => AppColors.warning,
-        _Cat.other => AppColors.textMuted,
-      };
+    _Cat.rent => AppColors.navyPrimary,
+    _Cat.utilities => AppColors.tealAccent,
+    _Cat.salaries => AppColors.success,
+    _Cat.transport => AppColors.warning,
+    _Cat.marketing => AppColors.purpleAccent,
+    _Cat.supplies => AppColors.warning,
+    _Cat.other => AppColors.textMuted,
+  };
 
   static _Cat fromKey(String key) => _Cat.values.firstWhere(
-        (c) => c.key == key.toLowerCase(),
-        orElse: () => _Cat.other,
-      );
+    (c) => c.key == key.toLowerCase(),
+    orElse: () => _Cat.other,
+  );
 }
 
 enum _PayMethod { cash, mpesa, bank, card }
@@ -80,18 +72,18 @@ extension _PayMethodX on _PayMethod {
   String get key => name;
 
   String get label => switch (this) {
-        _PayMethod.cash => _tr('Cash', 'Taslimu'),
-        _PayMethod.mpesa => 'M-Pesa',
-        _PayMethod.bank => _tr('Bank', 'Benki'),
-        _PayMethod.card => _tr('Card', 'Kadi'),
-      };
+    _PayMethod.cash => _tr('Cash', 'Taslimu'),
+    _PayMethod.mpesa => 'M-Pesa',
+    _PayMethod.bank => _tr('Bank', 'Benki'),
+    _PayMethod.card => _tr('Card', 'Kadi'),
+  };
 
   IconData get icon => switch (this) {
-        _PayMethod.cash => Icons.payments_rounded,
-        _PayMethod.mpesa => Icons.phone_android_rounded,
-        _PayMethod.bank => Icons.account_balance_rounded,
-        _PayMethod.card => Icons.credit_card_rounded,
-      };
+    _PayMethod.cash => Icons.payments_rounded,
+    _PayMethod.mpesa => Icons.phone_android_rounded,
+    _PayMethod.bank => Icons.account_balance_rounded,
+    _PayMethod.card => Icons.credit_card_rounded,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -166,7 +158,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     try {
       final picker = ImagePicker();
       final file = await picker.pickImage(
-          source: source, imageQuality: 80, maxWidth: 1200);
+        source: source,
+        imageQuality: 80,
+        maxWidth: 1200,
+      );
       if (file == null) return;
       setState(() {
         _receiptFile = File(file.path);
@@ -176,11 +171,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<String?> _uploadReceipt(String uid) async {
-    if (_receiptFile == null) return _receiptUrl.isNotEmpty ? _receiptUrl : null;
+    if (_receiptFile == null)
+      return _receiptUrl.isNotEmpty ? _receiptUrl : null;
     setState(() => _uploadingReceipt = true);
     try {
       final ref = FirebaseStorage.instance.ref(
-          'receipts/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg');
+        'receipts/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
       await ref.putFile(_receiptFile!);
       final url = await ref.getDownloadURL();
       setState(() => _uploadingReceipt = false);
@@ -195,26 +192,35 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     showAppSheet(
       context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.camera_alt_rounded,
-                  color: AppColors.navyPrimary),
-              title: Text(_tr('Take photo', 'Piga picha'),
-                  style: GoogleFonts.dmSans()),
+              leading: const Icon(
+                Icons.camera_alt_rounded,
+                color: AppColors.navyPrimary,
+              ),
+              title: Text(
+                _tr('Take photo', 'Piga picha'),
+                style: GoogleFonts.dmSans(),
+              ),
               onTap: () {
                 Navigator.of(context).pop();
                 _pickPhoto(ImageSource.camera);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_rounded,
-                  color: AppColors.navyPrimary),
-              title: Text(_tr('Choose from gallery', 'Chagua kutoka maktaba'),
-                  style: GoogleFonts.dmSans()),
+              leading: const Icon(
+                Icons.photo_library_rounded,
+                color: AppColors.navyPrimary,
+              ),
+              title: Text(
+                _tr('Choose from gallery', 'Chagua kutoka maktaba'),
+                style: GoogleFonts.dmSans(),
+              ),
               onTap: () {
                 Navigator.of(context).pop();
                 _pickPhoto(ImageSource.gallery);
@@ -222,10 +228,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             ),
             if (_receiptFile != null || _receiptUrl.isNotEmpty)
               ListTile(
-                leading: const Icon(Icons.delete_outline_rounded,
-                    color: AppColors.error),
-                title: Text(_tr('Remove receipt', 'Ondoa risiti'),
-                    style: GoogleFonts.dmSans(color: AppColors.error)),
+                leading: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.error,
+                ),
+                title: Text(
+                  _tr('Remove receipt', 'Ondoa risiti'),
+                  style: GoogleFonts.dmSans(color: AppColors.error),
+                ),
                 onTap: () {
                   Navigator.of(context).pop();
                   setState(() {
@@ -269,7 +279,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final ctx = await repo.resolveContextForUser(user.uid);
       final col = repo.scopeCollection(
-          uid: user.uid, context: ctx, childCollection: 'expenses');
+        uid: user.uid,
+        context: ctx,
+        childCollection: 'expenses',
+      );
 
       // Upload receipt if a new file was selected
       final uploadedUrl = await _uploadReceipt(user.uid);
@@ -318,31 +331,41 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final dueDate = DateTime.now().add(const Duration(days: 30));
           final dueDateStr =
               '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
-          await ref.read(debtRepositoryProvider).save(Debt(
-            id: '',
-            partyName: _recipientCtrl.text.trim(),
-            partyPhone: _supplierPhoneCtrl.text.trim(),
-            type: 'payable',
-            originalAmount: amount,
-            dueDate: dueDateStr,
-            note: _tr(
-                'Expense: ${_cat.label}', 'Matumizi: ${_cat.label}'),
-            createdBy: user.uid,
-            createdAt: DateTime.now().toIso8601String(),
-          ));
+          await ref
+              .read(debtRepositoryProvider)
+              .save(
+                Debt(
+                  id: '',
+                  partyName: _recipientCtrl.text.trim(),
+                  partyPhone: _supplierPhoneCtrl.text.trim(),
+                  type: 'payable',
+                  originalAmount: amount,
+                  dueDate: dueDateStr,
+                  note: _tr(
+                    'Expense: ${_cat.label}',
+                    'Matumizi: ${_cat.label}',
+                  ),
+                  createdBy: user.uid,
+                  createdAt: DateTime.now().toIso8601String(),
+                ),
+              );
         }
       }
 
       if (mounted) {
         if (!_isEditing && _isCreditPurchase) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(_tr(
-              'Expense saved – debt recorded in Payables',
-              'Gharama imehifadhiwa – deni limerekodiwa kwenye Madeni',
-            )),
-            backgroundColor: AppColors.warning,
-            behavior: SnackBarBehavior.floating,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _tr(
+                  'Expense saved – debt recorded in Payables',
+                  'Gharama imehifadhiwa – deni limerekodiwa kwenye Madeni',
+                ),
+              ),
+              backgroundColor: AppColors.warning,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
         Navigator.of(context).pop({'saved': true});
       }
@@ -359,7 +382,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     String dateStr,
   ) async {
     final nextDue = RecurringExpenseTemplate.computeNextDue(
-        _frequency, DateTime.tryParse(dateStr) ?? DateTime.now());
+      _frequency,
+      DateTime.tryParse(dateStr) ?? DateTime.now(),
+    );
     await repo.addRecurringTemplate(
       uid: uid,
       context: ctx,
@@ -378,11 +403,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   // ── UI ──────────────────────────────────────────────────────────────────────
@@ -390,232 +417,307 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final size = MediaQuery.sizeOf(context);
 
-    return Material(
-      color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      clipBehavior: Clip.antiAlias,
-      child: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            SheetHandle(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _isEditing
-                          ? _tr('Edit Expense', 'Hariri Gharama')
-                          : _tr('New Expense', 'Gharama Mpya'),
-                      style: GoogleFonts.dmSans(
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: size.height * 0.95),
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              const SheetHandle(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _isEditing
+                            ? _tr('Edit Expense', 'Hariri Gharama')
+                            : _tr('New Expense', 'Gharama Mpya'),
+                        style: GoogleFonts.dmSans(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.navyPrimary),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.border),
+                          color: AppColors.navyPrimary,
+                        ),
                       ),
-                      child: const Icon(Icons.close_rounded,
-                          size: 18, color: AppColors.textMuted),
                     ),
-                  ),
-                ],
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: AppColors.border.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: _scrollCtrl,
-                padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
-                children: [
-                  _AmountSection(controller: _amountCtrl),
-                  const SizedBox(height: 20),
-                  _SectionLabel(_tr('Category', 'Kundi')),
-                  const SizedBox(height: 10),
-                  _CategoryGrid(
-                    selected: _cat,
-                    onSelect: (c) => setState(() => _cat = c),
-                  ),
-                  const SizedBox(height: 20),
-                  _SectionLabel(_tr('Date & Payment', 'Tarehe na Malipo')),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _pickDate,
-                        child: _DateChip(date: _date),
+              const Divider(height: 1, color: AppColors.border),
+              Expanded(
+                child: ListView(
+                  controller: _scrollCtrl,
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 16),
+                  children: [
+                    _AmountSection(controller: _amountCtrl),
+                    const SizedBox(height: 20),
+                    _SectionLabel(_tr('Category', 'Kundi')),
+                    const SizedBox(height: 10),
+                    _CategoryGrid(
+                      selected: _cat,
+                      onSelect: (c) => setState(() => _cat = c),
+                    ),
+                    const SizedBox(height: 20),
+                    _SectionLabel(_tr('Date & Payment', 'Tarehe na Malipo')),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: _pickDate,
+                          child: _DateChip(date: _date),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _PaymentMethodChips(
+                      selected: _payMethod,
+                      onSelect: (m) => setState(() => _payMethod = m),
+                    ),
+                    const SizedBox(height: 20),
+                    _SectionLabel(_tr('Details', 'Maelezo')),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _noteCtrl,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        color: AppColors.textPrimary,
+                      ),
+                      decoration: _fieldDec(
+                        label: _tr('Description', 'Maelezo'),
+                        prefix: Icons.notes_rounded,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _recipientCtrl,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        color: AppColors.textPrimary,
+                      ),
+                      decoration: _fieldDec(
+                        label: _tr('Paid To (recipient)', 'Imelipwa Kwa'),
+                        prefix: Icons.person_outline_rounded,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _FieldCard(
+                      child: _ToggleRow(
+                        icon: Icons.credit_score_rounded,
+                        label: _tr('Bought on Credit', 'Umenunua kwa Mkopo'),
+                        subtitle: _tr(
+                          'Not fully paid – record as payable debt',
+                          'Haujalipia kikamilifu – rekodi kama deni',
+                        ),
+                        value: _isCreditPurchase,
+                        color: AppColors.error,
+                        onChanged: (v) => setState(() => _isCreditPurchase = v),
+                      ),
+                    ),
+                    if (_isCreditPurchase) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _supplierPhoneCtrl,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                        ),
+                        decoration: _fieldDec(
+                          label: _tr(
+                            'Supplier Phone (optional)',
+                            'Simu ya Muuzaji (hiari)',
+                          ),
+                          prefix: Icons.phone_outlined,
+                        ),
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.error.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: AppColors.error,
+                              size: 15,
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _tr(
+                                  'A payable debt will be recorded for this supplier',
+                                  'Deni la kulipa litarekodiwa kwa muuzaji huyu',
+                                ),
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  color: AppColors.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  _PaymentMethodChips(
-                    selected: _payMethod,
-                    onSelect: (m) => setState(() => _payMethod = m),
-                  ),
-                  const SizedBox(height: 20),
-                  _SectionLabel(_tr('Details', 'Maelezo')),
-                  const SizedBox(height: 10),
-                  _FieldCard(
-                    child: Column(
-                      children: [
-                        _InlineField(
-                          controller: _noteCtrl,
-                          hint: _tr(
-                              'Description (e.g. Office rent - June)',
-                              'Maelezo (mfano Kodi ofisi - Juni)'),
-                          icon: Icons.notes_rounded,
-                        ),
-                        const Divider(height: 1, color: AppColors.border),
-                        _InlineField(
-                          controller: _recipientCtrl,
-                          hint: _tr('Paid to (recipient)', 'Imelipwa kwa (mlipwaji)'),
-                          icon: Icons.person_outline_rounded,
-                        ),
-                      ],
+                    const SizedBox(height: 20),
+                    _SectionLabel(_tr('Receipt', 'Risiti')),
+                    const SizedBox(height: 10),
+                    _ReceiptSection(
+                      receiptFile: _receiptFile,
+                      receiptUrl: _receiptUrl,
+                      uploading: _uploadingReceipt,
+                      onTap: _showReceiptOptions,
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  _FieldCard(
-                    child: Column(
-                      children: [
-                        _ToggleRow(
-                          icon: Icons.credit_score_rounded,
-                          label: _tr('Bought on Credit', 'Umenunua kwa Mkopo'),
-                          subtitle: _tr(
-                            'Not fully paid – record as payable debt',
-                            'Haujalipia kikamilifu – rekodi kama deni',
-                          ),
-                          value: _isCreditPurchase,
-                          color: AppColors.error,
-                          onChanged: (v) => setState(() => _isCreditPurchase = v),
-                        ),
-                        if (_isCreditPurchase) ...[
-                          const Divider(height: 1, color: AppColors.border),
-                          _InlineField(
-                            controller: _supplierPhoneCtrl,
-                            hint: _tr(
-                                'Supplier Phone (Optional)', 'Simu ya Muuzaji (Hiari)'),
-                            icon: Icons.phone_outlined,
-                          ),
-                          Divider(height: 1, color: AppColors.border),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.warning_amber_rounded,
-                                    color: AppColors.error, size: 15),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _tr(
-                                      'A payable debt will be recorded for this supplier',
-                                      'Deni la kulipa litarekodiwa kwa muuzaji huyu',
-                                    ),
-                                    style: GoogleFonts.dmSans(
-                                        fontSize: 12, color: AppColors.error),
-                                  ),
-                                ),
-                              ],
+                    SizedBox(height: 20),
+                    _FieldCard(
+                      child: Column(
+                        children: [
+                          _ToggleRow(
+                            icon: Icons.repeat_rounded,
+                            label: _tr(
+                              'Recurring expense',
+                              'Gharama inayojirudia',
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _SectionLabel(_tr('Receipt', 'Risiti')),
-                  const SizedBox(height: 10),
-                  _ReceiptSection(
-                    receiptFile: _receiptFile,
-                    receiptUrl: _receiptUrl,
-                    uploading: _uploadingReceipt,
-                    onTap: _showReceiptOptions,
-                  ),
-                  SizedBox(height: 20),
-                  _FieldCard(
-                    child: Column(
-                      children: [
-                        _ToggleRow(
-                          icon: Icons.repeat_rounded,
-                          label: _tr('Recurring expense', 'Gharama inayojirudia'),
-                          subtitle: _tr(
+                            subtitle: _tr(
                               'Auto-log this expense on schedule',
-                              'Andika gharama hii moja kwa moja kwa ratiba'),
-                          value: _isRecurring,
-                          color: AppColors.tealAccent,
-                          onChanged: (v) => setState(() => _isRecurring = v),
-                        ),
-                        if (_isRecurring) ...[
-                          Divider(height: 1, color: AppColors.border),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            child: Row(
-                              children: [
-                                Text(
-                                  _tr('Frequency:', 'Mara ngapi:'),
-                                  style: GoogleFonts.dmSans(
-                                      fontSize: 13,
-                                      color: AppColors.textSecondary),
-                                ),
-                                const SizedBox(width: 12),
-                                _FreqPill(
-                                  label: _tr('Monthly', 'Kila Mwezi'),
-                                  active: _frequency == 'monthly',
-                                  onTap: () =>
-                                      setState(() => _frequency = 'monthly'),
-                                ),
-                                const SizedBox(width: 8),
-                                _FreqPill(
-                                  label: _tr('Weekly', 'Kila Wiki'),
-                                  active: _frequency == 'weekly',
-                                  onTap: () =>
-                                      setState(() => _frequency = 'weekly'),
-                                ),
-                              ],
+                              'Andika gharama hii moja kwa moja kwa ratiba',
                             ),
+                            value: _isRecurring,
+                            color: AppColors.tealAccent,
+                            onChanged: (v) => setState(() => _isRecurring = v),
                           ),
+                          if (_isRecurring) ...[
+                            Divider(height: 1, color: AppColors.border),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    _tr('Frequency:', 'Mara ngapi:'),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  _FreqPill(
+                                    label: _tr('Monthly', 'Kila Mwezi'),
+                                    active: _frequency == 'monthly',
+                                    onTap: () =>
+                                        setState(() => _frequency = 'monthly'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _FreqPill(
+                                    label: _tr('Weekly', 'Kila Wiki'),
+                                    active: _frequency == 'weekly',
+                                    onTap: () =>
+                                        setState(() => _frequency = 'weekly'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _FieldCard(
-                    child: _ToggleRow(
-                      icon: Icons.approval_rounded,
-                      label: _tr('Submit for approval', 'Wasilisha kwa idhini'),
-                      subtitle: _tr(
+                    const SizedBox(height: 12),
+                    _FieldCard(
+                      child: _ToggleRow(
+                        icon: Icons.approval_rounded,
+                        label: _tr(
+                          'Submit for approval',
+                          'Wasilisha kwa idhini',
+                        ),
+                        subtitle: _tr(
                           'Expense will be held pending manager review',
-                          'Gharama itashikiliwa hadi meneja akubali'),
-                      value: _submitForApproval,
-                      color: AppColors.warning,
-                      onChanged: (v) => setState(() => _submitForApproval = v),
+                          'Gharama itashikiliwa hadi meneja akubali',
+                        ),
+                        value: _submitForApproval,
+                        color: AppColors.warning,
+                        onChanged: (v) =>
+                            setState(() => _submitForApproval = v),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
-            ),
-            _BottomSaveBar(
-              saving: _saving,
-              submitForApproval: _submitForApproval,
-              onSave: _save,
-            ),
-          ],
+              _BottomSaveBar(
+                saving: _saving,
+                submitForApproval: _submitForApproval,
+                onSave: _save,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+InputDecoration _fieldDec({
+  required String label,
+  required IconData prefix,
+  String? hint,
+}) => InputDecoration(
+  labelText: label,
+  hintText: hint,
+  hintStyle: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textDisabled),
+  labelStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
+  floatingLabelStyle: GoogleFonts.dmSans(
+    fontSize: 12,
+    color: AppColors.navyPrimary,
+  ),
+  prefixIcon: Icon(prefix, size: 20, color: AppColors.textSecondary),
+  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  filled: true,
+  fillColor: Colors.white,
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: AppColors.border),
+  ),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: AppColors.border),
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: AppColors.navyPrimary, width: 1.5),
+  ),
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-widgets
@@ -644,9 +746,10 @@ class _AmountSection extends StatelessWidget {
           Text(
             _tr('Amount', 'Kiasi'),
             style: GoogleFonts.dmSans(
-                fontSize: 12,
-                color: Colors.white54,
-                letterSpacing: 0.5),
+              fontSize: 12,
+              color: Colors.white54,
+              letterSpacing: 0.5,
+            ),
           ),
           SizedBox(height: 8),
           Row(
@@ -654,19 +757,20 @@ class _AmountSection extends StatelessWidget {
               Text(
                 'TZS',
                 style: GoogleFonts.dmSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white54),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white54,
+                ),
               ),
               SizedBox(width: 10),
               Expanded(
                 child: TextField(
                   controller: controller,
                   keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
+                    decimal: true,
+                  ),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d*'))
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                   ],
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 36,
@@ -677,9 +781,10 @@ class _AmountSection extends StatelessWidget {
                   decoration: InputDecoration(
                     hintText: '0',
                     hintStyle: GoogleFonts.jetBrainsMono(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white24),
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white24,
+                    ),
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
@@ -698,8 +803,7 @@ class _CategoryGrid extends StatelessWidget {
   final _Cat selected;
   final ValueChanged<_Cat> onSelect;
 
-  const _CategoryGrid(
-      {required this.selected, required this.onSelect});
+  const _CategoryGrid({required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -726,9 +830,10 @@ class _CategoryGrid extends StatelessWidget {
               boxShadow: active
                   ? [
                       BoxShadow(
-                          color: cat.color.withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4))
+                        color: cat.color.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
                     ]
                   : [],
             ),
@@ -744,11 +849,10 @@ class _CategoryGrid extends StatelessWidget {
                 Text(
                   cat.label,
                   style: GoogleFonts.dmSans(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: active
-                          ? Colors.white
-                          : AppColors.textSecondary),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: active ? Colors.white : AppColors.textSecondary,
+                  ),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -774,8 +878,7 @@ class _DateChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -784,19 +887,26 @@ class _DateChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.calendar_today_rounded,
-              size: 15, color: AppColors.navyPrimary),
+          const Icon(
+            Icons.calendar_today_rounded,
+            size: 15,
+            color: AppColors.navyPrimary,
+          ),
           SizedBox(width: 8),
           Text(
             _fmt(date),
             style: GoogleFonts.dmSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.arrow_drop_down_rounded,
-              size: 18, color: AppColors.textMuted),
+          const Icon(
+            Icons.arrow_drop_down_rounded,
+            size: 18,
+            color: AppColors.textMuted,
+          ),
         ],
       ),
     );
@@ -807,8 +917,7 @@ class _PaymentMethodChips extends StatelessWidget {
   final _PayMethod selected;
   final ValueChanged<_PayMethod> onSelect;
 
-  const _PaymentMethodChips(
-      {required this.selected, required this.onSelect});
+  const _PaymentMethodChips({required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -821,31 +930,30 @@ class _PaymentMethodChips extends StatelessWidget {
           onTap: () => onSelect(m),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
               color: active ? AppColors.navyPrimary : Colors.white,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                  color: active
-                      ? AppColors.navyPrimary
-                      : AppColors.border),
+                color: active ? AppColors.navyPrimary : AppColors.border,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(m.icon,
-                    size: 15,
-                    color: active ? Colors.white : AppColors.textMuted),
+                Icon(
+                  m.icon,
+                  size: 15,
+                  color: active ? Colors.white : AppColors.textMuted,
+                ),
                 SizedBox(width: 6),
                 Text(
                   m.label,
                   style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: active
-                          ? Colors.white
-                          : AppColors.textSecondary),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: active ? Colors.white : AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -869,8 +977,7 @@ class _ReceiptSection extends StatelessWidget {
     required this.onTap,
   });
 
-  bool get hasReceipt =>
-      receiptFile != null || receiptUrl.isNotEmpty;
+  bool get hasReceipt => receiptFile != null || receiptUrl.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -891,21 +998,27 @@ class _ReceiptSection extends StatelessWidget {
               if (receiptFile != null)
                 Image.file(receiptFile!, fit: BoxFit.cover)
               else if (receiptUrl.isNotEmpty)
-                Image.network(receiptUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (_, child, progress) {
-                      if (progress == null) return child;
-                      return const Center(
-                          child: CircularProgressIndicator(
-                              color: AppColors.navyPrimary,
-                              strokeWidth: 2));
-                    }),
+                Image.network(
+                  receiptUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) {
+                    if (progress == null) return child;
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.navyPrimary,
+                        strokeWidth: 2,
+                      ),
+                    );
+                  },
+                ),
               Positioned(
                 top: 8,
                 right: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.navyPrimary.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(8),
@@ -913,15 +1026,19 @@ class _ReceiptSection extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.edit_rounded,
-                          size: 11, color: Colors.white),
+                      const Icon(
+                        Icons.edit_rounded,
+                        size: 11,
+                        color: Colors.white,
+                      ),
                       SizedBox(width: 4),
                       Text(
                         _tr('Change', 'Badilisha'),
                         style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     ],
                   ),
@@ -932,7 +1049,9 @@ class _ReceiptSection extends StatelessWidget {
                   color: Colors.black.withValues(alpha: 0.4),
                   child: const Center(
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2),
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
                   ),
                 ),
             ],
@@ -948,8 +1067,7 @@ class _ReceiptSection extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-              color: AppColors.border),
+          border: Border.all(color: AppColors.border),
         ),
         child: Column(
           children: [
@@ -960,24 +1078,31 @@ class _ReceiptSection extends StatelessWidget {
                 color: AppColors.tealAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.add_photo_alternate_rounded,
-                  size: 24, color: AppColors.tealAccent),
+              child: const Icon(
+                Icons.add_photo_alternate_rounded,
+                size: 24,
+                color: AppColors.tealAccent,
+              ),
             ),
             SizedBox(height: 10),
             Text(
-              _tr('Attach receipt photo',
-                  'Ambatanisha picha ya risiti'),
+              _tr('Attach receipt photo', 'Ambatanisha picha ya risiti'),
               style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.tealAccent),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.tealAccent,
+              ),
             ),
             SizedBox(height: 4),
             Text(
-              _tr('Camera or gallery — Phase 2: auto OCR extraction',
-                  'Kamera au maktaba — Awamu 2: utambuzi wa maandishi'),
+              _tr(
+                'Camera or gallery — Phase 2: auto OCR extraction',
+                'Kamera au maktaba — Awamu 2: utambuzi wa maandishi',
+              ),
               style: GoogleFonts.dmSans(
-                  fontSize: 11, color: AppColors.textMuted),
+                fontSize: 11,
+                color: AppColors.textMuted,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1001,45 +1126,6 @@ class _FieldCard extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: child,
-    );
-  }
-}
-
-class _InlineField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-
-  const _InlineField({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppColors.textMuted),
-          SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: GoogleFonts.dmSans(fontSize: 14, color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: GoogleFonts.dmSans(
-                    fontSize: 14, color: AppColors.textMuted),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1081,15 +1167,21 @@ class _ToggleRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary)),
-                Text(subtitle,
-                    style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        color: AppColors.textMuted)),
+                Text(
+                  label,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1110,8 +1202,11 @@ class _FreqPill extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
-  const _FreqPill(
-      {required this.label, required this.active, required this.onTap});
+  const _FreqPill({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1119,20 +1214,21 @@ class _FreqPill extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: active ? AppColors.tealAccent : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: active ? AppColors.tealAccent : AppColors.border),
+            color: active ? AppColors.tealAccent : AppColors.border,
+          ),
         ),
         child: Text(
           label,
           style: GoogleFonts.dmSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: active ? Colors.white : AppColors.textMuted),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : AppColors.textMuted,
+          ),
         ),
       ),
     );
@@ -1149,10 +1245,11 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       text,
       style: GoogleFonts.dmSans(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textMuted,
-          letterSpacing: 0.6),
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textMuted,
+        letterSpacing: 0.6,
+      ),
     );
   }
 }
@@ -1184,21 +1281,26 @@ class _BottomSaveBar extends StatelessWidget {
               ? const SizedBox.square(
                   dimension: 18,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white))
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
               : Icon(
                   submitForApproval
                       ? Icons.send_rounded
                       : Icons.check_circle_rounded,
-                  size: 18),
+                  size: 18,
+                ),
           label: Text(
             saving
                 ? _tr('Saving…', 'Inahifadhi…')
                 : submitForApproval
-                    ? _tr('Submit for Approval',
-                        'Wasilisha kwa Idhini')
-                    : _tr('Save Expense', 'Hifadhi Gharama'),
+                ? _tr('Submit for Approval', 'Wasilisha kwa Idhini')
+                : _tr('Save Expense', 'Hifadhi Gharama'),
             style: GoogleFonts.dmSans(
-                fontSize: 15, fontWeight: FontWeight.w700),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           style: FilledButton.styleFrom(
             backgroundColor: submitForApproval
@@ -1206,7 +1308,8 @@ class _BottomSaveBar extends StatelessWidget {
                 : AppColors.navyPrimary,
             padding: const EdgeInsets.symmetric(vertical: 15),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
         ),
       ),

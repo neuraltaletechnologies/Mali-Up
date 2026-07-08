@@ -3,20 +3,28 @@
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { PageHeader } from '@/components/ui/page-header'
+import { Tabs } from '@/components/ui/tabs'
 import { DataTable } from '@/components/ui/data-table'
+import { StatusDot } from '@/components/ui/status-dot'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import { PlanBadge } from '@/components/ui/plan-badge'
-import { fetchPlanRequests, patchPlanRequest, assignPlan } from '@/lib/admin-api'
+import { fetchPlanRequests, patchPlanRequest, assignPlan, fetchRefunds, patchRefund } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
-import type { PlanRequest } from '@/types'
+import type { PlanRequest, RefundRequest } from '@/types'
 import type { ColumnDef } from '@tanstack/react-table'
-import { formatDate } from '@/lib/format'
+import { formatDate, formatTZS, calculateRefund } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import {
-  Check, X, AlertCircle, ChevronRight, Building2, Phone,
-  Briefcase, Receipt, Rocket,
+  Check, X, AlertCircle, ChevronRight, ChevronDown, ChevronUp, Building2, Phone,
+  Briefcase, Receipt, Rocket, DollarSign,
 } from 'lucide-react'
 
-// ─── Badges ───────────────────────────────────────────────────────────────────
+function initialTab(): 'requests' | 'refunds' {
+  if (typeof window === 'undefined') return 'requests'
+  return new URLSearchParams(window.location.search).get('tab') === 'refunds' ? 'refunds' : 'requests'
+}
+
+// ─── Plan Requests tab ────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: PlanRequest['status'] }) {
   const cfg: Record<string, string> = {
@@ -48,9 +56,7 @@ function TypeBadge({ type }: { type: PlanRequest['type'] }) {
   )
 }
 
-// ─── Detail drawer ────────────────────────────────────────────────────────────
-
-function DetailDrawer({
+function RequestDetailDrawer({
   request,
   onClose,
   onRefetch,
@@ -252,9 +258,7 @@ function DetailDrawer({
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function PlanRequestsPage() {
+function RequestsTab() {
   const [statusFilter, setStatusFilter] = useState<string>('pending')
   const [selected, setSelected] = useState<PlanRequest | null>(null)
 
@@ -330,11 +334,7 @@ export default function PlanRequestsPage() {
   ]
 
   return (
-    <div>
-      <PageHeader
-        title="Plan Requests"
-        description={loading ? 'Loading…' : `${pending} pending · ${requests.length} total shown`}
-      />
+    <>
       {revalidating && <RevalidatingBar />}
 
       {/* Filter tabs */}
@@ -386,12 +386,248 @@ export default function PlanRequestsPage() {
       )}
 
       {selected && (
-        <DetailDrawer
+        <RequestDetailDrawer
           request={selected}
           onClose={() => setSelected(null)}
           onRefetch={refetch}
         />
       )}
+    </>
+  )
+}
+
+// ─── Refunds tab ──────────────────────────────────────────────────────────────
+
+const REFUND_COLUMNS: RefundRequest['status'][][] = [['requested'], ['processing'], ['completed']]
+const REFUND_COLUMN_LABELS = ['Requested', 'Processing (UTT AMIS)', 'Completed']
+
+function RefundCalculatorModal({
+  refund,
+  onClose,
+  onAction,
+}: {
+  refund: RefundRequest
+  onClose: () => void
+  onAction: (action: 'processing' | 'completed') => Promise<void>
+}) {
+  const [acting, setActing] = useState(false)
+  const breakdown = calculateRefund(refund.principal, refund.monthlyFee, refund.monthsHeld, refund.tier)
+
+  const nextStatus: 'processing' | 'completed' | null =
+    refund.status === 'requested'  ? 'processing' :
+    refund.status === 'processing' ? 'completed'  :
+    null
+
+  const actionLabel =
+    refund.status === 'requested'  ? 'Initiate UTT AMIS Withdrawal' :
+    refund.status === 'processing' ? 'Mark Refund Sent' :
+    'View Only'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-2xl">
+        <h2 className="text-[15px] font-semibold text-[var(--ink)] mb-4">Refund Calculation</h2>
+        <div className="text-[13px] font-medium text-[var(--ink-muted)] mb-1">{refund.businessName}</div>
+        <div className="text-[12px] text-[var(--ink-faint)] mb-5">{refund.monthsHeld} months held · {refund.tier} tier</div>
+
+        <div className="rounded-lg border border-[var(--line)] overflow-hidden mb-5">
+          {[
+            { label: 'Original Principal', value: refund.principal, color: '' },
+            { label: `Fees Used (${refund.monthsHeld} × ${formatTZS(refund.monthlyFee)})`, value: -breakdown.feesUsed, color: 'text-[var(--status-bad)]' },
+            { label: 'Cancellation Fee', value: -breakdown.cancellationFee, color: 'text-[var(--status-bad)]' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--line)] last:border-0">
+              <span className="text-[13px] text-[var(--ink-muted)]">{label}</span>
+              <span className={cn('font-mono text-[13px]', color || 'text-[var(--ink)]')}>
+                {value < 0 ? `−${formatTZS(Math.abs(value))}` : formatTZS(value)}
+              </span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between px-4 py-3 bg-[var(--canvas)]">
+            <span className="text-[14px] font-semibold text-[var(--ink)]">Final Refund Amount</span>
+            <span className="font-mono text-[16px] font-bold text-[var(--ink)]">{formatTZS(breakdown.refundAmount)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={acting}
+            className="rounded-md border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+          >
+            Cancel
+          </button>
+          {nextStatus && (
+            <button
+              onClick={async () => {
+                setActing(true)
+                try { await onAction(nextStatus) } finally { setActing(false) }
+                onClose()
+              }}
+              disabled={acting}
+              className="rounded-md bg-[var(--navy)] px-4 py-1.5 text-[12px] font-medium text-white hover:bg-[var(--navy-soft)] transition-colors disabled:opacity-50"
+            >
+              {acting ? 'Saving…' : actionLabel}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RefundCard({
+  refund,
+  onStatusChange,
+}: {
+  refund: RefundRequest
+  onStatusChange: (id: string, status: 'processing' | 'completed') => Promise<void>
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [showCalc, setShowCalc] = useState(false)
+  const breakdown = calculateRefund(refund.principal, refund.monthlyFee, refund.monthsHeld, refund.tier)
+
+  return (
+    <>
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="font-medium text-[var(--ink)] text-[13px]">{refund.businessName}</div>
+            <div className="text-[11px] text-[var(--ink-muted)] mt-0.5">
+              {refund.tier} · {refund.monthsHeld} months held
+            </div>
+          </div>
+          <StatusDot
+            status={refund.status === 'completed' ? 'neutral' : refund.status === 'processing' ? 'warn' : 'bad'}
+            label={refund.status.charAt(0).toUpperCase() + refund.status.replace(/_/g, ' ').slice(1)}
+          />
+        </div>
+
+        <div className="mt-3 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] text-[var(--ink-faint)]">Principal</div>
+            <div className="font-mono text-[13px] font-semibold text-[var(--ink)]">{formatTZS(refund.principal)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[11px] text-[var(--ink-faint)]">Refund Amount</div>
+            <div className="font-mono text-[13px] font-semibold text-[var(--status-good)]">{formatTZS(breakdown.refundAmount)}</div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={() => setShowCalc(true)}
+            className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+          >
+            <DollarSign className="h-3 w-3" />
+            {refund.status !== 'completed' ? 'View & action' : 'View calculation'}
+          </button>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="ml-auto flex items-center gap-0.5 text-[11px] text-[var(--ink-faint)] hover:text-[var(--ink-muted)]"
+          >
+            {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            {expanded ? 'Less' : 'More'}
+          </button>
+        </div>
+
+        {expanded && (
+          <div className="mt-3 pt-3 border-t border-[var(--line)] text-[11px] text-[var(--ink-muted)] space-y-1">
+            <div>Requested: {formatDate(refund.requestedAt)}</div>
+            {refund.processedAt && <div>Processing started: {formatDate(refund.processedAt)}</div>}
+            {refund.completedAt && <div>Completed: {formatDate(refund.completedAt)}</div>}
+          </div>
+        )}
+      </div>
+
+      {showCalc && (
+        <RefundCalculatorModal
+          refund={refund}
+          onClose={() => setShowCalc(false)}
+          onAction={(status) => onStatusChange(refund.id, status)}
+        />
+      )}
+    </>
+  )
+}
+
+function RefundsTab() {
+  const { data, loading, revalidating, error, refetch } = useAdminFetch(
+    useCallback(() => fetchRefunds(), []),
+    { key: 'refunds' },
+  )
+
+  async function handleStatusChange(id: string, status: 'processing' | 'completed') {
+    await patchRefund(id, status)
+    refetch()
+  }
+
+  const refunds = data?.refunds ?? []
+
+  if (loading) return <SkeletonTable rows={6} cols={5} />
+  if (error && !data) {
+    return (
+      <div className="mt-4 flex items-center gap-3 rounded-lg border border-[var(--status-bad)] bg-[var(--status-bad-bg)] p-4 text-[var(--status-bad)]">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span className="text-[13px]">{error}</span>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {revalidating && <RevalidatingBar />}
+      <div className="grid grid-cols-3 gap-4">
+        {REFUND_COLUMN_LABELS.map((label, ci) => {
+          const statuses = REFUND_COLUMNS[ci]
+          const cards = refunds.filter((r) => statuses.includes(r.status))
+          return (
+            <div key={label}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[13px] font-semibold text-[var(--ink)]">{label}</h2>
+                <span className="text-[11px] font-mono text-[var(--ink-faint)]">{cards.length}</span>
+              </div>
+              <div className="flex flex-col gap-3 min-h-[120px] rounded-lg border border-[var(--line)] bg-[var(--canvas)] p-3">
+                {cards.length === 0 ? (
+                  <div className="text-center py-6 text-[12px] text-[var(--ink-faint)]">No refunds here</div>
+                ) : (
+                  cards.map((r) => (
+                    <RefundCard key={r.id} refund={r} onStatusChange={handleStatusChange} />
+                  ))
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function RequestsPage() {
+  const [tab, setTab] = useState<'requests' | 'refunds'>(initialTab)
+
+  return (
+    <div>
+      <PageHeader
+        title="Requests"
+        description={tab === 'requests' ? 'Enterprise inquiries and payment confirmations' : 'Lifetime subscription refund queue'}
+      />
+
+      <Tabs
+        tabs={[
+          { id: 'requests', label: 'Plan Requests' },
+          { id: 'refunds', label: 'Refunds' },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as 'requests' | 'refunds')}
+        className="mb-6"
+      />
+
+      {tab === 'requests' ? <RequestsTab /> : <RefundsTab />}
     </div>
   )
 }
