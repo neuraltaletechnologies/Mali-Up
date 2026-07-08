@@ -69,6 +69,9 @@ class SubscriptionScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
             children: [
+              // ── Pending request notice ─────────────────────────
+              const PlanPendingBanner(),
+
               // ── Current plan card ──────────────────────────────
               PlanInfoCard(
                 status: status,

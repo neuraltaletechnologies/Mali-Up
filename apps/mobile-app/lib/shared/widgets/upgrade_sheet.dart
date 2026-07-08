@@ -166,6 +166,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   bool _showPayment = false;
   bool _showEnterprise = false;
   bool _submittingClaim = false;
+  bool _paymentSubmitted = false;
   String _paymentRef = '';
 
   static const _mpesaNumber = '+255 XXX XXX XXX';
@@ -205,7 +206,12 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
       // Offline or rules failure — the M-Pesa reference still reaches the
       // team through the payment itself, so don't block the user here.
     }
-    if (mounted) Navigator.pop(context, _selected);
+    if (mounted) {
+      setState(() {
+        _submittingClaim = false;
+        _paymentSubmitted = true;
+      });
+    }
   }
 
   @override
@@ -286,7 +292,13 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               const SizedBox(height: 16),
 
               // ── CTA / Payment / Enterprise request ───────────────────────
-              if (_showEnterprise) ...[
+              if (_paymentSubmitted) ...[
+                _PaymentSubmittedCard(
+                  tier: _selected,
+                  paymentRef: _paymentRef,
+                  onDone: () => Navigator.pop(context, _selected),
+                ),
+              ] else if (_showEnterprise) ...[
                 _EnterpriseRequestForm(
                   onDone: () => Navigator.pop(context, PlanTier.enterprise),
                 ),
@@ -884,6 +896,81 @@ class _EnterpriseRequestFormState extends State<_EnterpriseRequestForm> {
           ],
         );
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Payment claim submitted — "we're processing it" confirmation
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PaymentSubmittedCard extends StatelessWidget {
+  final PlanTier tier;
+  final String paymentRef;
+  final VoidCallback onDone;
+
+  const _PaymentSubmittedCard({
+    required this.tier,
+    required this.paymentRef,
+    required this.onDone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tierName = tier == PlanTier.growth ? 'Growth' : 'Business';
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.hourglass_top_rounded,
+              color: AppColors.success, size: 36),
+          SizedBox(height: 10),
+          Text(
+            'Tumepokea taarifa yako ya malipo!',
+            style: GoogleFonts.dmSans(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyPrimary,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Tunathibitisha malipo yako ya $tierName ($paymentRef) — mpango wako '
+            'utawashwa ndani ya masaa 24. Utaona taarifa hapa mara ukiwashwa.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton(
+              onPressed: onDone,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navyPrimary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                'Sawa',
+                style: GoogleFonts.dmSans(
+                    fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
