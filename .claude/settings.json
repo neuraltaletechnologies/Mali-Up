@@ -170,7 +170,9 @@
       "Bash(firebase --version)",
       "Bash(node -e \"const s=require\\('./.claude/settings.json'\\); console.log\\(JSON.stringify\\(s.hooks||'none', null, 2\\)\\)\")",
       "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{try{const s=JSON.parse\\(d\\);console.log\\(JSON.stringify\\(s.hooks||'none',null,2\\)\\)}catch\\(e\\){console.log\\('no local settings or parse error'\\)}}\\)\")",
-      "Bash(firebase login:list)"
+      "Bash(firebase login:list)",
+      "Bash(curl -s \"https://firestore.googleapis.com/v1/projects/neuraltale-mali-up/databases/\\(default\\)/documents/platform_config/version_gate\" -w \"\\\\nHTTP_STATUS:%{http_code}\\\\n\")",
+      "Bash(curl -s \"https://firestore.googleapis.com/v1/projects/neuraltale-mali-up/databases/\\(default\\)/documents/platform_config/main\" -w \"\\\\nHTTP_STATUS:%{http_code}\\\\n\")"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
