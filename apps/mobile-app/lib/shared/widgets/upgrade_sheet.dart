@@ -109,6 +109,28 @@ class _UpgradeSheetWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // One pending request per user at a time — a second submission (growth,
+    // business, or enterprise) while the first is still awaiting admin review
+    // would just create noise in the admin portal, so block the whole sheet
+    // and point the user at the existing request instead.
+    final pendingAsync = ref.watch(pendingPlanRequestProvider);
+    if (pendingAsync.isLoading && !pendingAsync.hasValue) {
+      return const Padding(
+        padding: EdgeInsets.all(32),
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    final pending = pendingAsync.valueOrNull;
+    if (pending != null) {
+      return _PendingRequestNotice(pending: pending);
+    }
+
     final defsAsync = ref.watch(planDefinitionsProvider);
     return defsAsync.smartWhen(
       skeleton: () => const Padding(
@@ -135,6 +157,93 @@ class _UpgradeSheetWrapper extends ConsumerWidget {
         triggerReason: triggerReason,
         featureKey: featureKey,
         defs: defs,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pending-request notice — shown instead of the paywall while a request
+// (payment claim or enterprise inquiry) is already awaiting admin review.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PendingRequestNotice extends StatelessWidget {
+  final PlanRequestSummary pending;
+
+  const _PendingRequestNotice({required this.pending});
+
+  @override
+  Widget build(BuildContext context) {
+    final tierLabel = switch (pending.tier) {
+      PlanTier.growth => 'Growth',
+      PlanTier.business => 'Business',
+      PlanTier.enterprise => 'Enterprise',
+      PlanTier.lifetime => 'Lifetime',
+      PlanTier.starter => 'Starter',
+    };
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SheetHandle(),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.tealAccent.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.25)),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.hourglass_top_rounded,
+                    color: AppColors.tealAccent, size: 36),
+                const SizedBox(height: 10),
+                Text(
+                  'Ombi lako la $tierLabel bado linashughulikiwa',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Timu yetu inathibitisha ombi lako. Huwezi kutuma ombi jingine mpaka hili likamilike.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.navyPrimary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      'Nimeelewa',
+                      style: GoogleFonts.dmSans(
+                          fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
