@@ -139,7 +139,7 @@ class ReportsHubScreen extends ConsumerWidget {
             locked: locked,
             onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );

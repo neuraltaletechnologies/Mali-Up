@@ -15,8 +15,11 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../data/cash_flow_providers.dart';
+import '../../data/payment_account_service.dart';
 import '../../domain/models/expense.dart';
 import '../../domain/models/recurring_expense_template.dart';
+import '../../domain/payment_method_accounts.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
 
@@ -271,6 +274,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _showSnack(_tr('Enter a valid amount', 'Weka kiasi sahihi'));
       return;
     }
+
+    // Money paid out must leave an activated payment channel — an
+    // unactivated Taslimu/M-Pesa/Benki/Kadi cannot be used to pay expenses.
+    final account = await activatedAccountForMethod(ref, _payMethod.key);
+    if (account == null) {
+      _showSnack(activationRequiredMessage(_payMethod.key));
+      return;
+    }
+
     setState(() => _saving = true);
 
     try {
@@ -806,9 +818,9 @@ class _CategoryGrid extends StatelessWidget {
       crossAxisCount: 4,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 0.9,
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 8,
+      childAspectRatio: 1.15,
       children: _Cat.values.map((cat) {
         final active = cat == selected;
         return GestureDetector(
@@ -817,7 +829,7 @@ class _CategoryGrid extends StatelessWidget {
             duration: const Duration(milliseconds: 180),
             decoration: BoxDecoration(
               color: active ? cat.color : Colors.white,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: active ? cat.color : AppColors.border,
                 width: active ? 0 : 1,
@@ -837,18 +849,19 @@ class _CategoryGrid extends StatelessWidget {
               children: [
                 Icon(
                   cat.icon,
-                  size: 24,
+                  size: 18,
                   color: active ? Colors.white : cat.color,
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   cat.label,
                   style: GoogleFonts.dmSans(
-                    fontSize: 10,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w600,
                     color: active ? Colors.white : AppColors.textSecondary,
                   ),
                   textAlign: TextAlign.center,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -909,21 +922,45 @@ class _DateChip extends StatelessWidget {
   }
 }
 
-class _PaymentMethodChips extends StatelessWidget {
+class _PaymentMethodChips extends ConsumerStatefulWidget {
   final _PayMethod selected;
   final ValueChanged<_PayMethod> onSelect;
 
   const _PaymentMethodChips({required this.selected, required this.onSelect});
 
   @override
+  ConsumerState<_PaymentMethodChips> createState() =>
+      _PaymentMethodChipsState();
+}
+
+class _PaymentMethodChipsState extends ConsumerState<_PaymentMethodChips> {
+  @override
   Widget build(BuildContext context) {
+    final activatedIds = ref.watch(activatedMethodAccountsProvider);
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: _PayMethod.values.map((m) {
-        final active = m == selected;
+        final active = m == widget.selected;
+        final activated = activatedIds.containsKey(
+          PaymentMethodAccounts.accountIdForMethod(m.key),
+        );
         return GestureDetector(
-          onTap: () => onSelect(m),
+          onTap: () {
+            if (!activated) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(activationRequiredMessage(m.key)),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              );
+              return;
+            }
+            widget.onSelect(m);
+          },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -938,9 +975,13 @@ class _PaymentMethodChips extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  m.icon,
+                  activated ? m.icon : Icons.lock_outline_rounded,
                   size: 15,
-                  color: active ? Colors.white : AppColors.textMuted,
+                  color: active
+                      ? Colors.white
+                      : activated
+                      ? AppColors.textMuted
+                      : AppColors.textDisabled,
                 ),
                 SizedBox(width: 6),
                 Text(
@@ -948,7 +989,11 @@ class _PaymentMethodChips extends StatelessWidget {
                   style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: active ? Colors.white : AppColors.textSecondary,
+                    color: active
+                        ? Colors.white
+                        : activated
+                        ? AppColors.textSecondary
+                        : AppColors.textDisabled,
                   ),
                 ),
               ],

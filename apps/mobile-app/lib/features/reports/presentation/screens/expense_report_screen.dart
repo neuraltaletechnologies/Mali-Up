@@ -144,7 +144,7 @@ class ExpenseReportScreen extends ConsumerWidget {
               }
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 100),
         ],
       ),
     );

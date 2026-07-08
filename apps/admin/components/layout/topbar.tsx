@@ -1,10 +1,11 @@
 'use client'
 
-import { Bell, Search, ChevronRight, Sun, Moon } from 'lucide-react'
+import { Search, ChevronRight, Sun, Moon } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
+import { NotificationBell } from './notification-bell'
 
 const routeLabels: Record<string, string> = {
   '':            'Dashboard',
@@ -93,9 +94,7 @@ export function TopBar() {
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        <button className="relative p-1.5 rounded-md text-[var(--topbar-text-muted)] hover:text-[var(--topbar-text)] hover:bg-[var(--canvas)] transition-colors">
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationBell />
 
         <div
           className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 ml-1"

@@ -314,6 +314,16 @@ export interface AppLookups {
   districts: Record<string, string[]>
 }
 
+// Aggregated feed of pending items requiring admin action (topbar bell)
+export interface AdminNotification {
+  id: string
+  source: 'plan_request' | 'refund' | 'submission' | 'ticket'
+  title: string
+  subtitle: string
+  createdAt: string
+  href: string
+}
+
 export interface PlatformConfig {
   pricing: {
     starter: number
