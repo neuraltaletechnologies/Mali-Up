@@ -165,9 +165,9 @@ export default function RevenuePage() {
       {analyticsLoading ? (
         <>
           <KPIRowSkeleton count={4} />
-          <div className="grid grid-cols-5 gap-4">
-            <div className="col-span-3"><ChartSkeleton height="h-72" /></div>
-            <div className="col-span-2"><ChartSkeleton height="h-72" /></div>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <div className="lg:col-span-3"><ChartSkeleton height="h-72" /></div>
+            <div className="lg:col-span-2"><ChartSkeleton height="h-72" /></div>
           </div>
         </>
       ) : analyticsError && !data ? (
@@ -178,7 +178,7 @@ export default function RevenuePage() {
       ) : data && (
         <>
           {/* KPI row */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KPICard
               label="Current MRR"
               value={`TZS ${formatTZSCompact(data.mrr)}`}
@@ -199,16 +199,16 @@ export default function RevenuePage() {
             />
           </div>
 
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* MRR trend */}
-            <div className="col-span-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div className="lg:col-span-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
               <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-1">MRR Trend</h2>
               <p className="text-[12px] text-[var(--ink-muted)] mb-4">Cumulative over last 12 months</p>
               <MRRTrendChart data={data.mrrTrend} />
             </div>
 
             {/* Per-plan revenue breakdown */}
-            <div className="col-span-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div className="lg:col-span-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
               <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-1">Revenue by Plan</h2>
               <p className="text-[12px] text-[var(--ink-muted)] mb-5">Monthly contribution per tier</p>
 
@@ -254,7 +254,7 @@ export default function RevenuePage() {
           {data.planDistribution.length > 0 && (
             <div className="mt-4 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
               <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-4">Plan Distribution Detail</h2>
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {data.planDistribution.map(({ name, value, color }) => {
                   const fee = planFees[name.toLowerCase()] ?? 0
                   return (
