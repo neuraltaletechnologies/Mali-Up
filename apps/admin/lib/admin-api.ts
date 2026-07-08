@@ -275,10 +275,11 @@ export async function patchPlanRequest(
   id: string,
   action: 'approve' | 'reject',
   adminNotes?: string,
+  activated?: boolean,
 ): Promise<{ status: string }> {
   return apiFetch(`/api/admin/plan-requests/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ action, adminNotes }),
+    body: JSON.stringify({ action, adminNotes, activated }),
   })
 }
 

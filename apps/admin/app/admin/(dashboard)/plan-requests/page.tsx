@@ -71,6 +71,8 @@ function RequestDetailDrawer({
   const [error, setError] = useState<string | null>(null)
 
   const isPending = request.status === 'pending'
+  const isRejected = request.status === 'rejected'
+  const isApproved = request.status === 'approved'
   const canActivate = Boolean(request.uid && request.businessId)
 
   async function handle(action: 'approve' | 'reject', activate: boolean) {
@@ -80,7 +82,7 @@ function RequestDetailDrawer({
       if (activate) {
         await assignPlan(request.uid, request.businessId, request.requestedTier, cycleMonths)
       }
-      await patchPlanRequest(request.id, action, adminNotes)
+      await patchPlanRequest(request.id, action, adminNotes, activate)
       onRefetch()
       onClose()
     } catch (err) {
@@ -169,7 +171,7 @@ function RequestDetailDrawer({
           )}
 
           {/* Activation settings */}
-          {isPending && (
+          {!isRejected && !(isApproved && request.activated) && (
             <div className="space-y-3">
               <p className="text-[11px] font-semibold text-[var(--ink-muted)] uppercase tracking-wide">
                 Activation
@@ -216,12 +218,21 @@ function RequestDetailDrawer({
 
         {/* Footer actions */}
         <div className="border-t border-[var(--line)] px-6 py-4 space-y-2">
-          {!isPending ? (
+          {isRejected ? (
             <p className="text-center text-[12px] text-[var(--ink-muted)]">
-              This request has been {request.status}.
+              This request has been rejected.
+            </p>
+          ) : isApproved && request.activated ? (
+            <p className="text-center text-[12px] text-[var(--ink-muted)]">
+              Approved and activated.
             </p>
           ) : (
             <>
+              {isApproved && !request.activated && (
+                <p className="text-center text-[11px] text-[var(--status-bad)]">
+                  Approved, but the plan was never activated for this user.
+                </p>
+              )}
               <button
                 disabled={!!acting || !canActivate}
                 onClick={() => handle('approve', true)}
@@ -230,26 +241,30 @@ function RequestDetailDrawer({
                 <Rocket className="h-4 w-4" />
                 {acting === 'activate'
                   ? 'Activating…'
-                  : `Activate ${request.requestedTier} & approve`}
+                  : isApproved
+                    ? `Activate ${request.requestedTier}`
+                    : `Activate ${request.requestedTier} & approve`}
               </button>
-              <div className="flex gap-2">
-                <button
-                  disabled={!!acting}
-                  onClick={() => handle('approve', false)}
-                  className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-[12px] font-medium text-green-700 hover:opacity-80 disabled:opacity-40 transition-opacity"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  {acting === 'approve' ? '…' : 'Approve only'}
-                </button>
-                <button
-                  disabled={!!acting}
-                  onClick={() => handle('reject', false)}
-                  className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-medium text-red-600 hover:opacity-80 disabled:opacity-40 transition-opacity"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  {acting === 'reject' ? '…' : 'Reject'}
-                </button>
-              </div>
+              {isPending && (
+                <div className="flex gap-2">
+                  <button
+                    disabled={!!acting}
+                    onClick={() => handle('approve', false)}
+                    className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-[12px] font-medium text-green-700 hover:opacity-80 disabled:opacity-40 transition-opacity"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    {acting === 'approve' ? '…' : 'Approve only'}
+                  </button>
+                  <button
+                    disabled={!!acting}
+                    onClick={() => handle('reject', false)}
+                    className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-medium text-red-600 hover:opacity-80 disabled:opacity-40 transition-opacity"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    {acting === 'reject' ? '…' : 'Reject'}
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>

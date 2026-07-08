@@ -15,6 +15,7 @@ import '../../core/services/plan_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../config/routing.dart';
+import '../../core/providers/connectivity_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/sync/sync_service.dart';
 import '../../features/rbac/data/rbac_providers.dart';
@@ -757,13 +758,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       final bizName = _currentBusinessName;
       _liveActivity.onSyncStateChanged(next, businessName: bizName);
     });
-    // Select only the bool we need so the shell doesn't rebuild on every
-    // intermediate SyncState transition (e.g. idle→syncing→idle).
-    final isOnline = ref.watch(
-      syncStateProvider.select(
-        (s) => s == SyncState.idle || s == SyncState.syncing,
-      ),
-    );
+    // The header pill reflects actual device connectivity, not the last
+    // Firestore sync outcome — a transient sync error (SyncState.error)
+    // otherwise left this stuck showing "Offline" even with a live
+    // connection, since nothing retries a failed sync until the next real
+    // connectivity change event. Sync-specific issues surface separately
+    // via SyncStatusBanner.
+    final isOnline = ref.watch(isOnlineProvider);
     final permissionsLoaded = ref.watch(permissionsLoadedProvider);
     // Use owner-equivalent permissions while loading to avoid a flash of the
     // one-icon nav bar on first login (no role cache yet on the device).

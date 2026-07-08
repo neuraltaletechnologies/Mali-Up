@@ -291,6 +291,7 @@ export interface PlanRequest {
   note: string
   paymentRef: string
   status: 'pending' | 'approved' | 'rejected'
+  activated: boolean
   adminNotes: string
   createdAt: string
   resolvedAt: string
