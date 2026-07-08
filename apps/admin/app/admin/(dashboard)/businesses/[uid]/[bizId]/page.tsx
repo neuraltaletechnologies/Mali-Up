@@ -670,7 +670,7 @@ export default function BusinessDetailPage() {
           {business.plan === 'lifetime' && (
             <div className="mt-2 text-[13px] text-[var(--ink-muted)]">
               View full UTT AMIS details on the{' '}
-              <a href="/admin/lifetime" className="text-[var(--accent)] hover:underline">Lifetime page</a>.
+              <a href="/admin/subscriptions?tab=lifetime" className="text-[var(--accent)] hover:underline">Subscriptions page</a>.
             </div>
           )}
         </div>
