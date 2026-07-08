@@ -725,7 +725,7 @@ export default function BusinessDetailPage() {
       </div>
 
       {/* Quick stat pills */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <div className="flex items-center gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
           <Users className="h-4 w-4 text-[var(--accent)]" />
           <div>
@@ -760,7 +760,7 @@ export default function BusinessDetailPage() {
 
       {/* Overview */}
       {tab === 'overview' && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <KPICard label="Plan" value={business.plan.charAt(0).toUpperCase() + business.plan.slice(1)} mono={false} />
           <KPICard label="Status" value={business.status.charAt(0).toUpperCase() + business.status.slice(1)} mono={false} />
           <KPICard label="Industry" value={business.industry} mono={false} />

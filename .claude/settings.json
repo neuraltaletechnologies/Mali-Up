@@ -166,7 +166,8 @@
       "Bash(xargs -I{} sh -c 'echo {}')",
       "Bash(mkdir -p \"c:\\\\SIDE\\\\GIT\\\\Maliapp\\\\apps\\\\admin\\\\app\\\\api\\\\admin\\\\businesses\\\\[uid]\\\\[businessId]\\\\enterprise-terms\")",
       "Bash(xargs grep -l \"OnboardingFormNotifier\\\\|onboardingFormProvider\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(firebase --version)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
