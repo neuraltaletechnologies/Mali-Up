@@ -29,7 +29,11 @@ class ProfitLossScreen extends ConsumerWidget {
         leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Profit & Loss', 'Faida na Hasara'),
-          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 20),
+          style: GoogleFonts.dmSans(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+          ),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -43,37 +47,53 @@ class ProfitLossScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // Summary cards
-          Row(children: [
-            Expanded(child: ReportStatCard(
-              label: _tr('Revenue', 'Mapato'),
-              value: formatCurrency(report.revenue),
-              valueColor: AppColors.success,
-              icon: Icons.trending_up_rounded,
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: ReportStatCard(
-              label: _tr('Expenses', 'Gharama'),
-              value: formatCurrency(report.totalExpenses),
-              valueColor: AppColors.error,
-              icon: Icons.trending_down_rounded,
-            )),
-          ]),
+          Row(
+            children: [
+              Expanded(
+                child: ReportStatCard(
+                  label: _tr('Revenue', 'Mapato'),
+                  value: formatCurrency(report.revenue),
+                  valueColor: AppColors.success,
+                  icon: Icons.trending_up_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ReportStatCard(
+                  label: _tr('Expenses', 'Gharama'),
+                  value: formatCurrency(report.totalExpenses),
+                  valueColor: AppColors.error,
+                  icon: Icons.trending_down_rounded,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
-          Row(children: [
-            Expanded(child: ReportStatCard(
-              label: _tr('Net Profit', 'Faida Halisi'),
-              value: formatCurrency(report.netProfit),
-              valueColor: report.netProfit >= 0 ? AppColors.success : AppColors.error,
-              icon: Icons.account_balance_wallet_rounded,
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: ReportStatCard(
-              label: _tr('Profit Margin', 'Asilimia ya Faida'),
-              value: formatPercent(report.profitMargin),
-              valueColor: report.profitMargin >= 0 ? AppColors.success : AppColors.error,
-              icon: Icons.percent_rounded,
-            )),
-          ]),
+          Row(
+            children: [
+              Expanded(
+                child: ReportStatCard(
+                  label: _tr('Net Profit', 'Faida Halisi'),
+                  value: formatCurrency(report.netProfit),
+                  valueColor: report.netProfit >= 0
+                      ? AppColors.success
+                      : AppColors.error,
+                  icon: Icons.account_balance_wallet_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ReportStatCard(
+                  label: _tr('Profit Margin', 'Asilimia ya Faida'),
+                  value: formatPercent(report.profitMargin),
+                  valueColor: report.profitMargin >= 0
+                      ? AppColors.success
+                      : AppColors.error,
+                  icon: Icons.percent_rounded,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
 
           // 6-month trend chart
@@ -84,9 +104,19 @@ class ProfitLossScreen extends ConsumerWidget {
           _DetailCard(
             title: _tr('Revenue Breakdown', 'Muundo wa Mapato'),
             children: [
-              _LineItem(label: _tr('Total Sales Revenue', 'Mapato ya Mauzo'), value: formatCurrency(report.revenue)),
-              _LineItem(label: _tr('VAT Collected', 'VAT Iliyokusanywa'), value: formatCurrency(report.vatCollected)),
-              _LineItem(label: _tr('Invoices Paid', 'Ankara Zilizolipwa'), value: '${report.invoiceCount}', isAmount: false),
+              _LineItem(
+                label: _tr('Total Sales Revenue', 'Mapato ya Mauzo'),
+                value: formatCurrency(report.revenue),
+              ),
+              _LineItem(
+                label: _tr('VAT Collected', 'VAT Iliyokusanywa'),
+                value: formatCurrency(report.vatCollected),
+              ),
+              _LineItem(
+                label: _tr('Invoices Paid', 'Ankara Zilizolipwa'),
+                value: '${report.invoiceCount}',
+                isAmount: false,
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -98,10 +128,14 @@ class ProfitLossScreen extends ConsumerWidget {
               ...(() {
                 final sorted = report.expenseByCategory.entries.toList()
                   ..sort((a, b) => b.value.compareTo(a.value));
-                return sorted.take(10).map((e) => _LineItem(
-                  label: e.key,
-                  value: formatCurrency(e.value),
-                ));
+                return sorted
+                    .take(10)
+                    .map(
+                      (e) => _LineItem(
+                        label: e.key,
+                        value: formatCurrency(e.value),
+                      ),
+                    );
               })(),
               _LineItem(
                 label: _tr('Total Expenses', 'Jumla ya Gharama'),
@@ -121,7 +155,9 @@ class ProfitLossScreen extends ConsumerWidget {
                   : AppColors.errorBg,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: report.netProfit >= 0 ? AppColors.success : AppColors.error,
+                color: report.netProfit >= 0
+                    ? AppColors.success
+                    : AppColors.error,
               ),
             ),
             child: Row(
@@ -130,7 +166,9 @@ class ProfitLossScreen extends ConsumerWidget {
                 Text(
                   _tr('NET PROFIT', 'FAIDA HALISI'),
                   style: GoogleFonts.dmSans(
-                    color: report.netProfit >= 0 ? AppColors.success : AppColors.error,
+                    color: report.netProfit >= 0
+                        ? AppColors.success
+                        : AppColors.error,
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
                     letterSpacing: 0.5,
@@ -139,7 +177,9 @@ class ProfitLossScreen extends ConsumerWidget {
                 Text(
                   formatCurrency(report.netProfit),
                   style: GoogleFonts.dmSans(
-                    color: report.netProfit >= 0 ? AppColors.success : AppColors.error,
+                    color: report.netProfit >= 0
+                        ? AppColors.success
+                        : AppColors.error,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
                   ),
@@ -151,16 +191,26 @@ class ProfitLossScreen extends ConsumerWidget {
 
           // Export
           ReportExportRow(
-            onPdf: () => ReportExportService.sharePnlPdf(report, periodLabel),
+            onPdf: () => exportReportPdf(
+              context,
+              () => ReportExportService.sharePnlPdf(report, periodLabel),
+            ),
             onCsv: () async {
               await ReportExportService.copyToClipboard(
                 ReportExportService.pnlCsv(report, periodLabel),
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(_tr('CSV copied to clipboard', 'CSV imenakiliwa kwenye ubao wa kunakili')),
-                  backgroundColor: AppColors.success,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      _tr(
+                        'CSV copied to clipboard',
+                        'CSV imenakiliwa kwenye ubao wa kunakili',
+                      ),
+                    ),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
               }
             },
           ),
@@ -183,20 +233,23 @@ class _TrendCard extends StatelessWidget {
 
     const barWidth = 10.0;
     final groups = trend.asMap().entries.map((e) {
-      return BarChartGroupData(x: e.key, barRods: [
-        BarChartRodData(
-          toY: e.value.revenue,
-          color: AppColors.success,
-          width: barWidth,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-        ),
-        BarChartRodData(
-          toY: e.value.expenses,
-          color: AppColors.error.withValues(alpha: 0.75),
-          width: barWidth,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-        ),
-      ]);
+      return BarChartGroupData(
+        x: e.key,
+        barRods: [
+          BarChartRodData(
+            toY: e.value.revenue,
+            color: AppColors.success,
+            width: barWidth,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+          BarChartRodData(
+            toY: e.value.expenses,
+            color: AppColors.error.withValues(alpha: 0.75),
+            width: barWidth,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+        ],
+      );
     }).toList();
 
     return Container(
@@ -209,38 +262,54 @@ class _TrendCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReportSectionTitle(title: _tr('6-Month Trend', 'Mwenendo wa Miezi 6')),
-          Row(children: [
-            _Legend(color: AppColors.success, label: _tr('Revenue', 'Mapato')),
-            const SizedBox(width: 14),
-            _Legend(color: AppColors.error, label: _tr('Expenses', 'Gharama')),
-          ]),
+          ReportSectionTitle(
+            title: _tr('6-Month Trend', 'Mwenendo wa Miezi 6'),
+          ),
+          Row(
+            children: [
+              _Legend(
+                color: AppColors.success,
+                label: _tr('Revenue', 'Mapato'),
+              ),
+              const SizedBox(width: 14),
+              _Legend(
+                color: AppColors.error,
+                label: _tr('Expenses', 'Gharama'),
+              ),
+            ],
+          ),
           SizedBox(height: 12),
           SizedBox(
             height: 160,
-            child: BarChart(BarChartData(
-              barGroups: groups,
-              gridData: const FlGridData(drawVerticalLine: false),
-              borderData: FlBorderData(show: false),
-              titlesData: FlTitlesData(
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (v, _) {
-                      final idx = v.toInt();
-                      if (idx < 0 || idx >= trend.length) return const SizedBox.shrink();
-                      return Text(
-                        monthLabel(trend[idx].month),
-                        style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
-                      );
-                    },
+            child: BarChart(
+              BarChartData(
+                barGroups: groups,
+                gridData: const FlGridData(drawVerticalLine: false),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (v, _) {
+                        final idx = v.toInt();
+                        if (idx < 0 || idx >= trend.length)
+                          return const SizedBox.shrink();
+                        return Text(
+                          monthLabel(trend[idx].month),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            color: AppColors.textMuted,
+                          ),
+                        );
+                      },
+                    ),
                   ),
+                  leftTitles: const AxisTitles(),
+                  topTitles: const AxisTitles(),
+                  rightTitles: const AxisTitles(),
                 ),
-                leftTitles: const AxisTitles(),
-                topTitles: const AxisTitles(),
-                rightTitles: const AxisTitles(),
               ),
-            )),
+            ),
           ),
         ],
       ),
@@ -255,11 +324,23 @@ class _Legend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-      SizedBox(width: 4),
-      Text(label, style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted)),
-    ]);
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        SizedBox(width: 4),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+        ),
+      ],
+    );
   }
 }
 
@@ -296,7 +377,12 @@ class _LineItem extends StatelessWidget {
   final bool bold;
   final bool isAmount;
 
-  const _LineItem({required this.label, required this.value, this.bold = false, this.isAmount = true});
+  const _LineItem({
+    required this.label,
+    required this.value,
+    this.bold = false,
+    this.isAmount = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -306,19 +392,23 @@ class _LineItem extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: Text(label,
-                style: GoogleFonts.dmSans(
-                  color: bold ? AppColors.secondary : AppColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-                )),
-          ),
-          Text(value,
+            child: Text(
+              label,
               style: GoogleFonts.dmSans(
-                color: bold ? AppColors.secondary : AppColors.textPrimary,
+                color: bold ? AppColors.secondary : AppColors.textSecondary,
                 fontSize: 13,
-                fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
-              )),
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.dmSans(
+              color: bold ? AppColors.secondary : AppColors.textPrimary,
+              fontSize: 13,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

@@ -24,10 +24,11 @@ class ExpenseReportScreen extends ConsumerWidget {
     final sortedCategories = report.byCategory.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    final topVendors = (report.byVendor.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(8)
-        .toList();
+    final topVendors =
+        (report.byVendor.entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value)))
+            .take(8)
+            .toList();
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -37,7 +38,11 @@ class ExpenseReportScreen extends ConsumerWidget {
         leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Expense Report', 'Ripoti ya Gharama'),
-          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 20),
+          style: GoogleFonts.dmSans(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+          ),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -50,20 +55,26 @@ class ExpenseReportScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Row(children: [
-            Expanded(child: ReportStatCard(
-              label: _tr('Total Expenses', 'Jumla ya Gharama'),
-              value: formatCurrency(report.totalExpenses),
-              valueColor: AppColors.error,
-              icon: Icons.trending_down_rounded,
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: ReportStatCard(
-              label: _tr('Transactions', 'Miamala'),
-              value: '${report.expenseCount}',
-              icon: Icons.receipt_rounded,
-            )),
-          ]),
+          Row(
+            children: [
+              Expanded(
+                child: ReportStatCard(
+                  label: _tr('Total Expenses', 'Jumla ya Gharama'),
+                  value: formatCurrency(report.totalExpenses),
+                  valueColor: AppColors.error,
+                  icon: Icons.trending_down_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ReportStatCard(
+                  label: _tr('Transactions', 'Miamala'),
+                  value: '${report.expenseCount}',
+                  icon: Icons.receipt_rounded,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
 
           // Category breakdown with horizontal bars
@@ -81,7 +92,10 @@ class ExpenseReportScreen extends ConsumerWidget {
 
           // Payment method split
           if (report.byPaymentMethod.isNotEmpty) ...[
-            _PaymentMethodCard(byMethod: report.byPaymentMethod, total: report.totalExpenses),
+            _PaymentMethodCard(
+              byMethod: report.byPaymentMethod,
+              total: report.totalExpenses,
+            ),
             const SizedBox(height: 12),
           ],
 
@@ -97,33 +111,57 @@ class ExpenseReportScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ReportSectionTitle(title: _tr('Top Vendors', 'Wauzaji Wakuu')),
-                  ...topVendors.asMap().entries.map((e) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(children: [
-                          Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Center(
-                              child: Text('${e.key + 1}',
-                                  style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.error)),
+                  ReportSectionTitle(
+                    title: _tr('Top Vendors', 'Wauzaji Wakuu'),
+                  ),
+                  ...topVendors.asMap().entries.map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${e.key + 1}',
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.error,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                e.value.key,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            formatCurrency(e.value.value),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.secondary,
                             ),
                           ),
-                          SizedBox(width: 10),
-                          Text(e.value.key, style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary)),
-                        ]),
-                        Text(formatCurrency(e.value.value),
-                            style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary)),
-                      ],
+                        ],
+                      ),
                     ),
-                  )),
+                  ),
                 ],
               ),
             ),
@@ -131,16 +169,23 @@ class ExpenseReportScreen extends ConsumerWidget {
           ],
 
           ReportExportRow(
-            onPdf: () => ReportExportService.shareExpensePdf(report, periodLabel),
+            onPdf: () => exportReportPdf(
+              context,
+              () => ReportExportService.shareExpensePdf(report, periodLabel),
+            ),
             onCsv: () async {
               await ReportExportService.copyToClipboard(
                 ReportExportService.expenseCsv(report, periodLabel),
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(_tr('CSV copied to clipboard', 'CSV imenakiliwa')),
-                  backgroundColor: AppColors.success,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      _tr('CSV copied to clipboard', 'CSV imenakiliwa'),
+                    ),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
               }
             },
           ),
@@ -160,8 +205,12 @@ class _CategoryBreakdownCard extends StatelessWidget {
   const _CategoryBreakdownCard({required this.categories, required this.total});
 
   static const _palette = [
-    AppColors.error, AppColors.warning, AppColors.tealAccent,
-    AppColors.secondary, AppColors.purpleAccent, AppColors.success,
+    AppColors.error,
+    AppColors.warning,
+    AppColors.tealAccent,
+    AppColors.secondary,
+    AppColors.purpleAccent,
+    AppColors.success,
   ];
 
   @override
@@ -185,17 +234,39 @@ class _CategoryBreakdownCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Row(children: [
-                      Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-                      SizedBox(width: 8),
-                      Text(e.value.key, style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary)),
-                    ]),
-                    Text(
-                      '${formatCurrency(e.value.value)} (${(pct * 100).toStringAsFixed(1)}%)',
-                      style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                    ),
-                  ]),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            e.value.key,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '${formatCurrency(e.value.value)} (${(pct * 100).toStringAsFixed(1)}%)',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
@@ -224,7 +295,11 @@ class _ExpenseTrendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spots = trend.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.total)).toList();
+    final spots = trend
+        .asMap()
+        .entries
+        .map((e) => FlSpot(e.key.toDouble(), e.value.total))
+        .toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -236,43 +311,53 @@ class _ExpenseTrendCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReportSectionTitle(title: _tr('6-Month Trend', 'Mwenendo wa Miezi 6')),
+          ReportSectionTitle(
+            title: _tr('6-Month Trend', 'Mwenendo wa Miezi 6'),
+          ),
           const SizedBox(height: 8),
           SizedBox(
             height: 140,
-            child: LineChart(LineChartData(
-              lineBarsData: [
-                LineChartBarData(
-                  spots: spots,
-                  isCurved: true,
-                  color: AppColors.error,
-                  barWidth: 2.5,
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: AppColors.error.withValues(alpha: 0.08),
+            child: LineChart(
+              LineChartData(
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    color: AppColors.error,
+                    barWidth: 2.5,
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: AppColors.error.withValues(alpha: 0.08),
+                    ),
+                    dotData: const FlDotData(show: false),
                   ),
-                  dotData: const FlDotData(show: false),
-                ),
-              ],
-              gridData: const FlGridData(drawVerticalLine: false),
-              borderData: FlBorderData(show: false),
-              titlesData: FlTitlesData(
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (v, _) {
-                      final idx = v.toInt();
-                      if (idx < 0 || idx >= trend.length) return const SizedBox.shrink();
-                      return Text(monthLabel(trend[idx].month),
-                          style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted));
-                    },
+                ],
+                gridData: const FlGridData(drawVerticalLine: false),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (v, _) {
+                        final idx = v.toInt();
+                        if (idx < 0 || idx >= trend.length)
+                          return const SizedBox.shrink();
+                        return Text(
+                          monthLabel(trend[idx].month),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            color: AppColors.textMuted,
+                          ),
+                        );
+                      },
+                    ),
                   ),
+                  leftTitles: const AxisTitles(),
+                  topTitles: const AxisTitles(),
+                  rightTitles: const AxisTitles(),
                 ),
-                leftTitles: const AxisTitles(),
-                topTitles: const AxisTitles(),
-                rightTitles: const AxisTitles(),
               ),
-            )),
+            ),
           ),
         ],
       ),
@@ -289,7 +374,8 @@ class _PaymentMethodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entries = byMethod.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final entries = byMethod.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -300,16 +386,33 @@ class _PaymentMethodCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReportSectionTitle(title: _tr('By Payment Method', 'Kwa Njia ya Malipo')),
+          ReportSectionTitle(
+            title: _tr('By Payment Method', 'Kwa Njia ya Malipo'),
+          ),
           ...entries.map((e) {
             final pct = total > 0 ? e.value / total * 100 : 0.0;
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text(e.key, style: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary)),
-                Text('${formatCurrency(e.value)} · ${pct.toStringAsFixed(1)}%',
-                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondary)),
-              ]),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    e.key,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    '${formatCurrency(e.value)} · ${pct.toStringAsFixed(1)}%',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ],
+              ),
             );
           }),
         ],

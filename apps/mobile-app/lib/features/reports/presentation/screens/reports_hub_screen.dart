@@ -21,7 +21,8 @@ class ReportsHubScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(reportDateRangeProvider);
     final planAsync = ref.watch(planStatusProvider);
-    final locked = planAsync.whenOrNull(data: (s) => !s.limits.fullReports) ?? true;
+    final locked =
+        planAsync.whenOrNull(data: (s) => !s.limits.fullReports) ?? true;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -29,7 +30,12 @@ class ReportsHubScreen extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + AppTheme.headerTopPadding, 20, 0),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                MediaQuery.of(context).padding.top + AppTheme.headerTopPadding,
+                20,
+                0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -43,8 +49,14 @@ class ReportsHubScreen extends ConsumerWidget {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    _tr('Full picture of your business finances', 'Picha kamili ya fedha za biashara yako'),
-                    style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 13),
+                    _tr(
+                      'Full picture of your business finances',
+                      'Picha kamili ya fedha za biashara yako',
+                    ),
+                    style: GoogleFonts.dmSans(
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   _DateRangeBar(range: range),
@@ -58,28 +70,43 @@ class ReportsHubScreen extends ConsumerWidget {
             icon: Icons.trending_up_rounded,
             iconColor: AppColors.success,
             title: _tr('Profit & Loss', 'Faida na Hasara'),
-            subtitle: _tr('Revenue vs expenses for any period', 'Mapato dhidi ya gharama kwa kipindi chochote'),
+            subtitle: _tr(
+              'Revenue vs expenses for any period',
+              'Mapato dhidi ya gharama kwa kipindi chochote',
+            ),
             route: '/reports/pnl',
             locked: locked,
-            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
+            onLockedTap: () => planAsync.whenOrNull(
+              data: (s) => showUpgradeSheet(context, currentStatus: s),
+            ),
           ),
           _ReportCard(
             icon: Icons.account_balance_rounded,
             iconColor: AppColors.secondary,
             title: _tr('Balance Sheet', 'Karatasi ya Mizania'),
-            subtitle: _tr('Assets, liabilities and owner equity snapshot', 'Rasilimali, madeni na hisa ya mmiliki'),
+            subtitle: _tr(
+              'Assets, liabilities and owner equity snapshot',
+              'Rasilimali, madeni na hisa ya mmiliki',
+            ),
             route: '/reports/balance-sheet',
             locked: locked,
-            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
+            onLockedTap: () => planAsync.whenOrNull(
+              data: (s) => showUpgradeSheet(context, currentStatus: s),
+            ),
           ),
           _ReportCard(
             icon: Icons.water_drop_rounded,
             iconColor: AppColors.tealAccent,
             title: _tr('Cash Flow Statement', 'Taarifa ya Mtiririko wa Fedha'),
-            subtitle: _tr('All inflows and outflows by activity', 'Mapato yote na matumizi kwa shughuli'),
+            subtitle: _tr(
+              'All inflows and outflows by activity',
+              'Mapato yote na matumizi kwa shughuli',
+            ),
             route: '/reports/cash-flow',
             locked: locked,
-            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
+            onLockedTap: () => planAsync.whenOrNull(
+              data: (s) => showUpgradeSheet(context, currentStatus: s),
+            ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           _SectionHeader(label: _tr('SALES & EXPENSES', 'MAUZO & GHARAMA')),
@@ -87,28 +114,43 @@ class ReportsHubScreen extends ConsumerWidget {
             icon: Icons.receipt_long_rounded,
             iconColor: AppColors.yellowBrand,
             title: _tr('Sales Report', 'Ripoti ya Mauzo'),
-            subtitle: _tr('By product, customer, staff and payment method', 'Kwa bidhaa, mteja, mfanyakazi na njia ya malipo'),
+            subtitle: _tr(
+              'By product, customer, staff and payment method',
+              'Kwa bidhaa, mteja, mfanyakazi na njia ya malipo',
+            ),
             route: '/reports/sales',
             locked: locked,
-            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
+            onLockedTap: () => planAsync.whenOrNull(
+              data: (s) => showUpgradeSheet(context, currentStatus: s),
+            ),
           ),
           _ReportCard(
             icon: Icons.pie_chart_rounded,
             iconColor: AppColors.warning,
             title: _tr('Expense Report', 'Ripoti ya Gharama'),
-            subtitle: _tr('By category, vendor and period with trends', 'Kwa kategoria, muuzaji na kipindi na mwenendo'),
+            subtitle: _tr(
+              'By category, vendor and period with trends',
+              'Kwa kategoria, muuzaji na kipindi na mwenendo',
+            ),
             route: '/reports/expenses',
             locked: locked,
-            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
+            onLockedTap: () => planAsync.whenOrNull(
+              data: (s) => showUpgradeSheet(context, currentStatus: s),
+            ),
           ),
           _ReportCard(
             icon: Icons.percent_rounded,
             iconColor: AppColors.purpleAccent,
             title: _tr('VAT Summary', 'Muhtasari wa VAT'),
-            subtitle: _tr('VAT collected vs paid — TRA compliance', 'VAT iliyokusanywa dhidi ya kulipwa — kufuata TRA'),
+            subtitle: _tr(
+              'VAT collected vs paid — TRA compliance',
+              'VAT iliyokusanywa dhidi ya kulipwa — kufuata TRA',
+            ),
             route: '/reports/vat',
             locked: locked,
-            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
+            onLockedTap: () => planAsync.whenOrNull(
+              data: (s) => showUpgradeSheet(context, currentStatus: s),
+            ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
           _SectionHeader(label: _tr('AGING & STOCK', 'UMRI & HISA')),
@@ -116,28 +158,43 @@ class ReportsHubScreen extends ConsumerWidget {
             icon: Icons.people_alt_rounded,
             iconColor: AppColors.error,
             title: _tr('Accounts Receivable Aging', 'Umri wa Madai'),
-            subtitle: _tr('Customer overdue invoices with collection priority', 'Ankara zilizopita muda kwa wateja na kipaumbele cha ukusanyaji'),
+            subtitle: _tr(
+              'Customer overdue invoices with collection priority',
+              'Ankara zilizopita muda kwa wateja na kipaumbele cha ukusanyaji',
+            ),
             route: '/reports/ar-aging',
             locked: locked,
-            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
+            onLockedTap: () => planAsync.whenOrNull(
+              data: (s) => showUpgradeSheet(context, currentStatus: s),
+            ),
           ),
           _ReportCard(
             icon: Icons.local_shipping_rounded,
             iconColor: AppColors.warning,
             title: _tr('Accounts Payable Aging', 'Umri wa Madeni'),
-            subtitle: _tr('Supplier aging with upcoming due dates', 'Umri wa wasambazaji na tarehe za malipo yanayokuja'),
+            subtitle: _tr(
+              'Supplier aging with upcoming due dates',
+              'Umri wa wasambazaji na tarehe za malipo yanayokuja',
+            ),
             route: '/reports/ap-aging',
             locked: locked,
-            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
+            onLockedTap: () => planAsync.whenOrNull(
+              data: (s) => showUpgradeSheet(context, currentStatus: s),
+            ),
           ),
           _ReportCard(
             icon: Icons.inventory_2_rounded,
             iconColor: AppColors.success,
             title: _tr('Inventory Valuation', 'Tathmini ya Hisa'),
-            subtitle: _tr('Stock on hand valued at cost — FIFO & weighted average', 'Hisa iliyopo kwa gharama — FIFO na wastani uliopimwa'),
+            subtitle: _tr(
+              'Stock on hand valued at cost — FIFO & weighted average',
+              'Hisa iliyopo kwa gharama — FIFO na wastani uliopimwa',
+            ),
             route: '/reports/inventory-valuation',
             locked: locked,
-            onLockedTap: () => planAsync.whenOrNull(data: (s) => showUpgradeSheet(context, currentStatus: s)),
+            onLockedTap: () => planAsync.whenOrNull(
+              data: (s) => showUpgradeSheet(context, currentStatus: s),
+            ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
@@ -220,15 +277,15 @@ class _DateRangeBar extends ConsumerWidget {
       ),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: AppColors.secondary,
-          ),
+          colorScheme: const ColorScheme.light(primary: AppColors.secondary),
         ),
         child: child!,
       ),
     );
     if (picked != null) {
-      ref.read(reportDateRangeProvider.notifier).setCustomRange(picked.start, picked.end);
+      ref
+          .read(reportDateRangeProvider.notifier)
+          .setCustomRange(picked.start, picked.end);
     }
   }
 }
@@ -347,7 +404,11 @@ class _ReportCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
                 ],
               ),
             ),
@@ -367,6 +428,31 @@ class ReportDateRangeBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(reportDateRangeProvider);
     return _DateRangeBar(range: range);
+  }
+}
+
+// ─── Shared PDF export wrapper — surfaces failures instead of failing silently ─
+
+Future<void> exportReportPdf(
+  BuildContext context,
+  Future<void> Function() build,
+) async {
+  try {
+    await build();
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(
+              'Could not generate PDF. Please try again.',
+              'Imeshindwa kutengeneza PDF. Jaribu tena.',
+            ),
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 }
 
@@ -391,7 +477,9 @@ class ReportExportRow extends StatelessWidget {
               foregroundColor: AppColors.error,
               side: const BorderSide(color: AppColors.error),
               padding: const EdgeInsets.symmetric(vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ),
@@ -405,7 +493,9 @@ class ReportExportRow extends StatelessWidget {
               foregroundColor: AppColors.success,
               side: const BorderSide(color: AppColors.success),
               padding: const EdgeInsets.symmetric(vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ),
@@ -457,7 +547,10 @@ class ReportStatCard extends StatelessWidget {
               ],
               Text(
                 label,
-                style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11),
+                style: GoogleFonts.dmSans(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                ),
               ),
             ],
           ),
@@ -501,10 +594,12 @@ class ReportSectionTitle extends StatelessWidget {
 // ─── Shared currency formatter ────────────────────────────────────────────────
 
 String formatCurrency(double v) {
-  final formatted = v.toStringAsFixed(0).replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-    (m) => '${m[1]},',
-  );
+  final formatted = v
+      .toStringAsFixed(0)
+      .replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]},',
+      );
   return 'TZS $formatted';
 }
 
