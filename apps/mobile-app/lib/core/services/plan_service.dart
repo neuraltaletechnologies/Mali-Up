@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -408,6 +410,13 @@ class PlanService {
 /// no error shown. Falling back to Starter after a short timeout keeps those
 /// buttons responsive offline; live updates still take over once a snapshot
 /// arrives.
+///
+/// The fallback only guards the *first* value: `Stream.timeout` resets its
+/// clock on every event it forwards (including ones it injects itself), so
+/// using it directly on the whole live stream re-fired every 6s of Firestore
+/// silence — which is the steady state once subscribed — and kept clobbering
+/// a real paid tier with Starter. Racing just the initial event against a
+/// timer avoids that.
 final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
   PlanDefinitions? defs;
   try {
@@ -417,14 +426,40 @@ final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
   } catch (_) {
     defs = null;
   }
-  yield* PlanService.watchStatus(defs: defs).timeout(
-    const Duration(seconds: 6),
-    onTimeout: (sink) => sink.add(PlanStatus(
-      tier: PlanTier.starter,
-      invoicesUsedThisMonth: 0,
-      definitions: defs,
-    )),
+
+  final fallback = PlanStatus(
+    tier: PlanTier.starter,
+    invoicesUsedThisMonth: 0,
+    definitions: defs,
   );
+
+  final controller = StreamController<PlanStatus>();
+  var receivedFirst = false;
+  final timer = Timer(const Duration(seconds: 6), () {
+    if (!receivedFirst) controller.add(fallback);
+  });
+  final sub = PlanService.watchStatus(defs: defs).listen(
+    (status) {
+      receivedFirst = true;
+      timer.cancel();
+      controller.add(status);
+    },
+    onError: (Object e, StackTrace st) {
+      if (!receivedFirst) {
+        receivedFirst = true;
+        timer.cancel();
+        controller.add(fallback);
+      }
+    },
+    onDone: controller.close,
+  );
+  ref.onDispose(() {
+    timer.cancel();
+    unawaited(sub.cancel());
+    controller.close();
+  });
+
+  yield* controller.stream;
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -42,6 +42,7 @@ export async function GET(request: Request) {
         note:          (d.note as string) || '',
         paymentRef:    (d.paymentRef as string) || '',
         status:        (d.status as PlanRequest['status']) || 'pending',
+        activated:     Boolean(d.activated),
         adminNotes:    (d.adminNotes as string) || '',
         createdAt:     toIso(d.createdAt),
         resolvedAt:    toIso(d.resolvedAt),
