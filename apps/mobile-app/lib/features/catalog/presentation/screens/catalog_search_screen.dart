@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../data/master_catalog_repository.dart';
 import '../../domain/models/master_category.dart';
@@ -56,13 +57,8 @@ class _CatalogSearchScreenState extends ConsumerState<CatalogSearchScreen> {
   }
 
   void _openImport(MasterProduct product) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.90,
-      ),
+    showAppSheet<void>(
+      context,
       builder: (_) => ImportProductScreen(product: product),
     );
   }
