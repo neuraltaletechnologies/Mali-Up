@@ -13,6 +13,10 @@ export function Footer() {
     Careers: "https://neuraltale.com/careers",
     Press: "https://neuraltale.com/press",
   }
+  const legalLinkMap: Record<string, string> = {
+    "Privacy Policy": "/privacy",
+    "Terms of Service": "/terms",
+  }
   const socials = [
     { icon: Twitter,   label: "Twitter",   href: "#" },
     { icon: Linkedin,  label: "LinkedIn",  href: "#" },
@@ -78,7 +82,13 @@ export function Footer() {
                 {items.map((item) => (
                   <li key={item}>
                     <a
-                      href={section === "Company" ? (companyLinkMap[item] ?? "https://neuraltale.com/") : "#"}
+                      href={
+                        section === "Company"
+                          ? (companyLinkMap[item] ?? "https://neuraltale.com/")
+                          : section === "Legal"
+                          ? (legalLinkMap[item] ?? "#")
+                          : "#"
+                      }
                       target={section === "Company" ? "_blank" : undefined}
                       rel={section === "Company" ? "noreferrer" : undefined}
                       className="text-[#0C1B2E]/55 text-sm transition-all duration-200 hover:text-[#0C1B2E] hover:translate-x-0.5 inline-block"

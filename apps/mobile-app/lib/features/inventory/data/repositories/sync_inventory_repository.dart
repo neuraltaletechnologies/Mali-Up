@@ -60,10 +60,15 @@ class SyncInventoryRepository implements InventoryRepository {
   Future<void> save(InventoryItem item) async {
     _policy.assertCanWrite();
     final isNew = item.id.isEmpty;
+    // Customer returns are separate records that deliberately share the
+    // original product's name/SKU — deduping would silently turn the return
+    // into a stock bump and drop its metadata.
+    final isReturn = item.productType == 'customerReturn' ||
+        item.productType == 'return';
 
     // Upsert-by-barcode/SKU: scanner populates the SKU field with the scanned
     // barcode value; check that first since it's more precise than name.
-    if (isNew && item.sku.isNotEmpty) {
+    if (isNew && !isReturn && item.sku.isNotEmpty) {
       final byBarcode = await _local.getByBarcode(item.sku);
       final duplicate = byBarcode ?? await _local.getBySku(item.sku);
       if (duplicate != null && duplicate.id.isNotEmpty) {
@@ -74,7 +79,7 @@ class SyncInventoryRepository implements InventoryRepository {
 
     // Upsert-by-name: if a new product shares a name with an existing one,
     // increment stock on the existing record rather than creating a duplicate.
-    if (isNew && item.name.isNotEmpty) {
+    if (isNew && !isReturn && item.name.isNotEmpty) {
       final duplicate = await _local.getByName(item.name);
       if (duplicate != null && duplicate.id.isNotEmpty) {
         await adjustQuantity(duplicate.id, item.currentStock);

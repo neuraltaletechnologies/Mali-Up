@@ -10,6 +10,7 @@ import '../../../../shared/widgets/pin_digit_box.dart';
 import '../../../../config/routing.dart';
 import '../../../../core/services/default_context_routing_service.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/pin_attempt_throttle.dart';
 import '../../../../core/constants/onboarding_strings.dart';
 import '../utils/pin_auth_password.dart';
 
@@ -68,6 +69,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const _loginThrottle = PinAttemptThrottle('login_pin');
   late final VoidCallback _languageListener;
   AppLanguage _language = AppLanguage.english;
 
@@ -276,27 +278,32 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    final throttleKey = _normalizedPhone ?? '';
+    final lockout = await _loginThrottle.lockoutRemaining(throttleKey);
+    if (lockout != null) {
+      await _NotificationHelper.showError(
+        context,
+        _tr(
+          'Too many attempts. Try again in ${_formatLockout(lockout)}.',
+          'Majaribio mengi sana. Jaribu tena baada ya ${_formatLockout(lockout)}.',
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     final email = _authEmailForSignIn ?? '${_normalizedPhone ?? ''}@mali.up';
-    final authPassword = buildAuthPasswordFromPin(pin);
+    final authPassword = buildAuthPasswordFromPin(
+      phone: _normalizedPhone ?? '',
+      pin: pin,
+    );
 
     try {
-      try {
-        await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: authPassword,
-        );
-      } on FirebaseAuthException catch (e) {
-        // Backward compatibility for any accounts created before auth-password derivation.
-        if (e.code != 'wrong-password' && e.code != 'invalid-credential') {
-          rethrow;
-        }
-        try {
-          await _auth.signInWithEmailAndPassword(email: email, password: pin);
-        } catch (_) {
-          rethrow; // Rethrow the original if fallback fails
-        }
-      }
+      await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: authPassword,
+      );
+      await _loginThrottle.recordSuccess(throttleKey);
       if (!mounted) return;
 
       _setFeedback(
@@ -307,7 +314,9 @@ class _LoginScreenState extends State<LoginScreen> {
       await Future.delayed(const Duration(milliseconds: 500));
       await _goToPostLoginLanding();
     } on FirebaseAuthException catch (e) {
-      debugPrint('FIREBASE AUTH ERROR: ${e.code} - ${e.message}');
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        await _loginThrottle.recordFailure(throttleKey);
+      }
       setState(() => _isLoading = false);
       final String message = switch (e.code) {
         'wrong-password' || 'invalid-credential' => _tr(
@@ -333,6 +342,11 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     }
+  }
+
+  String _formatLockout(Duration d) {
+    if (d.inMinutes >= 1) return '${(d.inSeconds / 60).ceil()} min';
+    return '${d.inSeconds}s';
   }
 
   Future<void> _handleForgotPIN() async {

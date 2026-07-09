@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { adminFirestore } from '@/lib/firebase-admin'
 import { requireAdminSession } from '@/lib/api-guard'
+import { withCache } from '@/lib/api-cache'
 
 // Plan monthly fees in TZS
 const PLAN_FEES: Record<string, number> = {
@@ -59,87 +60,92 @@ export async function GET() {
   if (denied) return denied
 
   try {
-    // ── Fetch in parallel ──────────────────────────────────────────────────
-    const [userCountSnap, bizSnap, recentUsersSnap] = await Promise.all([
-      adminFirestore.collection('users').count().get(),
-      adminFirestore
-        .collectionGroup('businesses')
-        .get(),
-      adminFirestore
-        .collection('users')
-        .orderBy('createdAt', 'desc')
-        .limit(10)
-        .get(),
-    ])
-
-    const totalUsers = userCountSnap.data().count
-
-    // ── Process businesses ─────────────────────────────────────────────────
-    type BizRow = { plan: string; status: string; createdAtMs: number }
-    const bizRows: BizRow[] = bizSnap.docs.map((doc) => {
-      const d = doc.data()
-      return {
-        plan: normalisePlan(d.plan as string),
-        status: d.isActive === false ? 'inactive' : (d.subscriptionStatus as string) ?? 'active',
-        createdAtMs: toMs(d.createdAt),
-      }
-    })
-
-    const totalBusinesses = bizRows.length
-    const activeBusinesses = bizRows.filter((b) => b.status !== 'inactive' && b.status !== 'suspended').length
-
-    // ── Current MRR ────────────────────────────────────────────────────────
-    const mrr = bizRows.reduce((sum, b) => sum + mrrForPlan(b.plan), 0)
-
-    // ── Plan distribution ──────────────────────────────────────────────────
-    const planCounts: Record<string, number> = {}
-    for (const b of bizRows) {
-      planCounts[b.plan] = (planCounts[b.plan] ?? 0) + 1
-    }
-    const planOrder = ['starter', 'growth', 'business', 'enterprise', 'lifetime']
-    const planDistribution = planOrder
-      .filter((p) => (planCounts[p] ?? 0) > 0)
-      .map((p) => ({
-        name: p.charAt(0).toUpperCase() + p.slice(1),
-        value: planCounts[p] ?? 0,
-        color: PLAN_COLORS[p],
-      }))
-
-    // ── MRR trend (last 12 months, cumulative from business creation) ──────
-    const months = lastNMonths(12)
-    const mrrTrend = months.map(({ label, endMs }) => {
-      const value = bizRows
-        .filter((b) => b.createdAtMs > 0 && b.createdAtMs <= endMs)
-        .reduce((sum, b) => sum + mrrForPlan(b.plan), 0)
-      return { month: label, value }
-    })
-
-    // ── Recent signups ─────────────────────────────────────────────────────
-    const recentSignups = recentUsersSnap.docs.map((doc) => {
-      const d = doc.data()
-      const businesses = Array.isArray(d.businesses) ? d.businesses : []
-      return {
-        uid: doc.id,
-        name: (d.displayName as string) || (d.name as string) || 'Unknown',
-        phone: d.phone ? `+255${d.phone}` : '',
-        businessName: (businesses[0]?.name as string) ?? (d.businessName as string) ?? '',
-        createdAt: toMs(d.createdAt)
-          ? new Date(toMs(d.createdAt)).toISOString()
-          : new Date().toISOString(),
-      }
-    })
-
-    return NextResponse.json({
-      totalUsers,
-      totalBusinesses,
-      activeBusinesses,
-      mrr,
-      planDistribution,
-      mrrTrend,
-      recentSignups,
-    })
+    const body = await withCache('analytics', 2 * 60_000, computeAnalytics)
+    return NextResponse.json(body)
   } catch (err) {
     console.error('[GET /api/admin/analytics]', err)
     return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 })
+  }
+}
+
+async function computeAnalytics() {
+  // ── Fetch in parallel ──────────────────────────────────────────────────
+  const [userCountSnap, bizSnap, recentUsersSnap] = await Promise.all([
+    adminFirestore.collection('users').count().get(),
+    adminFirestore
+      .collectionGroup('businesses')
+      .get(),
+    adminFirestore
+      .collection('users')
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get(),
+  ])
+
+  const totalUsers = userCountSnap.data().count
+
+  // ── Process businesses ─────────────────────────────────────────────────
+  type BizRow = { plan: string; status: string; createdAtMs: number }
+  const bizRows: BizRow[] = bizSnap.docs.map((doc) => {
+    const d = doc.data()
+    return {
+      plan: normalisePlan(d.plan as string),
+      status: d.isActive === false ? 'inactive' : (d.subscriptionStatus as string) ?? 'active',
+      createdAtMs: toMs(d.createdAt),
+    }
+  })
+
+  const totalBusinesses = bizRows.length
+  const activeBusinesses = bizRows.filter((b) => b.status !== 'inactive' && b.status !== 'suspended').length
+
+  // ── Current MRR ────────────────────────────────────────────────────────
+  const mrr = bizRows.reduce((sum, b) => sum + mrrForPlan(b.plan), 0)
+
+  // ── Plan distribution ──────────────────────────────────────────────────
+  const planCounts: Record<string, number> = {}
+  for (const b of bizRows) {
+    planCounts[b.plan] = (planCounts[b.plan] ?? 0) + 1
+  }
+  const planOrder = ['starter', 'growth', 'business', 'enterprise', 'lifetime']
+  const planDistribution = planOrder
+    .filter((p) => (planCounts[p] ?? 0) > 0)
+    .map((p) => ({
+      name: p.charAt(0).toUpperCase() + p.slice(1),
+      value: planCounts[p] ?? 0,
+      color: PLAN_COLORS[p],
+    }))
+
+  // ── MRR trend (last 12 months, cumulative from business creation) ──────
+  const months = lastNMonths(12)
+  const mrrTrend = months.map(({ label, endMs }) => {
+    const value = bizRows
+      .filter((b) => b.createdAtMs > 0 && b.createdAtMs <= endMs)
+      .reduce((sum, b) => sum + mrrForPlan(b.plan), 0)
+    return { month: label, value }
+  })
+
+  // ── Recent signups ─────────────────────────────────────────────────────
+  const recentSignups = recentUsersSnap.docs.map((doc) => {
+    const d = doc.data()
+    const businesses = Array.isArray(d.businesses) ? d.businesses : []
+    return {
+      uid: doc.id,
+      name: (d.displayName as string) || (d.name as string) || 'Unknown',
+      phone: d.phone ? `+255${d.phone}` : '',
+      businessName: (businesses[0]?.name as string) ?? (d.businessName as string) ?? '',
+      createdAt: toMs(d.createdAt)
+        ? new Date(toMs(d.createdAt)).toISOString()
+        : new Date().toISOString(),
+    }
+  })
+
+  return {
+    totalUsers,
+    totalBusinesses,
+    activeBusinesses,
+    mrr,
+    planDistribution,
+    mrrTrend,
+    recentSignups,
   }
 }

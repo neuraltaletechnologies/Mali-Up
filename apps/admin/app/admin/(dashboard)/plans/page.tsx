@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { DetailDrawer } from '@/components/ui/detail-drawer'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Toggle } from '@/components/ui/toggle'
 import { SkeletonTable, RevalidatingBar } from '@/components/ui/skeleton'
 import { fetchPlans, patchPlan, assignPlan, fetchBusinesses } from '@/lib/admin-api'
 import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
@@ -11,7 +12,7 @@ import { formatTZS } from '@/lib/format'
 import type { PlanTier, PlanDefinition, PlanDefinitions } from '@/types'
 import {
   Pencil, Users, FileText, CheckCircle2, XCircle, AlertCircle,
-  Building2, Zap, Crown, Star, Layers, Gift,
+  Building2, Zap, Crown, Star, Layers, Gift, UserPlus,
 } from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ const TIER_META: Record<PlanTier, {
   },
 }
 
-const FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices'>, string> = {
+const FEATURE_LABELS: Record<keyof Omit<PlanDefinition, 'pricePerCycle' | 'cycleMonths' | 'maxUsers' | 'monthlyInvoices' | 'maxBusinesses' | 'maxCustomers'>, string> = {
   cashFlow:             'Cash flow tracking',
   expenseTracking:      'Expense tracking',
   manualDebt:           'Manual debt entry',
@@ -88,22 +89,6 @@ const inputCls = 'w-full rounded-md border border-[var(--line)] bg-[var(--canvas
 const labelCls = 'text-[12px] font-medium text-[var(--ink-muted)]'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-150 ${
-        checked ? 'bg-[var(--accent)]' : 'bg-[var(--line)]'
-      }`}
-    >
-      <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150 mt-0.5 ${
-        checked ? 'translate-x-4' : 'translate-x-0.5'
-      }`} />
-    </button>
-  )
-}
 
 function FeatureCheck({ ok }: { ok: boolean }) {
   return ok
@@ -173,7 +158,7 @@ function TierCard({
       </div>
 
       {/* Limits */}
-      <div className="flex gap-4 text-[12px]">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[12px]">
         <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
           <Users className="h-3.5 w-3.5" />
           <span>{plan.maxUsers === -1 ? 'Unlimited' : plan.maxUsers} users</span>
@@ -181,6 +166,14 @@ function TierCard({
         <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
           <FileText className="h-3.5 w-3.5" />
           <span>{plan.monthlyInvoices === -1 ? 'Unlimited' : `${plan.monthlyInvoices}/mo`} invoices</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+          <Building2 className="h-3.5 w-3.5" />
+          <span>{plan.maxBusinesses === -1 ? 'Unlimited' : plan.maxBusinesses} businesses</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+          <UserPlus className="h-3.5 w-3.5" />
+          <span>{plan.maxCustomers === -1 ? 'Unlimited' : plan.maxCustomers} customers</span>
         </div>
       </div>
 
@@ -284,6 +277,14 @@ function EditPlanDrawer({
               <label className={labelCls}>Monthly invoices (−1 = unlimited)</label>
               <input type="number" min="-1" value={form.monthlyInvoices} onChange={num('monthlyInvoices')} className={inputCls} />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>Max businesses (−1 = unlimited)</label>
+              <input type="number" min="-1" value={form.maxBusinesses ?? 0} onChange={num('maxBusinesses')} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>Max customers (−1 = unlimited)</label>
+              <input type="number" min="-1" value={form.maxCustomers ?? 0} onChange={num('maxCustomers')} className={inputCls} />
+            </div>
           </div>
         </div>
 
@@ -328,7 +329,10 @@ function AssignPlanSection() {
   const [result, setResult]               = useState<{ ok: boolean; msg: string } | null>(null)
   const [confirmOpen, setConfirmOpen]     = useState(false)
 
-  const { data: bizData } = useAdminFetch(useCallback(() => fetchBusinesses(500), []))
+  const { data: bizData } = useAdminFetch(useCallback(() => fetchBusinesses(500), []), {
+    key: 'businesses-500',
+    minStaleMs: 60_000,
+  })
   const businesses = bizData?.businesses ?? []
 
   // Derive unique owners from the businesses list (sorted alphabetically)
@@ -615,6 +619,8 @@ export default function PlansPage() {
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Effective / mo</th>
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max users</th>
                 <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Invoices / mo</th>
+                <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max businesses</th>
+                <th className="text-right px-5 py-3 text-[var(--ink-muted)] font-medium">Max customers</th>
               </tr>
             </thead>
             <tbody>
@@ -640,6 +646,12 @@ export default function PlansPage() {
                     </td>
                     <td className="px-5 py-3 text-right text-[var(--ink-muted)]">
                       {p.monthlyInvoices === -1 ? '∞' : p.monthlyInvoices}
+                    </td>
+                    <td className="px-5 py-3 text-right text-[var(--ink-muted)]">
+                      {p.maxBusinesses === -1 ? '∞' : p.maxBusinesses}
+                    </td>
+                    <td className="px-5 py-3 text-right text-[var(--ink-muted)]">
+                      {p.maxCustomers === -1 ? '∞' : p.maxCustomers}
                     </td>
                   </tr>
                 )

@@ -7,7 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
+import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/domain/models/customer.dart';
+import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 
@@ -155,6 +157,14 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
 
       await repo.save(debt);
 
+      // Mirror the change into the linked customer's balance so the
+      // customer page shows the same debt.
+      await adjustCustomerBalanceForDebtChange(
+        ref,
+        before: widget.debtToEdit,
+        after: debt,
+      );
+
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted) {
@@ -175,272 +185,227 @@ class _AddDebtScreenState extends ConsumerState<AddDebtScreen> {
   Widget build(BuildContext context) {
     final isEdit = widget.debtToEdit != null;
     final accentColor = _isReceivable ? AppColors.success : AppColors.error;
-    final bottomPad = MediaQuery.of(context).viewInsets.bottom +
-        MediaQuery.of(context).padding.bottom;
+    final size = MediaQuery.sizeOf(context);
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: size.height * 0.95),
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            const SheetHandle(),
+            _Header(
+              isEdit: isEdit,
+              isReceivable: _isReceivable,
+              accentColor: accentColor,
+            ),
+            const Divider(height: 1, color: AppColors.border),
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 24,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!isEdit) ...[
+                        _TypeToggle(
+                          isReceivable: _isReceivable,
+                          onChanged: (v) => setState(() => _isReceivable = v),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      _AmountCard(
+                        controller: _amountCtrl,
+                        isReceivable: _isReceivable,
+                      ),
+                      const SizedBox(height: 16),
+                      if (_isReceivable) ...[
+                        CustomerPickerField(
+                          selected: _linkedCustomer,
+                          onSelected: _selectCustomer,
+                          labelEn: 'Link to Customer (optional)',
+                          labelSw: 'Unganisha na Mteja (si lazima)',
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                      TextFormField(
+                        controller: _nameCtrl,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, color: AppColors.textPrimary),
+                        decoration: _fieldDec(
+                          label: _isReceivable
+                              ? _tr('Customer Name', 'Jina la Mteja')
+                              : _tr('Supplier Name', 'Jina la Muuzaji'),
+                          prefix: Icons.person_outline_rounded,
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? _tr('Name is required', 'Jina linahitajika')
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _phoneCtrl,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, color: AppColors.textPrimary),
+                        decoration: _fieldDec(
+                          label: _tr('Phone Number', 'Namba ya Simu'),
+                          prefix: Icons.phone_outlined,
+                        ),
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 12),
+                      _DueDateRow(dueDate: _dueDate, onTap: _pickDate),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _invoiceCtrl,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, color: AppColors.textPrimary),
+                        decoration: _fieldDec(
+                          label: _tr('Invoice / Ref # (optional)',
+                              'Nambari ya Ankara (hiari)'),
+                          prefix: Icons.tag_rounded,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _noteCtrl,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, color: AppColors.textPrimary),
+                        decoration: _fieldDec(
+                          label: _tr('Note (optional)', 'Maelezo (hiari)'),
+                          prefix: Icons.notes_outlined,
+                        ),
+                        maxLines: 3,
+                        minLines: 1,
+                      ),
+                      const SizedBox(height: 24),
+                      _SaveButton(
+                        saving: _saving,
+                        isEdit: isEdit,
+                        isReceivable: _isReceivable,
+                        onTap: _save,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    );
+  }
+}
+
+InputDecoration _fieldDec({
+  required String label,
+  required IconData prefix,
+  String? hint,
+}) =>
+    InputDecoration(
+      labelText: label,
+      hintText: hint,
+      hintStyle:
+          GoogleFonts.dmSans(fontSize: 14, color: AppColors.textDisabled),
+      labelStyle: GoogleFonts.dmSans(fontSize: 13, color: AppColors.textMuted),
+      floatingLabelStyle:
+          GoogleFonts.dmSans(fontSize: 12, color: AppColors.navyPrimary),
+      prefixIcon: Icon(prefix, size: 20, color: AppColors.textSecondary),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide:
+            const BorderSide(color: AppColors.navyPrimary, width: 1.5),
+      ),
+    );
+
+// ── Header ────────────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  final bool isEdit;
+  final bool isReceivable;
+  final Color accentColor;
+
+  const _Header({
+    required this.isEdit,
+    required this.isReceivable,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isEdit
+        ? _tr('Edit Entry', 'Hariri Rekodi')
+        : isReceivable
+            ? _tr('Add Receivable', 'Ongeza Dai')
+            : _tr('Add Payable', 'Ongeza Deni');
+    final pillLabel =
+        isReceivable ? _tr('Owed to you', 'Unadai') : _tr('You owe', 'Unadaiwa');
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Row(
         children: [
-          // Drag handle
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navyPrimary,
+              ),
+            ),
+          ),
           Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 4),
-            width: 40,
-            height: 4,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.border,
-              borderRadius: BorderRadius.circular(2),
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
             ),
-          ),
-          // Header row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(
-              children: [
-                Text(
-                  isEdit
-                      ? _tr('Edit Entry', 'Hariri Rekodi')
-                      : _isReceivable
-                          ? _tr('Add Receivable', 'Ongeza Dai')
-                          : _tr('Add Payable', 'Ongeza Deni'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.navyPrimary,
-                  ),
-                ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.border.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close_rounded,
-                        size: 18, color: AppColors.textMuted),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          // Scrollable form
-          Flexible(
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                shrinkWrap: true,
-                children: [
-                  if (!isEdit) ...[
-                    _TypeToggle(
-                      isReceivable: _isReceivable,
-                      onChanged: (v) => setState(() => _isReceivable = v),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  _AmountCard(
-                    controller: _amountCtrl,
-                    accentColor: accentColor,
-                    isReceivable: _isReceivable,
-                  ),
-                  const SizedBox(height: 14),
-                  if (_isReceivable) ...[
-                    CustomerPickerField(
-                      selected: _linkedCustomer,
-                      onSelected: _selectCustomer,
-                      labelEn: 'Link to Customer (optional)',
-                      labelSw: 'Unganisha na Mteja (si lazima)',
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                  _FieldCard(
-                    children: [
-                      _LabeledField(
-                        label: _isReceivable
-                            ? _tr('Customer Name', 'Jina la Mteja')
-                            : _tr('Supplier Name', 'Jina la Muuzaji'),
-                        child: TextFormField(
-                          controller: _nameCtrl,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 14, color: AppColors.textPrimary),
-                          decoration: _fieldDecoration(
-                            hint: _isReceivable
-                                ? _tr('e.g. John Mwangi', 'mfano: John Mwangi')
-                                : _tr('e.g. ABC Suppliers',
-                                    'mfano: ABC Suppliers'),
-                          ),
-                          textCapitalization: TextCapitalization.words,
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? _tr('Name is required', 'Jina linahitajika')
-                              : null,
-                        ),
-                      ),
-                      Divider(height: 1, color: AppColors.border),
-                      _LabeledField(
-                        label: _tr('Phone Number', 'Namba ya Simu'),
-                        child: TextFormField(
-                          controller: _phoneCtrl,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 14, color: AppColors.textPrimary),
-                          decoration: _fieldDecoration(
-                              hint:
-                                  _tr('+255 7XX XXX XXX', '+255 7XX XXX XXX')),
-                          keyboardType: TextInputType.phone,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 14),
-                  _FieldCard(
-                    children: [
-                      _LabeledField(
-                        label: _tr('Due Date', 'Tarehe ya Mwisho'),
-                        child: GestureDetector(
-                          onTap: _pickDate,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 14),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: AppColors.border),
-                              borderRadius: BorderRadius.circular(10),
-                              color: Colors.white,
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.calendar_today_outlined,
-                                    size: 16, color: AppColors.navyPrimary),
-                                SizedBox(width: 10),
-                                Text(
-                                  _fmtDate(_dueDate),
-                                  style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary),
-                                ),
-                                Spacer(),
-                                Text(
-                                  _daysLabel(),
-                                  style: GoogleFonts.dmSans(
-                                      fontSize: 12,
-                                      color: AppColors.textMuted),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 14),
-                  _FieldCard(
-                    children: [
-                      _LabeledField(
-                        label: _tr('Invoice / Ref # (optional)',
-                            'Nambari ya Ankara (hiari)'),
-                        child: TextFormField(
-                          controller: _invoiceCtrl,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 14, color: AppColors.textPrimary),
-                          decoration: _fieldDecoration(hint: 'INV-001'),
-                        ),
-                      ),
-                      Divider(height: 1, color: AppColors.border),
-                      _LabeledField(
-                        label: _tr('Note (optional)', 'Maelezo (hiari)'),
-                        child: TextFormField(
-                          controller: _noteCtrl,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 14, color: AppColors.textPrimary),
-                          decoration: _fieldDecoration(
-                              hint: _tr('Any additional details…',
-                                  'Maelezo zaidi…')),
-                          maxLines: 3,
-                          minLines: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            child: Text(
+              pillLabel,
+              style: GoogleFonts.dmSans(
+                color: accentColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          // Save button
-          Container(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPad + 12),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: AppColors.border)),
-            ),
-            child: FilledButton(
-              onPressed: _saving ? null : _save,
-              style: FilledButton.styleFrom(
-                backgroundColor: _saving ? AppColors.border : AppColors.navyPrimary,
-                minimumSize: const Size(double.infinity, 52),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.border.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
               ),
-              child: _saving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
-                    )
-                  : Text(
-                      isEdit
-                          ? _tr('Save Changes', 'Hifadhi Mabadiliko')
-                          : _isReceivable
-                              ? _tr('Add Receivable', 'Ongeza Dai')
-                              : _tr('Add Payable', 'Ongeza Deni'),
-                      style: GoogleFonts.dmSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white),
-                    ),
+              child: const Icon(Icons.close_rounded,
+                  size: 18, color: AppColors.textMuted),
             ),
           ),
         ],
       ),
     );
   }
-
-  String _daysLabel() {
-    final diff = _dueDate.difference(DateTime.now()).inDays;
-    if (diff == 0) return _tr('today', 'leo');
-    if (diff > 0) return '${_tr('in', 'baada ya')} $diff ${_tr('days', 'siku')}';
-    return '${diff.abs()} ${_tr('days ago', 'siku zilizopita')}';
-  }
-
-  InputDecoration _fieldDecoration({String? hint}) => InputDecoration(
-        hintText: hint,
-        hintStyle:
-            GoogleFonts.dmSans(fontSize: 14, color: AppColors.textDisabled),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: AppColors.navyPrimary, width: 1.5),
-        ),
-      );
 }
 
 // ── Type Toggle ───────────────────────────────────────────────────────────────
@@ -455,7 +420,7 @@ class _TypeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
@@ -508,8 +473,8 @@ class _ToggleChip extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           decoration: BoxDecoration(
             color: active ? activeColor : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
@@ -556,26 +521,24 @@ class _ToggleChip extends StatelessWidget {
 
 class _AmountCard extends StatelessWidget {
   final TextEditingController controller;
-  final Color accentColor;
   final bool isReceivable;
 
   const _AmountCard({
     required this.controller,
-    required this.accentColor,
     required this.isReceivable,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.navyPrimary, Color(0xFF003153)],
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,7 +550,8 @@ class _AmountCard extends StatelessWidget {
             style: GoogleFonts.dmSans(
                 color: Colors.white70,
                 fontSize: 12,
-                fontWeight: FontWeight.w600),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3),
           ),
           SizedBox(height: 10),
           Row(
@@ -607,7 +571,7 @@ class _AmountCard extends StatelessWidget {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   style: GoogleFonts.jetBrainsMono(
                     color: Colors.white,
-                    fontSize: 34,
+                    fontSize: 32,
                     fontWeight: FontWeight.w700,
                   ),
                   decoration: InputDecoration(
@@ -616,7 +580,7 @@ class _AmountCard extends StatelessWidget {
                     hintText: '0',
                     hintStyle: GoogleFonts.jetBrainsMono(
                         color: Colors.white30,
-                        fontSize: 34,
+                        fontSize: 32,
                         fontWeight: FontWeight.w700),
                     contentPadding: EdgeInsets.zero,
                     isDense: true,
@@ -635,63 +599,123 @@ class _AmountCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Container(
-            height: 1,
-            color: Colors.white.withValues(alpha: 0.2),
-          ),
         ],
       ),
     );
   }
 }
 
-// ── Field Card & helpers ──────────────────────────────────────────────────────
+// ── Due Date Row ─────────────────────────────────────────────────────────────
 
-class _FieldCard extends StatelessWidget {
-  final List<Widget> children;
-  const _FieldCard({required this.children});
+class _DueDateRow extends StatelessWidget {
+  final DateTime dueDate;
+  final VoidCallback onTap;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(children: children),
-    );
+  const _DueDateRow({required this.dueDate, required this.onTap});
+
+  String _daysLabel() {
+    final diff = dueDate.difference(DateTime.now()).inDays;
+    if (diff == 0) return _tr('today', 'leo');
+    if (diff > 0) {
+      return '${_tr('in', 'baada ya')} $diff ${_tr('days', 'siku')}';
+    }
+    return '${diff.abs()} ${_tr('days ago', 'siku zilizopita')}';
   }
-}
-
-class _LabeledField extends StatelessWidget {
-  final String label;
-  final Widget child;
-
-  const _LabeledField({required this.label, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.dmSans(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMuted,
-              letterSpacing: 0.5,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_today_outlined,
+                size: 18, color: AppColors.textSecondary),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _tr('Due Date', 'Tarehe ya Mwisho'),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 11, color: AppColors.textMuted),
+                  ),
+                  Text(
+                    _fmtDate(dueDate),
+                    style: GoogleFonts.jetBrainsMono(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.navyPrimary),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          child,
-        ],
+            Text(
+              _daysLabel(),
+              style: GoogleFonts.dmSans(
+                  fontSize: 12, color: AppColors.textMuted),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+// ── Save Button ───────────────────────────────────────────────────────────────
+
+class _SaveButton extends StatelessWidget {
+  final bool saving;
+  final bool isEdit;
+  final bool isReceivable;
+  final VoidCallback onTap;
+
+  const _SaveButton({
+    required this.saving,
+    required this.isEdit,
+    required this.isReceivable,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton(
+        onPressed: saving ? null : onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.navyPrimary,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: AppColors.navyPrimary.withValues(alpha: 0.5),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: saving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2),
+              )
+            : Text(
+                isEdit
+                    ? _tr('Save Changes', 'Hifadhi Mabadiliko')
+                    : isReceivable
+                        ? _tr('Add Receivable', 'Ongeza Dai')
+                        : _tr('Add Payable', 'Ongeza Deni'),
+                style: GoogleFonts.dmSans(
+                    fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+      ),
+    );
+  }
+}

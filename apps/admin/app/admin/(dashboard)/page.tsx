@@ -20,13 +20,21 @@ export default function DashboardPage() {
     revalidating: analyticsRefreshing,
     error,
     refetch: refetchAnalytics,
-  } = useAdminFetch(useCallback(() => fetchAnalytics(), []), { key: 'analytics', pollingInterval: 60_000 })
+  } = useAdminFetch(useCallback(() => fetchAnalytics(), []), {
+    key: 'analytics',
+    pollingInterval: 120_000,
+    minStaleMs: 120_000,
+  })
 
   const {
     data: healthData,
     loading: healthLoading,
     revalidating: healthRefreshing,
-  } = useAdminFetch(useCallback(() => fetchSystemHealth(), []), { key: 'system-health', pollingInterval: 60_000 })
+  } = useAdminFetch(useCallback(() => fetchSystemHealth(), []), {
+    key: 'system-health',
+    pollingInterval: 60_000,
+    minStaleMs: 60_000,
+  })
 
   const total = data?.planDistribution.reduce((s, d) => s + d.value, 0) ?? 0
 
@@ -50,7 +58,7 @@ export default function DashboardPage() {
       {analyticsLoading
         ? <KPIRowSkeleton count={4} />
         : (
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KPICard label="Total Businesses" value={(data?.totalBusinesses ?? 0).toLocaleString()} icon={<Building2 className="h-4 w-4" />} mono={false} />
             <KPICard label="Total Users" value={(data?.totalUsers ?? 0).toLocaleString()} icon={<Users className="h-4 w-4" />} mono={false} />
             <KPICard label="Active Businesses" value={(data?.activeBusinesses ?? 0).toLocaleString()} icon={<Building2 className="h-4 w-4" />} mono={false} />
@@ -71,21 +79,21 @@ export default function DashboardPage() {
       {analyticsRefreshing && <RevalidatingBar />}
       {analyticsLoading
         ? (
-          <div className="grid grid-cols-5 gap-4 mb-6">
-            <div className="col-span-3"><ChartSkeleton height="h-64" /></div>
-            <div className="col-span-2"><ChartSkeleton height="h-64" /></div>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+            <div className="lg:col-span-3"><ChartSkeleton height="h-64" /></div>
+            <div className="lg:col-span-2"><ChartSkeleton height="h-64" /></div>
           </div>
         )
         : data && (
-          <div className="grid grid-cols-5 gap-4 mb-6">
-            <div className="col-span-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+            <div className="lg:col-span-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
               <div className="mb-4">
                 <h2 className="text-[14px] font-semibold text-[var(--ink)]">MRR Trend</h2>
                 <p className="text-[12px] text-[var(--ink-muted)]">Cumulative over last 12 months</p>
               </div>
               <MRRTrendChart data={data.mrrTrend} />
             </div>
-            <div className="col-span-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div className="lg:col-span-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
               <div className="mb-4">
                 <h2 className="text-[14px] font-semibold text-[var(--ink)]">Plan Distribution</h2>
                 <p className="text-[12px] text-[var(--ink-muted)]">{total.toLocaleString()} businesses by tier</p>
@@ -100,8 +108,8 @@ export default function DashboardPage() {
       }
 
       {/* Health + Recent signups */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="col-span-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-[14px] font-semibold text-[var(--ink)]">System Health</h2>
@@ -134,7 +142,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="col-span-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+        <div className="lg:col-span-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
           <div className="mb-4">
             <h2 className="text-[14px] font-semibold text-[var(--ink)]">Recent Signups</h2>
             <p className="text-[12px] text-[var(--ink-muted)]">Latest 10 new users</p>

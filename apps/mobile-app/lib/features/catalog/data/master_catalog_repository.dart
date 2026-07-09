@@ -14,7 +14,8 @@ import '../domain/models/master_product.dart';
 // MasterCatalogRepository
 //
 // Source of truth: Firestore global collections (master_categories,
-// master_products), filtered by businessType (human-readable catalog name).
+// master_products), filtered by businessTypes (array of human-readable
+// catalog names — an item may belong to more than one business type).
 //
 // Cache: local Drift SQLite — valid for 24 hours per normalised business-type.
 // The cache key is the app's normalised token (e.g. "retail", "pharmacy")
@@ -217,7 +218,7 @@ class MasterCatalogRepository {
       // ── Categories ──────────────────────────────────────────────────────
       final catSnap = await _firestore
           .collection('master_categories')
-          .where('businessType', whereIn: catalogNames)
+          .where('businessTypes', arrayContainsAny: catalogNames)
           .get(opts);
 
       final cats = catSnap.docs.map((d) {
@@ -241,7 +242,7 @@ class MasterCatalogRepository {
       // ── Products ─────────────────────────────────────────────────────────
       final prodSnap = await _firestore
           .collection('master_products')
-          .where('businessType', whereIn: catalogNames)
+          .where('businessTypes', arrayContainsAny: catalogNames)
           .get(opts);
 
       List<String> strList(dynamic v) =>
@@ -309,7 +310,7 @@ class MasterCatalogRepository {
     final catalogName = _catalogTypeNames(businessType).first;
 
     await _firestore.collection('master_categories').doc(id).set({
-      'businessType': catalogName,
+      'businessTypes': [catalogName],
       'categoryName': trimmed,
       'categoryNameSw': '',
       'categorySlug': slug,

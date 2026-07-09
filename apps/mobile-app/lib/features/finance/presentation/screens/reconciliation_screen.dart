@@ -30,20 +30,56 @@ class ReconciliationScreen extends ConsumerStatefulWidget {
 class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
   late String _selectedDate;
   final _notesController = TextEditingController();
+  final _openingController = TextEditingController();
   double _openingBalance = 0;
+  String? _prefilledForDate;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = DateTime.now().toIso8601String().split('T').first;
-    _openingBalance = widget.account.balance;
   }
 
   @override
   void dispose() {
     _notesController.dispose();
+    _openingController.dispose();
     super.dispose();
+  }
+
+  /// Prefills opening balance and notes when the screen opens and whenever
+  /// the selected date changes. A saved reconciliation wins; otherwise the
+  /// opening balance is the live balance minus the net effect of every
+  /// transaction on or after the selected day — the live balance already
+  /// includes those, so using it directly would double-count the day.
+  void _prefillForDate(
+      DailyReconciliation? existing, List<CashTransaction> allTxns) {
+    if (_prefilledForDate == _selectedDate) return;
+    _prefilledForDate = _selectedDate;
+
+    double opening;
+    if (existing != null) {
+      opening = existing.openingBalance;
+    } else {
+      final accounts = ref.read(cashAccountListProvider).maybeWhen(
+          data: (d) => d, orElse: () => const <CashAccount>[]);
+      final matches = accounts.where((a) => a.id == widget.account.id);
+      final balance =
+          matches.isEmpty ? widget.account.balance : matches.first.balance;
+      double netSince = 0;
+      for (final t in allTxns) {
+        // ISO dates compare lexically.
+        if (t.date.compareTo(_selectedDate) < 0) continue;
+        final incoming = t.isDeposit ||
+            (t.isTransfer && t.toAccountId == widget.account.id);
+        netSince += incoming ? t.amount : -t.amount;
+      }
+      opening = balance - netSince;
+    }
+    _openingBalance = opening;
+    _openingController.text = opening.toStringAsFixed(0);
+    _notesController.text = existing?.notes ?? '';
   }
 
   @override
@@ -57,16 +93,14 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
     final withdrawals = dayTxns
         .where((t) => t.isWithdrawal || (t.isTransfer && t.fromAccountId == widget.account.id))
         .fold(0.0, (s, t) => s + t.amount);
-    final closingBalance = _openingBalance + deposits - withdrawals;
 
     final reconciliations = ref.watch(accountReconciliationsProvider(widget.account.id));
     final existing = reconciliations
         .where((r) => r.date == _selectedDate)
         .firstOrNull;
 
-    if (existing != null && _notesController.text.isEmpty && existing.notes.isNotEmpty) {
-      _notesController.text = existing.notes;
-    }
+    _prefillForDate(existing, allTxns);
+    final closingBalance = _openingBalance + deposits - withdrawals;
 
     return Scaffold(
       appBar: AppBar(
@@ -186,7 +220,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
-                    initialValue: _openingBalance.toStringAsFixed(0),
+                    controller: _openingController,
                     decoration: InputDecoration(
                       prefixText: 'TZS ',
                       border: OutlineInputBorder(
@@ -365,7 +399,7 @@ class _ReconciliationScreenState extends ConsumerState<ReconciliationScreen> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: DateTime.tryParse(_selectedDate) ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
     );

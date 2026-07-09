@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,22 +15,26 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/lookup_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/skeleton_widgets.dart';
 import '../../../../shared/widgets/smart_skeleton.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 
 String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
-class ManageBusinessesScreen extends StatefulWidget {
+class ManageBusinessesScreen extends ConsumerStatefulWidget {
   const ManageBusinessesScreen({super.key});
 
   @override
-  State<ManageBusinessesScreen> createState() => _ManageBusinessesScreenState();
+  ConsumerState<ManageBusinessesScreen> createState() =>
+      _ManageBusinessesScreenState();
 }
 
-class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
+class _ManageBusinessesScreenState
+    extends ConsumerState<ManageBusinessesScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late Future<Map<String, dynamic>?> _profileFuture;
   final _searchCtrl = TextEditingController();
@@ -69,21 +74,18 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
     } catch (_) {}
   }
 
-  bool _isStarterPlan(Map<String, dynamic>? profile) {
-    final tier = PlanTierX.fromString(profile?['plan'] as String?);
-    if (tier == PlanTier.starter) return true;
-    final expiresRaw = profile?['planExpiresAt'] ?? profile?['premiumExpiresAt'];
-    if (expiresRaw is Timestamp) {
-      return expiresRaw.toDate().isBefore(DateTime.now());
-    }
-    return false;
-  }
-
-  /// Add-business entry point (FAB): starter-plan users with an existing
-  /// business are gated behind the shared slide-up upgrade sheet instead of
-  /// the old blocking dialog, matching the rest of the app's paywall UX.
+  /// Add-business entry point (FAB): users who have reached their plan's
+  /// business limit are gated behind the shared slide-up upgrade sheet
+  /// instead of the old blocking dialog, matching the rest of the app's
+  /// paywall UX. The limit itself is plan-driven (Firestore `maxBusinesses`,
+  /// admin-editable), not hardcoded.
   Future<void> _handleAddBusinessTap(Map<String, dynamic>? profile) async {
-    if (_isStarterPlan(profile) && _businessesFromProfile(profile).isNotEmpty) {
+    final tier = ref.read(planStatusProvider).valueOrNull?.tier ??
+        PlanTierX.fromString(profile?['plan'] as String?);
+    final defs = ref.read(planDefinitionsProvider).valueOrNull;
+    final maxBusinesses = limitsFor(tier, defs).maxBusinesses;
+    final currentCount = _businessesFromProfile(profile).length;
+    if (maxBusinesses != -1 && currentCount >= maxBusinesses) {
       await showUpgradeSheet(
         context,
         featureKey: PlanFeatureKey.multiBusiness,
@@ -1213,19 +1215,27 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
         final selectedBusinessId = _selectedBusinessId(profile);
         final isLoading =
             snapshot.connectionState != ConnectionState.done && profile == null;
-        final tier = PlanTierX.fromString(profile?['plan'] as String?);
+        final livePlanTier = ref.watch(
+          planStatusProvider.select((a) => a.valueOrNull?.tier),
+        );
+        final tier = livePlanTier ??
+            PlanTierX.fromString(profile?['plan'] as String?);
+        final defs = ref.watch(planDefinitionsProvider).valueOrNull;
+        final maxBusinesses = limitsFor(tier, defs).maxBusinesses;
 
         return Scaffold(
           backgroundColor: AppColors.background,
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _handleAddBusinessTap(profile),
-            backgroundColor: AppColors.yellowBrand,
-            foregroundColor: AppColors.navyPrimary,
-            elevation: 3,
-            icon: const Icon(Icons.add_business_rounded, size: 20),
-            label: Text(
-              _tr('Add Business', 'Ongeza Biashara'),
-              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          floatingActionButton: NavAwareFab(
+            child: FloatingActionButton.extended(
+              onPressed: () => _handleAddBusinessTap(profile),
+              backgroundColor: AppColors.yellowBrand,
+              foregroundColor: AppColors.navyPrimary,
+              elevation: 3,
+              icon: const Icon(Icons.add_business_rounded, size: 20),
+              label: Text(
+                _tr('Add Business', 'Ongeza Biashara'),
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+              ),
             ),
           ),
           body: SmartSkeleton(
@@ -1238,6 +1248,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
                     children: [
                       _BusinessDarkHeader(
                         businessCount: businesses.length,
+                        maxBusinesses: maxBusinesses,
                         tier: tier,
                         searchCtrl: _searchCtrl,
                         searchExpanded: _searchExpanded,
@@ -1278,6 +1289,7 @@ class _ManageBusinessesScreenState extends State<ManageBusinessesScreen> {
 
 class _BusinessDarkHeader extends StatelessWidget {
   final int businessCount;
+  final int maxBusinesses;
   final PlanTier tier;
   final TextEditingController searchCtrl;
   final bool searchExpanded;
@@ -1285,6 +1297,7 @@ class _BusinessDarkHeader extends StatelessWidget {
 
   const _BusinessDarkHeader({
     required this.businessCount,
+    required this.maxBusinesses,
     required this.tier,
     required this.searchCtrl,
     required this.searchExpanded,
@@ -1310,6 +1323,7 @@ class _BusinessDarkHeader extends StatelessWidget {
 
   Widget _buildPill() {
     final isStarter = tier == PlanTier.starter;
+    final atLimit = maxBusinesses != -1 && businessCount >= maxBusinesses;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
       decoration: BoxDecoration(
@@ -1340,8 +1354,8 @@ class _BusinessDarkHeader extends StatelessWidget {
           const _PillDivider(),
           _PillStat(
             label: _tr('Limit', 'Kikomo'),
-            value: isStarter ? '1' : '∞',
-            color: isStarter ? AppColors.warning : AppColors.success,
+            value: maxBusinesses == -1 ? '∞' : '$maxBusinesses',
+            color: atLimit ? AppColors.warning : AppColors.success,
           ),
         ],
       ),
@@ -1362,7 +1376,7 @@ class _BusinessDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 16),
+          padding: EdgeInsets.fromLTRB(20, top + AppTheme.headerTopPadding, 20, _pillHalf + 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

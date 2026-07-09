@@ -101,7 +101,7 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
 
     return ConstrainedBox(
       constraints:
-          BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.88),
+          BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
       child: Container(
         decoration: const BoxDecoration(
           color: AppColors.background,

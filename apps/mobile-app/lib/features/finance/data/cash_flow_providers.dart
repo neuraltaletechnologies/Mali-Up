@@ -4,6 +4,7 @@ import '../../customer/data/customer_providers.dart';
 import '../domain/models/cash_account.dart';
 import '../domain/models/cash_transaction.dart';
 import '../domain/models/daily_reconciliation.dart';
+import '../domain/payment_method_accounts.dart';
 import 'finance_providers.dart';
 
 // ── Month selector for cash flow screens ──────────────────────────────────────
@@ -44,33 +45,39 @@ final cfTransactionsByMonthProvider = Provider<List<CashTransaction>>((ref) {
       .toList();
 });
 
-/// Transactions for a specific account (all time).
+/// Transactions for a specific account (all time). Deposits only belong to
+/// their destination account and withdrawals to their source account — the
+/// other side may carry a stale prefill id from older app versions.
 final accountTransactionsProvider =
     Provider.family<List<CashTransaction>, String>((ref, accountId) {
   return ref
       .watch(cashTransactionListProvider)
       .maybeWhen(data: (d) => d, orElse: () => <CashTransaction>[])
-      .where((t) => t.fromAccountId == accountId || t.toAccountId == accountId)
+      .where((t) {
+        if (t.isDeposit) return t.toAccountId == accountId;
+        if (t.isWithdrawal) return t.fromAccountId == accountId;
+        return t.fromAccountId == accountId || t.toAccountId == accountId;
+      })
       .toList();
 });
 
 // ── Monthly aggregates ────────────────────────────────────────────────────────
 
-/// Total inflow (deposits + incoming transfers) for the selected month.
+/// Total inflow (deposits) for the selected month. Transfers are internal
+/// movements between own accounts, so they are not money into the business.
 final monthlyInflowProvider = Provider<double>((ref) {
   final txns = ref.watch(cfTransactionsByMonthProvider);
   return txns
-      .where((t) => t.isDeposit || t.isTransfer)
-      .where((t) => t.toAccountId.isNotEmpty)
+      .where((t) => t.isDeposit && t.toAccountId.isNotEmpty)
       .fold(0.0, (s, t) => s + t.amount);
 });
 
-/// Total outflow (withdrawals + outgoing transfers) for the selected month.
+/// Total outflow (withdrawals) for the selected month. Transfers are internal
+/// movements between own accounts, so they are not money out of the business.
 final monthlyOutflowProvider = Provider<double>((ref) {
   final txns = ref.watch(cfTransactionsByMonthProvider);
   return txns
-      .where((t) => t.isWithdrawal || t.isTransfer)
-      .where((t) => t.fromAccountId.isNotEmpty)
+      .where((t) => t.isWithdrawal && t.fromAccountId.isNotEmpty)
       .fold(0.0, (s, t) => s + t.amount);
 });
 
@@ -102,6 +109,21 @@ final cfByActivityProvider =
     }
   }
   return map;
+});
+
+// ── Built-in payment-method accounts ─────────────────────────────────────────
+
+/// The activated built-in payment accounts, keyed by their deterministic id
+/// (pm_cash, pm_mpesa, pm_bank, pm_card). A method missing from this map has
+/// not been activated yet — it cannot receive sale money or pay for stock.
+final activatedMethodAccountsProvider = Provider<Map<String, CashAccount>>((ref) {
+  final accounts = ref
+      .watch(cashAccountListProvider)
+      .maybeWhen(data: (d) => d, orElse: () => <CashAccount>[]);
+  return {
+    for (final a in accounts)
+      if (PaymentMethodAccounts.isMethodAccountId(a.id)) a.id: a,
+  };
 });
 
 // ── Daily reconciliations (offline-first, backed by Drift) ───────────────────

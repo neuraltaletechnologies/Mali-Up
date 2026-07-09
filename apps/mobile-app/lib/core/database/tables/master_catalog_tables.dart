@@ -2,6 +2,11 @@ import 'package:drift/drift.dart';
 
 /// Local cache of global Firestore `master_categories` collection.
 /// Keyed internally by the app's normalised business-type token (e.g. "retail").
+///
+/// A Firestore doc can now belong to more than one business type
+/// (`businessTypes` array field upstream), so the same doc `id` may be
+/// cached once per business-type context it was fetched under — hence the
+/// composite primary key instead of `id` alone.
 class MasterCategoriesTable extends Table {
   @override
   String get tableName => 'master_categories';
@@ -16,10 +21,12 @@ class MasterCategoriesTable extends Table {
   IntColumn get cachedAt => integer().withDefault(const Constant(0))();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {id, businessType};
 }
 
 /// Local cache of global Firestore `master_products` collection.
+/// Same composite-key reasoning as [MasterCategoriesTable] — a product can
+/// be cached once per business-type context it belongs to.
 class MasterProductsTable extends Table {
   @override
   String get tableName => 'master_products';
@@ -43,5 +50,5 @@ class MasterProductsTable extends Table {
   IntColumn get cachedAt => integer().withDefault(const Constant(0))();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {id, businessType};
 }

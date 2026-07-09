@@ -3,10 +3,13 @@ import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'pin_attempt_throttle.dart';
+
 class SecurityService {
   static const _pinKey = 'security_pin'; // Changed from 'security_pin_hash'
   static const _lockEnabledKey = 'app_lock_enabled';
   static const _biometricEnabledKey = 'biometric_enabled';
+  static const _throttle = PinAttemptThrottle('app_lock_pin');
 
   static final ValueNotifier<bool> lockEnabledNotifier = ValueNotifier(false);
   static final ValueNotifier<bool> biometricEnabledNotifier =
@@ -39,10 +42,20 @@ class SecurityService {
     await _secureStorage.write(key: _pinKey, value: pin);
   }
 
+  /// Returns how long the caller must wait before the next PIN attempt is
+  /// allowed, or null if not currently locked out.
+  static Future<Duration?> pinLockoutRemaining() => _throttle.lockoutRemaining();
+
   static Future<bool> verifyPin(String pin) async {
+    if (await _throttle.lockoutRemaining() != null) return false;
     final stored = await _secureStorage.read(key: _pinKey);
-    if (stored == null) return false;
-    return stored == pin;
+    final matches = stored != null && stored == pin;
+    if (matches) {
+      await _throttle.recordSuccess();
+    } else {
+      await _throttle.recordFailure();
+    }
+    return matches;
   }
 
   static Future<void> enableAppLock(String pin) async {

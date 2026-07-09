@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/localization_service.dart';
+
+String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 /// PIN Lock Setup Screen
 /// Allows users to set a 4-6 digit PIN code for app security
@@ -24,7 +27,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Set PIN Code'),
+        title: Text(_t('Set PIN Code', 'Weka Namba ya PIN')),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -35,13 +38,16 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
               children: [
                 // Title
                 Text(
-                  step == 1 ? 'Enter a 4-6 digit PIN' : 'Confirm your PIN',
+                  step == 1
+                      ? _t('Enter a 4-6 digit PIN', 'Weka PIN ya tarakimu 4-6')
+                      : _t('Confirm your PIN', 'Thibitisha PIN yako'),
                   style: Theme.of(context).textTheme.headlineSmall,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'You\'ll need this to unlock the app',
+                  _t('You\'ll need this to unlock the app',
+                      'Utahitaji hii kufungua programu'),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -86,7 +92,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                 // PIN Length Indicator
                 SizedBox(height: 16),
                 Text(
-                  '${pinEntry.length} digits',
+                  '${pinEntry.length} ${_t("digits", "tarakimu")}',
                   style: GoogleFonts.dmSans(
                     color: Colors.grey[600],
                     fontSize: 14,
@@ -108,7 +114,8 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'Enter at least 4 digits for security',
+                      _t('Enter at least 4 digits for security',
+                          'Weka angalau tarakimu 4 kwa usalama'),
                       style: GoogleFonts.dmSans(fontSize: 12),
                       textAlign: TextAlign.center,
                     ),
@@ -224,7 +231,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
           if (pinEntry == firstPin) {
             _savePIN();
           } else if (pinEntry.length == firstPin!.length) {
-            _showError('PINs do not match');
+            _showError(_t('PINs do not match', 'PIN hazifanani'));
             setState(() {
               pinEntry = '';
               step = 1;
@@ -243,8 +250,8 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PIN lock enabled'),
+          SnackBar(
+            content: Text(_t('PIN lock enabled', 'Kufuli ya PIN imewashwa')),
             backgroundColor: Colors.green,
           ),
         );
@@ -254,7 +261,7 @@ class _PINLockSetupScreenState extends ConsumerState<PINLockSetupScreen> {
         });
       }
     } catch (e) {
-      _showError('Error saving PIN: $e');
+      _showError('${_t("Error saving PIN", "Hitilafu kuhifadhi PIN")}: $e');
     }
   }
 

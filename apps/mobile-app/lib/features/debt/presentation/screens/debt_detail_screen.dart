@@ -9,6 +9,7 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 import 'add_debt_screen.dart';
@@ -322,6 +323,13 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
         writtenOffAt: _isoToday(),
       );
       await repo.save(writtenOff);
+      // A written-off receivable is no longer owed — release it from the
+      // linked customer's balance.
+      await adjustCustomerBalanceForDebtChange(
+        ref,
+        before: _debt,
+        after: writtenOff,
+      );
       if (mounted) {
         Navigator.of(context).pop({'writtenOff': true});
       }
@@ -349,10 +357,8 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
   // ── Edit / Delete ─────────────────────────────────────────────────────────
 
   Future<void> _edit() async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    await showAppSheet<void>(
+      context,
       builder: (_) => AddDebtScreen(debtToEdit: _debt),
     );
     _refreshDebt();
@@ -395,6 +401,9 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen>
     try {
       final repo = ref.read(debtRepositoryProvider);
       await repo.delete(_debt.id);
+      // Deleting an open receivable removes the claim — release it from
+      // the linked customer's balance.
+      await adjustCustomerBalanceForDebtChange(ref, before: _debt);
       if (mounted) Navigator.of(context).pop({'deleted': true});
     } catch (_) {
       if (mounted) {
@@ -1186,6 +1195,14 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
         writtenOffAt: widget.debt.writtenOffAt,
       );
       await repo.save(updatedDebt);
+
+      // Mirror the repayment into the linked customer's balance so the
+      // customer page shows the same outstanding amount.
+      await adjustCustomerBalanceForDebtChange(
+        ref,
+        before: widget.debt,
+        after: updatedDebt,
+      );
 
       widget.onSaved();
       if (mounted) Navigator.of(context).pop(true);

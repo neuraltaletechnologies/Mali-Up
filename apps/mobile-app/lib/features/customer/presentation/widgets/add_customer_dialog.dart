@@ -270,7 +270,7 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                       style: GoogleFonts.dmSans(
                           fontSize: 15, color: AppColors.navyPrimary),
                       decoration: _field(
-                        _tr('Email (Optional)', 'Barua pepe (Hiari)'),
+                        _tr('Email (Optional)', 'Barua pepe '),
                         Icons.email_outlined,
                       ),
                     ),

@@ -86,6 +86,15 @@ void main() {
       expect(ids, containsAll(['low', 'exact']));
       expect(ids, isNot(contains('ok')));
     });
+
+    test('excludes items without a threshold (services, returns)', () async {
+      await dao.upsert(
+          makeItem(id: 'service', quantity: 0, lowStockThreshold: 0));
+      await dao.upsert(makeItem(id: 'low', quantity: 5));
+
+      final result = await dao.watchLowStock('biz-1').first;
+      expect(result.map((r) => r.id), ['low']);
+    });
   });
 
   group('adjustQuantity', () {
@@ -124,6 +133,60 @@ void main() {
       final after = await dao.getById('item-1');
 
       expect(after!.localVersion, before!.localVersion + 1);
+    });
+  });
+
+  group('applyCommittedDelta', () {
+    test('changes quantity without touching syncStatus or quantityDelta',
+        () async {
+      await dao.upsert(makeItem());
+      await dao.applyCommittedDelta('item-1', -10);
+
+      final result = await dao.getById('item-1');
+      expect(result!.quantity, 90.0);
+      // The change is already on the server — the row must stay 'synced' so
+      // pulls keep hydrating it, and no delta may be queued for push.
+      expect(result.quantityDelta, 0.0);
+      expect(result.syncStatus, 'synced');
+    });
+
+    test('does not clobber a pending offline delta on the same row', () async {
+      await dao.upsert(makeItem());
+      await dao.adjustQuantity('item-1', -5);
+      await dao.applyCommittedDelta('item-1', -10);
+
+      final result = await dao.getById('item-1');
+      expect(result!.quantity, 85.0);
+      expect(result.quantityDelta, -5.0);
+      expect(result.syncStatus, 'pending_update');
+    });
+  });
+
+  group('consumeQuantityDelta', () {
+    test('subtracts the pushed amount without touching quantity', () async {
+      await dao.upsert(makeItem());
+      await dao.adjustQuantity('item-1', -10);
+
+      // Simulates SyncService pushing the -10 delta to Firestore.
+      await dao.consumeQuantityDelta('item-1', -10);
+
+      final result = await dao.getById('item-1');
+      expect(result!.quantity, 90.0);
+      expect(result.quantityDelta, 0.0);
+    });
+
+    test('keeps deltas accumulated after the pushed one', () async {
+      await dao.upsert(makeItem());
+      await dao.adjustQuantity('item-1', -10);
+      await dao.adjustQuantity('item-1', -5);
+
+      // Only the first queued op (-10) has been pushed; -5 must survive so
+      // a conflict merge can still apply it.
+      await dao.consumeQuantityDelta('item-1', -10);
+
+      final result = await dao.getById('item-1');
+      expect(result!.quantity, 85.0);
+      expect(result.quantityDelta, -5.0);
     });
   });
 

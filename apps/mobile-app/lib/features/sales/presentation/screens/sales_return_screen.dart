@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
@@ -103,6 +104,10 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
           'Chagua bidhaa ya kubadilishana'));
       return;
     }
+    // Returns commit an atomic Firestore batch (stock restore + credit note
+    // + balances) — online-only for now.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     setState(() => _saving = true);
 
     try {
@@ -112,6 +117,20 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
       final role = ref.read(currentUserRoleProvider);
 
       final selectedLines = _lines.where((l) => l.selected && l.returnQty > 0);
+
+      // Restock only lines still linked to a product that exists locally —
+      // free-text sale lines carry a generated row id, and a merge-set on
+      // that id would create a phantom inventory document.
+      final db = ref.read(appDatabaseProvider);
+      final restockableIds = <String>{};
+      if (_restockAll) {
+        for (final line in selectedLines) {
+          if (line.productId.isEmpty) continue;
+          if (await db.inventoryDao.getById(line.productId) != null) {
+            restockableIds.add(line.productId);
+          }
+        }
+      }
 
       // Credit note number
       final now = DateTime.now();
@@ -174,7 +193,7 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
             context: scope.context,
             childCollection: 'inventory_items');
         for (final line in selectedLines) {
-          if (line.productId.isNotEmpty) {
+          if (restockableIds.contains(line.productId)) {
             batch.set(
                 invCol.doc(line.productId),
                 {
@@ -214,6 +233,23 @@ class _SalesReturnScreenState extends ConsumerState<SalesReturnScreen>
       });
 
       await batch.commit();
+
+      // Mirror the stock changes into Drift immediately — the UI reads stock
+      // from Drift, and the incremental sync pull can miss these writes when
+      // the device clock runs ahead of the Firestore server clock.
+      try {
+        if (_restockAll) {
+          for (final line in selectedLines) {
+            if (!restockableIds.contains(line.productId)) continue;
+            await db.inventoryDao
+                .applyCommittedDelta(line.productId, line.returnQty.toDouble());
+          }
+        }
+        if (_resolution == _ResolutionType.exchangeProduct &&
+            _exchangeProductId.isNotEmpty) {
+          await db.inventoryDao.applyCommittedDelta(_exchangeProductId, -1);
+        }
+      } catch (_) {}
 
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,

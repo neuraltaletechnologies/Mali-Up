@@ -49,6 +49,16 @@ export interface Business {
   expenseTotal?: number
   notes?: AdminNote[]
   staffMembers?: StaffMember[]
+  enterpriseOverrides?: EnterpriseOverride
+}
+
+// Per-business negotiated terms for the Enterprise tier — a partial override
+// of PlanDefinition. Absent/empty fields fall back to the shared
+// platform_config/plans.enterprise definition.
+export type EnterpriseOverride = Partial<PlanDefinition> & {
+  notes?: string
+  setAt?: string
+  setBy?: string
 }
 
 export interface AdminNote {
@@ -176,7 +186,7 @@ export interface MasterProduct {
 /** Real Firestore master catalog product (master_products collection) */
 export interface CatalogProduct {
   id: string
-  businessType: string
+  businessTypes: string[]
   categorySlug: string
   productName: string
   productNameSw: string
@@ -196,13 +206,19 @@ export interface CatalogProduct {
 
 export interface CatalogCategory {
   id: string
-  businessType: string
+  businessTypes: string[]
   categoryName: string
   categoryNameSw: string
   categorySlug: string
   icon: string
   displayOrder: number
   productCount: number
+}
+
+export interface CatalogImportResult {
+  imported: number
+  skipped: number
+  skippedNames: string[]
 }
 
 export interface AnalyticsOverview {
@@ -248,6 +264,8 @@ export interface PlanDefinition {
   cycleMonths: number
   maxUsers: number       // -1 = unlimited
   monthlyInvoices: number // -1 = unlimited
+  maxBusinesses: number  // -1 = unlimited
+  maxCustomers: number   // -1 = unlimited
   cashFlow: boolean
   expenseTracking: boolean
   manualDebt: boolean
@@ -285,6 +303,7 @@ export interface PlanRequest {
   note: string
   paymentRef: string
   status: 'pending' | 'approved' | 'rejected'
+  activated: boolean
   adminNotes: string
   createdAt: string
   resolvedAt: string
@@ -308,6 +327,16 @@ export interface AppLookups {
   districts: Record<string, string[]>
 }
 
+// Aggregated feed of pending items requiring admin action (topbar bell)
+export interface AdminNotification {
+  id: string
+  source: 'plan_request' | 'refund' | 'submission' | 'ticket'
+  title: string
+  subtitle: string
+  createdAt: string
+  href: string
+}
+
 export interface PlatformConfig {
   pricing: {
     starter: number
@@ -328,4 +357,16 @@ export interface PlatformConfig {
     }
   }
   platform: { maintenanceMode: boolean; maintenanceBanner: string }
+}
+
+// Mirrors the Firestore doc at platform_config/version_gate — kept separate
+// from PlatformConfig/platform_config/main since that doc must stay public
+// read (checked by the mobile app before sign-in) while main stays private.
+export interface VersionGateConfig {
+  minSupportedBuildNumber: number
+  recommendedBuildNumber: number
+  updateUrlAndroid: string
+  updateUrlIOS: string
+  messageEn: string
+  messageSw: string
 }

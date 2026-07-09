@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
+import 'plan_request_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tiers
@@ -40,6 +43,8 @@ extension PlanTierX on PlanTier {
 class PlanLimits {
   final int monthlyInvoices; // -1 = unlimited
   final int maxUsers;        // -1 = unlimited
+  final int maxBusinesses;   // -1 = unlimited
+  final int maxCustomers;    // -1 = unlimited
   final int pricePerCycle;   // TZS total for the billing cycle
   final int cycleMonths;
   final bool fullReports;
@@ -59,6 +64,8 @@ class PlanLimits {
   const PlanLimits({
     required this.monthlyInvoices,
     required this.maxUsers,
+    this.maxBusinesses = -1,
+    this.maxCustomers = -1,
     this.pricePerCycle = 0,
     this.cycleMonths = 6,
     required this.fullReports,
@@ -91,6 +98,8 @@ class PlanLimits {
     return PlanLimits(
       monthlyInvoices:     asInt('monthlyInvoices',    fallback.monthlyInvoices),
       maxUsers:            asInt('maxUsers',            fallback.maxUsers),
+      maxBusinesses:       asInt('maxBusinesses',       fallback.maxBusinesses),
+      maxCustomers:        asInt('maxCustomers',        fallback.maxCustomers),
       pricePerCycle:       asInt('pricePerCycle',       fallback.pricePerCycle),
       cycleMonths:         asInt('cycleMonths',         fallback.cycleMonths),
       fullReports:         asBool('fullReports',        fallback.fullReports),
@@ -120,6 +129,7 @@ const _fallbackLimits = <PlanTier, PlanLimits>{
   PlanTier.starter: PlanLimits(
     monthlyInvoices: 50,
     maxUsers: 1,
+    maxBusinesses: 1,
     fullReports: false,
     mpesaImport: false,
     smsReminders: false,
@@ -245,14 +255,20 @@ class PlanStatus {
   final DateTime? expiresAt;
   final PlanDefinitions? definitions;
 
+  /// Per-business negotiated Enterprise terms (admin-set), overriding
+  /// specific fields of the shared Enterprise definition. Null for every
+  /// tier except Enterprise businesses with a deal on file.
+  final PlanLimits? overrideLimits;
+
   const PlanStatus({
     required this.tier,
     required this.invoicesUsedThisMonth,
     this.expiresAt,
     this.definitions,
+    this.overrideLimits,
   });
 
-  PlanLimits get limits => limitsFor(tier, definitions);
+  PlanLimits get limits => overrideLimits ?? limitsFor(tier, definitions);
 
   bool get isStarter => tier == PlanTier.starter;
   bool get isPaid    => tier != PlanTier.starter;
@@ -301,6 +317,66 @@ class PlanStatus {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PlanService {
+  static Future<PlanStatus> _statusFromUserData(
+    Map<String, dynamic> data, {
+    PlanDefinitions? defs,
+  }) async {
+    final tier = PlanTierX.fromString(data['plan'] as String?);
+
+    final expiresRaw = data['planExpiresAt'] ?? data['premiumExpiresAt'];
+    DateTime? expiresAt;
+    if (expiresRaw is Timestamp) expiresAt = expiresRaw.toDate();
+
+    // Revert to Starter if subscription has expired
+    final effectiveTier =
+        (tier != PlanTier.starter && expiresAt != null && expiresAt.isBefore(DateTime.now()))
+            ? PlanTier.starter
+            : tier;
+
+    // Per-business negotiated Enterprise deal terms (admin-set), partially
+    // overriding the shared Enterprise definition — same merge semantics as
+    // PlanLimits.fromFirestore already uses for tier-wide definitions.
+    PlanLimits? overrideLimits;
+    if (effectiveTier == PlanTier.enterprise) {
+      final overrideRaw = data['enterpriseOverrides'];
+      if (overrideRaw is Map<String, dynamic>) {
+        overrideLimits = PlanLimits.fromFirestore(
+          overrideRaw,
+          limitsFor(effectiveTier, defs),
+        );
+      }
+    }
+
+    // Counted for whichever tier actually has a finite cap (admin-editable
+    // per tier, not just Starter) — always scoped to the single active
+    // business, never summed across a user's other businesses.
+    int invoiceCount = 0;
+    if ((overrideLimits ?? limitsFor(effectiveTier, defs)).monthlyInvoices != -1) {
+      final selectedBusinessId =
+          (data['selectedBusinessId'] as String?)?.trim() ?? '';
+      if (selectedBusinessId.isNotEmpty) {
+        final now = DateTime.now();
+        final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
+        final snap = await _db
+            .collection('businesses')
+            .doc(selectedBusinessId)
+            .collection('sales_invoices')
+            .where('createdAt', isGreaterThanOrEqualTo: monthStart)
+            .count()
+            .get();
+        invoiceCount = snap.count ?? 0;
+      }
+    }
+
+    return PlanStatus(
+      tier: effectiveTier,
+      invoicesUsedThisMonth: invoiceCount,
+      expiresAt: expiresAt,
+      definitions: defs,
+      overrideLimits: overrideLimits,
+    );
+  }
+
   static Future<PlanStatus> fetchStatus({PlanDefinitions? defs}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -310,48 +386,30 @@ class PlanService {
 
     try {
       final doc = await _db.collection('users').doc(user.uid).get();
-      final data = doc.data() ?? {};
-
-      final tier = PlanTierX.fromString(data['plan'] as String?);
-
-      final expiresRaw = data['planExpiresAt'] ?? data['premiumExpiresAt'];
-      DateTime? expiresAt;
-      if (expiresRaw is Timestamp) expiresAt = expiresRaw.toDate();
-
-      // Revert to Starter if subscription has expired
-      final effectiveTier =
-          (tier != PlanTier.starter && expiresAt != null && expiresAt.isBefore(DateTime.now()))
-              ? PlanTier.starter
-              : tier;
-
-      int invoiceCount = 0;
-      if (effectiveTier == PlanTier.starter) {
-        final selectedBusinessId =
-            (data['selectedBusinessId'] as String?)?.trim() ?? '';
-        if (selectedBusinessId.isNotEmpty) {
-          final now = DateTime.now();
-          final monthStart = Timestamp.fromDate(DateTime(now.year, now.month));
-          final snap = await _db
-              .collection('businesses')
-              .doc(selectedBusinessId)
-              .collection('sales_invoices')
-              .where('createdAt', isGreaterThanOrEqualTo: monthStart)
-              .count()
-              .get();
-          invoiceCount = snap.count ?? 0;
-        }
-      }
-
-      return PlanStatus(
-        tier: effectiveTier,
-        invoicesUsedThisMonth: invoiceCount,
-        expiresAt: expiresAt,
-        definitions: defs,
-      );
+      return _statusFromUserData(doc.data() ?? {}, defs: defs);
     } catch (_) {
       return PlanStatus(
           tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
     }
+  }
+
+  /// Live plan status — re-derived whenever the user's Firestore doc changes,
+  /// so an admin approving a plan request reflects in the app immediately.
+  static Stream<PlanStatus> watchStatus({PlanDefinitions? defs}) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return Stream.value(PlanStatus(
+          tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs));
+    }
+
+    return _db.collection('users').doc(user.uid).snapshots().asyncMap((doc) async {
+      try {
+        return await _statusFromUserData(doc.data() ?? {}, defs: defs);
+      } catch (_) {
+        return PlanStatus(
+            tier: PlanTier.starter, invoicesUsedThisMonth: 0, definitions: defs);
+      }
+    });
   }
 
   /// Activate a paid tier for [months] months (admin-side only, kept for completeness).
@@ -373,11 +431,140 @@ class PlanService {
 // Riverpod providers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Full plan status with dynamic limits baked in.
-final planStatusProvider = FutureProvider.autoDispose<PlanStatus>((ref) async {
-  final defs = await ref.watch(planDefinitionsProvider.future);
-  return PlanService.fetchStatus(defs: defs);
+/// Full plan status with dynamic limits baked in. Live — updates automatically
+/// when an admin approves/activates a plan change in Firestore.
+///
+/// Both awaits below are bounded: Firestore persistence is deliberately
+/// disabled app-wide, so a `.get()`/`.snapshots()` with no connectivity would
+/// otherwise never emit and every `await plan.future` call site (the cash
+/// flow, debt, team, expense and sales "add" buttons) would hang forever with
+/// no error shown. Falling back to Starter after a short timeout keeps those
+/// buttons responsive offline; live updates still take over once a snapshot
+/// arrives.
+///
+/// The fallback only guards the *first* value: `Stream.timeout` resets its
+/// clock on every event it forwards (including ones it injects itself), so
+/// using it directly on the whole live stream re-fired every 6s of Firestore
+/// silence — which is the steady state once subscribed — and kept clobbering
+/// a real paid tier with Starter. Racing just the initial event against a
+/// timer avoids that.
+final planStatusProvider = StreamProvider.autoDispose<PlanStatus>((ref) async* {
+  PlanDefinitions? defs;
+  try {
+    defs = await ref.watch(planDefinitionsProvider.future).timeout(
+          const Duration(seconds: 6),
+        );
+  } catch (_) {
+    defs = null;
+  }
+
+  final fallback = PlanStatus(
+    tier: PlanTier.starter,
+    invoicesUsedThisMonth: 0,
+    definitions: defs,
+  );
+
+  final controller = StreamController<PlanStatus>();
+  var receivedFirst = false;
+  final timer = Timer(const Duration(seconds: 6), () {
+    if (!receivedFirst) controller.add(fallback);
+  });
+  final sub = PlanService.watchStatus(defs: defs).listen(
+    (status) {
+      receivedFirst = true;
+      timer.cancel();
+      controller.add(status);
+    },
+    onError: (Object e, StackTrace st) {
+      if (!receivedFirst) {
+        receivedFirst = true;
+        timer.cancel();
+        controller.add(fallback);
+      }
+    },
+    onDone: controller.close,
+  );
+  ref.onDispose(() {
+    timer.cancel();
+    unawaited(sub.cancel());
+    controller.close();
+  });
+
+  yield* controller.stream;
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PlanPendingBanner — "your upgrade request is being processed"
+// ─────────────────────────────────────────────────────────────────────────────
+
+class PlanPendingBanner extends ConsumerWidget {
+  const PlanPendingBanner({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(pendingPlanRequestProvider).valueOrNull;
+    if (pending == null) return const SizedBox.shrink();
+
+    final tierLabel = switch (pending.tier) {
+      PlanTier.growth => 'Growth',
+      PlanTier.business => 'Business',
+      PlanTier.enterprise => 'Enterprise',
+      PlanTier.lifetime => 'Lifetime',
+      PlanTier.starter => 'Starter',
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.tealAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.tealAccent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.hourglass_top_rounded,
+              color: AppColors.tealAccent,
+              size: 18,
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Ombi lako la $tierLabel linashughulikiwa',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.navyPrimary,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Timu yetu inathibitisha malipo yako — utapata taarifa mara mpango ukiwashwa.',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PlanUpgradeCard — inline warning when approaching or at the limit

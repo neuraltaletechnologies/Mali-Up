@@ -30,7 +30,11 @@ class CashFlowReportScreen extends ConsumerWidget {
         leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Cash Flow Statement', 'Taarifa ya Mtiririko wa Fedha'),
-          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 20),
+          style: GoogleFonts.dmSans(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+          ),
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(52),
@@ -44,20 +48,28 @@ class CashFlowReportScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // Opening/closing balance chips
-          Row(children: [
-            Expanded(child: ReportStatCard(
-              label: _tr('Opening Balance', 'Salio la Mwanzo'),
-              value: formatCurrency(report.openingBalance),
-              icon: Icons.account_balance_wallet_outlined,
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: ReportStatCard(
-              label: _tr('Closing Balance', 'Salio la Mwisho'),
-              value: formatCurrency(report.closingBalance),
-              valueColor: report.closingBalance >= 0 ? AppColors.success : AppColors.error,
-              icon: Icons.account_balance_wallet_rounded,
-            )),
-          ]),
+          Row(
+            children: [
+              Expanded(
+                child: ReportStatCard(
+                  label: _tr('Opening Balance', 'Salio la Mwanzo'),
+                  value: formatCurrency(report.openingBalance),
+                  icon: Icons.account_balance_wallet_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ReportStatCard(
+                  label: _tr('Closing Balance', 'Salio la Mwisho'),
+                  value: formatCurrency(report.closingBalance),
+                  valueColor: report.closingBalance >= 0
+                      ? AppColors.success
+                      : AppColors.error,
+                  icon: Icons.account_balance_wallet_rounded,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
 
           // Net flow highlight
@@ -66,7 +78,9 @@ class CashFlowReportScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: isPositive ? AppColors.successBg : AppColors.errorBg,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: isPositive ? AppColors.success : AppColors.error),
+              border: Border.all(
+                color: isPositive ? AppColors.success : AppColors.error,
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -85,11 +99,19 @@ class CashFlowReportScreen extends ConsumerWidget {
                     SizedBox(height: 4),
                     Text(
                       isPositive
-                          ? _tr('Positive — cash surplus', 'Chanya — ziada ya pesa')
-                          : _tr('Negative — cash deficit', 'Hasi — upungufu wa pesa'),
+                          ? _tr(
+                              'Positive — cash surplus',
+                              'Chanya — ziada ya pesa',
+                            )
+                          : _tr(
+                              'Negative — cash deficit',
+                              'Hasi — upungufu wa pesa',
+                            ),
                       style: GoogleFonts.dmSans(
                         fontSize: 11,
-                        color: (isPositive ? AppColors.success : AppColors.error).withValues(alpha: 0.8),
+                        color:
+                            (isPositive ? AppColors.success : AppColors.error)
+                                .withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -130,20 +152,27 @@ class CashFlowReportScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           ReportExportRow(
-            onPdf: () => ReportExportService.shareCashFlowPdf(report, periodLabel),
+            onPdf: () => exportReportPdf(
+              context,
+              () => ReportExportService.shareCashFlowPdf(report, periodLabel),
+            ),
             onCsv: () async {
               await ReportExportService.copyToClipboard(
                 ReportExportService.cashFlowCsv(report, periodLabel),
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(_tr('CSV copied to clipboard', 'CSV imenakiliwa')),
-                  backgroundColor: AppColors.success,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      _tr('CSV copied to clipboard', 'CSV imenakiliwa'),
+                    ),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
               }
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -166,30 +195,52 @@ class _CashWaterfallCard extends StatelessWidget {
     ].fold(0.0, (m, v) => v.abs() > m ? v.abs() : m);
 
     final groups = [
-      BarChartGroupData(x: 0, barRods: [BarChartRodData(
-        toY: report.openingBalance,
-        color: AppColors.secondary,
-        width: 28,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-      )]),
-      BarChartGroupData(x: 1, barRods: [BarChartRodData(
-        toY: report.operatingInflows,
-        color: AppColors.success,
-        width: 28,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-      )]),
-      BarChartGroupData(x: 2, barRods: [BarChartRodData(
-        toY: report.operatingOutflows,
-        color: AppColors.error.withValues(alpha: 0.8),
-        width: 28,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-      )]),
-      BarChartGroupData(x: 3, barRods: [BarChartRodData(
-        toY: report.closingBalance,
-        color: report.closingBalance >= 0 ? AppColors.success : AppColors.error,
-        width: 28,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-      )]),
+      BarChartGroupData(
+        x: 0,
+        barRods: [
+          BarChartRodData(
+            toY: report.openingBalance,
+            color: AppColors.secondary,
+            width: 28,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+        ],
+      ),
+      BarChartGroupData(
+        x: 1,
+        barRods: [
+          BarChartRodData(
+            toY: report.operatingInflows,
+            color: AppColors.success,
+            width: 28,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+        ],
+      ),
+      BarChartGroupData(
+        x: 2,
+        barRods: [
+          BarChartRodData(
+            toY: report.operatingOutflows,
+            color: AppColors.error.withValues(alpha: 0.8),
+            width: 28,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+        ],
+      ),
+      BarChartGroupData(
+        x: 3,
+        barRods: [
+          BarChartRodData(
+            toY: report.closingBalance,
+            color: report.closingBalance >= 0
+                ? AppColors.success
+                : AppColors.error,
+            width: 28,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+        ],
+      ),
     ];
 
     final labels = [
@@ -209,34 +260,45 @@ class _CashWaterfallCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReportSectionTitle(title: _tr('Cash Flow Overview', 'Muhtasari wa Mtiririko wa Fedha')),
+          ReportSectionTitle(
+            title: _tr('Cash Flow Overview', 'Muhtasari wa Mtiririko wa Fedha'),
+          ),
           SizedBox(height: 8),
           SizedBox(
             height: 160,
-            child: BarChart(BarChartData(
-              maxY: maxVal * 1.2,
-              barGroups: groups,
-              gridData: const FlGridData(drawVerticalLine: false),
-              borderData: FlBorderData(show: false),
-              titlesData: FlTitlesData(
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (v, _) {
-                      final idx = v.toInt();
-                      if (idx < 0 || idx >= labels.length) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(labels[idx], style: GoogleFonts.dmSans(fontSize: 9, color: AppColors.textMuted)),
-                      );
-                    },
+            child: BarChart(
+              BarChartData(
+                maxY: maxVal * 1.2,
+                barGroups: groups,
+                gridData: const FlGridData(drawVerticalLine: false),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (v, _) {
+                        final idx = v.toInt();
+                        if (idx < 0 || idx >= labels.length)
+                          return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            labels[idx],
+                            style: GoogleFonts.dmSans(
+                              fontSize: 9,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
+                  leftTitles: const AxisTitles(),
+                  topTitles: const AxisTitles(),
+                  rightTitles: const AxisTitles(),
                 ),
-                leftTitles: const AxisTitles(),
-                topTitles: const AxisTitles(),
-                rightTitles: const AxisTitles(),
               ),
-            )),
+            ),
           ),
         ],
       ),
@@ -295,48 +357,79 @@ class _CashActivityCardState extends State<_CashActivityCard> {
                   ),
                   SizedBox(width: 12),
                   Expanded(
-                    child: Text(widget.title,
-                        style: GoogleFonts.dmSans(color: widget.color, fontSize: 14, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      widget.title,
+                      style: GoogleFonts.dmSans(
+                        color: widget.color,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                  Text(formatCurrency(widget.amount),
-                      style: GoogleFonts.dmSans(color: widget.color, fontSize: 14, fontWeight: FontWeight.w800)),
+                  Text(
+                    formatCurrency(widget.amount),
+                    style: GoogleFonts.dmSans(
+                      color: widget.color,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(width: 6),
-                  Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-                      color: AppColors.textMuted, size: 20),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
                 ],
               ),
             ),
           ),
           if (_expanded && widget.items.isNotEmpty) ...[
             Divider(height: 1, color: AppColors.border),
-            ...widget.items.take(20).map((item) => Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(item.label,
-                        style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                  Text(
-                    formatCurrency(item.amount),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: item.isInflow ? AppColors.success : AppColors.error,
+            ...widget.items
+                .take(20)
+                .map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.label,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          formatCurrency(item.amount),
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: item.isInflow
+                                ? AppColors.success
+                                : AppColors.error,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            )),
+                ),
             if (widget.items.length > 20)
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
                 child: Text(
                   '+ ${widget.items.length - 20} ${_tr('more transactions', 'miamala mingine')}',
-                  style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ),
           ],

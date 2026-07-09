@@ -153,6 +153,40 @@ service cloud.firestore {
         data.year is int && data.year >= 2000;
     }
 
+    function isValidInvoicePayment(data) {
+      return data.keys().hasAll(['invoiceId', 'amount', 'method']) &&
+        data.invoiceId is string && data.invoiceId.size() > 0 &&
+        data.amount is number && data.amount > 0 &&
+        data.method is string && data.method.size() > 0 &&
+        (!data.keys().hasAny(['customerId']) || data.customerId is string) &&
+        (!data.keys().hasAny(['reference'])  || data.reference is string);
+    }
+
+    function isValidReceivable(data) {
+      return data.keys().hasAll(['amount', 'outstanding', 'status']) &&
+        data.amount is number && data.amount >= 0 &&
+        data.outstanding is number && data.outstanding >= 0 &&
+        data.status is string && data.status.size() > 0 &&
+        (!data.keys().hasAny(['customerId']) || data.customerId is string) &&
+        (!data.keys().hasAny(['invoiceId'])   || data.invoiceId is string);
+    }
+
+    function isValidDebt(data) {
+      return data.keys().hasAll(['partyName', 'type', 'originalAmount', 'paidAmount', 'status']) &&
+        data.partyName is string && data.partyName.size() > 0 && data.partyName.size() <= 200 &&
+        data.type in ['receivable', 'payable'] &&
+        data.originalAmount is number && data.originalAmount >= 0 &&
+        data.paidAmount is number && data.paidAmount >= 0 &&
+        data.status is string && data.status.size() > 0;
+    }
+
+    function isValidDebtPayment(data) {
+      return data.keys().hasAll(['amount', 'date', 'method']) &&
+        data.amount is number && data.amount >= 0 &&
+        data.date is string &&
+        data.method is string;
+    }
+
     function isValidPendingInviteCreate(data) {
       return data.keys().hasAll([
           'businessId', 'businessName', 'fullName', 'phoneNumber',
@@ -173,8 +207,10 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, update, delete: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn() && isOwner(userId) && isValidUserCreate(request.resource.data);
-      // Phone lookup (login / onboarding)
-      allow list: if isSignedIn() || (!isSignedIn() && isLimitedLookup());
+      // Phone lookup (login / onboarding): every real caller queries with
+      // limit(1), signed in or not — a signed-in user must not be able to
+      // run an unbounded query and dump every user's name/phone.
+      allow list: if isLimitedLookup();
     }
 
     // =========================================================================
@@ -183,10 +219,14 @@ service cloud.firestore {
     match /workers/{workerUid} {
       // Worker reads/writes their own profile.
       allow read, write: if isSignedIn() && isOwner(workerUid);
-      // Business owner can read (to display name/phone in staff list).
-      allow read: if isSignedIn();
       // Owner creates the worker profile when sending an invite.
       allow create: if isSignedIn() && isValidWorkerCreate(request.resource.data);
+      // NOTE: there is no current client feature reading another user's
+      // worker profile (no ownerUid/businessId is stored on this doc to
+      // scope such a read against), so no blanket read is granted here. If a
+      // "show staff name/phone" feature needs this, store the owning
+      // businessId on the document and scope the rule to that business's
+      // owner instead of `isSignedIn()`.
     }
 
     // =========================================================================
@@ -194,8 +234,12 @@ service cloud.firestore {
     // Path: businesses/{bizId}
     // =========================================================================
     match /businesses/{bizId} {
-      // Public phone lookup: limited list allowed pre-auth.
-      allow list: if isSignedIn() || (!isSignedIn() && isLimitedLookup());
+      // Signed-in callers may only list businesses they own (the query must
+      // filter on ownerUid == request.auth.uid — Firestore rejects any query
+      // that isn't provably restricted this way). Unauthenticated pre-auth
+      // phone lookup is still allowed but capped to a single result.
+      allow list: if (isSignedIn() && resource.data.ownerUid == request.auth.uid) ||
+        (!isSignedIn() && isLimitedLookup());
 
       // Read: owner or any active staff member.
       allow get: if isSignedIn() && (
@@ -246,7 +290,8 @@ service cloud.firestore {
 
       match /invoice_payments/{paymentId} {
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewSales', 'createSale']);
-        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'editSale']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'editSale']) &&
+          isValidInvoicePayment(request.resource.data);
         allow update, delete: if isSignedIn() && isBusinessOwner(bizId);
       }
 
@@ -259,7 +304,8 @@ service cloud.firestore {
       // ── Receivables & debts ────────────────────────────────────────────────
       match /receivables/{receivableId} {
         allow read: if isOwnerOrStaffWithAny(bizId, ['viewSales', 'viewDebt']);
-        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'grantCredit']);
+        allow create: if isOwnerOrStaffWithAny(bizId, ['createSale', 'grantCredit']) &&
+          isValidReceivable(request.resource.data);
         allow update, delete: if isOwnerOrStaffWithAny(bizId, ['manageDebt']);
       }
 
@@ -270,12 +316,15 @@ service cloud.firestore {
         // addStock       → inventory purchased on credit (payables)
         // manageDebt / grantCredit → manual debt entry
         allow create: if isOwnerOrStaffWithAny(bizId,
-          ['createSale', 'manageDebt', 'grantCredit', 'manageExpenses', 'addStock']);
+          ['createSale', 'manageDebt', 'grantCredit', 'manageExpenses', 'addStock']) &&
+          isValidDebt(request.resource.data);
         allow update: if isOwnerOrStaffWithAny(bizId, ['manageDebt']);
         allow delete: if isOwnerOrStaffWithAny(bizId, ['writeOffDebt', 'manageDebt']);
 
         match /payments/{paymentId} {
-          allow read, create: if isOwnerOrStaffWithAny(bizId, ['viewDebt', 'manageDebt']);
+          allow read: if isOwnerOrStaffWithAny(bizId, ['viewDebt', 'manageDebt']);
+          allow create: if isOwnerOrStaffWithAny(bizId, ['viewDebt', 'manageDebt']) &&
+            isValidDebtPayment(request.resource.data);
           allow update, delete: if isOwnerOrStaffWithAny(bizId, ['manageDebt']);
         }
       }
@@ -360,9 +409,11 @@ service cloud.firestore {
         // unauthenticated limited queries must be allowed — same as users/businesses.
         allow list: if isLimitedLookup();
         // Worker accepts invite: stamps their UID + activates (updates the auto-gen-ID doc).
+        // 'email' is included because the invite doc is created with a placeholder
+        // (often '') and the worker's real email is captured during PIN setup.
         allow update: if isSignedIn() &&
           request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['status', 'acceptedAt', 'workerUid', 'updatedAt']) &&
+            .hasOnly(['status', 'acceptedAt', 'workerUid', 'updatedAt', 'email']) &&
           request.resource.data.workerUid == request.auth.uid &&
           request.resource.data.status == 'active' &&
           (!('workerUid' in resource.data) || resource.data.workerUid == request.auth.uid) &&
@@ -404,7 +455,11 @@ service cloud.firestore {
     // =========================================================================
     match /pendingInvites/{inviteId} {
       allow get: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
-      allow list: if isSignedIn() || (request.auth == null && isLimitedLookup());
+      // Every real caller (owner lookups and pre-auth team-member phone
+      // lookups alike) queries with limit(1) — a signed-in user must not be
+      // able to run an unbounded query and dump every business's pending
+      // invites (names/phones/roles) across every tenant.
+      allow list: if isLimitedLookup();
 
       allow create: if isSignedIn() && isValidPendingInviteCreate(request.resource.data);
 
@@ -436,8 +491,8 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
         && request.resource.data.source == 'community'
-        && request.resource.data.businessTypeId is string
-        && request.resource.data.businessTypeId.size() > 0
+        && request.resource.data.businessTypes is list
+        && request.resource.data.businessTypes.size() > 0
         && request.resource.data.categoryName is string
         && request.resource.data.categoryName.size() > 0
         && request.resource.data.categoryName.size() <= 100;
@@ -450,11 +505,17 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // PLATFORM CONFIG  (plan definitions — edited from the admin portal)
+    // PLATFORM CONFIG  (plan definitions, version gate — edited from the admin portal)
     // =========================================================================
-    // Only the plans doc is exposed; other config docs (e.g. main) stay denied.
+    // Only these docs are exposed; other config docs (e.g. main) stay denied.
     // Writes happen through the admin portal's Admin SDK, which bypasses rules.
     match /platform_config/plans {
+      allow read: if true;
+    }
+
+    // Read pre-auth (checked at app launch, before sign-in) so old clients can
+    // be warned/blocked before they ever reach a signed-in write path.
+    match /platform_config/version_gate {
       allow read: if true;
     }
 

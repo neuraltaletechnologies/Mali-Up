@@ -31,7 +31,11 @@ class InventoryValuationScreen extends ConsumerWidget {
         leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Inventory Valuation', 'Tathmini ya Hisa'),
-          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 20),
+          style: GoogleFonts.dmSans(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+          ),
         ),
         actions: [
           Padding(
@@ -39,7 +43,10 @@ class InventoryValuationScreen extends ConsumerWidget {
             child: Center(
               child: Text(
                 _tr('As of $dateLabel', 'Hadi $dateLabel'),
-                style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11),
+                style: GoogleFonts.dmSans(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                ),
               ),
             ),
           ),
@@ -66,18 +73,34 @@ class InventoryValuationScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _tr('Total Inventory Value', 'Jumla ya Thamani ya Hisa'),
-                        style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 12),
+                        _tr(
+                          'Total Inventory Value',
+                          'Jumla ya Thamani ya Hisa',
+                        ),
+                        style: GoogleFonts.dmSans(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
                       SizedBox(height: 4),
                       Text(
                         formatCurrency(report.totalValue),
-                        style: GoogleFonts.dmSans(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                        style: GoogleFonts.dmSans(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                       SizedBox(height: 8),
                       Text(
-                        _tr('Weighted average cost method', 'Njia ya wastani uliopimwa wa gharama'),
-                        style: GoogleFonts.dmSans(color: Colors.white54, fontSize: 10),
+                        _tr(
+                          'Weighted average cost method',
+                          'Njia ya wastani uliopimwa wa gharama',
+                        ),
+                        style: GoogleFonts.dmSans(
+                          color: Colors.white54,
+                          fontSize: 10,
+                        ),
                       ),
                     ],
                   ),
@@ -87,15 +110,35 @@ class InventoryValuationScreen extends ConsumerWidget {
                   children: [
                     Text(
                       '${report.totalSkus}',
-                      style: GoogleFonts.dmSans(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                    Text(_tr('SKUs', 'Bidhaa'), style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 11)),
+                    Text(
+                      _tr('SKUs', 'Bidhaa'),
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                    ),
                     SizedBox(height: 8),
                     Text(
                       report.totalUnits.toStringAsFixed(0),
-                      style: GoogleFonts.dmSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    Text(_tr('total units', 'vitengo vyote'), style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 11)),
+                    Text(
+                      _tr('total units', 'vitengo vyote'),
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -109,12 +152,18 @@ class InventoryValuationScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppColors.infoBg,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.tealAccent.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.tealAccent.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline_rounded, color: AppColors.tealAccent, size: 18),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  color: AppColors.tealAccent,
+                  size: 18,
+                ),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -122,7 +171,10 @@ class InventoryValuationScreen extends ConsumerWidget {
                       'Valuation uses unit selling price as cost proxy. For FIFO accuracy, record purchase prices in inventory.',
                       'Tathmini inatumia bei ya mauzo kama mbadala wa gharama. Kwa usahihi wa FIFO, rekodi bei za ununuzi kwenye hisa.',
                     ),
-                    style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.secondary),
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.secondary,
+                    ),
                   ),
                 ),
               ],
@@ -132,7 +184,10 @@ class InventoryValuationScreen extends ConsumerWidget {
 
           // By category pie chart
           if (sortedCategories.isNotEmpty) ...[
-            _CategoryPieCard(categories: sortedCategories, total: report.totalValue),
+            _CategoryPieCard(
+              categories: sortedCategories,
+              total: report.totalValue,
+            ),
             const SizedBox(height: 12),
           ],
 
@@ -148,29 +203,78 @@ class InventoryValuationScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ReportSectionTitle(title: _tr('Stock Items — Ranked by Value', 'Bidhaa — Zilizoainishwa kwa Thamani')),
+                  ReportSectionTitle(
+                    title: _tr(
+                      'Stock Items — Ranked by Value',
+                      'Bidhaa — Zilizoainishwa kwa Thamani',
+                    ),
+                  ),
                   // Table header
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: AppColors.border)),
+                      border: Border(
+                        bottom: BorderSide(color: AppColors.border),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Expanded(flex: 3, child: Text(_tr('Item', 'Bidhaa'), style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted))),
-                        Expanded(flex: 2, child: Text(_tr('Stock', 'Hisa'), style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted), textAlign: TextAlign.right)),
-                        Expanded(flex: 2, child: Text(_tr('Value', 'Thamani'), style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted), textAlign: TextAlign.right)),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            _tr('Item', 'Bidhaa'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            _tr('Stock', 'Hisa'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            _tr('Value', 'Thamani'),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   ...report.items.take(50).toList().asMap().entries.map((e) {
                     final item = e.value;
-                    final pct = report.totalValue > 0 ? item.totalValue / report.totalValue : 0.0;
+                    final pct = report.totalValue > 0
+                        ? item.totalValue / report.totalValue
+                        : 0.0;
                     return Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: e.key.isOdd ? AppColors.surface : Colors.white,
-                        border: const Border(bottom: BorderSide(color: AppColors.borderLight)),
+                        border: const Border(
+                          bottom: BorderSide(color: AppColors.borderLight),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -179,12 +283,23 @@ class InventoryValuationScreen extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(item.name,
-                                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondary),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis),
-                                Text(item.category,
-                                    style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
+                                Text(
+                                  item.name,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.secondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  item.category,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -193,7 +308,10 @@ class InventoryValuationScreen extends ConsumerWidget {
                             child: Text(
                               '${item.stock.toStringAsFixed(0)} ${item.unit}',
                               textAlign: TextAlign.right,
-                              style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ),
                           Expanded(
@@ -204,12 +322,19 @@ class InventoryValuationScreen extends ConsumerWidget {
                                 Text(
                                   formatCurrency(item.totalValue),
                                   textAlign: TextAlign.right,
-                                  style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondary),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.secondary,
+                                  ),
                                 ),
                                 Text(
                                   '${(pct * 100).toStringAsFixed(1)}%',
                                   textAlign: TextAlign.right,
-                                  style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted),
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    color: AppColors.textMuted,
+                                  ),
                                 ),
                               ],
                             ),
@@ -223,7 +348,10 @@ class InventoryValuationScreen extends ConsumerWidget {
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         '+ ${report.items.length - 50} ${_tr('more items', 'bidhaa zaidi')}',
-                        style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textMuted),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -234,20 +362,27 @@ class InventoryValuationScreen extends ConsumerWidget {
           ],
 
           ReportExportRow(
-            onPdf: () => ReportExportService.shareInventoryPdf(report, dateLabel),
+            onPdf: () => exportReportPdf(
+              context,
+              () => ReportExportService.shareInventoryPdf(report, dateLabel),
+            ),
             onCsv: () async {
               await ReportExportService.copyToClipboard(
                 ReportExportService.inventoryCsv(report),
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(_tr('CSV copied to clipboard', 'CSV imenakiliwa')),
-                  backgroundColor: AppColors.success,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      _tr('CSV copied to clipboard', 'CSV imenakiliwa'),
+                    ),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
               }
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -263,8 +398,12 @@ class _CategoryPieCard extends StatelessWidget {
   const _CategoryPieCard({required this.categories, required this.total});
 
   static const _colors = [
-    AppColors.secondary, AppColors.tealAccent, AppColors.success,
-    AppColors.yellowBrand, AppColors.purpleAccent, AppColors.warning,
+    AppColors.secondary,
+    AppColors.tealAccent,
+    AppColors.success,
+    AppColors.yellowBrand,
+    AppColors.purpleAccent,
+    AppColors.warning,
     AppColors.error,
   ];
 
@@ -282,26 +421,34 @@ class _CategoryPieCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReportSectionTitle(title: _tr('Value by Category', 'Thamani kwa Kategoria')),
+          ReportSectionTitle(
+            title: _tr('Value by Category', 'Thamani kwa Kategoria'),
+          ),
           Row(
             children: [
               SizedBox(
                 width: 130,
                 height: 130,
-                child: PieChart(PieChartData(
-                  sections: top.asMap().entries.map((e) {
-                    final pct = total > 0 ? e.value.value / total * 100 : 0.0;
-                    return PieChartSectionData(
-                      value: e.value.value,
-                      color: _colors[e.key % _colors.length],
-                      radius: 50,
-                      title: '${pct.toStringAsFixed(0)}%',
-                      titleStyle: GoogleFonts.dmSans(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700),
-                    );
-                  }).toList(),
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 24,
-                )),
+                child: PieChart(
+                  PieChartData(
+                    sections: top.asMap().entries.map((e) {
+                      final pct = total > 0 ? e.value.value / total * 100 : 0.0;
+                      return PieChartSectionData(
+                        value: e.value.value,
+                        color: _colors[e.key % _colors.length],
+                        radius: 50,
+                        title: '${pct.toStringAsFixed(0)}%',
+                        titleStyle: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    }).toList(),
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 24,
+                  ),
+                ),
               ),
               SizedBox(width: 16),
               Expanded(
@@ -312,20 +459,42 @@ class _CategoryPieCard extends StatelessWidget {
                     final pct = total > 0 ? e.value.value / total * 100 : 0.0;
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(children: [
-                        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(e.value.key,
-                                style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textSecondary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
-                            Text('${pct.toStringAsFixed(1)}%',
-                                style: GoogleFonts.dmSans(fontSize: 10, color: AppColors.textMuted)),
-                          ]),
-                        ),
-                      ]),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  e.value.key,
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${pct.toStringAsFixed(1)}%',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 10,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   }).toList(),
                 ),

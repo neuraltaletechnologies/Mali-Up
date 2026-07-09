@@ -3,6 +3,7 @@ import { adminFirestore } from '@/lib/firebase-admin'
 import { requireAdminSession } from '@/lib/api-guard'
 import { mapBusiness } from '@/lib/firestore-mappers'
 import { writeAudit } from '@/lib/write-audit'
+import { withCache, invalidateCache } from '@/lib/api-cache'
 import { FieldValue } from 'firebase-admin/firestore'
 
 export async function GET(request: Request) {
@@ -13,37 +14,37 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const limitParam = Math.min(Number(searchParams.get('limit') ?? '300'), 1000)
 
-    // Mobile app stores businesses in the top-level `businesses` collection.
-    const snapshot = await adminFirestore
-      .collection('businesses')
-      .limit(limitParam)
-      .get()
-
-    const businesses = await Promise.all(
-      snapshot.docs.map(async (doc) => {
-        const data = doc.data() as Record<string, unknown>
-        // ownerUid is stored as a field in the business document
-        const uid = (data.ownerUid as string) || ''
-
-        // Staff are stored in the `staff` sub-collection (not team_members)
-        let staffCount = 0
-        try {
-          const countSnap = await doc.ref.collection('staff').count().get()
-          staffCount = countSnap.data().count ?? 0
-        } catch {
-          // staff sub-collection may not exist yet
-        }
-        return mapBusiness(uid, doc.id, data, staffCount)
-      })
+    const body = await withCache(`businesses:${limitParam}`, 60_000, () =>
+      fetchBusinesses(limitParam),
     )
-
-    businesses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-    return NextResponse.json({ businesses, total: businesses.length })
+    return NextResponse.json(body)
   } catch (err) {
     console.error('[GET /api/admin/businesses]', err)
     return NextResponse.json({ error: 'Failed to fetch businesses' }, { status: 500 })
   }
+}
+
+async function fetchBusinesses(limitParam: number) {
+  // Mobile app stores businesses in the top-level `businesses` collection.
+  const snapshot = await adminFirestore
+    .collection('businesses')
+    .limit(limitParam)
+    .get()
+
+  // staffCount is denormalized onto the business doc by addTeamMember /
+  // deleteTeamMember (mobile app) — no extra read needed per business.
+  // Falls back to 0 for older docs written before the backfill script ran.
+  const businesses = snapshot.docs.map((doc) => {
+    const data = doc.data() as Record<string, unknown>
+    // ownerUid is stored as a field in the business document
+    const uid = (data.ownerUid as string) || ''
+    const staffCount = typeof data.staffCount === 'number' ? data.staffCount : 0
+    return mapBusiness(uid, doc.id, data, staffCount)
+  })
+
+  businesses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  return { businesses, total: businesses.length }
 }
 
 // POST — create a business for an existing user
@@ -110,6 +111,7 @@ export async function POST(request: Request) {
       plan:               'Trial',
       isActive:           true,
       subscriptionStatus: 'trial',
+      staffCount:         0,
       createdAt:          now,
       updatedAt:          now,
     })
@@ -133,6 +135,10 @@ export async function POST(request: Request) {
       isDestructive: false,
       after: { uid: body.uid, businessId },
     })
+
+    invalidateCache('businesses:300')
+    invalidateCache('businesses:500')
+    invalidateCache('analytics')
 
     return NextResponse.json({ uid: body.uid, businessId }, { status: 201 })
   } catch (err: unknown) {

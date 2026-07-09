@@ -5,10 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
+import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
 import 'add_debt_screen.dart';
@@ -142,11 +145,13 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
           'Kuongeza deni kunahitaji mpango wa malipo.',
         ),
       );
+      // Locked feature — the upgrade sheet was the whole interaction.
+      // Don't fall through to the add-debt form regardless of how it closed.
+      return;
     }
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    if (!mounted) return;
+    await showAppSheet<void>(
+      context,
       builder: (_) => AddDebtScreen(
         initialIsReceivable: isReceivable,
         debtToEdit: edit,
@@ -226,16 +231,18 @@ class _DebtTrackingScreenState extends ConsumerState<DebtTrackingScreen>
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
-        backgroundColor: AppColors.yellowBrand,
-        foregroundColor: AppColors.navyPrimary,
-        icon: Icon(Icons.add_rounded),
-        label: Text(
-          _tabCtrl.index == 0
-              ? _tr('Add Receivable', 'Ongeza Dai')
-              : _tr('Add Payable', 'Ongeza Deni'),
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+      floatingActionButton: NavAwareFab(
+        child: FloatingActionButton.extended(
+          onPressed: () => _openAdd(isReceivable: _tabCtrl.index == 0),
+          backgroundColor: AppColors.yellowBrand,
+          foregroundColor: AppColors.navyPrimary,
+          icon: Icon(Icons.add_rounded),
+          label: Text(
+            _tabCtrl.index == 0
+                ? _tr('Add Receivable', 'Ongeza Dai')
+                : _tr('Add Payable', 'Ongeza Deni'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          ),
         ),
       ),
     );
@@ -285,7 +292,7 @@ class _DebtDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 16),
+          padding: EdgeInsets.fromLTRB(20, top + AppTheme.headerTopPadding, 20, _pillHalf + 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -296,7 +303,7 @@ class _DebtDarkHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _tr('Debt Tracker', 'Ufuatiliaji wa Madeni'),
+                          _tr('Debt Tracker', 'Madeni'),
                           style: GoogleFonts.dmSans(
                             fontSize: 30,
                             fontWeight: FontWeight.w800,
@@ -879,6 +886,9 @@ Future<void> _deleteDebt(BuildContext context, WidgetRef ref, Debt debt) async {
   if (confirmed != true) return;
   try {
     await ref.read(debtRepositoryProvider).delete(debt.id);
+    // Deleting an open receivable removes the claim — release it from
+    // the linked customer's balance.
+    await adjustCustomerBalanceForDebtChange(ref, before: debt);
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

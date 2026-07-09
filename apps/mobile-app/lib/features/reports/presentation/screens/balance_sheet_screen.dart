@@ -22,7 +22,10 @@ class BalanceSheetScreen extends ConsumerWidget {
     final dateLabel = '${now.day}/${now.month}/${now.year}';
     final periodLabel = isSwahili ? range.labelSw : range.label;
 
-    final isBalanced = (report.totalAssets - report.totalLiabilities - report.ownersEquity).abs() < 1.0;
+    final isBalanced =
+        (report.totalAssets - report.totalLiabilities - report.ownersEquity)
+            .abs() <
+        1.0;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -32,7 +35,11 @@ class BalanceSheetScreen extends ConsumerWidget {
         leading: BackButton(color: AppColors.secondary),
         title: Text(
           _tr('Balance Sheet', 'Karatasi ya Mizania'),
-          style: GoogleFonts.dmSans(color: AppColors.secondary, fontWeight: FontWeight.w800, fontSize: 20),
+          style: GoogleFonts.dmSans(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+          ),
         ),
         actions: [
           Padding(
@@ -40,7 +47,10 @@ class BalanceSheetScreen extends ConsumerWidget {
             child: Center(
               child: Text(
                 _tr('As of $dateLabel', 'Hadi $dateLabel'),
-                style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11),
+                style: GoogleFonts.dmSans(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                ),
               ),
             ),
           ),
@@ -59,11 +69,34 @@ class BalanceSheetScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _EquationTerm(label: _tr('Assets', 'Rasilimali'), value: formatCurrency(report.totalAssets)),
-                Text('=', style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
-                _EquationTerm(label: _tr('Liabilities', 'Madeni'), value: formatCurrency(report.totalLiabilities)),
-                Text('+', style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 20, fontWeight: FontWeight.w300)),
-                _EquationTerm(label: _tr('Equity', 'Hisa'), value: formatCurrency(report.ownersEquity)),
+                _EquationTerm(
+                  label: _tr('Assets', 'Rasilimali'),
+                  value: formatCurrency(report.totalAssets),
+                ),
+                Text(
+                  '=',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white60,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+                _EquationTerm(
+                  label: _tr('Liabilities', 'Madeni'),
+                  value: formatCurrency(report.totalLiabilities),
+                ),
+                Text(
+                  '+',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white60,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+                _EquationTerm(
+                  label: _tr('Equity', 'Hisa'),
+                  value: formatCurrency(report.ownersEquity),
+                ),
               ],
             ),
           ),
@@ -74,12 +107,19 @@ class BalanceSheetScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: AppColors.warningBg,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: AppColors.warning.withValues(alpha: 0.4),
+                ),
               ),
               child: Text(
-                _tr('Note: Some transactions may not be recorded. Totals are approximate.',
-                    'Kumbuka: Baadhi ya miamala huenda haikurekodiwa. Jumla ni takriban.'),
-                style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.secondary),
+                _tr(
+                  'Note: Some transactions may not be recorded. Totals are approximate.',
+                  'Kumbuka: Baadhi ya miamala huenda haikurekodiwa. Jumla ni takriban.',
+                ),
+                style: GoogleFonts.dmSans(
+                  fontSize: 11,
+                  color: AppColors.secondary,
+                ),
               ),
             ),
           ],
@@ -96,9 +136,21 @@ class BalanceSheetScreen extends ConsumerWidget {
                 title: _tr('Current Assets', 'Rasilimali za Sasa'),
                 subtotal: formatCurrency(report.totalCurrentAssets),
                 children: [
-                  _BSRow(label: _tr('Cash & Bank Accounts', 'Pesa & Akaunti za Benki'), value: formatCurrency(report.cashAndEquivalents)),
-                  _BSRow(label: _tr('Accounts Receivable', 'Madai ya Wateja'), value: formatCurrency(report.accountsReceivable)),
-                  _BSRow(label: _tr('Inventory (at cost)', 'Hisa (kwa gharama)'), value: formatCurrency(report.inventoryValue)),
+                  _BSRow(
+                    label: _tr(
+                      'Cash & Bank Accounts',
+                      'Pesa & Akaunti za Benki',
+                    ),
+                    value: formatCurrency(report.cashAndEquivalents),
+                  ),
+                  _BSRow(
+                    label: _tr('Accounts Receivable', 'Madai ya Wateja'),
+                    value: formatCurrency(report.accountsReceivable),
+                  ),
+                  _BSRow(
+                    label: _tr('Inventory (at cost)', 'Hisa (kwa gharama)'),
+                    value: formatCurrency(report.inventoryValue),
+                  ),
                 ],
               ),
             ],
@@ -116,7 +168,13 @@ class BalanceSheetScreen extends ConsumerWidget {
                 title: _tr('Current Liabilities', 'Madeni ya Sasa'),
                 subtotal: formatCurrency(report.totalCurrentLiabilities),
                 children: [
-                  _BSRow(label: _tr('Accounts Payable (pending expenses)', 'Madeni ya Wasambazaji (gharama zinazosimama)'), value: formatCurrency(report.accountsPayable)),
+                  _BSRow(
+                    label: _tr(
+                      'Accounts Payable (pending expenses)',
+                      'Madeni ya Wasambazaji (gharama zinazosimama)',
+                    ),
+                    value: formatCurrency(report.accountsPayable),
+                  ),
                 ],
               ),
             ],
@@ -129,37 +187,53 @@ class BalanceSheetScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: AppColors.secondary.withValues(alpha: 0.2),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Container(
-                    width: 4,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      borderRadius: BorderRadius.circular(2),
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  SizedBox(width: 10),
-                  Text(
-                    _tr("OWNER'S EQUITY", 'HISA YA MMILIKI'),
-                    style: GoogleFonts.dmSans(color: AppColors.secondary, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5),
-                  ),
-                ]),
+                    SizedBox(width: 10),
+                    Text(
+                      _tr("OWNER'S EQUITY", 'HISA YA MMILIKI'),
+                      style: GoogleFonts.dmSans(
+                        color: AppColors.secondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 _BSRow(
-                  label: _tr("Total Owner's Equity", 'Jumla ya Hisa ya Mmiliki'),
+                  label: _tr(
+                    "Total Owner's Equity",
+                    'Jumla ya Hisa ya Mmiliki',
+                  ),
                   value: formatCurrency(report.ownersEquity),
                   bold: true,
-                  valueColor: report.ownersEquity >= 0 ? AppColors.success : AppColors.error,
+                  valueColor: report.ownersEquity >= 0
+                      ? AppColors.success
+                      : AppColors.error,
                 ),
                 const Divider(height: 16, color: AppColors.border),
                 _BSRow(
                   label: _tr('Assets − Liabilities', 'Rasilimali − Madeni'),
-                  value: formatCurrency(report.totalAssets - report.totalLiabilities),
+                  value: formatCurrency(
+                    report.totalAssets - report.totalLiabilities,
+                  ),
                 ),
               ],
             ),
@@ -167,20 +241,28 @@ class BalanceSheetScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           ReportExportRow(
-            onPdf: () => ReportExportService.shareBalanceSheetPdf(report, periodLabel),
+            onPdf: () => exportReportPdf(
+              context,
+              () =>
+                  ReportExportService.shareBalanceSheetPdf(report, periodLabel),
+            ),
             onCsv: () async {
               await ReportExportService.copyToClipboard(
                 ReportExportService.balanceSheetCsv(report),
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(_tr('CSV copied to clipboard', 'CSV imenakiliwa')),
-                  backgroundColor: AppColors.success,
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      _tr('CSV copied to clipboard', 'CSV imenakiliwa'),
+                    ),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
               }
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -196,11 +278,23 @@ class _EquationTerm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      Text(label, style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 10)),
-      SizedBox(height: 2),
-      Text(value, style: GoogleFonts.dmSans(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-    ]);
+    return Column(
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 10),
+        ),
+        SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.dmSans(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -233,15 +327,28 @@ class _BalanceSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Container(
-              width: 4,
-              height: 20,
-              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
-            ),
-            SizedBox(width: 10),
-            Text(title, style: GoogleFonts.dmSans(color: color, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-          ]),
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(width: 10),
+              Text(
+                title,
+                style: GoogleFonts.dmSans(
+                  color: color,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           ...children,
           const Divider(height: 16, color: AppColors.border),
@@ -257,22 +364,51 @@ class _BSGroup extends StatelessWidget {
   final List<Widget> children;
   final String subtotal;
 
-  const _BSGroup({required this.title, required this.children, required this.subtotal});
+  const _BSGroup({
+    required this.title,
+    required this.children,
+    required this.subtotal,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: GoogleFonts.dmSans(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+        Text(
+          title,
+          style: GoogleFonts.dmSans(
+            color: AppColors.textMuted,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
+        ),
         const SizedBox(height: 6),
         ...children,
         Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('  Subtotal', style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted, fontStyle: FontStyle.italic)),
-            Text(subtotal, style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textMuted, fontStyle: FontStyle.italic)),
-          ]),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '  Subtotal',
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              Text(
+                subtotal,
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
       ],
@@ -286,7 +422,12 @@ class _BSRow extends StatelessWidget {
   final bool bold;
   final Color? valueColor;
 
-  const _BSRow({required this.label, required this.value, this.bold = false, this.valueColor});
+  const _BSRow({
+    required this.label,
+    required this.value,
+    this.bold = false,
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -296,19 +437,25 @@ class _BSRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: Text(label,
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  color: bold ? AppColors.secondary : AppColors.textSecondary,
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-                )),
-          ),
-          Text(value,
+            child: Text(
+              label,
               style: GoogleFonts.dmSans(
                 fontSize: 13,
-                color: valueColor ?? (bold ? AppColors.secondary : AppColors.textPrimary),
-                fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-              )),
+                color: bold ? AppColors.secondary : AppColors.textSecondary,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              color:
+                  valueColor ??
+                  (bold ? AppColors.secondary : AppColors.textPrimary),
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
