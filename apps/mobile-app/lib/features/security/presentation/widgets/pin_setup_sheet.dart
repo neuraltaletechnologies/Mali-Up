@@ -177,70 +177,78 @@ class _PinSetupSheetState extends State<_PinSetupSheet> {
               ],
             ),
           ),
-          const SizedBox(height: 36),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 36),
 
-          // PIN dots
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (i) {
-              final filled = _activeDigits[i].isNotEmpty;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _hasError
-                      ? AppColors.error
-                      : filled
-                          ? AppColors.secondary
-                          : Colors.transparent,
-                  border: Border.all(
-                    color: _hasError
-                        ? AppColors.error
-                        : filled
-                            ? AppColors.secondary
-                            : AppColors.border,
-                    width: 2,
+                  // PIN dots
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (i) {
+                      final filled = _activeDigits[i].isNotEmpty;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _hasError
+                              ? AppColors.error
+                              : filled
+                                  ? AppColors.secondary
+                                  : Colors.transparent,
+                          border: Border.all(
+                            color: _hasError
+                                ? AppColors.error
+                                : filled
+                                    ? AppColors.secondary
+                                    : AppColors.border,
+                            width: 2,
+                          ),
+                        ),
+                      );
+                    }),
                   ),
-                ),
-              );
-            }),
-          ),
 
-          if (_hasError) ...[
-            SizedBox(height: 10),
-            Text(
-              _errorMessage,
-              style: GoogleFonts.dmSans(
-                color: AppColors.error,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+                  if (_hasError) ...[
+                    SizedBox(height: 10),
+                    Text(
+                      _errorMessage,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.dmSans(
+                        color: AppColors.error,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+
+                  // Step indicator
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(2, (i) {
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: i == _step ? 20 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: i == _step
+                              ? AppColors.secondary
+                              : AppColors.border,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
             ),
-          ],
-
-          // Step indicator
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(2, (i) {
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: i == _step ? 20 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color:
-                      i == _step ? AppColors.secondary : AppColors.border,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              );
-            }),
           ),
-
-          const Spacer(),
 
           // Numpad
           _PinNumpad(
@@ -452,68 +460,77 @@ class _PinChangeSheetState extends State<_PinChangeSheet> {
               ],
             ),
           ),
-          const SizedBox(height: 36),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 36),
 
-          // PIN dots
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (i) {
-              final filled = _activeDigits[i].isNotEmpty;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _hasError
-                      ? AppColors.error
-                      : filled
-                          ? AppColors.secondary
-                          : Colors.transparent,
-                  border: Border.all(
-                    color: _hasError
-                        ? AppColors.error
-                        : filled
-                            ? AppColors.secondary
-                            : AppColors.border,
-                    width: 2,
+                  // PIN dots
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (i) {
+                      final filled = _activeDigits[i].isNotEmpty;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _hasError
+                              ? AppColors.error
+                              : filled
+                                  ? AppColors.secondary
+                                  : Colors.transparent,
+                          border: Border.all(
+                            color: _hasError
+                                ? AppColors.error
+                                : filled
+                                    ? AppColors.secondary
+                                    : AppColors.border,
+                            width: 2,
+                          ),
+                        ),
+                      );
+                    }),
                   ),
-                ),
-              );
-            }),
-          ),
 
-          if (_hasError) ...[
-            SizedBox(height: 10),
-            Text(
-              _errorMessage,
-              style: GoogleFonts.dmSans(
-                color: AppColors.error,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+                  if (_hasError) ...[
+                    SizedBox(height: 10),
+                    Text(
+                      _errorMessage,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.dmSans(
+                        color: AppColors.error,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(3, (i) {
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: i == _step ? 20 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: i == _step
+                              ? AppColors.secondary
+                              : AppColors.border,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
             ),
-          ],
-
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(3, (i) {
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: i == _step ? 20 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: i == _step ? AppColors.secondary : AppColors.border,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              );
-            }),
           ),
-
-          const Spacer(),
 
           _PinNumpad(onDigit: _enterDigit, onDelete: _deleteDigit),
           SizedBox(height: mediaQuery.padding.bottom + 16),
@@ -593,12 +610,15 @@ class _PinNumpad extends StatelessWidget {
               side: const BorderSide(color: AppColors.border),
             ),
           ),
-          child: Text(
-            digit,
-            style: GoogleFonts.dmSans(
-              color: AppColors.secondary,
-              fontSize: 22,
-              fontWeight: FontWeight.w500,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              digit,
+              style: GoogleFonts.dmSans(
+                color: AppColors.secondary,
+                fontSize: 22,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),

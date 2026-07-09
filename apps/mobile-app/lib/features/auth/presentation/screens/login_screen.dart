@@ -700,9 +700,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: textPrimary,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                _tr('Account Details', 'Taarifa za Akaunti'),
-                                style: sectionTitleStyle,
+                              Flexible(
+                                child: Text(
+                                  _tr('Account Details', 'Taarifa za Akaunti'),
+                                  style: sectionTitleStyle,
+                                ),
                               ),
                             ],
                           ),
@@ -773,8 +775,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 16),
                           // Register link
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
                                 _tr(
@@ -813,9 +816,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: textPrimary,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                _tr('Enter PIN', 'Weka PIN'),
-                                style: sectionTitleStyle,
+                              Flexible(
+                                child: Text(
+                                  _tr('Enter PIN', 'Weka PIN'),
+                                  style: sectionTitleStyle,
+                                ),
                               ),
                             ],
                           ),
@@ -877,15 +882,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         ),
                                         SizedBox(width: 10),
-                                        Text(
-                                          _tr(
-                                            'Verifying your PIN…',
-                                            'Inathibitisha PIN yako…',
-                                          ),
-                                          style: GoogleFonts.dmSans(
-                                            color: textSecondary,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
+                                        Flexible(
+                                          child: Text(
+                                            _tr(
+                                              'Verifying your PIN…',
+                                              'Inathibitisha PIN yako…',
+                                            ),
+                                            style: GoogleFonts.dmSans(
+                                              color: textSecondary,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                           ),
                                         ),
                                       ],

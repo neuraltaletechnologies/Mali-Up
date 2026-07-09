@@ -1136,8 +1136,9 @@ class MaliSelectSheet<T> extends StatelessWidget {
                   return InkWell(
                     onTap: () => Navigator.of(context).pop(item),
                     child: Container(
-                      height: 52,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      constraints: const BoxConstraints(minHeight: 52),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
                       color: isSelected
                           ? AppColors.primary.withValues(alpha: 0.06)
                           : Colors.transparent,

@@ -258,26 +258,30 @@ class _OnboardingSuccessScreenState
                               ),
                             ),
                             const SizedBox(height: 28),
-                            Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _RoundFeatureCard(
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: _RoundFeatureCard(
                                     icon: Icons.point_of_sale_rounded,
                                     label: sw ? 'Mauzo' : 'Sales',
                                   ),
-                                  const SizedBox(width: 10),
-                                  _RoundFeatureCard(
+                                ),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: _RoundFeatureCard(
                                     icon: Icons.inventory_rounded,
                                     label: sw ? 'Stoo' : 'Stock',
                                   ),
-                                  const SizedBox(width: 10),
-                                  _RoundFeatureCard(
+                                ),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: _RoundFeatureCard(
                                     icon: Icons.receipt_long_rounded,
                                     label: sw ? 'Risiti' : 'Invoices',
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                             if (bizName.isNotEmpty) ...[
                               const SizedBox(height: 24),
@@ -389,6 +393,9 @@ class _RoundFeatureCard extends StatelessWidget {
         SizedBox(height: 6),
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: GoogleFonts.dmSans(
             fontSize: 11,
             fontWeight: FontWeight.w600,

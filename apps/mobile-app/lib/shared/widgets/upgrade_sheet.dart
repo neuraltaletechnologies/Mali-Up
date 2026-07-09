@@ -289,7 +289,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
   bool _paymentSubmitted = false;
   String _paymentRef = '';
 
-  static const _mpesaNumber = '+255 XXX XXX XXX';
+  static const _mpesaNumber = '+255 746 520 819';
 
   PlanLimits get _selLimits => limitsFor(_selected, widget.defs);
   int get _priceMonthly => _selLimits.pricePerMonth;
@@ -428,33 +428,42 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               ] else if (!_showPayment) ...[
                 SizedBox(
                   width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _openPayment,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.yellowBrand,
-                      foregroundColor: AppColors.navyPrimary,
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.rocket_launch_rounded, size: 16),
-                        SizedBox(width: 8),
-                        Text(
-                          '${_t("Upgrade to", "Panda")} '
-                          '${_selected == PlanTier.growth ? "Growth" : "Business"}'
-                          ' — ${_fmtPrice(_priceMonthly)}${_t("/mo", "/mwezi")}',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 52),
+                    child: ElevatedButton(
+                      onPressed: _openPayment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.yellowBrand,
+                        foregroundColor: AppColors.navyPrimary,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
                         ),
-                      ],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.rocket_launch_rounded, size: 16),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              '${_t("Upgrade to", "Panda")} '
+                              '${_selected == PlanTier.growth ? "Growth" : "Business"}'
+                              ' — ${_fmtPrice(_priceMonthly)}${_t("/mo", "/mwezi")}',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -648,12 +657,15 @@ class _TierCard extends StatelessWidget {
             Expanded(
               child: Row(
                 children: [
-                  Text(
-                    isGrowth ? 'Growth' : 'Business',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: isSelected ? Colors.white : AppColors.navyPrimary,
+                  Flexible(
+                    child: Text(
+                      isGrowth ? 'Growth' : 'Business',
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: isSelected ? Colors.white : AppColors.navyPrimary,
+                      ),
                     ),
                   ),
                   if (isGrowth) ...[
@@ -677,11 +689,44 @@ class _TierCard extends StatelessWidget {
                     ),
                   ],
                   SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      '${_fmtPrice(limits.pricePerCycle)} / '
+                      '${_t("${limits.cycleMonths} mo", "miezi ${limits.cycleMonths}")}',
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 10,
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.45)
+                            : AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(width: 6),
+            // Price
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    '${_fmtPrice(limits.pricePerCycle)} / '
-                    '${_t("${limits.cycleMonths} mo", "miezi ${limits.cycleMonths}")}',
+                    _fmtPrice(limits.pricePerMonth),
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.dmSans(
-                      fontSize: 10,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected ? AppColors.yellowBrand : AppColors.navyPrimary,
+                    ),
+                  ),
+                  Text(
+                    _t('/mo', '/mwezi'),
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 9,
                       color: isSelected
                           ? Colors.white.withValues(alpha: 0.45)
                           : AppColors.textMuted,
@@ -689,30 +734,6 @@ class _TierCard extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-
-            // Price
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  _fmtPrice(limits.pricePerMonth),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: isSelected ? AppColors.yellowBrand : AppColors.navyPrimary,
-                  ),
-                ),
-                Text(
-                  _t('/mo', '/mwezi'),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 9,
-                    color: isSelected
-                        ? Colors.white.withValues(alpha: 0.45)
-                        : AppColors.textMuted,
-                  ),
-                ),
-              ],
             ),
           ],
         ),
