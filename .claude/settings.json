@@ -181,7 +181,21 @@
       "Bash(./gradlew --stop)",
       "Bash(git merge *)",
       "Bash(grep -v \"/\\\\.git/\")",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "Bash(npm ls *)",
+      "Bash(npm view *)",
+      "Bash(npm audit *)",
+      "Bash(npm run *)",
+      "Bash(node -e \"const s=require\\('C:/Users/NTALE/.claude/settings.json'\\); console.log\\(JSON.stringify\\(s.hooks||'none', null, 2\\)\\)\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\(JSON.stringify\\(j.metadata.vulnerabilities\\)\\);console.log\\('form-data' in j.vulnerabilities, 'fast-uri' in j.vulnerabilities, 'fastify' in j.vulnerabilities\\)}\\)\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);const keys=['form-data','protobufjs','@grpc/grpc-js'];for\\(const k of keys\\){if\\(j.vulnerabilities[k]\\)console.log\\(k, JSON.stringify\\(j.vulnerabilities[k].range\\), JSON.stringify\\(j.vulnerabilities[k].fixAvailable\\)\\)}}catch\\(e\\){console.log\\('ERR',d.slice\\(0,500\\)\\)}}\\)\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\(JSON.stringify\\(j.metadata.vulnerabilities\\)\\);console.log\\('form-data' in j.vulnerabilities, 'protobufjs' in j.vulnerabilities, '@grpc/grpc-js' in j.vulnerabilities\\)}\\)\")",
+      "Bash(pnpm update *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/protobufjs/package.json'\\).version, require\\('./node_modules/form-data/package.json'\\).version, require\\('./node_modules/@grpc/grpc-js/package.json'\\).version\\)\")",
+      "Bash(pnpm audit *)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);const advisories=j.advisories||{};for\\(const k in advisories\\){const a=advisories[k];if\\(/minimatch/i.test\\(a.module_name\\)\\)console.log\\(a.module_name,a.vulnerable_versions,a.patched_versions,a.title\\)}}catch\\(e\\){console.log\\('parse fail, raw len',d.length\\); console.log\\(d.slice\\(0,2000\\)\\)}}\\)\")",
+      "Bash(pnpm why *)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);const advisories=j.advisories||{};let found=false;for\\(const k in advisories\\){if\\(/minimatch/i.test\\(advisories[k].module_name\\)\\){found=true;console.log\\(advisories[k].module_name,advisories[k].title\\)}}console.log\\('minimatch advisories remaining:',found\\)}catch\\(e\\){console.log\\(d.slice\\(0,1000\\)\\)}}\\)\")"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
