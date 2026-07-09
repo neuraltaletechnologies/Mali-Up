@@ -178,7 +178,8 @@
       "Bash(flutter clean *)",
       "Bash(keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab)",
       "Bash(KEYSTORE_PASSWORD=\"q7FHMrJrLQASnfJlYvHUDKZtDwTrJ0\" flutter build appbundle --release --build-number=3)",
-      "Bash(./gradlew --stop)"
+      "Bash(./gradlew --stop)",
+      "Bash(git merge *)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
