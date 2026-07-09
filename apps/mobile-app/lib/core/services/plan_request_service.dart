@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'plan_service.dart';
 
@@ -84,4 +85,54 @@ class PlanRequestService {
       return false;
     }
   }
+
+  /// Live stream of the signed-in user's most recent pending request, or null
+  /// if none — powers the "your request is being processed" banner.
+  ///
+  /// No `orderBy` here on purpose: `uid` + `status` equality filters alone
+  /// don't need a composite Firestore index, matching [hasPending]'s query
+  /// shape. There's normally at most one pending request at a time anyway.
+  static Stream<PlanRequestSummary?> watchPending() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return Stream.value(null);
+    return _db
+        .collection('plan_requests')
+        .where('uid', isEqualTo: user.uid)
+        .where('status', isEqualTo: 'pending')
+        .limit(1)
+        .snapshots()
+        .map((snap) {
+      if (snap.docs.isEmpty) return null;
+      return PlanRequestSummary.fromFirestore(snap.docs.first.data());
+    });
+  }
 }
+
+/// Small summary of a pending plan request, enough to render a banner.
+class PlanRequestSummary {
+  final PlanTier tier;
+  final PlanRequestType type;
+  final String? paymentRef;
+
+  const PlanRequestSummary({
+    required this.tier,
+    required this.type,
+    this.paymentRef,
+  });
+
+  factory PlanRequestSummary.fromFirestore(Map<String, dynamic> data) {
+    return PlanRequestSummary(
+      tier: PlanTierX.fromString(data['requestedTier'] as String?),
+      type: (data['type'] as String?) == 'enterprise_inquiry'
+          ? PlanRequestType.enterpriseInquiry
+          : PlanRequestType.paymentClaim,
+      paymentRef: data['paymentRef'] as String?,
+    );
+  }
+}
+
+/// Whether the signed-in user has a pending plan request right now.
+final pendingPlanRequestProvider =
+    StreamProvider.autoDispose<PlanRequestSummary?>((ref) {
+  return PlanRequestService.watchPending();
+});

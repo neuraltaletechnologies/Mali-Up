@@ -146,7 +146,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => _ChangePinSheet(tr: _tr),
+      builder: (_) => _ChangePinSheet(tr: _tr, phone: _phone),
     );
   }
 
@@ -381,7 +381,8 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
 
 class _ChangePinSheet extends StatefulWidget {
   final String Function(String en, String sw) tr;
-  const _ChangePinSheet({required this.tr});
+  final String phone;
+  const _ChangePinSheet({required this.tr, required this.phone});
 
   @override
   State<_ChangePinSheet> createState() => _ChangePinSheetState();
@@ -457,10 +458,12 @@ class _ChangePinSheetState extends State<_ChangePinSheet> {
     try {
       final credential = EmailAuthProvider.credential(
         email: email,
-        password: buildAuthPasswordFromPin(currentPin),
+        password: buildAuthPasswordFromPin(phone: widget.phone, pin: currentPin),
       );
       await user.reauthenticateWithCredential(credential);
-      await user.updatePassword(buildAuthPasswordFromPin(newPin));
+      await user.updatePassword(
+        buildAuthPasswordFromPin(phone: widget.phone, pin: newPin),
+      );
 
       if (!mounted) return;
       Navigator.pop(context);

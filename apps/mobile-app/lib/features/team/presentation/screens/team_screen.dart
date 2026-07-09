@@ -8,9 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
@@ -112,16 +115,18 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
 
     return Scaffold(
       floatingActionButton: ps.isOwner
-          ? FloatingActionButton.extended(
-              onPressed: () => _tryInvite(context),
-              backgroundColor: AppColors.yellowBrand,
-              foregroundColor: AppColors.navyPrimary,
-              elevation: 3,
-              icon: Icon(Icons.person_add_rounded, size: 20),
-              label: Text(
-                _tr('Add Member', 'Ongeza Mwanachama'),
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, fontWeight: FontWeight.w700),
+          ? NavAwareFab(
+              child: FloatingActionButton.extended(
+                onPressed: () => _tryInvite(context),
+                backgroundColor: AppColors.yellowBrand,
+                foregroundColor: AppColors.navyPrimary,
+                elevation: 3,
+                icon: Icon(Icons.person_add_rounded, size: 20),
+                label: Text(
+                  _tr('Add Member', 'Ongeza Mwanachama'),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.w700),
+                ),
               ),
             )
           : null,
@@ -392,7 +397,7 @@ class _TeamDarkHeaderState extends State<_TeamDarkHeader> {
             ),
           ),
           padding: EdgeInsets.fromLTRB(
-              20, top + 50, 20, _TeamDarkHeader._pillHalf + 16),
+              20, top + AppTheme.headerTopPadding, 20, _TeamDarkHeader._pillHalf + 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1028,7 +1033,6 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     with SingleTickerProviderStateMixin {
   final _formKey  = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
@@ -1057,7 +1061,6 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
   void dispose() {
     _animCtrl.dispose();
     _nameCtrl.dispose();
-    _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
@@ -1085,16 +1088,18 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
     final name = _nameCtrl.text.trim();
 
     final rawPhone = _phoneCtrl.text.trim();
-    if (rawPhone.isNotEmpty) {
-      final phoneError = OnboardingValidator.validatePhone(rawPhone);
-      if (phoneError != null) {
-        _snack(phoneError);
-        return;
-      }
+    final phoneError = OnboardingValidator.validatePhone(rawPhone);
+    if (phoneError != null) {
+      _snack(phoneError);
+      return;
     }
 
-    final normalizedPhone =
-        rawPhone.isNotEmpty ? OnboardingValidator.normalisePhone(rawPhone) : '';
+    final normalizedPhone = OnboardingValidator.normalisePhone(rawPhone);
+
+    // Inviting a member writes the invite + pending-invite lookup docs that
+    // staff login depends on — this must reach the server, so online-only.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
 
     setState(() => _isSaving = true);
     final navigator = Navigator.of(context);
@@ -1122,7 +1127,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
         context: ctx,
         data: {
           'name': name,
-          'email': _emailCtrl.text.trim(),
+          'email': '',
           'phone': storedPhone,
           'role': _selectedRole.name,
           'customPermissions': permNames,
@@ -1149,7 +1154,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
             'businessName': bizName,
             'fullName': name,
             'phoneNumber': normalizedPhone,
-            'email': _emailCtrl.text.trim(),
+            'email': '',
             'role': _selectedRole.name,
             'invitedBy': user.uid,
             'ownerUid': user.uid,
@@ -1170,7 +1175,7 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
         final member = TeamMember(
           id: memberRef.id,
           name: name,
-          email: _emailCtrl.text.trim(),
+          email: '',
           phone: storedPhone,
           role: _selectedRole,
           customPermissions: permsToStore,
@@ -1307,22 +1312,14 @@ class _InviteMemberSheetState extends ConsumerState<_InviteMemberSheet>
                           const SizedBox(height: 16),
 
                           OnboardingField(
-                            controller: _emailCtrl,
-                            label: _tr('Email (optional)', 'Barua pepe (hiari)'),
-                            hint: _tr('you@example.com', 'jina@mfano.com'),
-                            keyboardType: TextInputType.emailAddress,
-                            prefix: const Icon(Icons.alternate_email_rounded,
-                                size: 18, color: AppColors.textMuted),
-                          ),
-                          const SizedBox(height: 16),
-
-                          OnboardingField(
                             controller: _phoneCtrl,
-                            label: _tr('Phone (optional)', 'Simu (hiari)'),
+                            label: _tr('Phone Number *', 'Namba ya Simu *'),
                             hint: '+255 700 000 000',
                             keyboardType: TextInputType.phone,
                             prefix: const Icon(Icons.phone_outlined,
                                 size: 18, color: AppColors.textMuted),
+                            validator: (v) => OnboardingValidator.validatePhone(
+                                v ?? ''),
                           ),
                           const SizedBox(height: 24),
 

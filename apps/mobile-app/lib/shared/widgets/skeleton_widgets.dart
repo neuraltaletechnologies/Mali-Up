@@ -629,8 +629,7 @@ class SkeletonBiometricContent extends StatelessWidget {
 }
 
 // ── SkeletonList — generic vertical list of cards ────────────────────────────
-// Used in inventory_list_screen (already referenced as SkeletonList) and
-// anywhere else a simple vertical skeleton list is needed.
+// Generic vertical skeleton list for any loading list view.
 
 class SkeletonList extends StatelessWidget {
   final int itemCount;

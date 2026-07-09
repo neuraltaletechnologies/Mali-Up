@@ -31,6 +31,9 @@ class RemoteCashRepository {
   Future<int> createAccountAndGetTimestamp(CashAccount account) async {
     final data = {
       ...account.toFirestore(),
+      // Re-activating a previously deleted built-in account must clear the
+      // tombstone, or other devices would keep hiding it after their pulls.
+      'isDeleted': false,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -55,7 +58,13 @@ class RemoteCashRepository {
     return _readTimestamp(_accounts, account.id);
   }
 
-  Future<void> deleteAccount(String id) => _accounts.doc(id).delete();
+  /// Tombstone delete — hard-deleting the doc would make it invisible to
+  /// other devices' incremental pulls (deleted docs never match the
+  /// `updatedAt >` query), so the account would live on in their caches.
+  Future<void> deleteAccount(String id) => _accounts.doc(id).set({
+        'isDeleted': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
   Future<Map<String, dynamic>?> fetchAccountRaw(String id) async {
     final snap = await _accounts.doc(id).get();

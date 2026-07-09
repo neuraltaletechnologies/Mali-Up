@@ -4,8 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
+
+String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 /// Bottom sheet that displays a product's 1D (Code 128) barcode for scanning or printing.
 class BarcodeViewSheet extends StatelessWidget {
@@ -110,13 +113,14 @@ class BarcodeViewSheet extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.copy, size: 16),
-                      label: const Text('Copy Code'),
+                      label: Text(_t('Copy Code', 'Nakili Nambari')),
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: sku));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Barcode copied to clipboard'),
-                            duration: Duration(seconds: 2),
+                          SnackBar(
+                            content: Text(_t('Barcode copied to clipboard',
+                                'Barcode imenakiliwa')),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },
@@ -126,7 +130,7 @@ class BarcodeViewSheet extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.print, size: 16),
-                      label: const Text('Print Label'),
+                      label: Text(_t('Print Label', 'Chapisha Lebo')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.tealAccent,
                         foregroundColor: Colors.white,
@@ -147,11 +151,14 @@ class BarcodeViewSheet extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Label: $productName | $sku | TSh ${price.toStringAsFixed(0)}\n'
-          'Use your label printer app to print this barcode.',
+          _t(
+              'Label: $productName | $sku | TSh ${price.toStringAsFixed(0)}\n'
+              'Use your label printer app to print this barcode.',
+              'Lebo: $productName | $sku | TSh ${price.toStringAsFixed(0)}\n'
+              'Tumia programu yako ya kuchapisha lebo kuchapisha barcode hii.'),
         ),
         action: SnackBarAction(
-          label: 'OK',
+          label: _t('OK', 'Sawa'),
           onPressed: () {},
         ),
       ),

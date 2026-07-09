@@ -31,7 +31,7 @@ export default function SystemPage() {
       />
       {revalidating && <RevalidatingBar />}
       {loading ? (
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
           {Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
         </div>
       ) : error && !data ? (
@@ -57,7 +57,7 @@ export default function SystemPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
         {services.map((svc) => {
           const isDegraded = svc.status === 'degraded'
           const isDown = svc.status === 'down'

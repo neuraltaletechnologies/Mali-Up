@@ -28,11 +28,13 @@ class _TeamMemberSetupScreenState
     with SingleTickerProviderStateMixin {
   bool _showPinSetup = false;
 
+  final _emailCtrl   = TextEditingController();
   final _pinCtrl     = TextEditingController();
   final _confirmCtrl = TextEditingController();
   final _pinFocus    = FocusNode();
   final _confirmFocus = FocusNode();
   bool _onConfirmStep = false;
+  bool _emailHasError   = false;
   bool _pinHasError     = false;
   bool _confirmHasError = false;
 
@@ -55,6 +57,7 @@ class _TeamMemberSetupScreenState
   @override
   void dispose() {
     _animCtrl.dispose();
+    _emailCtrl.dispose();
     _pinCtrl.dispose();
     _confirmCtrl.dispose();
     _pinFocus.dispose();
@@ -88,9 +91,13 @@ class _TeamMemberSetupScreenState
 
   void _advanceToConfirm() {
     final sw = ref.read(onboardingNotifierProvider).isSwahili;
+    final emailErr = OnboardingValidator.validateEmail(_emailCtrl.text,
+        isSwahili: sw, optional: false);
+    if (emailErr != null) { setState(() => _emailHasError = true); return; }
     final err = OnboardingValidator.validatePin(_pinCtrl.text, isSwahili: sw);
     if (err != null) { setState(() => _pinHasError = true); return; }
-    setState(() { _pinHasError = false; _onConfirmStep = true; });
+    setState(() { _emailHasError = false; _pinHasError = false; _onConfirmStep = true; });
+    ref.read(onboardingNotifierProvider.notifier).setEmail(_emailCtrl.text.trim());
     Future.delayed(const Duration(milliseconds: 80), () {
       if (mounted) FocusScope.of(context).requestFocus(_confirmFocus);
     });
@@ -298,16 +305,23 @@ class _TeamMemberSetupScreenState
                                   ? _PinSetupBody(
                                       key: ValueKey('pin_$_onConfirmStep'),
                                       sw: sw,
+                                      emailCtrl: _emailCtrl,
                                       pinCtrl: _pinCtrl,
                                       confirmCtrl: _confirmCtrl,
                                       pinFocus: _pinFocus,
                                       confirmFocus: _confirmFocus,
                                       onConfirmStep: _onConfirmStep,
+                                      emailHasError: _emailHasError,
                                       pinHasError: _pinHasError,
                                       confirmHasError: _confirmHasError,
                                       isLoading: state.isLoading,
                                       isOnline: isOnline,
                                       errorMessage: state.errorMessage,
+                                      onEmailChanged: (_) {
+                                        if (_emailHasError) {
+                                          setState(() => _emailHasError = false);
+                                        }
+                                      },
                                       onPinChanged: (_) {
                                         if (_pinHasError) {
                                           setState(() => _pinHasError = false);
@@ -601,16 +615,19 @@ class _PinSetupBody extends StatelessWidget {
   const _PinSetupBody({
     super.key,
     required this.sw,
+    required this.emailCtrl,
     required this.pinCtrl,
     required this.confirmCtrl,
     required this.pinFocus,
     required this.confirmFocus,
     required this.onConfirmStep,
+    required this.emailHasError,
     required this.pinHasError,
     required this.confirmHasError,
     required this.isLoading,
     required this.isOnline,
     required this.errorMessage,
+    required this.onEmailChanged,
     required this.onPinChanged,
     required this.onConfirmChanged,
     required this.onPinComplete,
@@ -620,16 +637,19 @@ class _PinSetupBody extends StatelessWidget {
   });
 
   final bool sw;
+  final TextEditingController emailCtrl;
   final TextEditingController pinCtrl;
   final TextEditingController confirmCtrl;
   final FocusNode pinFocus;
   final FocusNode confirmFocus;
   final bool onConfirmStep;
+  final bool emailHasError;
   final bool pinHasError;
   final bool confirmHasError;
   final bool isLoading;
   final bool isOnline;
   final String? errorMessage;
+  final ValueChanged<String> onEmailChanged;
   final ValueChanged<String> onPinChanged;
   final ValueChanged<String> onConfirmChanged;
   final VoidCallback onPinComplete;
@@ -691,7 +711,28 @@ class _PinSetupBody extends StatelessWidget {
             height: 1.5,
           ),
         ),
-        const SizedBox(height: 40),
+        const SizedBox(height: 32),
+
+        if (!isConfirm) ...[
+          OnboardingField(
+            controller: emailCtrl,
+            label: sw ? 'BARUA PEPE' : 'EMAIL',
+            hint: sw ? 'jina@mfano.com' : 'you@example.com',
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            prefix: const Icon(Icons.alternate_email_rounded,
+                size: 18, color: AppColors.textMuted),
+            onChanged: onEmailChanged,
+          ),
+          if (emailHasError) ...[
+            const SizedBox(height: 12),
+            OnboardingErrorBanner(
+                message: sw
+                    ? 'Ingiza anwani sahihi ya barua pepe.'
+                    : 'Enter a valid email address.'),
+          ],
+          const SizedBox(height: 12),
+        ],
 
         Center(
           child: Column(

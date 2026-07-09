@@ -3,6 +3,7 @@ import type {
   Subscription, LifetimeSubscription, RefundRequest, SupportTicket, AuditEntry,
   ServiceHealth, FeatureFlag, CommunitySubmission, PlatformConfig,
   PlanDefinition, PlanDefinitions, PlanTier, PlanRequest, AppLookups,
+  CatalogImportResult, AdminNotification, EnterpriseOverride, VersionGateConfig,
 } from '@/types'
 
 // ─── shared fetch wrapper ────────────────────────────────────────────────────
@@ -46,6 +47,10 @@ export async function editUser(
   })
 }
 
+export async function deleteUser(uid: string): Promise<void> {
+  await apiFetch(`/api/admin/users/${uid}`, { method: 'DELETE' })
+}
+
 // ─── Businesses ──────────────────────────────────────────────────────────────
 
 export async function fetchBusinesses(limit = 300): Promise<{ businesses: Business[]; total: number }> {
@@ -66,11 +71,26 @@ export async function patchBusiness(uid: string, businessId: string, isActive: b
 export async function editBusiness(
   uid: string,
   businessId: string,
-  data: { businessName?: string; businessCategory?: string; placeOfBusiness?: string; plan?: string },
+  data: { businessName?: string; businessCategory?: string; placeOfBusiness?: string },
 ): Promise<void> {
   await apiFetch(`/api/admin/businesses/${uid}/${businessId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
+  })
+}
+
+export async function deleteBusiness(uid: string, businessId: string): Promise<void> {
+  await apiFetch(`/api/admin/businesses/${uid}/${businessId}`, { method: 'DELETE' })
+}
+
+export async function setEnterpriseTerms(
+  uid: string,
+  businessId: string,
+  terms: EnterpriseOverride,
+): Promise<void> {
+  await apiFetch(`/api/admin/businesses/${uid}/${businessId}/enterprise-terms`, {
+    method: 'PATCH',
+    body: JSON.stringify(terms),
   })
 }
 
@@ -94,6 +114,18 @@ export async function fetchCatalog(businessType?: string): Promise<{
 
 export async function postCatalogProduct(data: Record<string, unknown>): Promise<{ id: string }> {
   return apiFetch('/api/admin/catalog', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function bulkReassignCatalog(
+  entity: 'category' | 'product',
+  ids: string[],
+  mode: 'add' | 'remove' | 'replace',
+  businessTypes: string[],
+): Promise<{ success: boolean; updated: number }> {
+  return apiFetch('/api/admin/catalog/bulk-reassign', {
+    method: 'POST',
+    body: JSON.stringify({ entity, ids, mode, businessTypes }),
+  })
 }
 
 // ─── Subscriptions ────────────────────────────────────────────────────────────
@@ -167,6 +199,17 @@ export async function fetchConfig(): Promise<PlatformConfig> {
 
 export async function saveConfig(config: PlatformConfig): Promise<void> {
   await apiFetch('/api/admin/config', {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  })
+}
+
+export async function fetchVersionGate(): Promise<VersionGateConfig> {
+  return apiFetch('/api/admin/version-gate')
+}
+
+export async function saveVersionGate(config: VersionGateConfig): Promise<void> {
+  await apiFetch('/api/admin/version-gate', {
     method: 'PATCH',
     body: JSON.stringify(config),
   })
@@ -262,10 +305,11 @@ export async function patchPlanRequest(
   id: string,
   action: 'approve' | 'reject',
   adminNotes?: string,
+  activated?: boolean,
 ): Promise<{ status: string }> {
   return apiFetch(`/api/admin/plan-requests/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ action, adminNotes }),
+    body: JSON.stringify({ action, adminNotes, activated }),
   })
 }
 
@@ -340,6 +384,25 @@ export async function createBusiness(data: {
   district?: string
 }): Promise<{ uid: string; businessId: string }> {
   return apiFetch('/api/admin/businesses', { method: 'POST', body: JSON.stringify(data) })
+}
+
+// ─── Business Catalog Attach ──────────────────────────────────────────────────
+
+export async function attachCatalogToBusiness(
+  uid: string,
+  businessId: string,
+  data: { categorySlug?: string; categoryName?: string; productIds?: string[] },
+): Promise<CatalogImportResult> {
+  return apiFetch(`/api/admin/businesses/${uid}/${businessId}/catalog-import`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// ─── Notifications (aggregated pending requests) ──────────────────────────────
+
+export async function fetchNotifications(): Promise<{ notifications: AdminNotification[]; count: number }> {
+  return apiFetch('/api/admin/notifications')
 }
 
 // ─── Business Notes ───────────────────────────────────────────────────────────

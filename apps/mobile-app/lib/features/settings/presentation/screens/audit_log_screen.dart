@@ -1,9 +1,40 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/providers/business_id_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/localization_service.dart';
+import '../../../rbac/data/audit_log_service.dart';
+
+/// Streams the most recent audit-log entries for the active business.
+///
+/// Reads are restricted to the business owner by firestore.rules, so
+/// non-owner staff will hit permission-denied here — that's treated as
+/// "nothing to show" rather than surfaced as an error.
+final auditLogsProvider = StreamProvider.autoDispose<List<AuditLogEvent>>((ref) {
+  final businessId = ref.watch(currentBusinessIdProvider).valueOrNull ?? '';
+  if (businessId.isEmpty) return Stream.value(const []);
+  return _watchAuditLogs(businessId);
+});
+
+Stream<List<AuditLogEvent>> _watchAuditLogs(String businessId) async* {
+  try {
+    yield* FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(businessId)
+        .collection('audit_logs')
+        .orderBy('timestamp', descending: true)
+        .limit(100)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => AuditLogEvent.fromFirestore(doc.id, doc.data()))
+            .toList());
+  } catch (_) {
+    yield const [];
+  }
+}
 
 class AuditLogScreen extends ConsumerWidget {
   const AuditLogScreen({super.key});
@@ -12,7 +43,7 @@ class AuditLogScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auditLogs = _getMockAuditLogs();
+    final auditLogsAsync = ref.watch(auditLogsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -38,7 +69,11 @@ class AuditLogScreen extends ConsumerWidget {
             ),
           ),
 
-          if (auditLogs.isEmpty)
+          if (auditLogsAsync.isLoading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if ((auditLogsAsync.valueOrNull ?? const []).isEmpty)
             SliverFillRemaining(
               child: Center(
                 child: Column(
@@ -85,6 +120,7 @@ class AuditLogScreen extends ConsumerWidget {
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
+                  final auditLogs = auditLogsAsync.valueOrNull ?? const [];
                   final event = auditLogs[index];
                   final isLast = index == auditLogs.length - 1;
                   return _AuditLogItem(
@@ -93,101 +129,12 @@ class AuditLogScreen extends ConsumerWidget {
                     isLast: isLast,
                   );
                 },
-                childCount: auditLogs.length,
+                childCount: (auditLogsAsync.valueOrNull ?? const []).length,
               ),
             ),
         ],
       ),
     );
-  }
-
-  List<AuditLogEvent> _getMockAuditLogs() {
-    return [
-      AuditLogEvent(
-        id: '1',
-        action: 'LOGIN',
-        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-        status: 'success',
-        details: 'Mobile app · Dar es Salaam',
-      ),
-      AuditLogEvent(
-        id: '2',
-        action: 'DATA_EXPORT',
-        timestamp: DateTime.now().subtract(const Duration(hours: 8)),
-        status: 'success',
-        details: 'JSON format, 2.3 MB',
-      ),
-      AuditLogEvent(
-        id: '3',
-        action: 'PIN_SET',
-        timestamp: DateTime.now().subtract(const Duration(days: 2)),
-        status: 'success',
-        details: 'PIN code changed',
-      ),
-      AuditLogEvent(
-        id: '4',
-        action: 'BIOMETRIC_ENABLED',
-        timestamp: DateTime.now().subtract(const Duration(days: 3)),
-        status: 'success',
-        details: 'Fingerprint registered',
-      ),
-      AuditLogEvent(
-        id: '5',
-        action: 'LOGIN',
-        timestamp: DateTime.now().subtract(const Duration(days: 4)),
-        status: 'success',
-        details: 'Mobile app · Dar es Salaam',
-      ),
-      AuditLogEvent(
-        id: '6',
-        action: 'LOGOUT',
-        timestamp: DateTime.now().subtract(const Duration(days: 5)),
-        status: 'success',
-        details: 'Manual sign out',
-      ),
-      AuditLogEvent(
-        id: '7',
-        action: 'CONSENT_ACCEPTED',
-        timestamp: DateTime.now().subtract(const Duration(days: 8)),
-        status: 'success',
-        details: 'Privacy policy v2.0',
-      ),
-      AuditLogEvent(
-        id: '8',
-        action: 'BIOMETRIC_DISABLED',
-        timestamp: DateTime.now().subtract(const Duration(days: 12)),
-        status: 'success',
-        details: null,
-      ),
-      AuditLogEvent(
-        id: '9',
-        action: 'LOGIN',
-        timestamp: DateTime.now().subtract(const Duration(days: 15)),
-        status: 'success',
-        details: 'Mobile app · Dar es Salaam',
-      ),
-      AuditLogEvent(
-        id: '10',
-        action: 'CONSENT_WITHDRAWN',
-        timestamp: DateTime.now().subtract(const Duration(days: 20)),
-        status: 'success',
-        details: 'Marketing consent withdrawn',
-      ),
-      AuditLogEvent(
-        id: '11',
-        action: 'PIN_SET',
-        timestamp: DateTime.now().subtract(const Duration(days: 25)),
-        status: 'success',
-        details: 'PIN code updated',
-      ),
-      AuditLogEvent(
-        id: '12',
-        action: 'ACCOUNT_CREATED',
-        timestamp: DateTime.now().subtract(const Duration(days: 45)),
-        status: 'success',
-        details: 'Phone number verified',
-      ),
-    ];
   }
 }
 
@@ -205,6 +152,37 @@ class AuditLogEvent {
     required this.status,
     this.details,
   });
+
+  factory AuditLogEvent.fromFirestore(String id, Map<String, dynamic> data) {
+    final ts = data['timestamp'];
+    final timestamp = ts is Timestamp ? ts.toDate() : DateTime.now();
+
+    final name = (data['entityName'] as String?) ?? (data['targetName'] as String?);
+    final actorName = data['performedByName'] as String?;
+    final amount = data['amount'];
+    final freeformDetails = data['details'];
+    final previousValue = data['previousValue'];
+    final newValue = data['newValue'];
+
+    final parts = <String>[];
+    if (name != null && name.isNotEmpty) parts.add(name);
+    if (previousValue != null && newValue != null) {
+      parts.add('$previousValue → $newValue');
+    }
+    if (amount != null) parts.add('TZS $amount');
+    if (freeformDetails != null && freeformDetails.toString().isNotEmpty) {
+      parts.add(freeformDetails.toString());
+    }
+    if (actorName != null && actorName.isNotEmpty) parts.add('by $actorName');
+
+    return AuditLogEvent(
+      id: id,
+      action: (data['action'] as String?) ?? 'unknown',
+      timestamp: timestamp,
+      status: 'success',
+      details: parts.isEmpty ? null : parts.join(' · '),
+    );
+  }
 }
 
 class _AuditLogItem extends StatelessWidget {
@@ -326,28 +304,43 @@ class _AuditLogItem extends StatelessWidget {
 
   IconData _getActionIconData(String action) {
     switch (action) {
-      case 'DATA_EXPORT':
-        return Icons.download_rounded;
-      case 'DATA_DELETE':
-        return Icons.delete_rounded;
-      case 'LOGIN':
-        return Icons.login_rounded;
-      case 'LOGOUT':
-        return Icons.logout_rounded;
-      case 'ACCOUNT_CREATED':
+      case AuditLogService.memberInvited:
         return Icons.person_add_rounded;
-      case 'ACCOUNT_DELETED':
+      case AuditLogService.memberRemoved:
         return Icons.person_remove_rounded;
-      case 'CONSENT_ACCEPTED':
-        return Icons.check_circle_rounded;
-      case 'CONSENT_WITHDRAWN':
+      case AuditLogService.memberSuspended:
+        return Icons.pause_circle_rounded;
+      case AuditLogService.memberActivated:
+        return Icons.play_circle_rounded;
+      case AuditLogService.roleChanged:
+      case AuditLogService.permissionsChanged:
+        return Icons.admin_panel_settings_rounded;
+      case AuditLogService.customerCreated:
+        return Icons.person_add_alt_1_rounded;
+      case AuditLogService.customerUpdated:
+        return Icons.edit_rounded;
+      case AuditLogService.customerDeleted:
+        return Icons.delete_rounded;
+      case AuditLogService.creditLimitChanged:
+        return Icons.credit_score_rounded;
+      case AuditLogService.tagAdded:
+      case AuditLogService.tagRemoved:
+        return Icons.label_rounded;
+      case AuditLogService.reminderSent:
+        return Icons.notifications_active_rounded;
+      case AuditLogService.saleCreated:
+        return Icons.point_of_sale_rounded;
+      case AuditLogService.invoiceEdited:
+        return Icons.receipt_long_rounded;
+      case AuditLogService.paymentReceived:
+        return Icons.payments_rounded;
+      case AuditLogService.returnProcessed:
+        return Icons.assignment_return_rounded;
+      case AuditLogService.invoiceCancelled:
+      case AuditLogService.invoiceDeleted:
         return Icons.cancel_rounded;
-      case 'PIN_SET':
-        return Icons.lock_rounded;
-      case 'BIOMETRIC_ENABLED':
-        return Icons.fingerprint_rounded;
-      case 'BIOMETRIC_DISABLED':
-        return Icons.fingerprint_rounded;
+      case AuditLogService.quotationConverted:
+        return Icons.swap_horiz_rounded;
       default:
         return Icons.info_rounded;
     }
@@ -355,28 +348,30 @@ class _AuditLogItem extends StatelessWidget {
 
   Color _getActionColor(String action) {
     switch (action) {
-      case 'DATA_EXPORT':
-        return AppColors.tealAccent;
-      case 'DATA_DELETE':
+      case AuditLogService.memberInvited:
+      case AuditLogService.memberActivated:
+      case AuditLogService.customerCreated:
+      case AuditLogService.saleCreated:
+      case AuditLogService.paymentReceived:
+      case AuditLogService.tagAdded:
+        return AppColors.success;
+      case AuditLogService.memberRemoved:
+      case AuditLogService.memberSuspended:
+      case AuditLogService.customerDeleted:
+      case AuditLogService.invoiceCancelled:
+      case AuditLogService.invoiceDeleted:
+      case AuditLogService.tagRemoved:
         return AppColors.error;
-      case 'LOGIN':
-        return AppColors.success;
-      case 'LOGOUT':
+      case AuditLogService.roleChanged:
+      case AuditLogService.permissionsChanged:
+      case AuditLogService.creditLimitChanged:
+      case AuditLogService.returnProcessed:
+      case AuditLogService.reminderSent:
         return AppColors.warning;
-      case 'ACCOUNT_CREATED':
-        return AppColors.success;
-      case 'ACCOUNT_DELETED':
-        return AppColors.error;
-      case 'CONSENT_ACCEPTED':
-        return AppColors.success;
-      case 'CONSENT_WITHDRAWN':
-        return AppColors.warning;
-      case 'PIN_SET':
+      case AuditLogService.customerUpdated:
+      case AuditLogService.invoiceEdited:
+      case AuditLogService.quotationConverted:
         return AppColors.tealAccent;
-      case 'BIOMETRIC_ENABLED':
-        return AppColors.success;
-      case 'BIOMETRIC_DISABLED':
-        return AppColors.warning;
       default:
         return AppColors.textMuted;
     }
@@ -384,28 +379,46 @@ class _AuditLogItem extends StatelessWidget {
 
   String _getActionLabel(String action) {
     switch (action) {
-      case 'DATA_EXPORT':
-        return tr('Data Exported', 'Data Ilihamishibwa');
-      case 'DATA_DELETE':
-        return tr('Account Deletion Started', 'Kufuta Akaunti Kulianza');
-      case 'LOGIN':
-        return tr('Logged In', 'Ingia');
-      case 'LOGOUT':
-        return tr('Logged Out', 'Toka');
-      case 'ACCOUNT_CREATED':
-        return tr('Account Created', 'Akaunti Imeundwa');
-      case 'ACCOUNT_DELETED':
-        return tr('Account Deleted', 'Akaunti Ifutwa');
-      case 'CONSENT_ACCEPTED':
-        return tr('Privacy Policy Accepted', 'Sera ya Faragha Kujazakubali');
-      case 'CONSENT_WITHDRAWN':
-        return tr('Consent Withdrawn', 'Ridhaa Ilitorolewa');
-      case 'PIN_SET':
-        return tr('PIN Set', 'PIN Imewekwa');
-      case 'BIOMETRIC_ENABLED':
-        return tr('Biometric Lock Enabled', 'Kufuli cha Vidole Kuzengawa');
-      case 'BIOMETRIC_DISABLED':
-        return tr('Biometric Lock Disabled', 'Kufuli cha Vidole Kuzimwa');
+      case AuditLogService.memberInvited:
+        return tr('Team Member Invited', 'Mwanachama Alialikwa');
+      case AuditLogService.memberRemoved:
+        return tr('Team Member Removed', 'Mwanachama Aliondolewa');
+      case AuditLogService.memberSuspended:
+        return tr('Team Member Suspended', 'Mwanachama Alisimamishwa');
+      case AuditLogService.memberActivated:
+        return tr('Team Member Activated', 'Mwanachama Aliwezeshwa');
+      case AuditLogService.roleChanged:
+        return tr('Role Changed', 'Jukumu Limebadilishwa');
+      case AuditLogService.permissionsChanged:
+        return tr('Permissions Changed', 'Ruhusa Zimebadilishwa');
+      case AuditLogService.customerCreated:
+        return tr('Customer Added', 'Mteja Aliongezwa');
+      case AuditLogService.customerUpdated:
+        return tr('Customer Updated', 'Mteja Alisasishwa');
+      case AuditLogService.customerDeleted:
+        return tr('Customer Deleted', 'Mteja Alifutwa');
+      case AuditLogService.creditLimitChanged:
+        return tr('Credit Limit Changed', 'Kikomo cha Mkopo Kimebadilishwa');
+      case AuditLogService.tagAdded:
+        return tr('Tag Added', 'Lebo Imeongezwa');
+      case AuditLogService.tagRemoved:
+        return tr('Tag Removed', 'Lebo Imeondolewa');
+      case AuditLogService.reminderSent:
+        return tr('Reminder Sent', 'Kikumbusho Kilitumwa');
+      case AuditLogService.saleCreated:
+        return tr('Sale Recorded', 'Mauzo Yalirekodiwa');
+      case AuditLogService.invoiceEdited:
+        return tr('Invoice Edited', 'Ankara Ilihaririwa');
+      case AuditLogService.paymentReceived:
+        return tr('Payment Received', 'Malipo Yalipokelewa');
+      case AuditLogService.returnProcessed:
+        return tr('Return Processed', 'Kurejeshwa Kulishughulikiwa');
+      case AuditLogService.invoiceCancelled:
+        return tr('Invoice Cancelled', 'Ankara Ilighairiwa');
+      case AuditLogService.invoiceDeleted:
+        return tr('Invoice Deleted', 'Ankara Ilifutwa');
+      case AuditLogService.quotationConverted:
+        return tr('Quotation Converted', 'Nukuu Ilibadilishwa');
       default:
         return action;
     }

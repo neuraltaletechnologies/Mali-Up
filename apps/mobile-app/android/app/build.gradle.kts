@@ -35,10 +35,15 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = "mali-up-key"
-            keyPassword = System.getenv("KEYSTORE_PASSWORD") ?: "MaliUp@2026Key"
-            storeFile = file("keystore/mali-up-release.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "MaliUp@2026Key"
+            // Only populate when set, so debug builds (which configure this
+            // block too, even though they never use it) don't fail without it.
+            val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
+            if (keystorePassword != null) {
+                keyAlias = "mali-up-key"
+                keyPassword = keystorePassword
+                storeFile = file("keystore/mali-up-release.jks")
+                storePassword = keystorePassword
+            }
         }
     }
 
@@ -49,8 +54,14 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
 
-            // Use release signing config for Google Play
-            signingConfig = signingConfigs.getByName("release")
+            // Use release signing config for Google Play; fall back to the
+            // debug key locally so `flutter run --release` works without the
+            // real secret. CI always sets KEYSTORE_PASSWORD.
+            signingConfig = if (System.getenv("KEYSTORE_PASSWORD") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

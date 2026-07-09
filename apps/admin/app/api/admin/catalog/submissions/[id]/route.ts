@@ -58,7 +58,7 @@ export async function PATCH(
         const slug = adminEdits.categorySlug || (data.categorySlug as string) || slugify(name)
         masterDocId = `${slug}_${businessTypeName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_community`
         masterDoc = {
-          businessType:    businessTypeName,
+          businessTypes:   [businessTypeName],
           categoryName:    name,
           categoryNameSw:  '',
           categorySlug:    slug,
@@ -74,7 +74,7 @@ export async function PATCH(
         const categorySlug = adminEdits.categorySlug || (data.categorySlug as string) || ''
         masterDocId = `${slug}_${businessTypeName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_community`
         masterDoc = {
-          businessType:   businessTypeName,
+          businessTypes:  [businessTypeName],
           categorySlug:   categorySlug,
           productName:    name,
           productNameSw:  '',

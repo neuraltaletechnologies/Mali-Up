@@ -13,19 +13,37 @@ service firebase.storage {
 
     // Allow users to upload and delete their own business logos
     match /businesses/{userId}/{allPaths=**} {
-      allow read: if isSignedIn();
+      // Scoped to the owner, matching write's existing trust boundary — any
+      // signed-in user (not just this owner) could previously read every
+      // path here, leaking business logos/profile photos/documents across
+      // tenants to anyone who obtained a userId (e.g. via a Firestore leak).
+      allow read: if isSignedIn() && isOwner(userId);
       allow write: if isSignedIn() && isOwner(userId);
     }
 
     // Allow users to upload and delete their own profile pictures
     match /users/{userId}/{allPaths=**} {
-      allow read: if isSignedIn();
+      // Scoped to the owner, matching write's existing trust boundary — any
+      // signed-in user (not just this owner) could previously read every
+      // path here, leaking business logos/profile photos/documents across
+      // tenants to anyone who obtained a userId (e.g. via a Firestore leak).
+      allow read: if isSignedIn() && isOwner(userId);
       allow write: if isSignedIn() && isOwner(userId);
     }
 
     // Allow users to upload and manage their business documents
     match /documents/{userId}/{allPaths=**} {
-      allow read: if isSignedIn();
+      // Scoped to the owner, matching write's existing trust boundary — any
+      // signed-in user (not just this owner) could previously read every
+      // path here, leaking business logos/profile photos/documents across
+      // tenants to anyone who obtained a userId (e.g. via a Firestore leak).
+      allow read: if isSignedIn() && isOwner(userId);
+      allow write: if isSignedIn() && isOwner(userId);
+    }
+
+    // Allow users to upload and manage their own expense receipt photos
+    match /receipts/{userId}/{allPaths=**} {
+      allow read: if isSignedIn() && isOwner(userId);
       allow write: if isSignedIn() && isOwner(userId);
     }
 

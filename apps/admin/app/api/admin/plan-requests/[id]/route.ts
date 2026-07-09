@@ -14,7 +14,7 @@ export async function PATCH(
   const { id } = await params
 
   try {
-    const body = await req.json() as { action?: string; adminNotes?: string }
+    const body = await req.json() as { action?: string; adminNotes?: string; activated?: boolean }
     const action = body.action
     if (action !== 'approve' && action !== 'reject') {
       return NextResponse.json({ error: 'action must be approve or reject' }, { status: 400 })
@@ -31,6 +31,8 @@ export async function PATCH(
     await ref.set(
       {
         status,
+        // Once activated, stays activated — re-approving without re-activating must not erase it.
+        activated: Boolean(body.activated) || Boolean(before.activated),
         ...(typeof body.adminNotes === 'string' ? { adminNotes: body.adminNotes } : {}),
         resolvedAt: FieldValue.serverTimestamp(),
       },
@@ -45,6 +47,7 @@ export async function PATCH(
       before: { status: before.status },
       after: {
         status,
+        activated: Boolean(body.activated) || Boolean(before.activated),
         ...(typeof body.adminNotes === 'string' ? { adminNotes: body.adminNotes } : {}),
       },
       isDestructive: false,

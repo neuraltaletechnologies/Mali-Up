@@ -12,9 +12,9 @@ import '../../../../shared/widgets/upgrade_sheet.dart';
 String _fmtPrice(int v) =>
     'TZS ${v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}';
 
-String _fmtPriceCompact(int v) => v == 0 ? 'Bure' : _fmtPrice(v);
-
 String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
+
+String _fmtPriceCompact(int v) => v == 0 ? _t('Free', 'Bure') : _fmtPrice(v);
 
 class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
@@ -69,6 +69,9 @@ class SubscriptionScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
             children: [
+              // ── Pending request notice ─────────────────────────
+              const PlanPendingBanner(),
+
               // ── Current plan card ──────────────────────────────
               PlanInfoCard(
                 status: status,
@@ -288,8 +291,9 @@ class _ComparisonTable extends StatelessWidget {
     final growthL   = limitsFor(PlanTier.growth,   defs);
     final businessL = limitsFor(PlanTier.business, defs);
 
-    String priceLabel(PlanLimits l) =>
-        l.pricePerMonth > 0 ? '${_fmtPriceCompact(l.pricePerMonth)}/mwezi' : 'Bure';
+    String priceLabel(PlanLimits l) => l.pricePerMonth > 0
+        ? '${_fmtPriceCompact(l.pricePerMonth)}${_t("/mo", "/mwezi")}'
+        : _t('Free', 'Bure');
 
     final prices = [
       priceLabel(starterL),
@@ -316,8 +320,9 @@ class _ComparisonTable extends StatelessWidget {
           allLimits.map((l) => l.prioritySupport).toList()),
     ];
 
-    String invoiceLabel(PlanLimits l) =>
-        l.monthlyInvoices == -1 ? '∞' : '${l.monthlyInvoices}/mwezi';
+    String invoiceLabel(PlanLimits l) => l.monthlyInvoices == -1
+        ? '∞'
+        : '${l.monthlyInvoices}${_t("/mo", "/mwezi")}';
     String userLabel(PlanLimits l) =>
         l.maxUsers == -1 ? '∞' : '${l.maxUsers}';
 

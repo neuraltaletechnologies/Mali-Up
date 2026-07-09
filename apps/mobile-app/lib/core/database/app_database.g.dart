@@ -13623,7 +13623,7 @@ class $MasterCategoriesTableTable extends MasterCategoriesTable
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {id, businessType};
   @override
   MasterCategoriesTableData map(
     Map<String, dynamic> data, {
@@ -14322,7 +14322,7 @@ class $MasterProductsTableTable extends MasterProductsTable
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {id, businessType};
   @override
   MasterProductsTableData map(
     Map<String, dynamic> data, {

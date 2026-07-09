@@ -1,10 +1,12 @@
 'use client'
 
-import { Bell, Search, ChevronRight, Sun, Moon } from 'lucide-react'
+import { Search, ChevronRight, Sun, Moon, Menu } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
+import { NotificationBell } from './notification-bell'
+import { useSidebarStore } from '@/store/sidebar-store'
 
 const routeLabels: Record<string, string> = {
   '':            'Dashboard',
@@ -64,17 +66,26 @@ function Breadcrumbs() {
 export function TopBar() {
   const { data: session } = useSession()
   const { theme, setTheme } = useTheme()
+  const toggleSidebar = useSidebarStore((s) => s.toggle)
   const initial = (session?.user?.name ?? 'A').charAt(0).toUpperCase()
   const isDark = theme === 'dark'
 
   return (
-    <header className="fixed top-0 right-0 left-[240px] h-12 z-20 bg-[var(--topbar-bg)] border-b border-[var(--topbar-border)] flex items-center px-6 gap-4">
-      <div className="flex-1">
+    <header className="fixed top-0 right-0 left-0 lg:left-[240px] h-12 z-20 bg-[var(--topbar-bg)] border-b border-[var(--topbar-border)] flex items-center px-3 sm:px-6 gap-3 sm:gap-4">
+      <button
+        onClick={toggleSidebar}
+        className="lg:hidden p-1.5 rounded-md text-[var(--topbar-text-muted)] hover:text-[var(--topbar-text)] hover:bg-[var(--canvas)] transition-colors shrink-0"
+        aria-label="Toggle navigation"
+      >
+        <Menu className="h-4 w-4" />
+      </button>
+
+      <div className="flex-1 min-w-0">
         <Breadcrumbs />
       </div>
 
       {/* Global search */}
-      <div className="relative">
+      <div className="relative hidden sm:block">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--ink-faint)]" />
         <input
           placeholder="Search…"
@@ -93,9 +104,7 @@ export function TopBar() {
           {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        <button className="relative p-1.5 rounded-md text-[var(--topbar-text-muted)] hover:text-[var(--topbar-text)] hover:bg-[var(--canvas)] transition-colors">
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationBell />
 
         <div
           className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 ml-1"

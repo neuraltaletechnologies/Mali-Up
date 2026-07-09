@@ -103,6 +103,49 @@ class SyncCashRepository {
     });
   }
 
+  /// Activates one of the built-in payment-method accounts (deterministic
+  /// id from [PaymentMethodAccounts]) with the real balance the user counted.
+  /// Unlike [saveAccount], a non-empty id is still a *create*: the queued op
+  /// must push the full doc — including the opening balance — and stay
+  /// idempotent if the account was activated on another device meanwhile
+  /// (remote create is a set-merge on the same deterministic doc id).
+  Future<void> activateMethodAccount(CashAccount account) async {
+    _policy.assertCanWrite();
+    assert(account.id.isNotEmpty, 'method accounts have deterministic ids');
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    final existing = await _local.getRawAccountById(account.id);
+    if (existing != null && existing.isDeleted == 0) {
+      // Already activated (possibly pulled from another device) — keep the
+      // existing balance, it only moves through transactions.
+      return;
+    }
+
+    final payload = jsonEncode(account.toFirestore());
+
+    await _db.transaction(() async {
+      await _local.upsertAccount(
+        account,
+        syncStatus: 'pending_create',
+        localVersion: (existing?.localVersion ?? 0) + 1,
+        createdAtMs: existing?.createdAt ?? now,
+      );
+      await _queue.enqueue(
+        SyncQueueTableCompanion(
+          operationId: Value(const Uuid().v4()),
+          entityType: const Value('cash_account'),
+          entityId: Value(account.id),
+          operation: const Value('create'),
+          payload: Value(payload),
+          checksum: Value(SyncUtils.sha256(payload)),
+          localVersion: Value((existing?.localVersion ?? 0) + 1),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+  }
+
   Future<void> deleteAccount(String id) async {
     _policy.assertCanWrite();
     final now = DateTime.now().millisecondsSinceEpoch;

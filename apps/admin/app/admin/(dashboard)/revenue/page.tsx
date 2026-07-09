@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { KPICard } from '@/components/ui/kpi-card'
 import { MRRTrendChart } from '@/components/charts/mrr-trend-chart'
 import { KPIRowSkeleton, ChartSkeleton, RevalidatingBar, SkeletonTable } from '@/components/ui/skeleton'
-import { fetchAnalytics, fetchConfig, saveConfig } from '@/lib/admin-api'
+import { fetchAnalytics, fetchConfig, saveConfig, fetchPlans } from '@/lib/admin-api'
 import { useAdminFetch } from '@/hooks/use-admin-fetch'
 import { formatTZS, formatTZSCompact } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -13,15 +13,6 @@ import { AlertCircle, ChevronDown, ChevronRight, Save } from 'lucide-react'
 import type { PlatformConfig } from '@/types'
 
 const INF_SENTINEL = 9999
-
-// Plan fees in TZS — kept in sync with firestore-mappers
-const PLAN_FEES: Record<string, number> = {
-  starter: 0,
-  growth: 49_000,
-  business: 120_000,
-  enterprise: 350_000,
-  lifetime: 0,
-}
 
 function ConfigSection({
   title,
@@ -108,6 +99,18 @@ export default function RevenuePage() {
     { key: 'config' },
   )
 
+  // Live per-tier pricing — sourced from the Plans page's data, not a hardcoded copy.
+  const { data: plansData } = useAdminFetch(useCallback(() => fetchPlans(), []), { key: 'plans' })
+  const planFees = useMemo(() => {
+    const fees: Record<string, number> = {}
+    if (plansData?.plans) {
+      for (const [tier, def] of Object.entries(plansData.plans)) {
+        fees[tier] = def.cycleMonths > 0 ? Math.round(def.pricePerCycle / def.cycleMonths) : 0
+      }
+    }
+    return fees
+  }, [plansData])
+
   const [config, setConfig] = useState<PlatformConfig | null>(null)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -138,11 +141,11 @@ export default function RevenuePage() {
 
   // Analytics derived values
   const planBreakdown = (data?.planDistribution ?? [])
-    .filter((p) => PLAN_FEES[p.name.toLowerCase()] > 0)
+    .filter((p) => (planFees[p.name.toLowerCase()] ?? 0) > 0)
     .map((p) => ({
       ...p,
-      fee: PLAN_FEES[p.name.toLowerCase()] ?? 0,
-      contribution: (PLAN_FEES[p.name.toLowerCase()] ?? 0) * p.value,
+      fee: planFees[p.name.toLowerCase()] ?? 0,
+      contribution: (planFees[p.name.toLowerCase()] ?? 0) * p.value,
     }))
 
   const maxContribution = Math.max(...planBreakdown.map((p) => p.contribution), 1)
@@ -154,7 +157,7 @@ export default function RevenuePage() {
     <div>
       <PageHeader
         title="Revenue"
-        description="Analytics, pricing configuration, and plan limits"
+        description="MRR analytics and platform-wide billing settings"
       />
       {revalidating && <RevalidatingBar />}
 
@@ -162,9 +165,9 @@ export default function RevenuePage() {
       {analyticsLoading ? (
         <>
           <KPIRowSkeleton count={4} />
-          <div className="grid grid-cols-5 gap-4">
-            <div className="col-span-3"><ChartSkeleton height="h-72" /></div>
-            <div className="col-span-2"><ChartSkeleton height="h-72" /></div>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <div className="lg:col-span-3"><ChartSkeleton height="h-72" /></div>
+            <div className="lg:col-span-2"><ChartSkeleton height="h-72" /></div>
           </div>
         </>
       ) : analyticsError && !data ? (
@@ -175,7 +178,7 @@ export default function RevenuePage() {
       ) : data && (
         <>
           {/* KPI row */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KPICard
               label="Current MRR"
               value={`TZS ${formatTZSCompact(data.mrr)}`}
@@ -196,16 +199,16 @@ export default function RevenuePage() {
             />
           </div>
 
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* MRR trend */}
-            <div className="col-span-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div className="lg:col-span-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
               <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-1">MRR Trend</h2>
               <p className="text-[12px] text-[var(--ink-muted)] mb-4">Cumulative over last 12 months</p>
               <MRRTrendChart data={data.mrrTrend} />
             </div>
 
             {/* Per-plan revenue breakdown */}
-            <div className="col-span-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div className="lg:col-span-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
               <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-1">Revenue by Plan</h2>
               <p className="text-[12px] text-[var(--ink-muted)] mb-5">Monthly contribution per tier</p>
 
@@ -251,9 +254,9 @@ export default function RevenuePage() {
           {data.planDistribution.length > 0 && (
             <div className="mt-4 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
               <h2 className="text-[14px] font-semibold text-[var(--ink)] mb-4">Plan Distribution Detail</h2>
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {data.planDistribution.map(({ name, value, color }) => {
-                  const fee = PLAN_FEES[name.toLowerCase()] ?? 0
+                  const fee = planFees[name.toLowerCase()] ?? 0
                   return (
                     <div key={name} className="rounded-md border border-[var(--line)] p-3">
                       <div className="flex items-center gap-2 mb-2">
@@ -275,9 +278,9 @@ export default function RevenuePage() {
         </>
       )}
 
-      {/* ── Pricing Configuration ── */}
+      {/* ── Platform Settings ── */}
       <div className="mt-8 mb-2 flex items-center gap-3">
-        <span className="text-[11px] uppercase tracking-widest font-semibold text-[var(--ink-faint)]">Pricing Configuration</span>
+        <span className="text-[11px] uppercase tracking-widest font-semibold text-[var(--ink-faint)]">Platform Settings</span>
         <div className="flex-1 h-px bg-[var(--line)]" />
       </div>
 
@@ -290,26 +293,9 @@ export default function RevenuePage() {
       )}
       {config && (<>
         <div className="flex flex-col gap-4 mb-24">
-          {/* Pricing */}
-          <ConfigSection title="Pricing" defaultOpen>
+          {/* Billing (SMS credits / exports — per-tier pricing & limits live on the Plans page) */}
+          <ConfigSection title="Billing Settings" defaultOpen>
             <div className="divide-y divide-[var(--line)]">
-              <Field label="Starter (free)"><span className="text-[13px] text-[var(--ink-faint)] font-mono">TZS 0</span></Field>
-              <Field label="Growth (monthly)">
-                <NumberInput value={config.pricing.growth} suffix="TZS/mo"
-                  onChange={(v) => update('pricing', { growth: v })} />
-              </Field>
-              <Field label="Business (monthly)">
-                <NumberInput value={config.pricing.business} suffix="TZS/mo"
-                  onChange={(v) => update('pricing', { business: v })} />
-              </Field>
-              <Field label="Enterprise (monthly)">
-                <NumberInput value={config.pricing.enterprise} suffix="TZS/mo"
-                  onChange={(v) => update('pricing', { enterprise: v })} />
-              </Field>
-              <Field label="Lifetime multiplier">
-                <NumberInput value={config.pricing.lifetimeMultiplier} suffix="× monthly fee"
-                  onChange={(v) => update('pricing', { lifetimeMultiplier: v })} />
-              </Field>
               <Field label="SMS credit price">
                 <NumberInput value={config.pricing.smsCreditPrice} suffix="TZS/credit"
                   onChange={(v) => update('pricing', { smsCreditPrice: v })} />
@@ -318,20 +304,6 @@ export default function RevenuePage() {
                 <NumberInput value={config.pricing.exportBundlePrice} suffix="TZS"
                   onChange={(v) => update('pricing', { exportBundlePrice: v })} />
               </Field>
-            </div>
-          </ConfigSection>
-
-          {/* Plan Limits */}
-          <ConfigSection title="Plan Limits">
-            <div className="divide-y divide-[var(--line)]">
-              {(Object.entries(config.planLimits) as [string, { users: number }][]).map(([plan, limits]) => (
-                <Field key={plan} label={`${plan.charAt(0).toUpperCase() + plan.slice(1)} — max users`}>
-                  <NumberInput value={limits.users} suffix="users"
-                    onChange={(v) => update('planLimits', {
-                      [plan]: { users: v },
-                    } as Partial<PlatformConfig['planLimits']>)} />
-                </Field>
-              ))}
             </div>
           </ConfigSection>
 

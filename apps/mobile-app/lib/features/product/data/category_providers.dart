@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/repositories/context_firestore_repository.dart';
@@ -159,31 +158,10 @@ String _normalizeBusinessType(String businessType) {
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-String _businessTypeFromProfile(
-    Map<String, dynamic>? profile, String businessId) {
-  final businessesRaw = profile?['businesses'];
-  if (businessesRaw is List) {
-    for (final entry in businessesRaw.whereType<Map>()) {
-      final entryId = (entry['id'] as String?)?.trim() ?? '';
-      if (businessId.isNotEmpty && entryId != businessId) continue;
-      final raw = (entry['type'] as String?) ??
-          (entry['businessType'] as String?) ??
-          (entry['category'] as String?) ??
-          '';
-      final normalized = _normalizeBusinessType(raw);
-      if (normalized.isNotEmpty) return normalized;
-    }
-    if (businessesRaw.isNotEmpty) {
-      final first = businessesRaw.whereType<Map>().first;
-      final raw = (first['type'] as String?) ??
-          (first['businessType'] as String?) ??
-          (first['category'] as String?) ??
-          '';
-      return _normalizeBusinessType(raw);
-    }
-  }
-  final raw = (profile?['businessType'] as String?) ??
-      (profile?['businessCategory'] as String?) ??
+String _businessTypeFromBusinessDoc(Map<String, dynamic>? business) {
+  final raw = (business?['businessCategory'] as String?) ??
+      (business?['businessType'] as String?) ??
+      (business?['category'] as String?) ??
       '';
   return _normalizeBusinessType(raw);
 }
@@ -193,17 +171,21 @@ String _businessTypeFromProfile(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Streams the normalised business type key of the active business.
+///
+/// Businesses live as top-level `businesses/{businessId}` docs (owner-scoped),
+/// not as an array embedded in the user profile — this watches that doc
+/// directly so it reacts immediately when the business's type is edited in
+/// Settings (ManageBusinessesScreen writes `businessCategory` there).
 final currentBusinessTypeProvider = StreamProvider<String>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return Stream.value('');
   final businessAsync = ref.watch(currentBusinessIdProvider);
   if (businessAsync.isLoading) return Stream.value('');
   final activeBusinessId = businessAsync.valueOrNull ?? '';
+  if (activeBusinessId.isEmpty) return Stream.value('');
   return FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
+      .collection('businesses')
+      .doc(activeBusinessId)
       .snapshots()
-      .map((snap) => _businessTypeFromProfile(snap.data(), activeBusinessId));
+      .map((snap) => _businessTypeFromBusinessDoc(snap.data()));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/localization_service.dart';
 
 /// Delete Account Screen - PDPA Right to Deletion
 /// Implements Article 19 of Tanzania's Personal Data Protection Act
 /// Users can permanently delete their account and all data
 /// Includes 30-day grace period for cancellation
+
+String _t(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 
 class DeleteAccountScreen extends ConsumerStatefulWidget {
   const DeleteAccountScreen({super.key});
@@ -23,7 +26,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Delete Account'),
+        title: Text(_t('Delete Account', 'Futa Akaunti')),
         backgroundColor: Colors.red[50],
       ),
       body: SingleChildScrollView(
@@ -48,7 +51,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                         Icon(Icons.warning_amber_rounded, color: Colors.red[700]),
                         const SizedBox(width: 12),
                         Text(
-                          'Permanent Action',
+                          _t('Permanent Action', 'Hatua ya Kudumu'),
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: Colors.red[700],
                             fontWeight: FontWeight.w600,
@@ -58,8 +61,12 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                     ),
                     SizedBox(height: 12),
                     Text(
-                      'Deleting your account will permanently remove all your business data. '
-                      'This action can be undone within 30 days of requesting deletion.',
+                      _t(
+                        'Deleting your account will permanently remove all your business data. '
+                        'This action can be undone within 30 days of requesting deletion.',
+                        'Kufuta akaunti yako kutaondoa kabisa taarifa zote za biashara yako. '
+                        'Hatua hii inaweza kughairiwa ndani ya siku 30 baada ya kuomba kufutwa.',
+                      ),
                       style: GoogleFonts.dmSans(color: Colors.red[900]),
                     ),
                   ],
@@ -69,7 +76,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
 
               // What Will Be Deleted
               Text(
-                'What will be deleted:',
+                _t('What will be deleted:', 'Vitakavyofutwa:'),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -82,13 +89,23 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '• All invoices and payment records\n'
-                  '• All customer information\n'
-                  '• All expense records\n'
-                  '• Inventory and stock data\n'
-                  '• Account settings and preferences\n'
-                  '• Your Mali Up login account\n\n'
-                  'Note: Audit logs of your activities may be retained for compliance.',
+                  _t(
+                    '• All invoices and payment records\n'
+                    '• All customer information\n'
+                    '• All expense records\n'
+                    '• Inventory and stock data\n'
+                    '• Account settings and preferences\n'
+                    '• Your Mali Up login account\n\n'
+                    'Note: Audit logs of your activities may be retained for compliance.',
+                    '• Ankara zote na kumbukumbu za malipo\n'
+                    '• Taarifa zote za wateja\n'
+                    '• Kumbukumbu zote za matumizi\n'
+                    '• Taarifa za stoo na bidhaa\n'
+                    '• Mipangilio na mapendeleo ya akaunti\n'
+                    '• Akaunti yako ya kuingia Mali Up\n\n'
+                    'Kumbuka: Kumbukumbu za ukaguzi wa shughuli zako zinaweza kuhifadhiwa '
+                    'kwa madhumuni ya uzingatiaji wa sheria.',
+                  ),
                   style: GoogleFonts.dmSans(height: 1.8),
                 ),
               ),
@@ -102,7 +119,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                 ),
                 child: CheckboxListTile(
                   title: Text(
-                    'I understand this is permanent',
+                    _t('I understand this is permanent',
+                        'Naelewa hii ni ya kudumu'),
                     style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
                   ),
                   value: understandCheckbox,
@@ -132,7 +150,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                           ),
                         )
                       : Text(
-                          'Delete My Account',
+                          _t('Delete My Account', 'Futa Akaunti Yangu'),
                           style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                 ),
@@ -150,16 +168,21 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Before you proceed:',
+                      _t('Before you proceed:', 'Kabla hujaendelea:'),
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '1. Export your data first (for your records)\n'
-                      '2. Settle any outstanding payments\n'
-                      '3. Notify your customers if needed',
+                      _t(
+                        '1. Export your data first (for your records)\n'
+                        '2. Settle any outstanding payments\n'
+                        '3. Notify your customers if needed',
+                        '1. Hamisha taarifa zako kwanza (kwa ajili ya kumbukumbu zako)\n'
+                        '2. Kamilisha malipo yoyote yaliyobaki\n'
+                        '3. Wajulishe wateja wako ikiwa inahitajika',
+                      ),
                       style: GoogleFonts.dmSans(height: 1.8),
                     ),
                   ],
@@ -178,15 +201,21 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'PDPA Right to Deletion',
+                      _t('PDPA Right to Deletion', 'Haki ya Kufutwa (PDPA)'),
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'This implements Article 19 of Tanzania\'s Personal Data Protection Act, which gives you the right to deletion.\n\n'
-                      'You have 30 days to cancel the deletion. After 30 days, your account and all data will be permanently deleted and cannot be recovered.',
+                      _t(
+                        'This implements Article 19 of Tanzania\'s Personal Data Protection Act, which gives you the right to deletion.\n\n'
+                        'You have 30 days to cancel the deletion. After 30 days, your account and all data will be permanently deleted and cannot be recovered.',
+                        'Hii inatekeleza Kifungu cha 19 cha Sheria ya Ulinzi wa Taarifa Binafsi ya Tanzania, '
+                        'kinachokupa haki ya kufutwa kwa taarifa zako.\n\n'
+                        'Una siku 30 kughairi ufutaji huo. Baada ya siku 30, akaunti yako na taarifa zote '
+                        'zitafutwa kabisa na haziwezi kurejeshwa.',
+                      ),
                       style: GoogleFonts.dmSans(height: 1.6),
                     ),
                   ],
@@ -207,23 +236,28 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Delete account?'),
-        content: const Text(
-          'Your account and all data will be marked for deletion. '
-          'You have 30 days to cancel.\n\n'
-          'Are you absolutely sure?',
+        title: Text(_t('Delete account?', 'Futa akaunti?')),
+        content: Text(
+          _t(
+            'Your account and all data will be marked for deletion. '
+            'You have 30 days to cancel.\n\n'
+            'Are you absolutely sure?',
+            'Akaunti yako na taarifa zote zitawekwa alama ya kufutwa. '
+            'Una siku 30 kughairi.\n\n'
+            'Una uhakika kabisa?',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(_t('Cancel', 'Ghairi')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red[600],
             ),
-            child: const Text('Yes, Delete Account'),
+            child: Text(_t('Yes, Delete Account', 'Ndiyo, Futa Akaunti')),
           ),
         ],
       ),
@@ -247,11 +281,16 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
-            title: const Text('Deletion Scheduled'),
-            content: const Text(
-              'Your account deletion has been scheduled.\n\n'
-              'You have 30 days to cancel in account settings.\n\n'
-              'After 30 days, all data will be permanently deleted.',
+            title: Text(_t('Deletion Scheduled', 'Ufutaji Umepangwa')),
+            content: Text(
+              _t(
+                'Your account deletion has been scheduled.\n\n'
+                'You have 30 days to cancel in account settings.\n\n'
+                'After 30 days, all data will be permanently deleted.',
+                'Ufutaji wa akaunti yako umepangwa.\n\n'
+                'Una siku 30 kughairi kupitia mipangilio ya akaunti.\n\n'
+                'Baada ya siku 30, taarifa zote zitafutwa kabisa.',
+              ),
             ),
             actions: [
               TextButton(
@@ -259,7 +298,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   Navigator.pop(context);
                   Navigator.pop(context);
                 },
-                child: const Text('OK'),
+                child: Text(_t('OK', 'Sawa')),
               ),
             ],
           ),
@@ -271,7 +310,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text('${_t("Error", "Hitilafu")}: $e'),
           backgroundColor: Colors.red,
         ),
       );

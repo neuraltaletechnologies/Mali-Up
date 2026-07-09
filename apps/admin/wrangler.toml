@@ -26,6 +26,12 @@ binding = "ASSETS"
 [vars]
 NEXT_PUBLIC_BASE_URL = "https://maliup.neuraltale.com"
 
+# Works around a Next.js 16 / OpenNext-Cloudflare bug where getMiddlewareManifest()
+# does a dynamic require() of middleware-manifest.json, which Workers can't run
+# (https://github.com/opennextjs/opennextjs-cloudflare/issues/1232). Safe here since
+# this app has no middleware/proxy — auth guards live in the dashboard layout instead.
+NEXT_PRIVATE_MINIMAL_MODE = "1"
+
 # Public Firebase client SDK config — safe to commit (project identifiers only).
 # NOTE: NEXT_PUBLIC_* vars are embedded by Next.js at BUILD TIME, not at Worker
 # runtime. These [vars] entries do NOT affect the build — they're here only so

@@ -126,6 +126,7 @@ class OnboardingService {
     required String businessId,
     required String memberId,
     String inviteId = '',
+    String email = '',
   }) async {
     await _repository.createTeamMemberAccount(
       phone: phone,
@@ -136,6 +137,7 @@ class OnboardingService {
       businessId: businessId,
       memberId: memberId,
       inviteId: inviteId,
+      realEmail: email,
     );
     await completeOnboarding();
   }

@@ -29,8 +29,10 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
               t.isDeleted.equals(0) &
               t.isActive.equals(1)))
         .watch()
-        .map((rows) =>
-            rows.where((r) => r.quantity <= r.lowStockThreshold).toList());
+        .map((rows) => rows
+            .where((r) =>
+                r.lowStockThreshold > 0 && r.quantity <= r.lowStockThreshold)
+            .toList());
   }
 
   Stream<List<InventoryTableData>> watchPendingSync() {
@@ -119,6 +121,32 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
         localVersion: Value(item.localVersion + 1),
         updatedAt: Value(now),
       ),
+    );
+  }
+
+  // Mirrors a stock change that was already committed to Firestore by an
+  // online sale/return batch. Leaves syncStatus and quantityDelta untouched:
+  // the change needs no push, and flipping the row to pending would make
+  // every future pull skip it.
+  Future<void> applyCommittedDelta(String id, double delta) async {
+    final item = await getById(id);
+    if (item == null) return;
+    await (update(inventoryTable)..where((t) => t.id.equals(id))).write(
+      InventoryTableCompanion(
+        quantity: Value(item.quantity + delta),
+        updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  // Subtracts an already-pushed delta from the accumulator once the server
+  // has applied it, so a later conflict merge can't re-apply the same amount.
+  // Subtraction (not a reset) keeps deltas queued after this push intact.
+  Future<void> consumeQuantityDelta(String id, double delta) async {
+    final item = await getById(id);
+    if (item == null) return;
+    await (update(inventoryTable)..where((t) => t.id.equals(id))).write(
+      InventoryTableCompanion(quantityDelta: Value(item.quantityDelta - delta)),
     );
   }
 

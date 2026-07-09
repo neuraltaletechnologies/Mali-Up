@@ -373,6 +373,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         businessId: state.businessId,
         memberId: state.teamMemberId,
         inviteId: state.inviteId,
+        email: state.email,
       );
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {

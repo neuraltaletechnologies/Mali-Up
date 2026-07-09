@@ -66,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -134,6 +134,18 @@ class AppDatabase extends _$AppDatabase {
             // unitAlternatives, commonBarcodes, searchKeywords, tags,
             // prescriptionRequired, coldStorage. Pricing fields removed.
             // Cache tables are read-only so a drop+recreate is safe.
+            await customStatement('DROP TABLE IF EXISTS master_categories');
+            await customStatement('DROP TABLE IF EXISTS master_products');
+            await m.createTable(masterCategoriesTable);
+            await m.createTable(masterProductsTable);
+            await _createV8Indexes();
+          }
+          if (from < 9) {
+            // Master catalog items can now belong to multiple business types
+            // (Firestore `businessTypes` array). Primary key becomes
+            // (id, business_type) so the same item can be cached once per
+            // business-type context. Cache tables are read-only — safe to
+            // drop and let the next fetch repopulate.
             await customStatement('DROP TABLE IF EXISTS master_categories');
             await customStatement('DROP TABLE IF EXISTS master_products');
             await m.createTable(masterCategoriesTable);

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,11 +17,13 @@ import 'package:mali_up/core/services/localization_service.dart';
 import 'package:mali_up/core/services/motion_service.dart';
 import 'package:mali_up/core/services/sentry_metrics_service.dart';
 import 'package:mali_up/core/services/security_service.dart';
+import 'package:mali_up/core/services/version_gate_service.dart';
 import 'package:mali_up/features/onboarding/providers/onboarding_notifier.dart'
     show onboardingBootstrapProvider, onboardingDraftBootstrapProvider, onboardingPhoneEntryBootstrapProvider, OnboardingDraft;
 import 'package:mali_up/features/onboarding/data/services/onboarding_service.dart'
     show OnboardingService;
 import 'package:mali_up/features/security/presentation/screens/pin_lock_screen.dart';
+import 'package:mali_up/features/update/presentation/screens/update_required_screen.dart';
 import 'firebase_options.dart';
 
 // Must match OnboardingService._completedKey so the bootstrap read is consistent.
@@ -62,6 +66,10 @@ Future<void> _startApp() async {
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
+
+  // Fire-and-forget: checks this build against the remote version gate.
+  // Never awaited — must not delay startup, and fails open on any error.
+  unawaited(VersionGateService.initialize());
 
   final prefs = await prefsFuture;
   await Future.wait([
@@ -234,6 +242,25 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
     // the router to re-evaluate redirects without a full app rebuild.
     final router = ref.watch(goRouterProvider);
 
+    return ValueListenableBuilder<VersionGateStatus>(
+      valueListenable: VersionGateService.statusNotifier,
+      builder: (context, versionGateStatus, _) {
+        // A forced update takes priority over everything else, including the
+        // PIN lock — the update itself may carry a security fix.
+        if (versionGateStatus.tier == VersionGateTier.hardBlock) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            home: UpdateRequiredScreen(status: versionGateStatus),
+          );
+        }
+
+        return _buildGatedApp(router);
+      },
+    );
+  }
+
+  Widget _buildGatedApp(GoRouter router) {
     return ValueListenableBuilder<bool>(
       valueListenable: SecurityService.isLockedNotifier,
       builder: (context, isLocked, _) {
@@ -270,11 +297,11 @@ class _MaliUpAppState extends ConsumerState<MaliUpApp>
                     ],
                     routerConfig: router,
                     builder: (context, child) {
-                      // Cap every modal bottom sheet at 88% of screen height so
+                      // Cap every modal bottom sheet at 80% of screen height so
                       // they never cover the full screen. The constraint is applied
                       // at the route level and works regardless of backgroundColor.
                       final maxSheetHeight =
-                          MediaQuery.sizeOf(context).height * 0.88;
+                          MediaQuery.sizeOf(context).height * 0.8;
                       return Theme(
                         data: Theme.of(context).copyWith(
                           bottomSheetTheme: Theme.of(context)

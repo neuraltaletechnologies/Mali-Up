@@ -107,7 +107,7 @@ class AppStrings {
   static const String fullNameSw = 'Jina kamili';
   static const String enterFullNameSw = 'Weka jina lako kamili';
   static const String emailAddressSw = 'Barua pepe';
-  static const String emailAddressOptionalSw = 'Barua pepe (hiari)';
+  static const String emailAddressOptionalSw = 'Barua pepe ';
   static const String businessNameSw = 'Jina la biashara';
   static const String enterBusinessNameSw = 'Weka jina la biashara yako';
   static const String placeOfBusinessSw = 'Mahali pa biashara';

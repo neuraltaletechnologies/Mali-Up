@@ -414,17 +414,24 @@ class ContextFirestoreRepository {
             .toList());
   }
 
+  /// Adds a team member and increments the business's denormalized
+  /// [staffCount] in the same batch, so admin dashboards can read the count
+  /// off the business doc instead of scanning the `staff` sub-collection
+  /// (which also holds a UID-keyed pointer doc per accepted member and would
+  /// double-count if scanned directly).
   Future<DocumentReference<Map<String, dynamic>>> addTeamMember({
     required String uid,
     required ResolvedFinanceContext context,
     required Map<String, dynamic> data,
-  }) {
+  }) async {
     final bizId = context.businessId ?? '';
-    return _firestore
-        .collection('businesses')
-        .doc(bizId)
-        .collection('staff')
-        .add(data);
+    final bizRef = _firestore.collection('businesses').doc(bizId);
+    final memberRef = bizRef.collection('staff').doc();
+    final batch = _firestore.batch();
+    batch.set(memberRef, data);
+    batch.update(bizRef, {'staffCount': FieldValue.increment(1)});
+    await batch.commit();
+    return memberRef;
   }
 
   Future<void> updateTeamMember({
@@ -459,16 +466,18 @@ class ContextFirestoreRepository {
     String? workerUid,
   }) async {
     final bizId = context.businessId ?? '';
-    final staffRef = _firestore
-        .collection('businesses')
-        .doc(bizId)
-        .collection('staff');
-    await staffRef.doc(memberId).delete();
+    final bizRef = _firestore.collection('businesses').doc(bizId);
+    final staffRef = bizRef.collection('staff');
+    final batch = _firestore.batch();
+    batch.delete(staffRef.doc(memberId));
     // Also delete the UID-keyed pointer doc if we know the worker's Firebase UID,
-    // so isStaffWithAny() stops granting access immediately.
+    // so isStaffWithAny() stops granting access immediately. This mirrors the
+    // same member, not a second one, so staffCount only drops by 1 either way.
     if (workerUid != null && workerUid.isNotEmpty) {
-      await staffRef.doc(workerUid).delete();
+      batch.delete(staffRef.doc(workerUid));
     }
+    batch.update(bizRef, {'staffCount': FieldValue.increment(-1)});
+    await batch.commit();
   }
 
   /// Updates the staff doc when a worker's role or permissions change.

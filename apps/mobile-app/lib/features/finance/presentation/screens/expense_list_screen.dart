@@ -6,8 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/plan_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../data/finance_providers.dart';
@@ -105,13 +108,8 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       );
       return;
     }
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.92,
-      ),
+    await showAppSheet(
+      context,
       builder: (_) => AddExpenseScreen(expenseToEdit: edit),
     );
   }
@@ -142,15 +140,17 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAdd,
-        backgroundColor: AppColors.yellowBrand,
-        foregroundColor: AppColors.navyPrimary,
-        elevation: 3,
-        icon: Icon(Icons.receipt_long_rounded, size: 20),
-        label: Text(
-          _tr('Add Expense', 'Ongeza Matumizi'),
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+      floatingActionButton: NavAwareFab(
+        child: FloatingActionButton.extended(
+          onPressed: _openAdd,
+          backgroundColor: AppColors.yellowBrand,
+          foregroundColor: AppColors.navyPrimary,
+          elevation: 3,
+          icon: Icon(Icons.receipt_long_rounded, size: 20),
+          label: Text(
+            _tr('Add Expense', 'Ongeza Matumizi'),
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+          ),
         ),
       ),
       body: Column(
@@ -294,7 +294,7 @@ class _ExpenseDarkHeader extends StatelessWidget {
               bottomRight: Radius.circular(20),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(20, top + 16, 20, _pillHalf + 16),
+          padding: EdgeInsets.fromLTRB(20, top + AppTheme.headerTopPadding, 20, _pillHalf + 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

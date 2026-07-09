@@ -10,11 +10,17 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/providers/sync_provider.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
+import '../../../finance/data/cash_flow_providers.dart';
+import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/payment_method_accounts.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
+import '../../data/invoice_local_mirror.dart';
+import '../../data/invoice_payment_service.dart';
 import '../../data/sales_providers.dart';
 import 'create_invoice_screen.dart';
 import 'sales_return_screen.dart';
@@ -121,11 +127,19 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     return [];
   }
 
+  /// Status-only transitions (sent / cancelled). Paid is money movement and
+  /// must go through [_markPaid] so balances and ledgers stay consistent.
   Future<void> _updateStatus(String newStatus) async {
+    // Status changes write straight to Firestore — online-only for now.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     setState(() => _updating = true);
     try {
       final scope = await resolveSalesScope(ref);
-      if (scope == null) return;
+      if (scope == null) {
+        if (mounted) setState(() => _updating = false);
+        return;
+      }
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final col = repo.scopeCollection(
           uid: scope.ownerUid,
@@ -134,12 +148,11 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       await col.doc(_inv['id'] as String).update({
         'status': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
-        if (newStatus == 'paid') ...{
-          'paidAt': FieldValue.serverTimestamp(),
-          // Marking paid settles the full balance.
-          'amountPaid': _total,
-        },
       });
+      // Mirror into Drift so the sales list and dashboard revenue update
+      // immediately (a cancelled invoice must drop out of revenue now).
+      await mirrorInvoiceFieldsToDrift(ref, _inv['id'] as String,
+          status: newStatus);
       if (newStatus == 'cancelled') {
         unawaited(AuditLogService().logSaleAction(
           ownerUid: scope.ownerUid,
@@ -155,16 +168,49 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       unawaited(ref.read(syncServiceProvider).syncNow());
       if (!mounted) return;
       setState(() {
-        _inv = {
-          ..._inv,
-          'status': newStatus,
-          if (newStatus == 'paid') 'amountPaid': _total,
-        };
+        _inv = {..._inv, 'status': newStatus};
         _updating = false;
       });
     } catch (e) {
       _showSnack(_tr('Update failed: $e', 'Imeshindwa kusasisha: $e'));
-      setState(() => _updating = false);
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
+  /// "Mark as Paid" settles the full outstanding balance as a payment, so the
+  /// customer balance and the receivable/debt ledgers move together with the
+  /// invoice status instead of silently drifting apart.
+  Future<void> _markPaid() async {
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
+    setState(() => _updating = true);
+    try {
+      // Credit isn't how the money arrived — default the quick action to cash.
+      final method = (_inv['paymentMethod'] ?? '').toString();
+      final result = await settleInvoicePayment(
+        ref,
+        invoice: _inv,
+        amount: _outstanding,
+        method: method.isEmpty || method == 'credit' ? 'cash' : method,
+        auditDetails: 'mark_paid',
+      );
+      if (!mounted) return;
+      if (result == null) {
+        setState(() => _updating = false);
+        return;
+      }
+      setState(() {
+        _inv = {
+          ..._inv,
+          'amountPaid': result.newAmountPaid,
+          'status': result.newStatus,
+        };
+        _updating = false;
+      });
+      _showSnack(_tr('Invoice marked as paid!', 'Ankara imelipwa kamili!'));
+    } catch (e) {
+      _showSnack(_tr('Update failed: $e', 'Imeshindwa kusasisha: $e'));
+      if (mounted) setState(() => _updating = false);
     }
   }
 
@@ -173,10 +219,16 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   /// commits everything atomically.
   Future<void> _convertToInvoice() async {
     if (!_isQuotation) return;
+    // Conversion commits an atomic Firestore batch — online-only for now.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     setState(() => _updating = true);
     try {
       final scope = await resolveSalesScope(ref);
-      if (scope == null) return;
+      if (scope == null) {
+        if (mounted) setState(() => _updating = false);
+        return;
+      }
       final repo = ref.read(contextFirestoreRepositoryProvider);
       final col = repo.scopeCollection(
           uid: scope.ownerUid,
@@ -187,6 +239,23 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
           context: scope.context,
           childCollection: 'inventory_items');
 
+      // Deduct stock only for lines whose product exists locally — lines
+      // round-tripped through the local mirror carry a generated row id for
+      // free-text entries, and deducting against that id would create a
+      // phantom inventory document.
+      final db = ref.read(appDatabaseProvider);
+      final deductions = <({String id, double qty})>[];
+      for (final item in _lineItems) {
+        final productId =
+            (item['productId'] ?? item['inventoryItemId'] ?? '').toString();
+        if (productId.isEmpty) continue;
+        if (await db.inventoryDao.getById(productId) == null) continue;
+        deductions.add((
+          id: productId,
+          qty: parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1),
+        ));
+      }
+
       final batch = FirebaseFirestore.instance.batch();
       batch.update(col.doc(_inv['id'] as String), {
         'type': 'invoice',
@@ -194,20 +263,30 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         'convertedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      for (final item in _lineItems) {
-        final productId =
-            (item['productId'] ?? item['inventoryItemId'] ?? '').toString();
-        if (productId.isEmpty) continue;
-        final qty = parseNumericAmount(item['qty'] ?? item['quantity'] ?? 1);
+      for (final d in deductions) {
         batch.set(
-            inventoryCol.doc(productId),
+            inventoryCol.doc(d.id),
             {
-              'currentStock': FieldValue.increment(-qty),
+              'currentStock': FieldValue.increment(-d.qty),
               'updatedAt': FieldValue.serverTimestamp(),
             },
             SetOptions(merge: true));
       }
       await batch.commit();
+
+      // Mirror the stock deduction into Drift immediately so product numbers
+      // update on screen without waiting for a sync pull (which can miss the
+      // write when the device clock runs ahead of the server).
+      try {
+        for (final d in deductions) {
+          await db.inventoryDao.applyCommittedDelta(d.id, -d.qty);
+        }
+      } catch (_) {}
+
+      // Mirror the conversion into Drift so the sales list reflects the new
+      // invoice immediately.
+      await mirrorInvoiceFieldsToDrift(ref, _inv['id'] as String,
+          type: 'invoice', status: 'sent');
 
       unawaited(AuditLogService().logSaleAction(
         ownerUid: scope.ownerUid,
@@ -267,6 +346,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   Future<void> _recordPayment() async {
+    // Payments move invoice + customer balances via server increments —
+    // online-only for now.
+    if (!await OnlineGuard.ensureOnline(context)) return;
+    if (!mounted) return;
     final result = await showAppSheet<Map<String, dynamic>>(
       context,
       backgroundColor: Colors.white,
@@ -281,103 +364,33 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
     setState(() => _updating = true);
     try {
-      final scope = await resolveSalesScope(ref);
-      if (scope == null) return;
-      final repo = ref.read(contextFirestoreRepositoryProvider);
-
-      // A payment can never exceed what is still owed.
-      final received = amount > _outstanding ? _outstanding : amount;
-      final newAmountPaid = _amountPaid + received;
-      final fullySettled = newAmountPaid >= _total - 0.005;
-      final newStatus = fullySettled ? 'paid' : 'partial';
       final method = (result['method'] ?? 'cash').toString();
-      final reference = (result['reference'] ?? '').toString();
-      final customerId = (_inv['customerId'] ?? '').toString();
-
-      // Atomic: payment record + invoice balance + customer balance.
-      final batch = FirebaseFirestore.instance.batch();
-      final paymentsCol = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'invoice_payments');
-      batch.set(paymentsCol.doc(), {
-        'invoiceId': _inv['id'],
-        'invoiceNumber': _invoiceNumber,
-        'businessId': scope.businessId,
-        if (customerId.isNotEmpty) 'customerId': customerId,
-        'amount': received,
-        'method': method,
-        if (reference.isNotEmpty) 'reference': reference,
-        'recordedBy': scope.userUid,
-        'recordedAt': FieldValue.serverTimestamp(),
-      });
-
-      final invoicesCol = repo.scopeCollection(
-          uid: scope.ownerUid,
-          context: scope.context,
-          childCollection: 'sales_invoices');
-      batch.update(invoicesCol.doc(_inv['id'] as String), {
-        'amountPaid': FieldValue.increment(received),
-        'status': newStatus,
-        'paymentMethod': method,
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (fullySettled) 'paidAt': FieldValue.serverTimestamp(),
-      });
-
-      if (customerId.isNotEmpty) {
-        final customersCol = repo.scopeCollection(
-            uid: scope.ownerUid,
-            context: scope.context,
-            childCollection: 'customers');
-        batch.set(
-            customersCol.doc(customerId),
-            {
-              'balance': FieldValue.increment(-received),
-              'lastTransactionDate': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true));
-      }
-
-      await batch.commit();
-
-      if (customerId.isNotEmpty) {
-        try {
-          final db = ref.read(appDatabaseProvider);
-          final row = await db.customerDao.getById(customerId);
-          if (row != null) {
-            final newBalance = (row.balance - received).clamp(0.0, double.maxFinite);
-            await db.customerDao.updateBalance(customerId, newBalance);
-          }
-        } catch (_) {}
-      }
-
-      unawaited(AuditLogService().logSaleAction(
-        ownerUid: scope.ownerUid,
-        businessId: scope.businessId,
-        performedByUid: scope.userUid,
-        performedByRole: ref.read(currentUserRoleProvider),
-        action: AuditLogService.paymentReceived,
-        invoiceId: _inv['id'] as String,
-        invoiceNumber: _invoiceNumber,
-        amount: received,
-        details: method,
-      ));
-      unawaited(ref.read(syncServiceProvider).syncNow());
+      final paymentResult = await settleInvoicePayment(
+        ref,
+        invoice: _inv,
+        amount: amount,
+        method: method,
+        reference: (result['reference'] ?? '').toString(),
+      );
       if (!mounted) return;
+      if (paymentResult == null) {
+        setState(() => _updating = false);
+        return;
+      }
       setState(() {
         _inv = {
           ..._inv,
-          'amountPaid': newAmountPaid,
-          'status': newStatus,
+          'amountPaid': paymentResult.newAmountPaid,
+          'status': paymentResult.newStatus,
           'paymentMethod': method,
         };
         _updating = false;
       });
-      _showSnack(fullySettled
+      _showSnack(paymentResult.fullySettled
           ? _tr('Invoice fully paid!', 'Ankara imelipwa kamili!')
-          : _tr('Payment recorded — TZS ${_fmtNum(received)} received.',
-              'Malipo yamerekodiwa — TZS ${_fmtNum(received)} imepokelewa.'));
+          : _tr(
+              'Payment recorded — TZS ${_fmtNum(paymentResult.received)} received.',
+              'Malipo yamerekodiwa — TZS ${_fmtNum(paymentResult.received)} imepokelewa.'));
     } catch (e) {
       _showSnack(_tr('Payment failed: $e', 'Malipo yameshindikana: $e'));
       if (mounted) setState(() => _updating = false);
@@ -385,28 +398,57 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   }
 
   void _shareWhatsApp() async {
-    final text = _buildShareText();
-    final url = 'https://wa.me/?text=${Uri.encodeComponent(text)}';
-    if (_customerPhone.isNotEmpty) {
-      final phone = _customerPhone.replaceAll(RegExp(r'[^0-9+]'), '');
-      final directUrl =
-          'https://wa.me/$phone?text=${Uri.encodeComponent(text)}';
-      await launchUrl(Uri.parse(directUrl),
+    final text = Uri.encodeComponent(_buildShareText());
+    final phone = normalizeWhatsAppPhone(_customerPhone);
+    // No usable customer number → share-picker link instead of a direct chat.
+    final url = phone.isEmpty
+        ? 'https://wa.me/?text=$text'
+        : 'https://wa.me/$phone?text=$text';
+    try {
+      final ok = await launchUrl(Uri.parse(url),
           mode: LaunchMode.externalApplication);
-    } else {
-      await launchUrl(Uri.parse(url),
-          mode: LaunchMode.externalApplication);
+      if (!ok) throw Exception('no handler');
+      _offerMarkSent();
+    } catch (_) {
+      _showSnack(_tr('Could not open WhatsApp. Make sure it is installed.',
+          'Imeshindwa kufungua WhatsApp. Hakikisha imesakinishwa.'));
     }
   }
 
   void _shareEmail() async {
-    final text = _buildShareText();
+    // Email clients don't render WhatsApp markdown — strip it.
+    final text = _buildShareText().replaceAll(RegExp(r'[*_]'), '');
     final subject = Uri.encodeComponent(
         _tr('Invoice $_invoiceNumber', 'Ankara $_invoiceNumber'));
     final body = Uri.encodeComponent(text);
     final customerEmail = (_inv['customerEmail'] ?? '').toString();
     final to = customerEmail.isNotEmpty ? Uri.encodeComponent(customerEmail) : '';
-    await launchUrl(Uri.parse('mailto:$to?subject=$subject&body=$body'));
+    try {
+      final ok =
+          await launchUrl(Uri.parse('mailto:$to?subject=$subject&body=$body'));
+      if (!ok) throw Exception('no handler');
+      _offerMarkSent();
+    } catch (_) {
+      _showSnack(_tr('No email app found on this device.',
+          'Hakuna programu ya barua pepe kwenye kifaa hiki.'));
+    }
+  }
+
+  /// After sharing a draft invoice, offer to move it to 'sent' so the two
+  /// steps don't silently drift apart. Quotations and non-drafts are skipped.
+  void _offerMarkSent() {
+    if (!mounted || _isQuotation || _status != 'draft' || !_canEdit) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(_tr('Invoice shared. Mark it as sent?',
+          'Ankara imeshirikiwa. Uiweke kama imetumwa?')),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      duration: const Duration(seconds: 8),
+      action: SnackBarAction(
+        label: _tr('Mark as Sent', 'Imetumwa'),
+        onPressed: () => _updateStatus('sent'),
+      ),
+    ));
   }
 
   void _copyText() {
@@ -511,7 +553,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
                 status: _status,
                 isQuotation: _isQuotation,
                 updating: _updating,
-                onMarkPaid: _canTakePayment ? () => _updateStatus('paid') : null,
+                onMarkPaid: _canTakePayment ? _markPaid : null,
                 onMarkSent: _canEdit ? () => _updateStatus('sent') : null,
                 onCancel: _canEdit ? () => _confirmCancel() : null,
                 onConvert: _canEdit ? _convertToInvoice : null,
@@ -1546,8 +1588,21 @@ class _RecordPaymentSheetState
                   'card': _tr('Card', 'Kadi'),
                 };
                 final active = m == _method;
+                final activated = ref
+                    .watch(activatedMethodAccountsProvider)
+                    .containsKey(
+                        PaymentMethodAccounts.accountIdForMethod(m));
                 return GestureDetector(
-                  onTap: () => setState(() => _method = m),
+                  onTap: () {
+                    if (!activated) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(activationRequiredMessage(m)),
+                        backgroundColor: AppColors.error,
+                      ));
+                      return;
+                    }
+                    setState(() => _method = m);
+                  },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.symmetric(
@@ -1558,13 +1613,26 @@ class _RecordPaymentSheetState
                           : AppColors.surfaceVariant,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      labels[m]!,
-                      style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color:
-                              active ? Colors.white : AppColors.textSecondary),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!activated) ...[
+                          Icon(Icons.lock_outline,
+                              size: 13, color: AppColors.textDisabled),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          labels[m]!,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: active
+                                  ? Colors.white
+                                  : activated
+                                      ? AppColors.textSecondary
+                                      : AppColors.textDisabled),
+                        ),
+                      ],
                     ),
                   ),
                 );
