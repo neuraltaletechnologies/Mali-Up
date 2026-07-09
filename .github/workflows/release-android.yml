@@ -52,8 +52,8 @@ jobs:
 
       - name: Decode signing keystore
         run: |
-          mkdir -p android/keystore
-          echo "${{ secrets.KEYSTORE_FILE_BASE64 }}" | base64 -d > android/keystore/mali-up-release.jks
+          mkdir -p android/app/keystore
+          echo "${{ secrets.KEYSTORE_FILE_BASE64 }}" | base64 -d > android/app/keystore/mali-up-release.jks
 
       - name: Build release App Bundle
         env:
@@ -77,4 +77,4 @@ jobs:
 
       - name: Remove decoded keystore
         if: always()
-        run: rm -f android/keystore/mali-up-release.jks
+        run: rm -f android/app/keystore/mali-up-release.jks
