@@ -416,12 +416,14 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen>
                                   const Icon(Icons.lock_outline_rounded,
                                       size: 12, color: AppColors.textMuted),
                                   SizedBox(width: 5),
-                                  Text(
-                                    OnboardingStrings.s(sw,
-                                        en: OnboardingStrings.phoneHelperEn,
-                                        sw: OnboardingStrings.phoneHelperSw),
-                                    style: GoogleFonts.dmSans(
-                                        fontSize: 12, color: AppColors.textMuted),
+                                  Flexible(
+                                    child: Text(
+                                      OnboardingStrings.s(sw,
+                                          en: OnboardingStrings.phoneHelperEn,
+                                          sw: OnboardingStrings.phoneHelperSw),
+                                      style: GoogleFonts.dmSans(
+                                          fontSize: 12, color: AppColors.textMuted),
+                                    ),
                                   ),
                                 ],
                               ),

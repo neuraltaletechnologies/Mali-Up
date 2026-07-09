@@ -323,15 +323,6 @@ class _DebtDarkHeader extends StatelessWidget {
                                   : AppColors.error,
                               size: 12,
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              '${_fmtAmt(net.abs())} ${net >= 0 ? _tr('in your favour', 'unafaidi') : _tr('against you', 'dhidi yako')}',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white60,
-                              ),
-                            ),
                           ],
                         ),
                       ],

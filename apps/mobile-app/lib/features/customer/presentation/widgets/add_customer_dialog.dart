@@ -191,15 +191,20 @@ class _AddCustomerDialogState extends ConsumerState<AddCustomerDialog> {
                                 : const Icon(Icons.contacts_outlined,
                                     size: 18, color: AppColors.navyPrimary),
                             SizedBox(width: 8),
-                            Text(
-                              _isImportingContact
-                                  ? _tr('Opening contacts…', 'Inafungua mawasiliano…')
-                                  : _tr('Import from Contacts',
-                                      'Ingiza kutoka Mawasiliano'),
-                              style: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.navyPrimary,
+                            Flexible(
+                              child: Text(
+                                _isImportingContact
+                                    ? _tr('Opening contacts…', 'Inafungua mawasiliano…')
+                                    : _tr('Import from Contacts',
+                                        'Ingiza kutoka Mawasiliano'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.navyPrimary,
+                                ),
                               ),
                             ),
                           ],
@@ -1103,12 +1108,16 @@ class _TypeTab extends StatelessWidget {
                     size: 15,
                     color: active ? Colors.white : AppColors.textMuted),
                 SizedBox(width: 6),
-                Text(
-                  label,
-                  style: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: active ? Colors.white : AppColors.textMuted,
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: active ? Colors.white : AppColors.textMuted,
+                    ),
                   ),
                 ),
               ],
