@@ -195,7 +195,9 @@
       "Bash(pnpm audit *)",
       "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);const advisories=j.advisories||{};for\\(const k in advisories\\){const a=advisories[k];if\\(/minimatch/i.test\\(a.module_name\\)\\)console.log\\(a.module_name,a.vulnerable_versions,a.patched_versions,a.title\\)}}catch\\(e\\){console.log\\('parse fail, raw len',d.length\\); console.log\\(d.slice\\(0,2000\\)\\)}}\\)\")",
       "Bash(pnpm why *)",
-      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);const advisories=j.advisories||{};let found=false;for\\(const k in advisories\\){if\\(/minimatch/i.test\\(advisories[k].module_name\\)\\){found=true;console.log\\(advisories[k].module_name,advisories[k].title\\)}}console.log\\('minimatch advisories remaining:',found\\)}catch\\(e\\){console.log\\(d.slice\\(0,1000\\)\\)}}\\)\")"
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);const advisories=j.advisories||{};let found=false;for\\(const k in advisories\\){if\\(/minimatch/i.test\\(advisories[k].module_name\\)\\){found=true;console.log\\(advisories[k].module_name,advisories[k].title\\)}}console.log\\('minimatch advisories remaining:',found\\)}catch\\(e\\){console.log\\(d.slice\\(0,1000\\)\\)}}\\)\")",
+      "PowerShell(gh --version 2>&1)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",

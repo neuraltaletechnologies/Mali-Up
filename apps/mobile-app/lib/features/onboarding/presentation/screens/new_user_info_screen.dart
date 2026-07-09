@@ -305,13 +305,15 @@ class _NewUserInfoScreenState extends ConsumerState<NewUserInfoScreen>
                                   const Icon(Icons.info_outline_rounded,
                                       size: 13, color: AppColors.textMuted),
                                   SizedBox(width: 5),
-                                  Text(
-                                    sw
-                                        ? 'Inatumika kwa arifa na nenosiri.'
-                                        : 'Used for notifications and password.',
-                                    style: GoogleFonts.dmSans(
-                                        fontSize: 12,
-                                        color: AppColors.textMuted),
+                                  Flexible(
+                                    child: Text(
+                                      sw
+                                          ? 'Inatumika kwa arifa na nenosiri.'
+                                          : 'Used for notifications and password.',
+                                      style: GoogleFonts.dmSans(
+                                          fontSize: 12,
+                                          color: AppColors.textMuted),
+                                    ),
                                   ),
                                 ],
                               ),

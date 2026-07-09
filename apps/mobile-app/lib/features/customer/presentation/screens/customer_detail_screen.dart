@@ -3045,12 +3045,16 @@ class _ToggleTab extends StatelessWidget {
                   size: 16,
                   color: active ? Colors.white : AppColors.textMuted),
               SizedBox(width: 6),
-              Text(
-                label,
-                style: GoogleFonts.dmSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: active ? Colors.white : AppColors.textMuted),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: active ? Colors.white : AppColors.textMuted),
+                ),
               ),
             ],
           ),

@@ -730,12 +730,14 @@ class _ManageBusinessesScreenState
                                   ),
                                 ),
                                 SizedBox(width: 8),
-                                Text(
-                                  _tr('Build me my website', 'Nitengeneze Tovuti Yangu'),
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 13,
-                                    color: AppColors.textMuted,
-                                    fontWeight: FontWeight.w500,
+                                Flexible(
+                                  child: Text(
+                                    _tr('Build me my website', 'Nitengenezee Tovuti Yangu'),
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 13,
+                                      color: AppColors.textMuted,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ],

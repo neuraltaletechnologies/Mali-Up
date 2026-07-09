@@ -98,7 +98,16 @@ class _PinDigitBoxState extends State<PinDigitBox> {
               ],
       ),
       child: Center(
-        child: Focus(
+        child: MediaQuery(
+          // Clamp text scaling inside the fixed-size circle so a large
+          // system font setting can't grow the digit glyph past the
+          // border and clip/overlap neighboring digit boxes.
+          data: MediaQuery.of(context).copyWith(
+            textScaler: MediaQuery.textScalerOf(context).clamp(
+              maxScaleFactor: 1.3,
+            ),
+          ),
+          child: Focus(
           onKeyEvent: (node, event) {
             if (event.logicalKey != LogicalKeyboardKey.backspace &&
                 event.logicalKey != LogicalKeyboardKey.delete) {
@@ -166,6 +175,7 @@ class _PinDigitBoxState extends State<PinDigitBox> {
               counterText: '',
               contentPadding: EdgeInsets.zero,
             ),
+          ),
           ),
         ),
       ),

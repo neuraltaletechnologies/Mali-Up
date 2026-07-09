@@ -593,14 +593,16 @@ class _BusinessDetailsScreenState extends ConsumerState<BusinessDetailsScreen>
                                       ),
                                     ),
                                     SizedBox(width: 8),
-                                    Text(
-                                      sw
-                                          ? 'Nitengeneze tovuti yangu'
-                                          : 'Build me my website',
-                                      style: GoogleFonts.dmSans(
-                                        fontSize: 13,
-                                        color: AppColors.textMuted,
-                                        fontWeight: FontWeight.w500,
+                                    Flexible(
+                                      child: Text(
+                                        sw
+                                            ? 'Nitengenezee tovuti yangu'
+                                            : 'Build me my website',
+                                        style: GoogleFonts.dmSans(
+                                          fontSize: 13,
+                                          color: AppColors.textMuted,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
                                     ),
                                   ],
