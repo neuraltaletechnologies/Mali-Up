@@ -273,31 +273,38 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.42),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.lock_rounded,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          _tr('Secure', 'Salama'),
-                          style: GoogleFonts.dmSans(
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.42),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.lock_rounded,
+                            size: 14,
                             color: Colors.white,
-                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                      ],
+                          SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              _tr('Secure', 'Salama'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.dmSans(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -442,38 +449,49 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         ),
                       const SizedBox(height: 24),
                       Center(
-                        child: PinCodeTextField(
-                          appContext: context,
-                          length: 6,
-                          animationType: AnimationType.fade,
-                          pinTheme: PinTheme(
-                            shape: PinCodeFieldShape.circle,
-                            fieldHeight: 52,
-                            fieldWidth: 52,
-                            activeFillColor: fieldBg,
-                            selectedFillColor: fieldBg,
-                            inactiveFillColor: fieldBg,
-                            activeColor: AppColors.primary,
-                            selectedColor: AppColors.primary,
-                            inactiveColor: AppColors.border,
-                            borderWidth: 1,
+                        // Clamp text scaling inside the fixed-size circular
+                        // fields so a large system font setting can't grow
+                        // the digit glyph past the border and clip/overlap
+                        // neighboring OTP boxes.
+                        child: MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                            textScaler: MediaQuery.textScalerOf(context).clamp(
+                              maxScaleFactor: 1.3,
+                            ),
                           ),
-                          animationDuration: const Duration(milliseconds: 300),
-                          enableActiveFill: true,
-                          controller: _otpController,
-                          focusNode: _otpFocusNode,
-                          onCompleted: (value) {
-                            _verifyOTP();
-                          },
-                          onChanged: (value) {
-                            setState(() {
-                              _errorMessage = null;
-                              _successMessage = null;
-                            });
-                          },
-                          beforeTextPaste: (text) {
-                            return false; // Disable paste
-                          },
+                          child: PinCodeTextField(
+                            appContext: context,
+                            length: 6,
+                            animationType: AnimationType.fade,
+                            pinTheme: PinTheme(
+                              shape: PinCodeFieldShape.circle,
+                              fieldHeight: 52,
+                              fieldWidth: 52,
+                              activeFillColor: fieldBg,
+                              selectedFillColor: fieldBg,
+                              inactiveFillColor: fieldBg,
+                              activeColor: AppColors.primary,
+                              selectedColor: AppColors.primary,
+                              inactiveColor: AppColors.border,
+                              borderWidth: 1,
+                            ),
+                            animationDuration: const Duration(milliseconds: 300),
+                            enableActiveFill: true,
+                            controller: _otpController,
+                            focusNode: _otpFocusNode,
+                            onCompleted: (value) {
+                              _verifyOTP();
+                            },
+                            onChanged: (value) {
+                              setState(() {
+                                _errorMessage = null;
+                                _successMessage = null;
+                              });
+                            },
+                            beforeTextPaste: (text) {
+                              return false; // Disable paste
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),

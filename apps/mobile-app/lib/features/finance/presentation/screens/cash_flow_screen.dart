@@ -95,6 +95,10 @@ class _CashFlowDarkHeader extends ConsumerWidget {
     final total = ref.watch(totalCashPositionProvider);
     final inflow = ref.watch(monthlyInflowProvider);
     final outflow = ref.watch(monthlyOutflowProvider);
+    final month = ref.watch(cfMonthProvider);
+    final monthNotifier = ref.read(cfMonthProvider.notifier);
+    final isCurrentMonth = month.year == DateTime.now().year &&
+        month.month == DateTime.now().month;
 
     Future<void> onAddAccount() async {
       final plan = await ref.read(planStatusProvider.future);
@@ -131,35 +135,59 @@ class _CashFlowDarkHeader extends ConsumerWidget {
           child: Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _tr('Cash Flow', 'Mtitiko wa Fedha'),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      _fmtAmt(total),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white60,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  _tr('Cash Flow', 'Mtiririko'),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
               GestureDetector(
+                onTap: monthNotifier.prev,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    color: Colors.white12,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.chevron_left_rounded,
+                      color: Colors.white70, size: 20),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                DateFormat.yMMM().format(month),
+                style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white70),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: isCurrentMonth ? null : monthNotifier.next,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    color: Colors.white12,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.chevron_right_rounded,
+                      color:
+                          isCurrentMonth ? Colors.white24 : Colors.white70,
+                      size: 20),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
                 onTap: onAddAccount,
                 child: Container(
-                  width: 42,
-                  height: 42,
+                  width: 36,
+                  height: 36,
                   decoration: const BoxDecoration(
                     color: Colors.white12,
                     shape: BoxShape.circle,
@@ -167,7 +195,7 @@ class _CashFlowDarkHeader extends ConsumerWidget {
                   child: const Icon(
                     Icons.add_card_outlined,
                     color: Colors.white,
-                    size: 20,
+                    size: 18,
                   ),
                 ),
               ),
@@ -354,17 +382,14 @@ class _OverviewTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accountsAsync = ref.watch(cashAccountListProvider);
-    final month = ref.watch(cfMonthProvider);
     final recentTxns = ref.watch(cfTransactionsByMonthProvider);
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _MonthNavigator(month: month),
-
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             child: Text(
               _tr('My Accounts', 'Akaunti Zangu'),
               style: GoogleFonts.dmSans(
@@ -497,13 +522,10 @@ class _StatementTab extends ConsumerWidget {
     final monthLabel = DateFormat.yMMMM().format(month);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _MonthNavigator(month: month),
-          const SizedBox(height: 8),
-
           OutlinedButton.icon(
             onPressed: () => Navigator.push(
               context,
@@ -594,50 +616,6 @@ class _StatementTab extends ConsumerWidget {
 }
 
 // ── Shared widgets ────────────────────────────────────────────────────────────
-
-class _MonthNavigator extends ConsumerWidget {
-  final DateTime month;
-  const _MonthNavigator({required this.month});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(cfMonthProvider.notifier);
-    final isCurrentMonth = month.year == DateTime.now().year &&
-        month.month == DateTime.now().month;
-
-    return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: notifier.prev,
-            icon: const Icon(Icons.chevron_left, size: 20),
-            color: AppColors.navyPrimary,
-            visualDensity: VisualDensity.compact,
-          ),
-          Text(
-            DateFormat.yMMMM().format(month),
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.navyPrimary,
-            ),
-          ),
-          IconButton(
-            onPressed: isCurrentMonth ? null : notifier.next,
-            icon: const Icon(Icons.chevron_right, size: 20),
-            color: isCurrentMonth
-                ? AppColors.textDisabled
-                : AppColors.navyPrimary,
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _AccountCard extends StatelessWidget {
   final CashAccount account;

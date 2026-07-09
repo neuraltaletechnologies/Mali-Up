@@ -492,19 +492,23 @@ class _InvitationBody extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.60),
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.yellowBrand,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Text(
-                        role,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.navyPrimary,
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.yellowBrand,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(
+                          role,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navyPrimary,
+                          ),
                         ),
                       ),
                     ),
@@ -528,12 +532,16 @@ class _InvitationBody extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.60),
                       ),
                     ),
-                    Text(
-                      name,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                    Flexible(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.dmSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],

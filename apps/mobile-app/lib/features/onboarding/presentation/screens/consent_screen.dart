@@ -375,13 +375,15 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen>
                                           size: 16,
                                           color: AppColors.navyPrimary),
                                       SizedBox(width: 8),
-                                      Text(
-                                        _t('Your Data Rights (PDPA)',
-                                            'Haki Zako za Taarifa (PDPA)'),
-                                        style: GoogleFonts.dmSans(
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.navyPrimary,
-                                          fontSize: 13,
+                                      Flexible(
+                                        child: Text(
+                                          _t('Your Data Rights (PDPA)',
+                                              'Haki Zako za Taarifa (PDPA)'),
+                                          style: GoogleFonts.dmSans(
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.navyPrimary,
+                                            fontSize: 13,
+                                          ),
                                         ),
                                       ),
                                     ],
