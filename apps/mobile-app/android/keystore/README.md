@@ -95,13 +95,22 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
    secret.
 
 ### 4. First automated release
-The workflow ships to the `production` Play track at **100% rollout**
-(`status: completed`) — there is no staged percentage and no manual
-completion step in Play Console. Because there's no automated safety net
-once a build is merged to `production`, reviewing and merging the promotion
-PR (opened by `promote-to-production.yml`, described above) is the only gate
-before a release goes out to every user. Review that diff carefully before
-merging.
+The workflow ships to the `production` Play track at a **20% staged
+rollout** (`status: inProgress`). This is deliberate: Google Play's automatic
+bad-release detection (crash-rate/ANR anomaly halting) only has room to act
+on a rollout that hasn't already reached 100% of users — it can't undo a
+release that went out to everyone instantly. Check Play Console → your app →
+Quality → Android vitals to confirm this protection is active for the app.
+
+Bump the rollout to 100% manually in Play Console once you've confirmed the
+release is healthy (no crash-rate spike, no halt triggered). Adjust
+`userFraction` in the workflow if you'd rather change the starting
+percentage.
+
+Reviewing and merging the promotion PR (opened by
+`promote-to-production.yml`, described above) is still the first gate before
+anything ships — the staged rollout is a second layer, not a replacement for
+reviewing the diff.
 
 Do not merge the first `main` → `production` promotion PR until the upload
 key reset above has been approved — the first automated release will fail
