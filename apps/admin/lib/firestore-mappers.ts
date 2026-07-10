@@ -49,7 +49,7 @@ export function mapUser(uid: string, data: Record<string, unknown>): AdminUser {
     email:         (data.email as string) || undefined,
     status:        normaliseUserStatus(data),
     businessCount: businesses.length,
-    lastLogin:     toIso(data.lastLoginAt),
+    lastLogin:     toIso(data.lastActiveAt ?? data.lastLoginAt),
     joinedAt:      toIso(data.createdAt),
   }
 }

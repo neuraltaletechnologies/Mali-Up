@@ -25,8 +25,8 @@ export default function DeleteAccountPage() {
         </ol>
         <p className="mt-2">
           If you can no longer sign in to the app, email{' '}
-          <a href="mailto:privacy@maliup.co.tz" className="text-[#F5A623] hover:underline">
-            privacy@maliup.co.tz
+          <a href="mailto:support@neuraltale.com" className="text-[#F5A623] hover:underline">
+            support@neuraltale.com
           </a>{' '}
           from the address or phone number associated with your account and request deletion. We
           respond within 30 days.

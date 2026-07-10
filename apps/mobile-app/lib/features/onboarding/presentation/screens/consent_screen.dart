@@ -464,6 +464,6 @@ If your data is compromised, we notify you within 72 hours (PDPA requirement).
 8. CHANGES TO POLICY
 Significant policy changes require email notification and 30-day notice.
 
-For questions: privacy@maliup.co.tz''';
+For questions: support@neuraltale.com''';
   }
 }
