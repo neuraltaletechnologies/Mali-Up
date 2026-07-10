@@ -131,6 +131,7 @@ abstract final class AppMotion {
       pageBuilder: (context, animation, secondaryAnimation) => builder(context),
       reverseTransitionDuration: reverse,
       transitionsBuilder: rise,
+      fullscreenDialog: true,
     );
   }
 

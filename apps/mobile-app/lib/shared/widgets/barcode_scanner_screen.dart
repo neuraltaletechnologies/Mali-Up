@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_motion.dart';
 import '../../core/services/sentry_metrics_service.dart';
 import '../../core/services/localization_service.dart';
 
@@ -19,9 +20,8 @@ class BarcodeScannerScreen extends StatefulWidget {
 
   static Future<String?> show(BuildContext context, {String? title}) {
     return Navigator.of(context).push<String>(
-      MaterialPageRoute(
+      AppMotion.taskRoute<String>(
         builder: (_) => BarcodeScannerScreen(title: title),
-        fullscreenDialog: true,
       ),
     );
   }
@@ -162,9 +162,8 @@ class PosScannerScreen extends StatefulWidget {
     String title = 'Scan Items',
   }) async {
     final result = await Navigator.of(context).push<List<PosCartEntry>>(
-      MaterialPageRoute(
+      AppMotion.taskRoute<List<PosCartEntry>>(
         builder: (_) => PosScannerScreen(onScanned: onScanned, title: title),
-        fullscreenDialog: true,
       ),
     );
     return result ?? [];
