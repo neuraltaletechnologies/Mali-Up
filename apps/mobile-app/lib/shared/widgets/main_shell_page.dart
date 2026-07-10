@@ -45,6 +45,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   final _planActivationWatcher = _PlanActivationWatcher();
   String _currentBusinessName = '';
   late final VoidCallback _versionGateListener;
+  // slotPosition (0..2) -> catalog key of the screen assigned to that nav
+  // slot. Empty until loaded from SharedPreferences; missing entries fall
+  // back to _defaultSlotOrder.
+  Map<int, String> _navSlotOverrides = {};
 
   @override
   void initState() {
@@ -65,6 +69,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       if (mounted) setState(() {});
     };
     LocalizationService.languageNotifier.addListener(_languageListener);
+    _loadNavSlotOverrides();
     _liveActivity.initialize();
     // The version-gate fetch kicked off in main.dart may still be in flight
     // when this shell first mounts, so listen for the result as well as
@@ -846,16 +851,18 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     return index >= 0 ? index : 0;
   }
 
-  List<_NavDestination> _buildNavDestinations(PermissionService ps) {
+  static const _homeKey = 'home';
+  // Default occupants of the 3 customizable slots, in order, before the
+  // user long-presses to swap any of them out.
+  static const _defaultSlotOrder = ['sales', 'inventory', 'customers'];
+
+  /// Every screen the current role is allowed to see, available to be
+  /// assigned to a nav slot. Order here is the order shown in the picker.
+  List<_NavDestination> _fullNavCatalog(PermissionService ps) {
     return [
-      _NavDestination(
-        route: AppRouter.dashboardPath,
-        label: _tr('Home', 'Nyumbani'),
-        icon: Icons.grid_view_outlined,
-        activeIcon: Icons.grid_view_rounded,
-      ),
       if (ps.canViewSales)
         _NavDestination(
+          key: 'sales',
           route: AppRouter.salesPath,
           label: _tr('Invoices', 'Ankara'),
           icon: Icons.receipt_outlined,
@@ -863,6 +870,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         ),
       if (ps.canViewInventory)
         _NavDestination(
+          key: 'inventory',
           route: AppRouter.inventoryPath,
           label: _tr('Stock', 'Bidhaa'),
           icon: Icons.inventory_2_outlined,
@@ -870,12 +878,199 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
         ),
       if (ps.canViewCustomers)
         _NavDestination(
+          key: 'customers',
           route: AppRouter.crmPath,
           label: _tr('Clients', 'Wateja'),
           icon: Icons.people_outline_rounded,
           activeIcon: Icons.people_rounded,
         ),
+      if (ps.canViewDebt)
+        _NavDestination(
+          key: 'debt',
+          route: AppRouter.debtPath,
+          label: _tr('Debt', 'Madeni'),
+          icon: Icons.account_balance_outlined,
+          activeIcon: Icons.account_balance_rounded,
+        ),
+      if (ps.canManageExpenses)
+        _NavDestination(
+          key: 'expenses',
+          route: AppRouter.expensesPath,
+          label: _tr('Expenses', 'Gharama'),
+          icon: Icons.payments_outlined,
+          activeIcon: Icons.payments_rounded,
+        ),
+      if (ps.canViewCashFlow)
+        _NavDestination(
+          key: 'cashflow',
+          route: AppRouter.cashFlowPath,
+          label: _tr('Cash Flow', 'Mtiririko'),
+          icon: Icons.account_balance_wallet_outlined,
+          activeIcon: Icons.account_balance_wallet_rounded,
+        ),
+      if (ps.canViewFinancialReports)
+        _NavDestination(
+          key: 'reports',
+          route: AppRouter.reportsPath,
+          label: _tr('Reports', 'Ripoti'),
+          icon: Icons.bar_chart_outlined,
+          activeIcon: Icons.bar_chart_rounded,
+        ),
     ];
+  }
+
+  List<_NavDestination> _buildNavDestinations(PermissionService ps) {
+    final catalog = _fullNavCatalog(ps);
+    final catalogByKey = {for (final d in catalog) d.key: d};
+
+    final slots = <_NavDestination>[];
+    for (var i = 0; i < _defaultSlotOrder.length; i++) {
+      final overrideKey = _navSlotOverrides[i];
+      final resolvedKey = (overrideKey != null && catalogByKey.containsKey(overrideKey))
+          ? overrideKey
+          : _defaultSlotOrder[i];
+      final entry = catalogByKey[resolvedKey];
+      // Skip if the resolved screen isn't permitted, or is already used by
+      // an earlier slot (guards against a stale override colliding with a
+      // freshly-granted default).
+      if (entry == null || slots.any((s) => s.key == entry.key)) continue;
+      slots.add(entry.withSlotPosition(i));
+    }
+
+    return [
+      _NavDestination(
+        key: _homeKey,
+        route: AppRouter.dashboardPath,
+        label: _tr('Home', 'Nyumbani'),
+        icon: Icons.grid_view_outlined,
+        activeIcon: Icons.grid_view_rounded,
+      ),
+      ...slots,
+    ];
+  }
+
+  Future<void> _loadNavSlotOverrides() async {
+    final prefs = await SharedPreferences.getInstance();
+    final loaded = <int, String>{};
+    for (var i = 0; i < _defaultSlotOrder.length; i++) {
+      final value = prefs.getString('nav_slot_override_$i');
+      if (value != null) loaded[i] = value;
+    }
+    if (!mounted) return;
+    setState(() => _navSlotOverrides = loaded);
+  }
+
+  /// Assigns [newKey] to [slotPosition]. If [newKey] already occupies a
+  /// different slot, the two slots swap so no icon is ever duplicated.
+  Future<void> _assignNavSlot(int slotPosition, String newKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    final updated = Map<int, String>.from(_navSlotOverrides);
+
+    String keyAt(int i) =>
+        updated[i] ?? (i < _defaultSlotOrder.length ? _defaultSlotOrder[i] : '');
+    final currentKeyAtSlot = keyAt(slotPosition);
+
+    for (var i = 0; i < _defaultSlotOrder.length; i++) {
+      if (i == slotPosition) continue;
+      if (keyAt(i) == newKey) {
+        updated[i] = currentKeyAtSlot;
+        await prefs.setString('nav_slot_override_$i', currentKeyAtSlot);
+      }
+    }
+    updated[slotPosition] = newKey;
+    await prefs.setString('nav_slot_override_$slotPosition', newKey);
+
+    if (!mounted) return;
+    setState(() => _navSlotOverrides = updated);
+  }
+
+  Future<void> _openNavPickerSheet(
+    BuildContext context,
+    PermissionService ps,
+    _NavDestination current,
+  ) async {
+    final slotPosition = current.slotPosition;
+    if (slotPosition == null) return;
+    HapticFeedback.mediumImpact();
+    final catalog = _fullNavCatalog(ps);
+
+    final selectedKey = await showAppSheet<String>(
+      context,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('Choose an icon for this slot', 'Chagua aikoni kwa nafasi hii'),
+                  style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: catalog.map((d) {
+                    final isSelected = d.key == current.key;
+                    return GestureDetector(
+                      onTap: () => Navigator.of(sheetContext).pop(d.key),
+                      child: Container(
+                        width: 78,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.primary.withValues(alpha: 0.1)
+                              : AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.border,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              d.activeIcon,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.secondary,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              d.label,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.secondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedKey == null || selectedKey == current.key) return;
+    await _assignNavSlot(slotPosition, selectedKey);
   }
 
   static bool _isSelected(String location, String route) {
@@ -1124,6 +1319,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                             destination,
                             isSelected,
                             index,
+                            onLongPress: destination.slotPosition == null
+                                ? null
+                                : () => _openNavPickerSheet(
+                                    context,
+                                    ps,
+                                    destination,
+                                  ),
                           );
                         }),
                       ),
@@ -1142,10 +1344,12 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     BuildContext context,
     _NavDestination destination,
     bool isSelected,
-    int index,
-  ) {
+    int index, {
+    VoidCallback? onLongPress,
+  }) {
     return GestureDetector(
       onTap: () => context.go(destination.route),
+      onLongPress: onLongPress,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: 64,
@@ -1262,17 +1466,32 @@ class _PlanActivationWatcher {
 }
 
 class _NavDestination {
+  final String key;
   final String route;
   final String label;
   final IconData icon;
   final IconData activeIcon;
+  // Which of the 3 customizable nav slots this occupies; null for Home,
+  // which is fixed and not long-press-editable.
+  final int? slotPosition;
 
   const _NavDestination({
+    required this.key,
     required this.route,
     required this.label,
     required this.icon,
     required this.activeIcon,
+    this.slotPosition,
   });
+
+  _NavDestination withSlotPosition(int position) => _NavDestination(
+    key: key,
+    route: route,
+    label: label,
+    icon: icon,
+    activeIcon: activeIcon,
+    slotPosition: position,
+  );
 }
 
 class _FinanceContextSwitcher extends StatelessWidget {

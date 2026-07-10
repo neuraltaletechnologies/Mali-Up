@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Search, ChevronRight, Sun, Moon, Menu } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -68,7 +69,10 @@ export function TopBar() {
   const { theme, setTheme } = useTheme()
   const toggleSidebar = useSidebarStore((s) => s.toggle)
   const initial = (session?.user?.name ?? 'A').charAt(0).toUpperCase()
-  const isDark = theme === 'dark'
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const isDark = mounted && theme === 'dark'
 
   return (
     <header className="fixed top-0 right-0 left-0 lg:left-[240px] h-12 z-20 bg-[var(--topbar-bg)] border-b border-[var(--topbar-border)] flex items-center px-3 sm:px-6 gap-3 sm:gap-4">
