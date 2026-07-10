@@ -28,6 +28,13 @@ function getAdminApp() {
 export const adminApp = getAdminApp()
 export const adminAuth = admin.auth(adminApp)
 export const adminFirestore = admin.firestore(adminApp)
+
+// This app runs on Cloudflare Workers (via OpenNext), which doesn't support
+// the long-lived gRPC/HTTP2 streams the Firestore SDK uses by default —
+// falling back to plain HTTP REST avoids multi-second stalls/retries on
+// every query. Must be set before any other Firestore call.
+adminFirestore.settings({ preferRest: true })
+
 export const adminStorage = admin.storage(adminApp).bucket('neuraltale-mali-up.firebasestorage.app')
 
 /**

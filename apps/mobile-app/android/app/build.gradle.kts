@@ -66,6 +66,10 @@ android {
     }
 }
 
+dependencies {
+    implementation("com.google.android.play:integrity:1.4.0")
+}
+
 flutter {
     source = "../.."
 }

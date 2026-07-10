@@ -21,6 +21,7 @@ class AuditLogService {
   static const String roleChanged      = 'role_changed';
   static const String permissionsChanged = 'permissions_changed';
   static const String userSignedIn     = 'user_signed_in';
+  static const String deviceIntegrityChecked = 'device_integrity_checked';
 
   // Customer-management actions
   static const String customerCreated     = 'customer_created';
@@ -103,6 +104,44 @@ class AuditLogService {
         'entityType': 'session',
         'performedBy': performedByUid,
         'performedByName': performedByName,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Best-effort: do not propagate audit-log failures.
+    }
+  }
+
+  /// Logs a Play Integrity device-check result captured at sign-in. Same
+  /// best-effort semantics as [log] — this is informational only, it never
+  /// gates sign-in. Skipped when [businessId] is empty, same as [logSignIn].
+  Future<void> logDeviceIntegrity({
+    required String businessId,
+    required String performedByUid,
+    required List<String> deviceRecognitionVerdict,
+    String? recentDeviceActivityLevel,
+    int? sdkVersion,
+    String? playProtectVerdict,
+    List<String>? appAccessRiskApps,
+    String? appRecognitionVerdict,
+    String? appLicensingVerdict,
+  }) async {
+    if (businessId.isEmpty) return;
+    try {
+      await _firestore
+          .collection('businesses')
+          .doc(businessId)
+          .collection('audit_logs')
+          .add({
+        'action': deviceIntegrityChecked,
+        'entityType': 'session',
+        'performedBy': performedByUid,
+        'deviceRecognitionVerdict': deviceRecognitionVerdict,
+        'recentDeviceActivityLevel': ?recentDeviceActivityLevel,
+        'sdkVersion': ?sdkVersion,
+        'playProtectVerdict': ?playProtectVerdict,
+        'appAccessRiskApps': ?appAccessRiskApps,
+        'appRecognitionVerdict': ?appRecognitionVerdict,
+        'appLicensingVerdict': ?appLicensingVerdict,
         'timestamp': FieldValue.serverTimestamp(),
       });
     } catch (_) {

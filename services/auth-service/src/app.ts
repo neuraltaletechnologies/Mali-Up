@@ -39,7 +39,10 @@ export const buildApp = async () => {
     // keep working — set CORS_ALLOWED_ORIGINS in production.
     origin: allowedOrigins.length > 0 ? allowedOrigins : true,
   });
-  await app.register(jwt, { secret: jwtSecret });
+  // Default expiry applies to every jwt.sign() call in this service unless
+  // overridden — without it, @fastify/jwt omits `exp` entirely and issues
+  // tokens that never expire.
+  await app.register(jwt, { secret: jwtSecret, sign: { expiresIn: '1h' } });
   await app.register(rateLimit, {
     global: true,
     max: 100,

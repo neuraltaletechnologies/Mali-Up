@@ -9,6 +9,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../data/services/onboarding_service.dart';
 import '../domain/models/onboarding_state.dart';
 import '../domain/models/user_lookup_result.dart';
+import '../../../core/services/device_integrity_service.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/services/sentry_metrics_service.dart';
 import '../../rbac/data/role_cache_service.dart';
@@ -288,6 +289,10 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         Sentry.configureScope((s) => s.setUser(SentryUser(id: uid)));
+        unawaited(DeviceIntegrityService.checkAndLog(
+          businessId: state.businessId,
+          performedByUid: uid,
+        ));
       }
       SentryMetricsService.authSuccess('pin_login');
       state = state.copyWith(
@@ -380,6 +385,10 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         Sentry.configureScope((s) => s.setUser(SentryUser(id: uid)));
+        unawaited(DeviceIntegrityService.checkAndLog(
+          businessId: state.businessId,
+          performedByUid: uid,
+        ));
       }
       SentryMetricsService.authSuccess('team_member_setup');
       state = state.copyWith(
@@ -468,6 +477,10 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         Sentry.configureScope((s) => s.setUser(SentryUser(id: uid)));
+        unawaited(DeviceIntegrityService.checkAndLog(
+          businessId: bizId,
+          performedByUid: uid,
+        ));
       }
       SentryMetricsService.authSuccess('new_owner_registration');
       state = state.copyWith(
