@@ -15,11 +15,12 @@ import '../../../../shared/widgets/mali_components.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../customer/data/customer_providers.dart';
-import '../../data/cash_flow_providers.dart';
+import '../../data/finance_providers.dart';
 import '../../data/payment_account_service.dart';
 import '../../domain/models/expense.dart';
 import '../../domain/models/recurring_expense_template.dart';
 import '../../domain/payment_method_accounts.dart';
+import '../widgets/payment_account_chips.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
 
@@ -70,26 +71,6 @@ extension _CatX on _Cat {
   );
 }
 
-enum _PayMethod { cash, mpesa, bank, card }
-
-extension _PayMethodX on _PayMethod {
-  String get key => name;
-
-  String get label => switch (this) {
-    _PayMethod.cash => _tr('Cash', 'Taslimu'),
-    _PayMethod.mpesa => 'M-Pesa',
-    _PayMethod.bank => _tr('Bank', 'Benki'),
-    _PayMethod.card => _tr('Card', 'Kadi'),
-  };
-
-  IconData get icon => switch (this) {
-    _PayMethod.cash => Icons.payments_rounded,
-    _PayMethod.mpesa => Icons.phone_android_rounded,
-    _PayMethod.bank => Icons.account_balance_rounded,
-    _PayMethod.card => Icons.credit_card_rounded,
-  };
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -105,7 +86,7 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
 
 class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   _Cat _cat = _Cat.other;
-  _PayMethod _payMethod = _PayMethod.cash;
+  String? _selectedAccountId;
   DateTime _date = DateTime.now();
   String _receiptUrl = '';
   File? _receiptFile;
@@ -131,10 +112,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     if (widget.expenseToEdit != null) {
       final e = widget.expenseToEdit!;
       _cat = _CatX.fromKey(e.category);
-      _payMethod = _PayMethod.values.firstWhere(
-        (m) => m.key == e.paymentMethod,
-        orElse: () => _PayMethod.cash,
-      );
+      // Prefer the exact account recorded at save time (works for custom
+      // accounts too); fall back to resolving a built-in from the legacy
+      // method string for older expenses that predate this field.
+      _selectedAccountId = e.paymentAccountId.isNotEmpty
+          ? e.paymentAccountId
+          : PaymentMethodAccounts.accountIdForMethod(e.paymentMethod);
       _amountCtrl.text = e.amount;
       _noteCtrl.text = e.note;
       _recipientCtrl.text = e.recipient;
@@ -275,13 +258,29 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       return;
     }
 
-    // Money paid out must leave an activated payment channel — an
-    // unactivated Taslimu/M-Pesa/Benki/Kadi cannot be used to pay expenses.
-    final account = await activatedAccountForMethod(ref, _payMethod.key);
-    if (account == null) {
-      _showSnack(activationRequiredMessage(_payMethod.key));
+    // Money paid out must leave a chosen, activated payment account —
+    // PaymentAccountChips only lets an activated built-in or custom account
+    // become selected, so a null selection here just means nothing was picked.
+    if (_selectedAccountId == null) {
+      _showSnack(_tr('Select a payment account', 'Chagua akaunti ya malipo'));
       return;
     }
+    final account =
+        await ref.read(cashRepositoryProvider).getAccountById(_selectedAccountId!);
+    if (account == null) {
+      _showSnack(_tr(
+        'That payment account is no longer available. Choose another.',
+        'Akaunti hiyo ya malipo haipatikani tena. Chagua nyingine.',
+      ));
+      return;
+    }
+    final paymentMethodValue = switch (account.id) {
+      PaymentMethodAccounts.cashId => 'cash',
+      PaymentMethodAccounts.mpesaId => 'mpesa',
+      PaymentMethodAccounts.bankId => 'bank',
+      PaymentMethodAccounts.cardId => 'card',
+      _ => account.name,
+    };
 
     setState(() => _saving = true);
 
@@ -312,7 +311,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         'date': dateStr,
         'note': _noteCtrl.text.trim(),
         'recipient': _recipientCtrl.text.trim(),
-        'paymentMethod': _payMethod.key,
+        'paymentMethod': paymentMethodValue,
+        'paymentAccountId': account.id,
         'status': status,
         'createdBy': user.uid,
         'isRecurring': _isRecurring,
@@ -335,6 +335,23 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         if (_isRecurring) {
           await _createRecurringTemplate(user.uid, ctx, repo, dateStr);
         }
+      }
+
+      // Money paid out leaves the chosen account — Drift balance moves
+      // instantly, the queued op replays on Firestore later. Credit
+      // purchases move no money now (a payable debt is recorded instead),
+      // and edits never re-withdraw for money already paid the first time.
+      if (!_isEditing && !_isCreditPurchase) {
+        await moveMoneyForAccount(
+          ref,
+          accountId: account.id,
+          amount: double.tryParse(amountStr) ?? 0,
+          isDeposit: false,
+          description: _recipientCtrl.text.trim().isNotEmpty
+              ? _recipientCtrl.text.trim()
+              : _cat.label,
+          createdBy: user.uid,
+        );
       }
 
       // Auto-create payable debt when expense is not fully paid to supplier
@@ -504,9 +521,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _PaymentMethodChips(
-                      selected: _payMethod,
-                      onSelect: (m) => setState(() => _payMethod = m),
+                    PaymentAccountChips(
+                      selectedAccountId: _selectedAccountId,
+                      onSelectAccount: (a) =>
+                          setState(() => _selectedAccountId = a.id),
                     ),
                     const SizedBox(height: 20),
                     _SectionLabel(_tr('Details', 'Maelezo')),
@@ -918,89 +936,6 @@ class _DateChip extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _PaymentMethodChips extends ConsumerStatefulWidget {
-  final _PayMethod selected;
-  final ValueChanged<_PayMethod> onSelect;
-
-  const _PaymentMethodChips({required this.selected, required this.onSelect});
-
-  @override
-  ConsumerState<_PaymentMethodChips> createState() =>
-      _PaymentMethodChipsState();
-}
-
-class _PaymentMethodChipsState extends ConsumerState<_PaymentMethodChips> {
-  @override
-  Widget build(BuildContext context) {
-    final activatedIds = ref.watch(activatedMethodAccountsProvider);
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _PayMethod.values.map((m) {
-        final active = m == widget.selected;
-        final activated = activatedIds.containsKey(
-          PaymentMethodAccounts.accountIdForMethod(m.key),
-        );
-        return GestureDetector(
-          onTap: () {
-            if (!activated) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(activationRequiredMessage(m.key)),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              );
-              return;
-            }
-            widget.onSelect(m);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              color: active ? AppColors.navyPrimary : Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: active ? AppColors.navyPrimary : AppColors.border,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  activated ? m.icon : Icons.lock_outline_rounded,
-                  size: 15,
-                  color: active
-                      ? Colors.white
-                      : activated
-                      ? AppColors.textMuted
-                      : AppColors.textDisabled,
-                ),
-                SizedBox(width: 6),
-                Text(
-                  m.label,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: active
-                        ? Colors.white
-                        : activated
-                        ? AppColors.textSecondary
-                        : AppColors.textDisabled,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 }

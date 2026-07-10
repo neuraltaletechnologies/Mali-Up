@@ -64,6 +64,7 @@ Future<void> mirrorInvoiceFieldsToDrift(
   String? status,
   double? amountPaid,
   String? paymentMethod,
+  String? paymentAccountId,
   String? type,
 }) async {
   try {
@@ -84,6 +85,7 @@ Future<void> mirrorInvoiceFieldsToDrift(
       status: status,
       amountPaid: amountPaid,
       paymentMethod: paymentMethod,
+      paymentAccountId: paymentAccountId,
       type: type,
       updatedAt: DateTime.now().toIso8601String(),
     );

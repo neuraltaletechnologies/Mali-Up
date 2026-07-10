@@ -66,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -151,6 +151,22 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(masterCategoriesTable);
             await m.createTable(masterProductsTable);
             await _createV8Indexes();
+          }
+          if (from < 10) {
+            // Custom cash accounts: invoices and debt repayments now record
+            // the exact CashAccount they moved money through (not just the
+            // fixed cash/mpesa/bank/card method string), so a later
+            // "Mark as Paid" or repayment lookup resolves the same custom
+            // account even if it was renamed.
+            await customStatement(
+              "ALTER TABLE invoices ADD COLUMN payment_account_id TEXT NOT NULL DEFAULT ''",
+            );
+            await customStatement(
+              "ALTER TABLE debt_payments ADD COLUMN account_id TEXT NOT NULL DEFAULT ''",
+            );
+            await customStatement(
+              "ALTER TABLE expenses ADD COLUMN payment_account_id TEXT NOT NULL DEFAULT ''",
+            );
           }
         },
         beforeOpen: (details) async {

@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../config/routing.dart';
 import '../../../../shared/widgets/app_sheet.dart';
+import '../../../../core/services/business_profile_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -61,6 +62,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     _loadCachedProfile();
+    BusinessProfileService.updatedNotifier.addListener(_onBusinessProfileUpdated);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() => _showHeavyContent = true);
@@ -71,6 +73,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (mounted) setState(() {});
       });
     });
+  }
+
+  /// Business logo/name/plan was just edited elsewhere (e.g. Manage Businesses) —
+  /// bypass the 24h TTL and refetch now so the Hero card reflects it immediately.
+  void _onBusinessProfileUpdated() {
+    if (!mounted) return;
+    _maybeRefreshFromFirestore(force: true);
   }
 
   // ── Profile cache helpers ────────────────────────────────────────────────────
@@ -96,13 +105,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   /// Fetches fresh profile data from Firestore only if the cache is older than
   /// [_kTtl] (default 24 h). Skips the network call entirely on most opens.
-  Future<void> _maybeRefreshFromFirestore() async {
+  Future<void> _maybeRefreshFromFirestore({bool force = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final lastFetchMs = prefs.getInt(_kFetchedAt) ?? 0;
     final cacheAge = DateTime.now().difference(
       DateTime.fromMillisecondsSinceEpoch(lastFetchMs),
     );
-    if (lastFetchMs > 0 && cacheAge < _kTtl) return; // cache is fresh, skip
+    if (!force && lastFetchMs > 0 && cacheAge < _kTtl) return; // cache is fresh, skip
 
     final fresh = await _fetchUserProfile();
     if (!mounted || fresh == null) return;
@@ -548,10 +557,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                     // ── Top Performers ───────────────────────────────────
                     if ((permissions.canViewSales || permissions.isOwner) &&
-                        salesItems.isNotEmpty) ...[
+                        salesItems.isNotEmpty)
                       _TopPerformersSection(salesItems: salesItems),
-                      const SizedBox(height: 28),
-                    ],
 
                     // ── Cash position ────────────────────────────────────
                     if ((permissions.canViewCashFlow || permissions.isOwner) &&
@@ -590,6 +597,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    BusinessProfileService.updatedNotifier.removeListener(_onBusinessProfileUpdated);
     super.dispose();
   }
 
@@ -1146,9 +1154,10 @@ class _UnifiedHeroCard extends StatefulWidget {
 class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
   bool _detailsVisible = false;
 
-  static const _gradA = AppColors.navyPrimary;
-  static const _gradB = AppColors.navySecondary;
-  static const _gradC = AppColors.tealAccent;
+  // Matte premium card face — near-black navy with a faint teal cast
+  static const _gradA = Color(0xFF091026);
+  static const _gradB = Color(0xFF0D1B3E);
+  static const _gradC = Color(0xFF0E2C42);
 
   @override
   Widget build(BuildContext context) {
@@ -1156,7 +1165,7 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'M';
     final amountText = _detailsVisible
         ? _fmtCompactAmount(widget.totalCash)
-        : '••••••';
+        : '•••• ••••';
     final clientsText = _detailsVisible ? '${widget.customerCount}' : '••';
     final expText = _detailsVisible
         ? _fmtCompactAmount(widget.monthExpenses)
@@ -1178,52 +1187,49 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
           child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               gradient: const LinearGradient(
                 colors: [_gradA, _gradB, _gradC],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                stops: [0.0, 0.5, 1.0],
+                stops: [0.0, 0.55, 1.0],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.navyPrimary.withValues(alpha: 0.65),
-                  blurRadius: 36,
-                  offset: const Offset(0, 18),
-                  spreadRadius: -6,
+                  color: Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 28,
+                  offset: const Offset(0, 14),
+                  spreadRadius: -8,
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.22),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.20),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
             child: Stack(
               children: [
-                // Decorative arc — top-right
-                Positioned(
-                  right: -70,
-                  top: -70,
-                  child: Container(
-                    width: 240,
-                    height: 240,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.04),
-                    ),
-                  ),
+                // Guilloche-style engraved texture
+                const Positioned.fill(
+                  child: CustomPaint(painter: _CardTexturePainter()),
                 ),
-                // Decorative arc — bottom-left (teal tint)
-                Positioned(
-                  left: -55,
-                  bottom: -55,
-                  child: Container(
-                    width: 190,
-                    height: 190,
+                // Soft sheen sweeping from the top-left corner
+                Positioned.fill(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.tealAccent.withValues(alpha: 0.09),
+                      gradient: RadialGradient(
+                        center: const Alignment(-1.1, -1.2),
+                        radius: 1.6,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.07),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.6],
+                      ),
                     ),
                   ),
                 ),
@@ -1247,16 +1253,15 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                 ),
                 // Card content
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // ── Top row: chip | name + plan | logo ──────────────
+                      // ── Top row: issuer name + plan | contactless | logo ─
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const _CardChip(),
-                          SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1268,45 +1273,42 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                     color: AppColors.yellowBrand,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.6,
+                                    letterSpacing: 1.8,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                 Text(
                                   (widget.plan ?? 'Trial').toUpperCase(),
                                   style: GoogleFonts.dmSans(
-                                    color: Colors.white.withValues(alpha: 0.42),
-                                    fontSize: 8,
+                                    color: Colors.white.withValues(alpha: 0.38),
+                                    fontSize: 7.5,
                                     fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.3,
+                                    letterSpacing: 1.6,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           const SizedBox(width: 10),
+                          Icon(
+                            Icons.contactless_rounded,
+                            size: 18,
+                            color: Colors.white.withValues(alpha: 0.55),
+                          ),
+                          const SizedBox(width: 10),
                           // Business logo avatar
                           Container(
-                            width: 40,
-                            height: 40,
+                            width: 34,
+                            height: 34,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: AppColors.yellowBrand,
                               border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.28),
-                                width: 1.5,
+                                color: Colors.white.withValues(alpha: 0.25),
+                                width: 1.2,
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.yellowBrand.withValues(
-                                    alpha: 0.40,
-                                  ),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: widget.logoUrl != null &&
@@ -1322,10 +1324,12 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                         ],
                       ),
 
-                      // ── Balance section ──────────────────────────────────
+                      // ── Chip + balance (card-number position) ────────────
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
+                          const _CardChip(),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1334,13 +1338,13 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                 Text(
                                   _tr('TOTAL BALANCE', 'JUMLA YA FEDHA'),
                                   style: GoogleFonts.dmSans(
-                                    color: Colors.white.withValues(alpha: 0.48),
-                                    fontSize: 9,
+                                    color: Colors.white.withValues(alpha: 0.45),
+                                    fontSize: 8,
                                     fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.4,
+                                    letterSpacing: 1.6,
                                   ),
                                 ),
-                                SizedBox(height: 6),
+                                const SizedBox(height: 4),
                                 AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 260),
                                   transitionBuilder: (child, anim) =>
@@ -1353,10 +1357,19 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                                     key: ValueKey(_detailsVisible),
                                     style: GoogleFonts.dmSans(
                                       color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -0.8,
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.0,
                                       height: 1.0,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.45,
+                                          ),
+                                          offset: const Offset(0, 1.5),
+                                          blurRadius: 2,
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -1369,54 +1382,75 @@ class _UnifiedHeroCardState extends State<_UnifiedHeroCard> {
                               () => _detailsVisible = !_detailsVisible,
                             ),
                             child: Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(7),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.10),
-                                borderRadius: BorderRadius.circular(10),
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(9),
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.14),
+                                  color: Colors.white.withValues(alpha: 0.12),
                                 ),
                               ),
                               child: Icon(
                                 _detailsVisible
                                     ? Icons.visibility_rounded
                                     : Icons.visibility_off_rounded,
-                                size: 16,
-                                color: Colors.white.withValues(alpha: 0.75),
+                                size: 15,
+                                color: Colors.white.withValues(alpha: 0.7),
                               ),
                             ),
                           ),
                         ],
                       ),
 
-                      // ── Stats row ────────────────────────────────────────
+                      // ── Footer: stats | brand wordmark ───────────────────
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          _CardStatItem(
-                            label: _tr('Clients', 'Wateja'),
+                          _CardFooterStat(
+                            label: _tr('CLIENTS', 'WATEJA'),
                             value: clientsText,
                           ),
-                          Container(
-                            width: 1,
-                            height: 26,
-                            color: Colors.white.withValues(alpha: 0.15),
-                          ),
-                          _CardStatItem(
-                            label: _tr('Expenses', 'Gharama'),
+                          const SizedBox(width: 18),
+                          _CardFooterStat(
+                            label: _tr('EXPENSES', 'GHARAMA'),
                             value: expText,
                             color: expText == '••••'
                                 ? null
                                 : const Color(0xFFF87171),
                           ),
-                          Container(
-                            width: 1,
-                            height: 26,
-                            color: Colors.white.withValues(alpha: 0.15),
-                          ),
-                          _CardStatItem(
-                            label: _tr('Net YTD', 'Faida Mwaka'),
+                          const SizedBox(width: 18),
+                          _CardFooterStat(
+                            label: _tr('NET YTD', 'FAIDA MWAKA'),
                             value: netText,
                             color: netText == '••••' ? null : netColor,
+                          ),
+                          const Spacer(),
+                          // Brand mark — network-logo position
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'MALI',
+                                  style: GoogleFonts.dmSans(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    fontStyle: FontStyle.italic,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: ' UP',
+                                  style: GoogleFonts.dmSans(
+                                    color: AppColors.yellowBrand,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    fontStyle: FontStyle.italic,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -1461,8 +1495,8 @@ class _CardChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 42,
-      height: 32,
+      width: 38,
+      height: 28,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFCFA23A), Color(0xFFEDC84A), Color(0xFFAF8520)],
@@ -1470,7 +1504,7 @@ class _CardChip extends StatelessWidget {
           end: Alignment.bottomRight,
           stops: [0.0, 0.5, 1.0],
         ),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.4),
@@ -1508,40 +1542,81 @@ class _ChipPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter _) => false;
 }
 
-class _CardStatItem extends StatelessWidget {
+class _CardFooterStat extends StatelessWidget {
   final String label;
   final String value;
   final Color? color;
 
-  const _CardStatItem({required this.label, required this.value, this.color});
+  const _CardFooterStat({
+    required this.label,
+    required this.value,
+    this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: GoogleFonts.dmSans(
-              color: color ?? Colors.white,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w800,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            color: Colors.white.withValues(alpha: 0.42),
+            fontSize: 7,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.2,
           ),
-          SizedBox(height: 3),
-          Text(
-            label,
-            style: GoogleFonts.dmSans(
-              color: Colors.white.withValues(alpha: 0.5),
-              fontSize: 9.5,
-              fontWeight: FontWeight.w500,
-            ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.dmSans(
+            color: color ?? Colors.white.withValues(alpha: 0.92),
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+}
+
+/// Fine engraved-line texture reminiscent of guilloche patterns on
+/// premium bank cards. Painted once — cheap, static decoration.
+class _CardTexturePainter extends CustomPainter {
+  const _CardTexturePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.7;
+
+    // Sweeping concentric arcs from the top-right corner
+    line.color = Colors.white.withValues(alpha: 0.035);
+    final arcCenter = Offset(size.width * 1.05, -size.height * 0.25);
+    for (var r = size.width * 0.30; r < size.width * 1.15; r += 16) {
+      canvas.drawCircle(arcCenter, r, line);
+    }
+
+    // Counter-arcs from the bottom-left, teal-tinted
+    line.color = AppColors.tealAccent.withValues(alpha: 0.07);
+    final arcCenter2 = Offset(-size.width * 0.10, size.height * 1.30);
+    for (var r = size.width * 0.22; r < size.width * 0.85; r += 14) {
+      canvas.drawCircle(arcCenter2, r, line);
+    }
+
+    // Single gold accent arc
+    line
+      ..color = AppColors.yellowBrand.withValues(alpha: 0.10)
+      ..strokeWidth = 1.1;
+    canvas.drawCircle(arcCenter, size.width * 0.72, line);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter _) => false;
 }
 
 // ── Sales chart ───────────────────────────────────────────────────────────────
@@ -1943,7 +2018,9 @@ class _TopPerformersSection extends StatelessWidget {
 
     if (products.isEmpty && customers.isEmpty) return const SizedBox.shrink();
 
-    return Container(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 28),
+      child: Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
@@ -2018,6 +2095,7 @@ class _TopPerformersSection extends StatelessWidget {
 
           const SizedBox(height: 4),
         ],
+      ),
       ),
     );
   }

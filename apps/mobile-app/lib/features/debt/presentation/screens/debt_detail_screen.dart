@@ -9,6 +9,10 @@ import '../../../../core/services/localization_service.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/mali_components.dart';
+import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/models/cash_account.dart';
+import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../data/customer_debt_sync_service.dart';
 import '../../data/debt_providers.dart';
 import '../../domain/models/debt.dart';
@@ -1128,7 +1132,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  String _method = 'cash';
+  CashAccount? _selectedAccount;
   late DateTime _date;
   bool _saving = false;
 
@@ -1147,6 +1151,15 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final account = _selectedAccount;
+    if (account == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            _tr('Select a payment account', 'Chagua akaunti ya malipo')),
+        backgroundColor: AppColors.error,
+      ));
+      return;
+    }
     setState(() => _saving = true);
 
     try {
@@ -1159,14 +1172,22 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
           0;
       final dateStr =
           '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
+      final method = switch (account.id) {
+        PaymentMethodAccounts.cashId => 'cash',
+        PaymentMethodAccounts.mpesaId => 'mpesa',
+        PaymentMethodAccounts.bankId => 'bank',
+        PaymentMethodAccounts.cardId => 'card',
+        _ => account.name,
+      };
 
       final payment = DebtPayment(
         id: '',
         amount: amount,
         date: dateStr,
-        method: _method,
+        method: method,
         note: _noteCtrl.text.trim(),
         recordedBy: user.uid,
+        accountId: account.id,
       );
 
       // Records payment locally and queues sync; also updates paidAmount.
@@ -1202,6 +1223,19 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
         ref,
         before: widget.debt,
         after: updatedDebt,
+      );
+
+      // A receivable being collected is money coming in; a payable being
+      // paid off is money going out — either way it moves through the
+      // chosen account so Cash Flow reflects debt collection/settlement.
+      await moveMoneyForAccount(
+        ref,
+        accountId: account.id,
+        amount: amount,
+        isDeposit: widget.debt.type == 'receivable',
+        description: widget.debt.partyName,
+        reference: widget.debt.id,
+        createdBy: user.uid,
       );
 
       widget.onSaved();
@@ -1307,32 +1341,9 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
                   color: AppColors.textMuted),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                _MethodChip(
-                    method: 'cash',
-                    label: _tr('Cash', 'Taslimu'),
-                    selected: _method,
-                    onSelect: (v) => setState(() => _method = v)),
-                const SizedBox(width: 8),
-                _MethodChip(
-                    method: 'mpesa',
-                    label: 'M-Pesa',
-                    selected: _method,
-                    onSelect: (v) => setState(() => _method = v)),
-                const SizedBox(width: 8),
-                _MethodChip(
-                    method: 'bank',
-                    label: _tr('Bank', 'Benki'),
-                    selected: _method,
-                    onSelect: (v) => setState(() => _method = v)),
-                const SizedBox(width: 8),
-                _MethodChip(
-                    method: 'card',
-                    label: _tr('Card', 'Kadi'),
-                    selected: _method,
-                    onSelect: (v) => setState(() => _method = v)),
-              ],
+            PaymentAccountChips(
+              selectedAccountId: _selectedAccount?.id,
+              onSelectAccount: (a) => setState(() => _selectedAccount = a),
             ),
             const SizedBox(height: 14),
 
@@ -1387,48 +1398,6 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MethodChip extends StatelessWidget {
-  final String method;
-  final String label;
-  final String selected;
-  final ValueChanged<String> onSelect;
-
-  const _MethodChip({
-    required this.method,
-    required this.label,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final active = selected == method;
-    return GestureDetector(
-      onTap: () => onSelect(method),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: active ? AppColors.navyPrimary : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color:
-                active ? AppColors.navyPrimary : AppColors.border,
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.dmSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: active ? Colors.white : AppColors.textSecondary,
-          ),
         ),
       ),
     );
