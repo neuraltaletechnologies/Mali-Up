@@ -28,9 +28,10 @@ import '../../../customer/domain/models/customer.dart';
 import '../../../customer/presentation/widgets/add_customer_dialog.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
-import '../../../finance/data/cash_flow_providers.dart';
 import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../../inventory/domain/models/inventory_item.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
@@ -48,31 +49,6 @@ String _tr(String en, String sw) => LocalizationService.tr(en: en, sw: sw);
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
 enum _PayStatus { paid, partial, unpaid }
-
-enum _QuickPayMethod { cash, mpesa, bank, card }
-
-extension _QuickPayMethodX on _QuickPayMethod {
-  String get label => switch (this) {
-    _QuickPayMethod.cash => _tr('Cash', 'Taslimu'),
-    _QuickPayMethod.mpesa => 'M-Pesa',
-    _QuickPayMethod.bank => _tr('Bank', 'Benki'),
-    _QuickPayMethod.card => _tr('Card', 'Kadi'),
-  };
-
-  IconData get icon => switch (this) {
-    _QuickPayMethod.cash => Icons.payments_rounded,
-    _QuickPayMethod.mpesa => Icons.phone_android_rounded,
-    _QuickPayMethod.bank => Icons.account_balance_rounded,
-    _QuickPayMethod.card => Icons.credit_card_rounded,
-  };
-
-  String get firestoreKey => switch (this) {
-    _QuickPayMethod.cash => 'cash',
-    _QuickPayMethod.mpesa => 'mpesa',
-    _QuickPayMethod.bank => 'bank_transfer',
-    _QuickPayMethod.card => 'card',
-  };
-}
 
 enum _SalesFilter { all, paid, sent, overdue, draft, cancelled }
 
@@ -1798,11 +1774,27 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   List<Customer> _customerSuggs = [];
   bool _showCustomerSuggs = false;
   _PayStatus _payStatus = _PayStatus.paid;
-  _QuickPayMethod _payMethod = _QuickPayMethod.cash;
+  CashAccount? _selectedAccount;
   final _mpesaRefCtrl = TextEditingController();
   DateTime? _dueDate;
   bool _vatEnabled = false;
   bool _isSaving = false;
+
+  /// Value written to the invoice's `paymentMethod` field. Built-in channels
+  /// keep the exact strings quick sale has always written ('bank_transfer'
+  /// for Bank, matching the historical firestoreKey); a custom account's
+  /// name is used instead so reports group by it meaningfully.
+  String get _paymentMethodValue {
+    final acc = _selectedAccount;
+    if (acc == null) return '';
+    return switch (acc.id) {
+      PaymentMethodAccounts.cashId => 'cash',
+      PaymentMethodAccounts.mpesaId => 'mpesa',
+      PaymentMethodAccounts.bankId => 'bank_transfer',
+      PaymentMethodAccounts.cardId => 'card',
+      _ => acc.name,
+    };
+  }
 
   double get _subtotal => _items.fold(0.0, (s, e) => s + e.lineTotal);
   // Discount can never exceed the subtotal — otherwise VAT (computed on the
@@ -2142,17 +2134,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       amountPaid = 0;
     }
 
-    // Money received now must land in an activated payment channel —
-    // an unactivated Taslimu/M-Pesa/Benki/Kadi cannot take sale money.
-    if (payStatus != _PayStatus.unpaid && amountPaid > 0) {
-      final account = await activatedAccountForMethod(
-        ref,
-        _payMethod.firestoreKey,
-      );
-      if (account == null) {
-        _snack(activationRequiredMessage(_payMethod.firestoreKey));
-        return;
-      }
+    // Money received now must land in a chosen, activated payment account —
+    // PaymentAccountChips only lets an activated built-in or custom account
+    // become selected, so a null selection here just means nothing was picked.
+    if (payStatus != _PayStatus.unpaid && amountPaid > 0 && _selectedAccount == null) {
+      _snack(_tr('Select a payment account', 'Chagua akaunti ya malipo'));
+      return;
     }
 
     // Enforce credit limit: block the sale if the projected balance after
@@ -2240,8 +2227,9 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         tax: _vatAmt,
         total: _grandTotal,
         amountPaid: amountPaid,
-        paymentMethod: payStatus != _PayStatus.unpaid
-            ? _payMethod.firestoreKey
+        paymentMethod: payStatus != _PayStatus.unpaid ? _paymentMethodValue : '',
+        paymentAccountId: payStatus != _PayStatus.unpaid
+            ? (_selectedAccount?.id ?? '')
             : '',
         items: invoiceItems,
         note: notes,
@@ -2293,14 +2281,17 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
               );
         }
 
-        // Money received lands in the activated payment channel — Drift
-        // balance moves instantly, the queued op replays on Firestore later.
-        if (payStatus != _PayStatus.unpaid) {
-          await depositSaleIntoMethodAccount(
+        // Money received lands in the chosen account — Drift balance moves
+        // instantly, the queued op replays on Firestore later.
+        if (payStatus != _PayStatus.unpaid && _selectedAccount != null) {
+          await moveMoneyForAccount(
             ref,
-            method: _payMethod.firestoreKey,
+            accountId: _selectedAccount!.id,
             amount: amountPaid,
-            invoiceNumber: invoiceNumber,
+            isDeposit: true,
+            description:
+                LocalizationService.tr(en: 'Sale $invoiceNumber', sw: 'Mauzo $invoiceNumber'),
+            reference: invoiceNumber,
             createdBy: user.uid,
           );
         }
@@ -2361,10 +2352,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
         'amount': _grandTotal,
         'totalAmount': _grandTotal,
         'amountPaid': amountPaid,
-        if (payStatus != _PayStatus.unpaid)
-          'paymentMethod': _payMethod.firestoreKey,
+        if (payStatus != _PayStatus.unpaid) ...{
+          'paymentMethod': _paymentMethodValue,
+          'paymentAccountId': _selectedAccount?.id ?? '',
+        },
         if (payStatus != _PayStatus.unpaid &&
-            _payMethod == _QuickPayMethod.mpesa &&
+            _selectedAccount?.id == PaymentMethodAccounts.mpesaId &&
             mpesaRef.isNotEmpty)
           'mpesaRef': mpesaRef,
         if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
@@ -2468,14 +2461,17 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       // without waiting for the next Firestore sync pull.
       await mirrorInvoiceToDrift(ref, invoiceObj);
 
-      // Money received lands in the activated payment channel — Drift
-      // balance moves instantly, the queued op replays on Firestore later.
-      if (payStatus != _PayStatus.unpaid) {
-        await depositSaleIntoMethodAccount(
+      // Money received lands in the chosen account — Drift balance moves
+      // instantly, the queued op replays on Firestore later.
+      if (payStatus != _PayStatus.unpaid && _selectedAccount != null) {
+        await moveMoneyForAccount(
           ref,
-          method: _payMethod.firestoreKey,
+          accountId: _selectedAccount!.id,
           amount: amountPaid,
-          invoiceNumber: invoiceNumber,
+          isDeposit: true,
+          description:
+              LocalizationService.tr(en: 'Sale $invoiceNumber', sw: 'Mauzo $invoiceNumber'),
+          reference: invoiceNumber,
           createdBy: scope.userUid,
         );
       }
@@ -2548,8 +2544,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       'vatAmount': _vatAmt,
       'amount': _grandTotal,
       'amountPaid': amountPaid,
-      if (payStatus != _PayStatus.unpaid)
-        'paymentMethod': _payMethod.firestoreKey,
+      if (payStatus != _PayStatus.unpaid) 'paymentMethod': _paymentMethodValue,
       if (mpesaRef.isNotEmpty) 'mpesaRef': mpesaRef,
       'status': statusStr,
       'createdAt': now,
@@ -3678,74 +3673,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            children: _QuickPayMethod.values.map((m) {
-              final active = m == _payMethod;
-              final activated = ref
-                  .watch(activatedMethodAccountsProvider)
-                  .containsKey(
-                    PaymentMethodAccounts.accountIdForMethod(m.firestoreKey),
-                  );
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: GestureDetector(
-                    onTap: () {
-                      if (!activated) {
-                        _snack(activationRequiredMessage(m.firestoreKey));
-                        return;
-                      }
-                      setState(() => _payMethod = m);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 160),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? AppColors.navyPrimary
-                            : AppColors.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: active
-                              ? AppColors.navyPrimary
-                              : AppColors.border,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            activated ? m.icon : Icons.lock_outline,
-                            size: 16,
-                            color: active
-                                ? Colors.white
-                                : activated
-                                ? AppColors.textMuted
-                                : AppColors.textDisabled,
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            m.label,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: active
-                                  ? Colors.white
-                                  : activated
-                                  ? AppColors.textMuted
-                                  : AppColors.textDisabled,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+          PaymentAccountChips(
+            selectedAccountId: _selectedAccount?.id,
+            onSelectAccount: (account) =>
+                setState(() => _selectedAccount = account),
           ),
-          if (_payMethod == _QuickPayMethod.mpesa) ...[
+          if (_selectedAccount?.id == PaymentMethodAccounts.mpesaId) ...[
             const SizedBox(height: 10),
             TextField(
               controller: _mpesaRefCtrl,

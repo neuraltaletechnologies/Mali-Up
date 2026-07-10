@@ -14,9 +14,9 @@ import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/app_sheet.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../customer/data/customer_providers.dart';
-import '../../../finance/data/cash_flow_providers.dart';
-import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../rbac/data/audit_log_service.dart';
 import '../../../rbac/data/rbac_providers.dart';
 import '../../data/invoice_local_mirror.dart';
@@ -187,11 +187,13 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     try {
       // Credit isn't how the money arrived — default the quick action to cash.
       final method = (_inv['paymentMethod'] ?? '').toString();
+      final storedAccountId = (_inv['paymentAccountId'] ?? '').toString();
       final result = await settleInvoicePayment(
         ref,
         invoice: _inv,
         amount: _outstanding,
         method: method.isEmpty || method == 'credit' ? 'cash' : method,
+        accountId: storedAccountId.isNotEmpty ? storedAccountId : null,
         auditDetails: 'mark_paid',
       );
       if (!mounted) return;
@@ -365,11 +367,13 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     setState(() => _updating = true);
     try {
       final method = (result['method'] ?? 'cash').toString();
+      final accountId = (result['accountId'] ?? '').toString();
       final paymentResult = await settleInvoicePayment(
         ref,
         invoice: _inv,
         amount: amount,
         method: method,
+        accountId: accountId.isNotEmpty ? accountId : null,
         reference: (result['reference'] ?? '').toString(),
       );
       if (!mounted) return;
@@ -383,6 +387,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
           'amountPaid': paymentResult.newAmountPaid,
           'status': paymentResult.newStatus,
           'paymentMethod': method,
+          'paymentAccountId': accountId,
         };
         _updating = false;
       });
@@ -1480,7 +1485,7 @@ class _RecordPaymentSheetState
     extends ConsumerState<_RecordPaymentSheet> {
   final _amountCtrl = TextEditingController();
   final _refCtrl = TextEditingController();
-  String _method = 'cash';
+  CashAccount? _selectedAccount;
   final bool _saving = false;
 
   @override
@@ -1509,9 +1514,24 @@ class _RecordPaymentSheetState
               Text(_tr('Enter a valid amount', 'Ingiza kiasi sahihi'))));
       return;
     }
+    final account = _selectedAccount;
+    if (account == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              _tr('Select a payment account', 'Chagua akaunti ya malipo'))));
+      return;
+    }
+    final method = switch (account.id) {
+      PaymentMethodAccounts.cashId => 'cash',
+      PaymentMethodAccounts.mpesaId => 'mpesa',
+      PaymentMethodAccounts.bankId => 'bank',
+      PaymentMethodAccounts.cardId => 'card',
+      _ => account.name,
+    };
     Navigator.of(context).pop({
       'amount': amount,
-      'method': _method,
+      'method': method,
+      'accountId': account.id,
       'reference': _refCtrl.text.trim(),
     });
   }
@@ -1577,68 +1597,12 @@ class _RecordPaymentSheetState
               ),
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: ['cash', 'mpesa', 'bank', 'card'].map((m) {
-                final labels = {
-                  'cash': _tr('Cash', 'Taslimu'),
-                  'mpesa': 'M-Pesa',
-                  'bank': _tr('Bank', 'Benki'),
-                  'card': _tr('Card', 'Kadi'),
-                };
-                final active = m == _method;
-                final activated = ref
-                    .watch(activatedMethodAccountsProvider)
-                    .containsKey(
-                        PaymentMethodAccounts.accountIdForMethod(m));
-                return GestureDetector(
-                  onTap: () {
-                    if (!activated) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(activationRequiredMessage(m)),
-                        backgroundColor: AppColors.error,
-                      ));
-                      return;
-                    }
-                    setState(() => _method = m);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: active
-                          ? AppColors.navyPrimary
-                          : AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (!activated) ...[
-                          Icon(Icons.lock_outline,
-                              size: 13, color: AppColors.textDisabled),
-                          const SizedBox(width: 4),
-                        ],
-                        Text(
-                          labels[m]!,
-                          style: GoogleFonts.dmSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: active
-                                  ? Colors.white
-                                  : activated
-                                      ? AppColors.textSecondary
-                                      : AppColors.textDisabled),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+            PaymentAccountChips(
+              selectedAccountId: _selectedAccount?.id,
+              onSelectAccount: (account) =>
+                  setState(() => _selectedAccount = account),
             ),
-            if (_method == 'mpesa') ...[
+            if (_selectedAccount?.id == PaymentMethodAccounts.mpesaId) ...[
               SizedBox(height: 12),
               TextField(
                 controller: _refCtrl,

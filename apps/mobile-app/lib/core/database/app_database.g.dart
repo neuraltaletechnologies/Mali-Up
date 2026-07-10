@@ -181,6 +181,18 @@ class $InvoicesTableTable extends InvoicesTable
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _paymentAccountIdMeta = const VerificationMeta(
+    'paymentAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> paymentAccountId = GeneratedColumn<String>(
+    'payment_account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
@@ -290,6 +302,7 @@ class $InvoicesTableTable extends InvoicesTable
     total,
     amountPaid,
     paymentMethod,
+    paymentAccountId,
     note,
     createdBy,
     createdAt,
@@ -439,6 +452,15 @@ class $InvoicesTableTable extends InvoicesTable
         ),
       );
     }
+    if (data.containsKey('payment_account_id')) {
+      context.handle(
+        _paymentAccountIdMeta,
+        paymentAccountId.isAcceptableOrUnknown(
+          data['payment_account_id']!,
+          _paymentAccountIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('note')) {
       context.handle(
         _noteMeta,
@@ -570,6 +592,10 @@ class $InvoicesTableTable extends InvoicesTable
         DriftSqlType.string,
         data['${effectivePrefix}payment_method'],
       )!,
+      paymentAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_account_id'],
+      )!,
       note: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}note'],
@@ -629,6 +655,7 @@ class InvoicesTableData extends DataClass
   final double total;
   final double amountPaid;
   final String paymentMethod;
+  final String paymentAccountId;
   final String note;
   final String createdBy;
   final int createdAt;
@@ -654,6 +681,7 @@ class InvoicesTableData extends DataClass
     required this.total,
     required this.amountPaid,
     required this.paymentMethod,
+    required this.paymentAccountId,
     required this.note,
     required this.createdBy,
     required this.createdAt,
@@ -682,6 +710,7 @@ class InvoicesTableData extends DataClass
     map['total'] = Variable<double>(total);
     map['amount_paid'] = Variable<double>(amountPaid);
     map['payment_method'] = Variable<String>(paymentMethod);
+    map['payment_account_id'] = Variable<String>(paymentAccountId);
     map['note'] = Variable<String>(note);
     map['created_by'] = Variable<String>(createdBy);
     map['created_at'] = Variable<int>(createdAt);
@@ -713,6 +742,7 @@ class InvoicesTableData extends DataClass
       total: Value(total),
       amountPaid: Value(amountPaid),
       paymentMethod: Value(paymentMethod),
+      paymentAccountId: Value(paymentAccountId),
       note: Value(note),
       createdBy: Value(createdBy),
       createdAt: Value(createdAt),
@@ -748,6 +778,7 @@ class InvoicesTableData extends DataClass
       total: serializer.fromJson<double>(json['total']),
       amountPaid: serializer.fromJson<double>(json['amountPaid']),
       paymentMethod: serializer.fromJson<String>(json['paymentMethod']),
+      paymentAccountId: serializer.fromJson<String>(json['paymentAccountId']),
       note: serializer.fromJson<String>(json['note']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -778,6 +809,7 @@ class InvoicesTableData extends DataClass
       'total': serializer.toJson<double>(total),
       'amountPaid': serializer.toJson<double>(amountPaid),
       'paymentMethod': serializer.toJson<String>(paymentMethod),
+      'paymentAccountId': serializer.toJson<String>(paymentAccountId),
       'note': serializer.toJson<String>(note),
       'createdBy': serializer.toJson<String>(createdBy),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -806,6 +838,7 @@ class InvoicesTableData extends DataClass
     double? total,
     double? amountPaid,
     String? paymentMethod,
+    String? paymentAccountId,
     String? note,
     String? createdBy,
     int? createdAt,
@@ -831,6 +864,7 @@ class InvoicesTableData extends DataClass
     total: total ?? this.total,
     amountPaid: amountPaid ?? this.amountPaid,
     paymentMethod: paymentMethod ?? this.paymentMethod,
+    paymentAccountId: paymentAccountId ?? this.paymentAccountId,
     note: note ?? this.note,
     createdBy: createdBy ?? this.createdBy,
     createdAt: createdAt ?? this.createdAt,
@@ -876,6 +910,9 @@ class InvoicesTableData extends DataClass
       paymentMethod: data.paymentMethod.present
           ? data.paymentMethod.value
           : this.paymentMethod,
+      paymentAccountId: data.paymentAccountId.present
+          ? data.paymentAccountId.value
+          : this.paymentAccountId,
       note: data.note.present ? data.note.value : this.note,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -912,6 +949,7 @@ class InvoicesTableData extends DataClass
           ..write('total: $total, ')
           ..write('amountPaid: $amountPaid, ')
           ..write('paymentMethod: $paymentMethod, ')
+          ..write('paymentAccountId: $paymentAccountId, ')
           ..write('note: $note, ')
           ..write('createdBy: $createdBy, ')
           ..write('createdAt: $createdAt, ')
@@ -942,6 +980,7 @@ class InvoicesTableData extends DataClass
     total,
     amountPaid,
     paymentMethod,
+    paymentAccountId,
     note,
     createdBy,
     createdAt,
@@ -971,6 +1010,7 @@ class InvoicesTableData extends DataClass
           other.total == this.total &&
           other.amountPaid == this.amountPaid &&
           other.paymentMethod == this.paymentMethod &&
+          other.paymentAccountId == this.paymentAccountId &&
           other.note == this.note &&
           other.createdBy == this.createdBy &&
           other.createdAt == this.createdAt &&
@@ -998,6 +1038,7 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
   final Value<double> total;
   final Value<double> amountPaid;
   final Value<String> paymentMethod;
+  final Value<String> paymentAccountId;
   final Value<String> note;
   final Value<String> createdBy;
   final Value<int> createdAt;
@@ -1024,6 +1065,7 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     this.total = const Value.absent(),
     this.amountPaid = const Value.absent(),
     this.paymentMethod = const Value.absent(),
+    this.paymentAccountId = const Value.absent(),
     this.note = const Value.absent(),
     this.createdBy = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1051,6 +1093,7 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     required double total,
     this.amountPaid = const Value.absent(),
     this.paymentMethod = const Value.absent(),
+    this.paymentAccountId = const Value.absent(),
     this.note = const Value.absent(),
     this.createdBy = const Value.absent(),
     required int createdAt,
@@ -1089,6 +1132,7 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     Expression<double>? total,
     Expression<double>? amountPaid,
     Expression<String>? paymentMethod,
+    Expression<String>? paymentAccountId,
     Expression<String>? note,
     Expression<String>? createdBy,
     Expression<int>? createdAt,
@@ -1116,6 +1160,7 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
       if (total != null) 'total': total,
       if (amountPaid != null) 'amount_paid': amountPaid,
       if (paymentMethod != null) 'payment_method': paymentMethod,
+      if (paymentAccountId != null) 'payment_account_id': paymentAccountId,
       if (note != null) 'note': note,
       if (createdBy != null) 'created_by': createdBy,
       if (createdAt != null) 'created_at': createdAt,
@@ -1145,6 +1190,7 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     Value<double>? total,
     Value<double>? amountPaid,
     Value<String>? paymentMethod,
+    Value<String>? paymentAccountId,
     Value<String>? note,
     Value<String>? createdBy,
     Value<int>? createdAt,
@@ -1172,6 +1218,7 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
       total: total ?? this.total,
       amountPaid: amountPaid ?? this.amountPaid,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentAccountId: paymentAccountId ?? this.paymentAccountId,
       note: note ?? this.note,
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
@@ -1235,6 +1282,9 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
     if (paymentMethod.present) {
       map['payment_method'] = Variable<String>(paymentMethod.value);
     }
+    if (paymentAccountId.present) {
+      map['payment_account_id'] = Variable<String>(paymentAccountId.value);
+    }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
@@ -1284,6 +1334,7 @@ class InvoicesTableCompanion extends UpdateCompanion<InvoicesTableData> {
           ..write('total: $total, ')
           ..write('amountPaid: $amountPaid, ')
           ..write('paymentMethod: $paymentMethod, ')
+          ..write('paymentAccountId: $paymentAccountId, ')
           ..write('note: $note, ')
           ..write('createdBy: $createdBy, ')
           ..write('createdAt: $createdAt, ')
@@ -3005,6 +3056,18 @@ class $ExpensesTableTable extends ExpensesTable
     requiredDuringInsert: false,
     defaultValue: const Constant('cash'),
   );
+  static const VerificationMeta _paymentAccountIdMeta = const VerificationMeta(
+    'paymentAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> paymentAccountId = GeneratedColumn<String>(
+    'payment_account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -3123,6 +3186,7 @@ class $ExpensesTableTable extends ExpensesTable
     templateId,
     receiptUrl,
     paymentMethod,
+    paymentAccountId,
     status,
     approvedBy,
     createdBy,
@@ -3239,6 +3303,15 @@ class $ExpensesTableTable extends ExpensesTable
         paymentMethod.isAcceptableOrUnknown(
           data['payment_method']!,
           _paymentMethodMeta,
+        ),
+      );
+    }
+    if (data.containsKey('payment_account_id')) {
+      context.handle(
+        _paymentAccountIdMeta,
+        paymentAccountId.isAcceptableOrUnknown(
+          data['payment_account_id']!,
+          _paymentAccountIdMeta,
         ),
       );
     }
@@ -3367,6 +3440,10 @@ class $ExpensesTableTable extends ExpensesTable
         DriftSqlType.string,
         data['${effectivePrefix}payment_method'],
       )!,
+      paymentAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_account_id'],
+      )!,
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -3427,6 +3504,7 @@ class ExpensesTableData extends DataClass
   final String templateId;
   final String receiptUrl;
   final String paymentMethod;
+  final String paymentAccountId;
   final String status;
   final String approvedBy;
   final String createdBy;
@@ -3450,6 +3528,7 @@ class ExpensesTableData extends DataClass
     required this.templateId,
     required this.receiptUrl,
     required this.paymentMethod,
+    required this.paymentAccountId,
     required this.status,
     required this.approvedBy,
     required this.createdBy,
@@ -3476,6 +3555,7 @@ class ExpensesTableData extends DataClass
     map['template_id'] = Variable<String>(templateId);
     map['receipt_url'] = Variable<String>(receiptUrl);
     map['payment_method'] = Variable<String>(paymentMethod);
+    map['payment_account_id'] = Variable<String>(paymentAccountId);
     map['status'] = Variable<String>(status);
     map['approved_by'] = Variable<String>(approvedBy);
     map['created_by'] = Variable<String>(createdBy);
@@ -3505,6 +3585,7 @@ class ExpensesTableData extends DataClass
       templateId: Value(templateId),
       receiptUrl: Value(receiptUrl),
       paymentMethod: Value(paymentMethod),
+      paymentAccountId: Value(paymentAccountId),
       status: Value(status),
       approvedBy: Value(approvedBy),
       createdBy: Value(createdBy),
@@ -3538,6 +3619,7 @@ class ExpensesTableData extends DataClass
       templateId: serializer.fromJson<String>(json['templateId']),
       receiptUrl: serializer.fromJson<String>(json['receiptUrl']),
       paymentMethod: serializer.fromJson<String>(json['paymentMethod']),
+      paymentAccountId: serializer.fromJson<String>(json['paymentAccountId']),
       status: serializer.fromJson<String>(json['status']),
       approvedBy: serializer.fromJson<String>(json['approvedBy']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
@@ -3566,6 +3648,7 @@ class ExpensesTableData extends DataClass
       'templateId': serializer.toJson<String>(templateId),
       'receiptUrl': serializer.toJson<String>(receiptUrl),
       'paymentMethod': serializer.toJson<String>(paymentMethod),
+      'paymentAccountId': serializer.toJson<String>(paymentAccountId),
       'status': serializer.toJson<String>(status),
       'approvedBy': serializer.toJson<String>(approvedBy),
       'createdBy': serializer.toJson<String>(createdBy),
@@ -3592,6 +3675,7 @@ class ExpensesTableData extends DataClass
     String? templateId,
     String? receiptUrl,
     String? paymentMethod,
+    String? paymentAccountId,
     String? status,
     String? approvedBy,
     String? createdBy,
@@ -3615,6 +3699,7 @@ class ExpensesTableData extends DataClass
     templateId: templateId ?? this.templateId,
     receiptUrl: receiptUrl ?? this.receiptUrl,
     paymentMethod: paymentMethod ?? this.paymentMethod,
+    paymentAccountId: paymentAccountId ?? this.paymentAccountId,
     status: status ?? this.status,
     approvedBy: approvedBy ?? this.approvedBy,
     createdBy: createdBy ?? this.createdBy,
@@ -3656,6 +3741,9 @@ class ExpensesTableData extends DataClass
       paymentMethod: data.paymentMethod.present
           ? data.paymentMethod.value
           : this.paymentMethod,
+      paymentAccountId: data.paymentAccountId.present
+          ? data.paymentAccountId.value
+          : this.paymentAccountId,
       status: data.status.present ? data.status.value : this.status,
       approvedBy: data.approvedBy.present
           ? data.approvedBy.value
@@ -3692,6 +3780,7 @@ class ExpensesTableData extends DataClass
           ..write('templateId: $templateId, ')
           ..write('receiptUrl: $receiptUrl, ')
           ..write('paymentMethod: $paymentMethod, ')
+          ..write('paymentAccountId: $paymentAccountId, ')
           ..write('status: $status, ')
           ..write('approvedBy: $approvedBy, ')
           ..write('createdBy: $createdBy, ')
@@ -3720,6 +3809,7 @@ class ExpensesTableData extends DataClass
     templateId,
     receiptUrl,
     paymentMethod,
+    paymentAccountId,
     status,
     approvedBy,
     createdBy,
@@ -3747,6 +3837,7 @@ class ExpensesTableData extends DataClass
           other.templateId == this.templateId &&
           other.receiptUrl == this.receiptUrl &&
           other.paymentMethod == this.paymentMethod &&
+          other.paymentAccountId == this.paymentAccountId &&
           other.status == this.status &&
           other.approvedBy == this.approvedBy &&
           other.createdBy == this.createdBy &&
@@ -3772,6 +3863,7 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
   final Value<String> templateId;
   final Value<String> receiptUrl;
   final Value<String> paymentMethod;
+  final Value<String> paymentAccountId;
   final Value<String> status;
   final Value<String> approvedBy;
   final Value<String> createdBy;
@@ -3796,6 +3888,7 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     this.templateId = const Value.absent(),
     this.receiptUrl = const Value.absent(),
     this.paymentMethod = const Value.absent(),
+    this.paymentAccountId = const Value.absent(),
     this.status = const Value.absent(),
     this.approvedBy = const Value.absent(),
     this.createdBy = const Value.absent(),
@@ -3821,6 +3914,7 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     this.templateId = const Value.absent(),
     this.receiptUrl = const Value.absent(),
     this.paymentMethod = const Value.absent(),
+    this.paymentAccountId = const Value.absent(),
     this.status = const Value.absent(),
     this.approvedBy = const Value.absent(),
     this.createdBy = const Value.absent(),
@@ -3852,6 +3946,7 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     Expression<String>? templateId,
     Expression<String>? receiptUrl,
     Expression<String>? paymentMethod,
+    Expression<String>? paymentAccountId,
     Expression<String>? status,
     Expression<String>? approvedBy,
     Expression<String>? createdBy,
@@ -3877,6 +3972,7 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
       if (templateId != null) 'template_id': templateId,
       if (receiptUrl != null) 'receipt_url': receiptUrl,
       if (paymentMethod != null) 'payment_method': paymentMethod,
+      if (paymentAccountId != null) 'payment_account_id': paymentAccountId,
       if (status != null) 'status': status,
       if (approvedBy != null) 'approved_by': approvedBy,
       if (createdBy != null) 'created_by': createdBy,
@@ -3904,6 +4000,7 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     Value<String>? templateId,
     Value<String>? receiptUrl,
     Value<String>? paymentMethod,
+    Value<String>? paymentAccountId,
     Value<String>? status,
     Value<String>? approvedBy,
     Value<String>? createdBy,
@@ -3929,6 +4026,7 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
       templateId: templateId ?? this.templateId,
       receiptUrl: receiptUrl ?? this.receiptUrl,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentAccountId: paymentAccountId ?? this.paymentAccountId,
       status: status ?? this.status,
       approvedBy: approvedBy ?? this.approvedBy,
       createdBy: createdBy ?? this.createdBy,
@@ -3984,6 +4082,9 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     if (paymentMethod.present) {
       map['payment_method'] = Variable<String>(paymentMethod.value);
     }
+    if (paymentAccountId.present) {
+      map['payment_account_id'] = Variable<String>(paymentAccountId.value);
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
@@ -4033,6 +4134,7 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
           ..write('templateId: $templateId, ')
           ..write('receiptUrl: $receiptUrl, ')
           ..write('paymentMethod: $paymentMethod, ')
+          ..write('paymentAccountId: $paymentAccountId, ')
           ..write('status: $status, ')
           ..write('approvedBy: $approvedBy, ')
           ..write('createdBy: $createdBy, ')
@@ -9139,6 +9241,18 @@ class $DebtPaymentsTableTable extends DebtPaymentsTable
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -9206,6 +9320,7 @@ class $DebtPaymentsTableTable extends DebtPaymentsTable
     method,
     note,
     recordedBy,
+    accountId,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -9277,6 +9392,12 @@ class $DebtPaymentsTableTable extends DebtPaymentsTable
       context.handle(
         _recordedByMeta,
         recordedBy.isAcceptableOrUnknown(data['recorded_by']!, _recordedByMeta),
+      );
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -9357,6 +9478,10 @@ class $DebtPaymentsTableTable extends DebtPaymentsTable
         DriftSqlType.string,
         data['${effectivePrefix}recorded_by'],
       )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -9396,6 +9521,7 @@ class DebtPaymentsTableData extends DataClass
   final String method;
   final String note;
   final String recordedBy;
+  final String accountId;
   final int createdAt;
   final int updatedAt;
   final int? serverUpdatedAt;
@@ -9410,6 +9536,7 @@ class DebtPaymentsTableData extends DataClass
     required this.method,
     required this.note,
     required this.recordedBy,
+    required this.accountId,
     required this.createdAt,
     required this.updatedAt,
     this.serverUpdatedAt,
@@ -9427,6 +9554,7 @@ class DebtPaymentsTableData extends DataClass
     map['method'] = Variable<String>(method);
     map['note'] = Variable<String>(note);
     map['recorded_by'] = Variable<String>(recordedBy);
+    map['account_id'] = Variable<String>(accountId);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     if (!nullToAbsent || serverUpdatedAt != null) {
@@ -9447,6 +9575,7 @@ class DebtPaymentsTableData extends DataClass
       method: Value(method),
       note: Value(note),
       recordedBy: Value(recordedBy),
+      accountId: Value(accountId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       serverUpdatedAt: serverUpdatedAt == null && nullToAbsent
@@ -9471,6 +9600,7 @@ class DebtPaymentsTableData extends DataClass
       method: serializer.fromJson<String>(json['method']),
       note: serializer.fromJson<String>(json['note']),
       recordedBy: serializer.fromJson<String>(json['recordedBy']),
+      accountId: serializer.fromJson<String>(json['accountId']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
       serverUpdatedAt: serializer.fromJson<int?>(json['serverUpdatedAt']),
@@ -9490,6 +9620,7 @@ class DebtPaymentsTableData extends DataClass
       'method': serializer.toJson<String>(method),
       'note': serializer.toJson<String>(note),
       'recordedBy': serializer.toJson<String>(recordedBy),
+      'accountId': serializer.toJson<String>(accountId),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
       'serverUpdatedAt': serializer.toJson<int?>(serverUpdatedAt),
@@ -9507,6 +9638,7 @@ class DebtPaymentsTableData extends DataClass
     String? method,
     String? note,
     String? recordedBy,
+    String? accountId,
     int? createdAt,
     int? updatedAt,
     Value<int?> serverUpdatedAt = const Value.absent(),
@@ -9521,6 +9653,7 @@ class DebtPaymentsTableData extends DataClass
     method: method ?? this.method,
     note: note ?? this.note,
     recordedBy: recordedBy ?? this.recordedBy,
+    accountId: accountId ?? this.accountId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     serverUpdatedAt: serverUpdatedAt.present
@@ -9543,6 +9676,7 @@ class DebtPaymentsTableData extends DataClass
       recordedBy: data.recordedBy.present
           ? data.recordedBy.value
           : this.recordedBy,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       serverUpdatedAt: data.serverUpdatedAt.present
@@ -9566,6 +9700,7 @@ class DebtPaymentsTableData extends DataClass
           ..write('method: $method, ')
           ..write('note: $note, ')
           ..write('recordedBy: $recordedBy, ')
+          ..write('accountId: $accountId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -9585,6 +9720,7 @@ class DebtPaymentsTableData extends DataClass
     method,
     note,
     recordedBy,
+    accountId,
     createdAt,
     updatedAt,
     serverUpdatedAt,
@@ -9603,6 +9739,7 @@ class DebtPaymentsTableData extends DataClass
           other.method == this.method &&
           other.note == this.note &&
           other.recordedBy == this.recordedBy &&
+          other.accountId == this.accountId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.serverUpdatedAt == this.serverUpdatedAt &&
@@ -9620,6 +9757,7 @@ class DebtPaymentsTableCompanion
   final Value<String> method;
   final Value<String> note;
   final Value<String> recordedBy;
+  final Value<String> accountId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int?> serverUpdatedAt;
@@ -9635,6 +9773,7 @@ class DebtPaymentsTableCompanion
     this.method = const Value.absent(),
     this.note = const Value.absent(),
     this.recordedBy = const Value.absent(),
+    this.accountId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.serverUpdatedAt = const Value.absent(),
@@ -9651,6 +9790,7 @@ class DebtPaymentsTableCompanion
     this.method = const Value.absent(),
     this.note = const Value.absent(),
     this.recordedBy = const Value.absent(),
+    this.accountId = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.serverUpdatedAt = const Value.absent(),
@@ -9673,6 +9813,7 @@ class DebtPaymentsTableCompanion
     Expression<String>? method,
     Expression<String>? note,
     Expression<String>? recordedBy,
+    Expression<String>? accountId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? serverUpdatedAt,
@@ -9689,6 +9830,7 @@ class DebtPaymentsTableCompanion
       if (method != null) 'method': method,
       if (note != null) 'note': note,
       if (recordedBy != null) 'recorded_by': recordedBy,
+      if (accountId != null) 'account_id': accountId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (serverUpdatedAt != null) 'server_updated_at': serverUpdatedAt,
@@ -9707,6 +9849,7 @@ class DebtPaymentsTableCompanion
     Value<String>? method,
     Value<String>? note,
     Value<String>? recordedBy,
+    Value<String>? accountId,
     Value<int>? createdAt,
     Value<int>? updatedAt,
     Value<int?>? serverUpdatedAt,
@@ -9723,6 +9866,7 @@ class DebtPaymentsTableCompanion
       method: method ?? this.method,
       note: note ?? this.note,
       recordedBy: recordedBy ?? this.recordedBy,
+      accountId: accountId ?? this.accountId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       serverUpdatedAt: serverUpdatedAt ?? this.serverUpdatedAt,
@@ -9759,6 +9903,9 @@ class DebtPaymentsTableCompanion
     if (recordedBy.present) {
       map['recorded_by'] = Variable<String>(recordedBy.value);
     }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -9791,6 +9938,7 @@ class DebtPaymentsTableCompanion
           ..write('method: $method, ')
           ..write('note: $note, ')
           ..write('recordedBy: $recordedBy, ')
+          ..write('accountId: $accountId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('serverUpdatedAt: $serverUpdatedAt, ')
@@ -14991,6 +15139,7 @@ typedef $$InvoicesTableTableCreateCompanionBuilder =
       required double total,
       Value<double> amountPaid,
       Value<String> paymentMethod,
+      Value<String> paymentAccountId,
       Value<String> note,
       Value<String> createdBy,
       required int createdAt,
@@ -15019,6 +15168,7 @@ typedef $$InvoicesTableTableUpdateCompanionBuilder =
       Value<double> total,
       Value<double> amountPaid,
       Value<String> paymentMethod,
+      Value<String> paymentAccountId,
       Value<String> note,
       Value<String> createdBy,
       Value<int> createdAt,
@@ -15150,6 +15300,11 @@ class $$InvoicesTableTableFilterComposer
 
   ColumnFilters<String> get paymentMethod => $composableBuilder(
     column: $table.paymentMethod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentAccountId => $composableBuilder(
+    column: $table.paymentAccountId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15308,6 +15463,11 @@ class $$InvoicesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get paymentAccountId => $composableBuilder(
+    column: $table.paymentAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get note => $composableBuilder(
     column: $table.note,
     builder: (column) => ColumnOrderings(column),
@@ -15422,6 +15582,11 @@ class $$InvoicesTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get paymentAccountId => $composableBuilder(
+    column: $table.paymentAccountId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
 
@@ -15523,6 +15688,7 @@ class $$InvoicesTableTableTableManager
                 Value<double> total = const Value.absent(),
                 Value<double> amountPaid = const Value.absent(),
                 Value<String> paymentMethod = const Value.absent(),
+                Value<String> paymentAccountId = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -15549,6 +15715,7 @@ class $$InvoicesTableTableTableManager
                 total: total,
                 amountPaid: amountPaid,
                 paymentMethod: paymentMethod,
+                paymentAccountId: paymentAccountId,
                 note: note,
                 createdBy: createdBy,
                 createdAt: createdAt,
@@ -15577,6 +15744,7 @@ class $$InvoicesTableTableTableManager
                 required double total,
                 Value<double> amountPaid = const Value.absent(),
                 Value<String> paymentMethod = const Value.absent(),
+                Value<String> paymentAccountId = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
                 required int createdAt,
@@ -15603,6 +15771,7 @@ class $$InvoicesTableTableTableManager
                 total: total,
                 amountPaid: amountPaid,
                 paymentMethod: paymentMethod,
+                paymentAccountId: paymentAccountId,
                 note: note,
                 createdBy: createdBy,
                 createdAt: createdAt,
@@ -16566,6 +16735,7 @@ typedef $$ExpensesTableTableCreateCompanionBuilder =
       Value<String> templateId,
       Value<String> receiptUrl,
       Value<String> paymentMethod,
+      Value<String> paymentAccountId,
       Value<String> status,
       Value<String> approvedBy,
       Value<String> createdBy,
@@ -16592,6 +16762,7 @@ typedef $$ExpensesTableTableUpdateCompanionBuilder =
       Value<String> templateId,
       Value<String> receiptUrl,
       Value<String> paymentMethod,
+      Value<String> paymentAccountId,
       Value<String> status,
       Value<String> approvedBy,
       Value<String> createdBy,
@@ -16675,6 +16846,11 @@ class $$ExpensesTableTableFilterComposer
 
   ColumnFilters<String> get paymentMethod => $composableBuilder(
     column: $table.paymentMethod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentAccountId => $composableBuilder(
+    column: $table.paymentAccountId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16798,6 +16974,11 @@ class $$ExpensesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get paymentAccountId => $composableBuilder(
+    column: $table.paymentAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -16906,6 +17087,11 @@ class $$ExpensesTableTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get paymentAccountId => $composableBuilder(
+    column: $table.paymentAccountId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
@@ -16990,6 +17176,7 @@ class $$ExpensesTableTableTableManager
                 Value<String> templateId = const Value.absent(),
                 Value<String> receiptUrl = const Value.absent(),
                 Value<String> paymentMethod = const Value.absent(),
+                Value<String> paymentAccountId = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String> approvedBy = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
@@ -17014,6 +17201,7 @@ class $$ExpensesTableTableTableManager
                 templateId: templateId,
                 receiptUrl: receiptUrl,
                 paymentMethod: paymentMethod,
+                paymentAccountId: paymentAccountId,
                 status: status,
                 approvedBy: approvedBy,
                 createdBy: createdBy,
@@ -17040,6 +17228,7 @@ class $$ExpensesTableTableTableManager
                 Value<String> templateId = const Value.absent(),
                 Value<String> receiptUrl = const Value.absent(),
                 Value<String> paymentMethod = const Value.absent(),
+                Value<String> paymentAccountId = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String> approvedBy = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
@@ -17064,6 +17253,7 @@ class $$ExpensesTableTableTableManager
                 templateId: templateId,
                 receiptUrl: receiptUrl,
                 paymentMethod: paymentMethod,
+                paymentAccountId: paymentAccountId,
                 status: status,
                 approvedBy: approvedBy,
                 createdBy: createdBy,
@@ -19455,6 +19645,7 @@ typedef $$DebtPaymentsTableTableCreateCompanionBuilder =
       Value<String> method,
       Value<String> note,
       Value<String> recordedBy,
+      Value<String> accountId,
       required int createdAt,
       required int updatedAt,
       Value<int?> serverUpdatedAt,
@@ -19472,6 +19663,7 @@ typedef $$DebtPaymentsTableTableUpdateCompanionBuilder =
       Value<String> method,
       Value<String> note,
       Value<String> recordedBy,
+      Value<String> accountId,
       Value<int> createdAt,
       Value<int> updatedAt,
       Value<int?> serverUpdatedAt,
@@ -19526,6 +19718,11 @@ class $$DebtPaymentsTableTableFilterComposer
 
   ColumnFilters<String> get recordedBy => $composableBuilder(
     column: $table.recordedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19604,6 +19801,11 @@ class $$DebtPaymentsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -19666,6 +19868,9 @@ class $$DebtPaymentsTableTableAnnotationComposer
     column: $table.recordedBy,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -19735,6 +19940,7 @@ class $$DebtPaymentsTableTableTableManager
                 Value<String> method = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<String> recordedBy = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -19750,6 +19956,7 @@ class $$DebtPaymentsTableTableTableManager
                 method: method,
                 note: note,
                 recordedBy: recordedBy,
+                accountId: accountId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,
@@ -19767,6 +19974,7 @@ class $$DebtPaymentsTableTableTableManager
                 Value<String> method = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<String> recordedBy = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
                 Value<int?> serverUpdatedAt = const Value.absent(),
@@ -19782,6 +19990,7 @@ class $$DebtPaymentsTableTableTableManager
                 method: method,
                 note: note,
                 recordedBy: recordedBy,
+                accountId: accountId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 serverUpdatedAt: serverUpdatedAt,

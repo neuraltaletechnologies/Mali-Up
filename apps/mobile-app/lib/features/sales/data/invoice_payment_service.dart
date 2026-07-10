@@ -4,10 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/sync_provider.dart';
+import '../../../core/services/localization_service.dart';
 import '../../customer/data/customer_providers.dart';
 import '../../debt/data/debt_providers.dart';
 import '../../debt/domain/models/debt.dart';
+import '../../finance/data/finance_providers.dart';
 import '../../finance/data/payment_account_service.dart';
+import '../../finance/domain/models/cash_account.dart';
 import '../../finance/domain/payment_method_accounts.dart';
 import '../../rbac/data/audit_log_service.dart';
 import 'invoice_local_mirror.dart';
@@ -50,6 +53,7 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
   required Map<String, dynamic> invoice,
   required double amount,
   required String method,
+  String? accountId,
   String reference = '',
   String? auditDetails,
 }) async {
@@ -76,13 +80,28 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
   // never fabricate a payment record or move the customer balance.
   if (received <= 0 && !fullySettled) return null;
 
-  // Money can only be received into an activated payment channel — the same
-  // rule the sale flows enforce. Status reconciliations move no money.
-  if (received > 0 &&
-      PaymentMethodAccounts.accountIdForMethod(method) != null &&
-      await activatedAccountForMethod(ref, method) == null) {
-    throw PaymentChannelNotActivatedException(
-        activationRequiredMessage(method));
+  // Money can only be received into an activated payment channel or an
+  // existing custom account — the same rule the sale flows enforce. Status
+  // reconciliations move no money. An explicit accountId (custom account,
+  // picked by the caller) is resolved directly; otherwise fall back to the
+  // fixed method string used by the four built-in channels.
+  CashAccount? resolvedAccount;
+  if (received > 0) {
+    if (accountId != null && accountId.isNotEmpty) {
+      resolvedAccount = await ref.read(cashRepositoryProvider).getAccountById(accountId);
+      if (resolvedAccount == null) {
+        throw PaymentChannelNotActivatedException(LocalizationService.tr(
+          en: 'That payment account is no longer available. Choose another.',
+          sw: 'Akaunti hiyo ya malipo haipatikani tena. Chagua nyingine.',
+        ));
+      }
+    } else if (PaymentMethodAccounts.accountIdForMethod(method) != null) {
+      resolvedAccount = await activatedAccountForMethod(ref, method);
+      if (resolvedAccount == null) {
+        throw PaymentChannelNotActivatedException(
+            activationRequiredMessage(method));
+      }
+    }
   }
 
   // Look up the receivable mirror created on the credit sale before building
@@ -136,6 +155,7 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
     // recorded amounts and payment method untouched.
     if (received > 0) 'amountPaid': FieldValue.increment(received),
     if (received > 0) 'paymentMethod': method,
+    if (received > 0) 'paymentAccountId': resolvedAccount?.id ?? '',
     'status': newStatus,
     'updatedAt': FieldValue.serverTimestamp(),
     if (fullySettled) 'paidAt': FieldValue.serverTimestamp(),
@@ -186,15 +206,20 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
     } catch (_) {}
   }
 
-  // The received money lands in the activated payment channel — Drift
-  // balance moves instantly, the queued op replays on Firestore idempotently.
-  await depositSaleIntoMethodAccount(
-    ref,
-    method: method,
-    amount: received,
-    invoiceNumber: invoiceNumber,
-    createdBy: scope.userUid,
-  );
+  // The received money lands in the resolved account — Drift balance moves
+  // instantly, the queued op replays on Firestore idempotently.
+  if (resolvedAccount != null) {
+    await moveMoneyForAccount(
+      ref,
+      accountId: resolvedAccount.id,
+      amount: received,
+      isDeposit: true,
+      description: LocalizationService.tr(
+          en: 'Sale $invoiceNumber', sw: 'Mauzo $invoiceNumber'),
+      reference: invoiceNumber,
+      createdBy: scope.userUid,
+    );
+  }
 
   // Mirror the new balance/status into Drift so the dashboard revenue and
   // the sales list update immediately instead of waiting for a sync pull.
@@ -204,6 +229,7 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
     status: newStatus,
     amountPaid: newAmountPaid,
     paymentMethod: received > 0 ? method : null,
+    paymentAccountId: received > 0 ? (resolvedAccount?.id ?? '') : null,
   );
 
   await _settleLedgerReceivable(
@@ -212,6 +238,7 @@ Future<InvoicePaymentResult?> settleInvoicePayment(
     received: received,
     fullySettled: fullySettled,
     method: method,
+    accountId: resolvedAccount?.id ?? '',
     recordedBy: scope.userUid,
   );
 
@@ -251,6 +278,7 @@ Future<void> _settleLedgerReceivable(
   required double received,
   required bool fullySettled,
   required String method,
+  String accountId = '',
   required String recordedBy,
 }) async {
   if ((received <= 0 && !fullySettled) || invoiceNumber.isEmpty) return;
@@ -283,6 +311,7 @@ Future<void> _settleLedgerReceivable(
         amount: applied,
         date: dateStr,
         method: method,
+        accountId: accountId,
         // The reconciliation note marks ledger closures that exceed the money
         // received in this action, so the trail stays honest.
         note: applied > received

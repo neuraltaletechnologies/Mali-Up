@@ -33,11 +33,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const String _appWebsiteUrl = 'https://neuraltale.com/';
   static const Map<String, String> _socialLinks = {
-    'Facebook': 'https://facebook.com/neuraltale',
-    'Instagram': 'https://instagram.com/neuraltale',
+    'Facebook': 'https://www.facebook.com/profile.php?id=61574633183770#',
+    'Instagram': 'https://www.instagram.com/neuraltaletechnologiestz/',
     'X': 'https://x.com/neuraltale',
-    'LinkedIn': 'https://linkedin.com/company/neuraltale',
-    'YouTube': 'https://youtube.com/@neuraltale',
+    'LinkedIn': 'https://www.linkedin.com/in/juliusntale/',
+    'YouTube': 'https://neuraltale.com/',
   };
 
   late final VoidCallback _languageListener;

@@ -13,9 +13,11 @@ import '../../../../core/utils/online_guard.dart';
 import '../../../../shared/widgets/customer_picker_field.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
-import '../../../finance/data/cash_flow_providers.dart';
+import '../../../finance/data/finance_providers.dart';
 import '../../../finance/data/payment_account_service.dart';
+import '../../../finance/domain/models/cash_account.dart';
 import '../../../finance/domain/payment_method_accounts.dart';
+import '../../../finance/presentation/widgets/payment_account_chips.dart';
 import '../../../inventory/data/inventory_providers.dart';
 import '../../../debt/data/debt_providers.dart';
 import '../../../debt/domain/models/debt.dart';
@@ -67,26 +69,6 @@ class _LineItem {
       );
 }
 
-enum _PayMethod { cash, mpesa, bank, card, credit }
-
-extension _PayMethodX on _PayMethod {
-  String get label => switch (this) {
-        _PayMethod.cash => _tr('Cash', 'Taslimu'),
-        _PayMethod.mpesa => 'M-Pesa',
-        _PayMethod.bank => _tr('Bank Transfer', 'Benki'),
-        _PayMethod.card => _tr('Card', 'Kadi'),
-        _PayMethod.credit => _tr('On Account', 'Mkopo'),
-      };
-
-  IconData get icon => switch (this) {
-        _PayMethod.cash => Icons.payments_rounded,
-        _PayMethod.mpesa => Icons.phone_android_rounded,
-        _PayMethod.bank => Icons.account_balance_rounded,
-        _PayMethod.card => Icons.credit_card_rounded,
-        _PayMethod.credit => Icons.person_outline_rounded,
-      };
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,7 +96,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
   Customer? _customer;
   DateTime _invoiceDate = DateTime.now();
   DateTime? _dueDate;
-  _PayMethod _payMethod = _PayMethod.cash;
+  String? _selectedAccountId;
+  bool _isCredit = false;
   String _mpesaRef = '';
   double _globalDiscount = 0;
   bool _applyVat = false;
@@ -178,10 +161,19 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     _dueDate = readTimestamp(data['dueDate']);
 
     final pmRaw = (data['paymentMethod'] ?? '').toString().toLowerCase();
-    _payMethod = _PayMethod.values.firstWhere(
-      (m) => m.name == pmRaw,
-      orElse: () => _PayMethod.cash,
-    );
+    final storedAccountId = (data['paymentAccountId'] ?? '').toString();
+    if (pmRaw == 'credit') {
+      _isCredit = true;
+      _selectedAccountId = null;
+    } else {
+      _isCredit = false;
+      // Prefer the exact account recorded at save time (works for custom
+      // accounts too); fall back to resolving a built-in from the legacy
+      // method string for older documents that predate this field.
+      _selectedAccountId = storedAccountId.isNotEmpty
+          ? storedAccountId
+          : PaymentMethodAccounts.accountIdForMethod(pmRaw);
+    }
 
     // Quick sales store 'items'; the full editor stores 'lineItems'.
     final lineItems = (data['lineItems'] is List &&
@@ -241,7 +233,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     // otherwise the receivable has no one to collect from.
     if (!asDraft &&
         !_isQuotation &&
-        _payMethod == _PayMethod.credit &&
+        _isCredit &&
         (_customer == null || _customer!.id.isEmpty)) {
       _showSnack(_tr(
         'Please select a customer before recording a credit sale.',
@@ -253,7 +245,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
     // balance after this sale would exceed their set limit.
     if (!asDraft &&
         !_isQuotation &&
-        _payMethod == _PayMethod.credit &&
+        _isCredit &&
         _customer != null &&
         _customer!.creditLimit > 0) {
       final projectedBalance = _customer!.balanceAmount + _grandTotal;
@@ -327,24 +319,43 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
       final status = asDraft
           ? 'draft'
-          : (_isQuotation ? 'sent' : (_payMethod == _PayMethod.credit ? 'sent' : 'paid'));
+          : (_isQuotation ? 'sent' : (_isCredit ? 'sent' : 'paid'));
 
-      // Money received now must land in an activated payment channel — an
-      // unactivated Taslimu/M-Pesa/Benki/Kadi cannot take sale money. Credit
-      // moves no money at confirmation, so it needs no account.
-      if (confirmingNow && _payMethod != _PayMethod.credit) {
-        final account =
-            await activatedAccountForMethod(ref, _payMethod.name);
-        if (account == null) {
-          if (mounted) {
-            setState(() => _saving = false);
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(activationRequiredMessage(_payMethod.name)),
-              backgroundColor: AppColors.error,
-            ));
-          }
-          return;
+      // Resolve the chosen account once — built-in channels keep the exact
+      // strings this screen has always written ('bank' unlike quick sale's
+      // 'bank_transfer'); a custom account's current name is used instead so
+      // reports group by it meaningfully.
+      CashAccount? selectedAccount;
+      String paymentMethodValue = _isCredit ? 'credit' : '';
+      if (!_isCredit && _selectedAccountId != null) {
+        selectedAccount =
+            await ref.read(cashRepositoryProvider).getAccountById(_selectedAccountId!);
+        if (selectedAccount != null) {
+          paymentMethodValue = switch (selectedAccount.id) {
+            PaymentMethodAccounts.cashId => 'cash',
+            PaymentMethodAccounts.mpesaId => 'mpesa',
+            PaymentMethodAccounts.bankId => 'bank',
+            PaymentMethodAccounts.cardId => 'card',
+            _ => selectedAccount.name,
+          };
         }
+      }
+
+      // Money received now must land in a chosen, activated payment account —
+      // an unactivated Taslimu/M-Pesa/Benki/Kadi cannot take sale money.
+      // Credit moves no money at confirmation, so it needs no account.
+      if (confirmingNow && !_isCredit && selectedAccount == null) {
+        if (mounted) {
+          setState(() => _saving = false);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_tr(
+              'Select an activated payment account',
+              'Chagua akaunti ya malipo iliyowashwa',
+            )),
+            backgroundColor: AppColors.error,
+          ));
+        }
+        return;
       }
 
       final lineItemsData = _items
@@ -375,11 +386,13 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         'vatAmount': _vatAmount,
         'totalAmount': _grandTotal,
         'amount': _grandTotal,
-        'paymentMethod': _payMethod.name,
+        'paymentMethod': paymentMethodValue,
+        'paymentAccountId': selectedAccount?.id ?? '',
         // Settled methods are fully paid on confirmation; credit starts at 0.
         if (confirmingNow)
-          'amountPaid': _payMethod == _PayMethod.credit ? 0 : _grandTotal,
-        if (_payMethod == _PayMethod.mpesa && _mpesaRef.isNotEmpty)
+          'amountPaid': _isCredit ? 0 : _grandTotal,
+        if (selectedAccount?.id == PaymentMethodAccounts.mpesaId &&
+            _mpesaRef.isNotEmpty)
           'mpesaReference': _mpesaRef,
         'invoiceDate': Timestamp.fromDate(_invoiceDate),
         if (_dueDate != null) 'dueDate': Timestamp.fromDate(_dueDate!),
@@ -432,7 +445,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
               SetOptions(merge: true));
         }
 
-        if (_payMethod == _PayMethod.credit && _customer != null) {
+        if (_isCredit && _customer != null) {
           final recCol = repo.scopeCollection(
               uid: scope.ownerUid,
               context: scope.context,
@@ -486,7 +499,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
 
       // Update Drift customer balance immediately so the credit-limit check on
       // the next sale in this session uses the correct outstanding amount.
-      if (confirmingNow && _payMethod == _PayMethod.credit && _customer != null) {
+      if (confirmingNow && _isCredit && _customer != null) {
         try {
           final db = ref.read(appDatabaseProvider);
           await db.customerDao.updateBalance(
@@ -497,7 +510,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       }
 
       // Auto-create receivable debt in the offline-first ledger for credit sales
-      if (confirmingNow && _payMethod == _PayMethod.credit && _customer != null) {
+      if (confirmingNow && _isCredit && _customer != null) {
         final dueStr = _dueDate != null
             ? '${_dueDate!.year}-${_dueDate!.month.toString().padLeft(2, '0')}-${_dueDate!.day.toString().padLeft(2, '0')}'
             : DateTime.now()
@@ -524,7 +537,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       // dashboard revenue/profit update without waiting for a sync pull.
       final nowIso = DateTime.now().toIso8601String();
       final amountPaidNow = confirmingNow
-          ? (_payMethod == _PayMethod.credit ? 0.0 : _grandTotal)
+          ? (_isCredit ? 0.0 : _grandTotal)
           : parseNumericAmount(widget.invoiceToEdit?['amountPaid']);
       await mirrorInvoiceToDrift(
         ref,
@@ -543,7 +556,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
           tax: _vatAmount,
           total: _grandTotal,
           amountPaid: amountPaidNow,
-          paymentMethod: _payMethod.name,
+          paymentMethod: paymentMethodValue,
+          paymentAccountId: selectedAccount?.id ?? '',
           items: [
             for (final i in _items)
               if (i.productName.trim().isNotEmpty)
@@ -565,15 +579,18 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
         ),
       );
 
-      // Money received on confirmation lands in the activated payment
-      // channel — Drift balance moves instantly, the queued op replays the
-      // increment on Firestore idempotently.
-      if (confirmingNow && _payMethod != _PayMethod.credit) {
-        await depositSaleIntoMethodAccount(
+      // Money received on confirmation lands in the chosen account — Drift
+      // balance moves instantly, the queued op replays the increment on
+      // Firestore idempotently.
+      if (confirmingNow && !_isCredit && selectedAccount != null) {
+        await moveMoneyForAccount(
           ref,
-          method: _payMethod.name,
+          accountId: selectedAccount.id,
           amount: _grandTotal,
-          invoiceNumber: invNumber,
+          isDeposit: true,
+          description:
+              LocalizationService.tr(en: 'Sale $invNumber', sw: 'Mauzo $invNumber'),
+          reference: invNumber,
           createdBy: scope.userUid,
         );
       }
@@ -594,7 +611,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
       unawaited(ref.read(syncServiceProvider).syncNow());
 
       if (mounted) {
-        if (confirmingNow && _payMethod == _PayMethod.credit && _customer != null) {
+        if (confirmingNow && _isCredit && _customer != null) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(_tr(
               'Receivable added for ${_customer!.name} – check Debts',
@@ -697,10 +714,18 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen>
                   ),
                   const SizedBox(height: 16),
                   _PaymentSection(
-                    selected: _payMethod,
+                    selectedAccountId: _selectedAccountId,
+                    isCredit: _isCredit,
                     mpesaRef: _mpesaRef,
                     mpesaCtrl: _mpesaCtrl,
-                    onMethod: (m) => setState(() => _payMethod = m),
+                    onAccount: (a) => setState(() {
+                      _selectedAccountId = a.id;
+                      _isCredit = false;
+                    }),
+                    onCredit: () => setState(() {
+                      _selectedAccountId = null;
+                      _isCredit = true;
+                    }),
                     onMpesaRef: (v) => _mpesaRef = v,
                     lockUnactivated: !_isQuotation,
                   ),
@@ -1684,10 +1709,12 @@ class _TotalRow extends StatelessWidget {
 // ── Payment Section ───────────────────────────────────────────────────────────
 
 class _PaymentSection extends ConsumerWidget {
-  final _PayMethod selected;
+  final String? selectedAccountId;
+  final bool isCredit;
   final String mpesaRef;
   final TextEditingController mpesaCtrl;
-  final ValueChanged<_PayMethod> onMethod;
+  final ValueChanged<CashAccount> onAccount;
+  final VoidCallback onCredit;
   final ValueChanged<String> onMpesaRef;
 
   /// True when picking an unactivated channel would move money right now
@@ -1696,17 +1723,18 @@ class _PaymentSection extends ConsumerWidget {
   final bool lockUnactivated;
 
   const _PaymentSection({
-    required this.selected,
+    required this.selectedAccountId,
+    required this.isCredit,
     required this.mpesaRef,
     required this.mpesaCtrl,
-    required this.onMethod,
+    required this.onAccount,
+    required this.onCredit,
     required this.onMpesaRef,
     required this.lockUnactivated,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final activatedIds = ref.watch(activatedMethodAccountsProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1719,70 +1747,15 @@ class _PaymentSection extends ConsumerWidget {
               letterSpacing: 0.5),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _PayMethod.values.map((m) {
-            final active = m == selected;
-            final accountId =
-                PaymentMethodAccounts.accountIdForMethod(m.name);
-            // Credit maps to no account and is always available.
-            final activated =
-                accountId == null || activatedIds.containsKey(accountId);
-            return GestureDetector(
-              onTap: () {
-                if (!activated && lockUnactivated) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(activationRequiredMessage(m.name)),
-                    backgroundColor: AppColors.error,
-                  ));
-                  return;
-                }
-                onMethod(m);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 9),
-                decoration: BoxDecoration(
-                  color: active
-                      ? AppColors.navyPrimary
-                      : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: active
-                          ? AppColors.navyPrimary
-                          : AppColors.border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(activated ? m.icon : Icons.lock_outline,
-                        size: 15,
-                        color: active
-                            ? Colors.white
-                            : activated
-                                ? AppColors.textMuted
-                                : AppColors.textDisabled),
-                    SizedBox(width: 6),
-                    Text(
-                      m.label,
-                      style: GoogleFonts.dmSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: active
-                              ? Colors.white
-                              : activated
-                                  ? AppColors.textSecondary
-                                  : AppColors.textDisabled),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
+        PaymentAccountChips(
+          selectedAccountId: selectedAccountId,
+          selectedIsCredit: isCredit,
+          allowCredit: true,
+          lockUnactivated: lockUnactivated,
+          onSelectAccount: onAccount,
+          onSelectCredit: onCredit,
         ),
-        if (selected == _PayMethod.mpesa) ...[
+        if (!isCredit && selectedAccountId == PaymentMethodAccounts.mpesaId) ...[
           SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(

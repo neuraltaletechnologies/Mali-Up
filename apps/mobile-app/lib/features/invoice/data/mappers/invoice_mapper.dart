@@ -27,6 +27,7 @@ abstract final class InvoiceMapper {
       total: row.total,
       amountPaid: row.amountPaid,
       paymentMethod: row.paymentMethod,
+      paymentAccountId: row.paymentAccountId,
       items: items.map(_itemFromRow).toList(),
       note: row.note,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt)
@@ -75,6 +76,7 @@ abstract final class InvoiceMapper {
       total: Value(invoice.total),
       amountPaid: Value(invoice.amountPaid),
       paymentMethod: Value(invoice.paymentMethod),
+      paymentAccountId: Value(invoice.paymentAccountId),
       note: Value(invoice.note),
       createdAt: Value(createdAtMs),
       updatedAt: Value(now),

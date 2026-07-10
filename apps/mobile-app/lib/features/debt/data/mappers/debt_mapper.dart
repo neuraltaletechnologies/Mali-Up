@@ -87,6 +87,7 @@ abstract final class DebtPaymentMapper {
       method: row.method,
       note: row.note,
       recordedBy: row.recordedBy,
+      accountId: row.accountId,
     );
   }
 
@@ -109,6 +110,7 @@ abstract final class DebtPaymentMapper {
       method: Value(payment.method),
       note: Value(payment.note),
       recordedBy: Value(payment.recordedBy),
+      accountId: Value(payment.accountId),
       createdAt: Value(createdAtMs),
       updatedAt: Value(now),
       serverUpdatedAt: Value(serverUpdatedAt),

@@ -18,6 +18,7 @@ class ExpensesTable extends Table {
   TextColumn get receiptUrl => text().withDefault(const Constant(''))();
   TextColumn get paymentMethod =>
       text().withDefault(const Constant('cash'))();
+  TextColumn get paymentAccountId => text().withDefault(const Constant(''))();
   TextColumn get status => text().withDefault(const Constant('approved'))();
   TextColumn get approvedBy => text().withDefault(const Constant(''))();
   TextColumn get createdBy => text().withDefault(const Constant(''))();

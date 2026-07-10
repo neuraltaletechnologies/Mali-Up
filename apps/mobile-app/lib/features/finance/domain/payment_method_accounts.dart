@@ -15,12 +15,17 @@ class PaymentMethodSpec {
   final String type; // CashAccount.type
   final IconData icon;
 
+  /// Canonical method string this spec resolves from/to
+  /// (see [PaymentMethodAccounts.accountIdForMethod]).
+  final String methodKey;
+
   const PaymentMethodSpec({
     required this.accountId,
     required this.nameEn,
     required this.nameSw,
     required this.type,
     required this.icon,
+    required this.methodKey,
   });
 
   String nameFor(String language) => language == 'sw' ? nameSw : nameEn;
@@ -49,6 +54,7 @@ abstract final class PaymentMethodAccounts {
       nameSw: 'Taslimu',
       type: 'Cash',
       icon: Icons.payments_rounded,
+      methodKey: 'cash',
     ),
     PaymentMethodSpec(
       accountId: mpesaId,
@@ -56,6 +62,7 @@ abstract final class PaymentMethodAccounts {
       nameSw: 'M-Pesa',
       type: 'Mobile Money',
       icon: Icons.phone_android_rounded,
+      methodKey: 'mpesa',
     ),
     PaymentMethodSpec(
       accountId: bankId,
@@ -63,6 +70,7 @@ abstract final class PaymentMethodAccounts {
       nameSw: 'Benki',
       type: 'Bank',
       icon: Icons.account_balance_rounded,
+      methodKey: 'bank',
     ),
     PaymentMethodSpec(
       accountId: cardId,
@@ -70,6 +78,7 @@ abstract final class PaymentMethodAccounts {
       nameSw: 'Kadi',
       type: 'Card',
       icon: Icons.credit_card_rounded,
+      methodKey: 'card',
     ),
   ];
 
