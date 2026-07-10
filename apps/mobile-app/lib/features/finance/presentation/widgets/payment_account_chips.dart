@@ -27,6 +27,12 @@ class PaymentAccountChips extends ConsumerWidget {
   /// intended method — no money moves until the quotation is confirmed.
   final bool lockUnactivated;
 
+  /// When set, called with the "activate first" message instead of showing
+  /// it as a SnackBar. Callers that render this widget inside a large modal
+  /// sheet (which visually sits above the underlying Scaffold's SnackBar)
+  /// should provide this and display the message inline themselves.
+  final ValueChanged<String>? onActivationRequired;
+
   const PaymentAccountChips({
     super.key,
     required this.selectedAccountId,
@@ -35,6 +41,7 @@ class PaymentAccountChips extends ConsumerWidget {
     required this.onSelectAccount,
     this.onSelectCredit,
     this.lockUnactivated = true,
+    this.onActivationRequired,
   });
 
   @override
@@ -49,9 +56,14 @@ class PaymentAccountChips extends ConsumerWidget {
         .toList();
 
     void snackActivationRequired(String methodKey) {
+      final message = activationRequiredMessage(methodKey);
+      if (onActivationRequired != null) {
+        onActivationRequired!(message);
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(activationRequiredMessage(methodKey)),
+          content: Text(message),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),

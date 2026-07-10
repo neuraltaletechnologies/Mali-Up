@@ -49,7 +49,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // slot. Empty until loaded from SharedPreferences; missing entries fall
   // back to _defaultSlotOrder.
   Map<int, String> _navSlotOverrides = {};
-  final GlobalKey _navBarKey = GlobalKey();
 
   @override
   void initState() {
@@ -79,7 +78,9 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
       if (mounted) _maybeShowUpdateBanner();
     };
     VersionGateService.statusNotifier.addListener(_versionGateListener);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowUpdateBanner());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeShowUpdateBanner(),
+    );
   }
 
   @override
@@ -322,7 +323,10 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _switchingDialogOpen = true;
     final label = businessName == null
         ? _tr('Switching business…', 'Inabadilisha biashara…')
-        : _tr('Switching to $businessName…', 'Inabadilisha kwenda $businessName…');
+        : _tr(
+            'Switching to $businessName…',
+            'Inabadilisha kwenda $businessName…',
+          );
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -597,8 +601,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                     icon: Icons.stars_rounded,
                                     label: planStatus != null
                                         ? (_isSwahili
-                                            ? planStatus.tierLabelSw
-                                            : planStatus.tierLabel)
+                                              ? planStatus.tierLabelSw
+                                              : planStatus.tierLabel)
                                         : _tr('Starter', 'Bure'),
                                   )
                                 else if (member != null)
@@ -619,7 +623,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                             _DrawerItemLight(
                               icon: Icons.dashboard_rounded,
                               iconColor: AppColors.secondary,
-                              label: _tr('Dashibodi', 'Dashibodi'),
+                              label: _tr('Dashboard', 'Dashibodi'),
                               semanticsLabel: _tr(
                                 'Dashboard',
                                 'Dashibodi, muhtasari wa biashara',
@@ -637,30 +641,31 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                             if (ps.canViewSales ||
                                 ps.canViewInventory ||
                                 ps.canViewCustomers)
-                            if (ps.canViewSales)
-                              _DrawerItemLight(
-                                icon: Icons.receipt_long_rounded,
-                                iconColor: AppColors.secondary,
-                                label: _tr('Tuma ankara', 'Tuma ankara'),
-                                semanticsLabel: _tr(
-                                  'Sales and invoices',
-                                  'Tuma ankara, mauzo na ankara',
+                              if (ps.canViewSales)
+                                _DrawerItemLight(
+                                  icon: Icons.receipt_long_rounded,
+                                  iconColor: AppColors.secondary,
+                                  label: _tr('Sales', 'Tuma ankara'),
+                                  semanticsLabel: _tr(
+                                    'Sales and invoices',
+                                    'Tuma ankara, mauzo na ankara',
+                                  ),
+                                  selected: _isSelected(
+                                    location,
+                                    AppRouter.salesPath,
+                                  ),
+                                  onTap: () =>
+                                      _closeNavigationPanelThenNavigate(
+                                        dialogContext,
+                                        context,
+                                        AppRouter.salesPath,
+                                      ),
                                 ),
-                                selected: _isSelected(
-                                  location,
-                                  AppRouter.salesPath,
-                                ),
-                                onTap: () => _closeNavigationPanelThenNavigate(
-                                  dialogContext,
-                                  context,
-                                  AppRouter.salesPath,
-                                ),
-                              ),
                             if (ps.canViewInventory)
                               _DrawerItemLight(
                                 icon: Icons.inventory_2_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Bidhaa zangu', 'Bidhaa zangu'),
+                                label: _tr('My Stock', 'Bidhaa zangu'),
                                 semanticsLabel: _tr(
                                   'My stock and inventory',
                                   'Bidhaa zangu, usimamizi wa bidhaaa',
@@ -679,7 +684,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.people_alt_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Wateja wangu', 'Wateja wangu'),
+                                label: _tr('My Customers', 'Wateja wangu'),
                                 semanticsLabel: _tr(
                                   'My customers',
                                   'Wateja wangu, usimamizi wa wateja',
@@ -705,7 +710,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.account_balance_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Madeni', 'Madeni'),
+                                label: _tr('Debts', 'Madeni'),
                                 semanticsLabel: _tr(
                                   'Debt tracking',
                                   'Madeni, ufuatiliaji wa madeni',
@@ -724,7 +729,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.payments_outlined,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Gharama zangu', 'Gharama zangu'),
+                                label: _tr('My Expenses', 'Gharama zangu'),
                                 semanticsLabel: _tr(
                                   'My expenses',
                                   'Gharama zangu, usimamizi wa matumizi',
@@ -743,10 +748,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.account_balance_wallet_outlined,
                                 iconColor: AppColors.secondary,
-                                label: _tr(
-                                  'Mtiririko wa Fedha',
-                                  'Mtiririko wa Fedha',
-                                ),
+                                label: _tr('Cash Flow', 'Mtiririko wa Fedha'),
                                 semanticsLabel: _tr(
                                   'Cash flow and accounts',
                                   'Mtiririko wa fedha na akaunti',
@@ -766,7 +768,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                 icon: Icons.bar_chart_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr(
-                                  'Ripoti za Fedha',
+                                  'Financial Reports',
                                   'Ripoti za Fedha',
                                 ),
                                 semanticsLabel: _tr(
@@ -812,7 +814,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                                 icon: Icons.storefront_rounded,
                                 iconColor: AppColors.secondary,
                                 label: _tr(
-                                  'Simamia Biashara',
+                                  'Manage Businesses',
                                   'Simamia Biashara',
                                 ),
                                 semanticsLabel: _tr(
@@ -832,7 +834,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                               _DrawerItemLight(
                                 icon: Icons.settings_rounded,
                                 iconColor: AppColors.secondary,
-                                label: _tr('Mipangilio', 'Mipangilio'),
+                                label: _tr('Settings', 'Mipangilio'),
                                 semanticsLabel: _tr(
                                   'App settings',
                                   'Mipangilio ya programu',
@@ -947,7 +949,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     final slots = <_NavDestination>[];
     for (var i = 0; i < _defaultSlotOrder.length; i++) {
       final overrideKey = _navSlotOverrides[i];
-      final resolvedKey = (overrideKey != null && catalogByKey.containsKey(overrideKey))
+      final resolvedKey =
+          (overrideKey != null && catalogByKey.containsKey(overrideKey))
           ? overrideKey
           : _defaultSlotOrder[i];
       final entry = catalogByKey[resolvedKey];
@@ -988,7 +991,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     final updated = Map<int, String>.from(_navSlotOverrides);
 
     String keyAt(int i) =>
-        updated[i] ?? (i < _defaultSlotOrder.length ? _defaultSlotOrder[i] : '');
+        updated[i] ??
+        (i < _defaultSlotOrder.length ? _defaultSlotOrder[i] : '');
     final currentKeyAtSlot = keyAt(slotPosition);
 
     for (var i = 0; i < _defaultSlotOrder.length; i++) {
@@ -1011,15 +1015,29 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // (dragging sideways or releasing without moving up cancels — same idea
   // as a slide-to-cancel voice-note recorder). One continuous gesture, no
   // second tap, no sheet.
-  static const double _navPickItemHeight = 52;
-  static const double _navPickStripWidth = 176;
+  static const double _navPickItemHeight = 72;
+  static const double _navPickStripWidth = 96;
   static const double _navPickCancelDx = 56;
+  static const double _navPickCircleSize = 40;
+  static const double _navPickCircleSizeSelected = 46;
+  // How far the finger must drag up past the origin before the nearest
+  // (index 0) option starts highlighting, so the strip clears the held
+  // icon and its label first.
+  static const double _navPickOriginClearance = 30;
+  // One per customizable slot — pins the picker overlay to that exact
+  // icon's on-screen position via CompositedTransformFollower, which is
+  // immune to the manual-coordinate-math bugs an absolute Y calculation
+  // is prone to (SafeArea, extendBody, status bar, etc.).
+  final List<LayerLink> _navSlotLayerLinks = List.generate(
+    3,
+    (_) => LayerLink(),
+  );
 
   List<_NavDestination> _navPickCatalog = [];
   int? _navPickSlotPosition;
   String? _navPickCurrentKey;
   double _navPickOriginX = 0;
-  double _navPickStripBottom = 0;
+  double _navPickOriginY = 0;
   OverlayEntry? _navPickOverlayEntry;
   final ValueNotifier<int> _navPickHighlightIndex = ValueNotifier<int>(-1);
 
@@ -1035,17 +1053,11 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     if (catalog.length <= 1) return;
     HapticFeedback.mediumImpact();
 
-    final navBarBox =
-        _navBarKey.currentContext?.findRenderObject() as RenderBox?;
-    final navBarTopY = navBarBox != null
-        ? navBarBox.localToGlobal(Offset.zero).dy
-        : globalPosition.dy - 40;
-
     _navPickCatalog = catalog;
     _navPickSlotPosition = slotPosition;
     _navPickCurrentKey = destination.key;
     _navPickOriginX = globalPosition.dx;
-    _navPickStripBottom = navBarTopY - 12;
+    _navPickOriginY = globalPosition.dy;
     _navPickHighlightIndex.value = -1;
 
     _navPickOverlayEntry = OverlayEntry(builder: _buildNavPickOverlay);
@@ -1055,12 +1067,17 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   void _updateNavPick(Offset globalPosition) {
     if (_navPickOverlayEntry == null || _navPickSlotPosition == null) return;
     final dx = (globalPosition.dx - _navPickOriginX).abs();
+    // How far up the finger has dragged relative to where the long-press
+    // started — self-contained, so it can't be thrown off by whatever
+    // coordinate space globalPosition happens to be reported in.
+    final draggedUp = _navPickOriginY - globalPosition.dy;
     var nextIndex = -1;
-    if (dx <= _navPickCancelDx && globalPosition.dy < _navPickStripBottom) {
-      final distanceFromBottom = _navPickStripBottom - globalPosition.dy;
-      nextIndex = (distanceFromBottom / _navPickItemHeight)
-          .floor()
-          .clamp(0, _navPickCatalog.length - 1);
+    if (dx <= _navPickCancelDx && draggedUp > _navPickOriginClearance) {
+      final distanceIntoStrip = draggedUp - _navPickOriginClearance;
+      nextIndex = (distanceIntoStrip / _navPickItemHeight).floor().clamp(
+        0,
+        _navPickCatalog.length - 1,
+      );
     }
     if (nextIndex != _navPickHighlightIndex.value) {
       HapticFeedback.selectionClick();
@@ -1089,96 +1106,99 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _navPickCatalog = [];
   }
 
+  // No shared box, no scrim — each option is its own floating circular
+  // icon button with a label underneath (same shape language as the nav
+  // bar's own icon-over-label items), stacked upward from the held icon
+  // directly over the page content.
   Widget _buildNavPickOverlay(BuildContext overlayContext) {
-    final screenSize = MediaQuery.of(overlayContext).size;
-    final left = (_navPickOriginX - _navPickStripWidth / 2).clamp(
-      12.0,
-      screenSize.width - _navPickStripWidth - 12.0,
-    );
+    final slotPosition = _navPickSlotPosition;
+    if (slotPosition == null) return const SizedBox.shrink();
     return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Container(color: Colors.black.withValues(alpha: 0.32)),
-          ),
-          Positioned(
-            left: left,
-            width: _navPickStripWidth,
-            bottom: screenSize.height - _navPickStripBottom,
-            child: ValueListenableBuilder<int>(
-              valueListenable: _navPickHighlightIndex,
-              builder: (_, highlighted, _) => Container(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.navyPrimary,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  // Rendered top-to-bottom in the strip, but index 0 (the
-                  // catalog entry nearest the held icon) is the *last*
-                  // child so it sits at the bottom of the strip, nearest
-                  // the finger's starting point.
-                  children: List.generate(_navPickCatalog.length, (i) {
-                    final catalogIndex = _navPickCatalog.length - 1 - i;
-                    final destination = _navPickCatalog[catalogIndex];
-                    final isSelected = catalogIndex == highlighted;
-                    final isCurrent = destination.key == _navPickCurrentKey;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      height: _navPickItemHeight,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      color: isSelected
-                          ? AppColors.yellowBrand.withValues(alpha: 0.16)
-                          : Colors.transparent,
-                      child: Row(
-                        children: [
-                          Icon(
-                            destination.activeIcon,
-                            size: 20,
-                            color: isSelected
-                                ? AppColors.yellowBrand
-                                : Colors.white70,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              destination.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.dmSans(
-                                color: isSelected
-                                    ? AppColors.yellowBrand
-                                    : Colors.white70,
-                                fontWeight: isSelected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                fontSize: 13,
-                              ),
+      child: CompositedTransformFollower(
+        link: _navSlotLayerLinks[slotPosition],
+        targetAnchor: Alignment.topCenter,
+        followerAnchor: Alignment.bottomCenter,
+        offset: const Offset(0, -14),
+        child: SizedBox(
+          width: _navPickStripWidth,
+          child: ValueListenableBuilder<int>(
+            valueListenable: _navPickHighlightIndex,
+            builder: (_, highlighted, _) => Column(
+              mainAxisSize: MainAxisSize.min,
+              // Rendered top-to-bottom in the strip, but index 0 (the
+              // catalog entry nearest the held icon) is the *last* child so
+              // it sits at the bottom, nearest the finger's starting point.
+              children: List.generate(_navPickCatalog.length, (i) {
+                final catalogIndex = _navPickCatalog.length - 1 - i;
+                final destination = _navPickCatalog[catalogIndex];
+                final isSelected = catalogIndex == highlighted;
+                final isCurrent = destination.key == _navPickCurrentKey;
+                final circleSize = isSelected
+                    ? _navPickCircleSizeSelected
+                    : _navPickCircleSize;
+                return SizedBox(
+                  height: _navPickItemHeight,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 140),
+                        curve: Curves.easeOut,
+                        width: circleSize,
+                        height: circleSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected
+                              ? AppColors.yellowBrand
+                              : AppColors.navyPrimary,
+                          border: isCurrent
+                              ? Border.all(color: Colors.white, width: 2)
+                              : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.28),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
                             ),
-                          ),
-                          if (isCurrent)
-                            const Icon(
-                              Icons.check_rounded,
-                              size: 14,
-                              color: Colors.white38,
-                            ),
-                        ],
+                          ],
+                        ),
+                        child: Icon(
+                          destination.activeIcon,
+                          size: isSelected ? 22 : 18,
+                          color: isSelected
+                              ? AppColors.navyPrimary
+                              : Colors.white,
+                        ),
                       ),
-                    );
-                  }),
-                ),
-              ),
+                      const SizedBox(height: 4),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 140),
+                        style: GoogleFonts.dmSans(
+                          fontSize: isSelected ? 11 : 10,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? AppColors.yellowBrand
+                              : Colors.white,
+                          shadows: const [
+                            Shadow(color: Colors.black54, blurRadius: 6),
+                          ],
+                        ),
+                        child: Text(
+                          destination.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1403,7 +1423,6 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                           : 16.0,
                     ),
                     child: Container(
-                      key: _navBarKey,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 6,
@@ -1425,7 +1444,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                         children: List.generate(destinations.length, (index) {
                           final destination = destinations[index];
                           final isSelected = index == currentIndex;
-                          final isCustomizable = destination.slotPosition != null;
+                          final isCustomizable =
+                              destination.slotPosition != null;
                           return _buildBottomNavItem(
                             context,
                             destination,
@@ -1442,7 +1462,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                             onLongPressMoveUpdate: !isCustomizable
                                 ? null
                                 : (details) =>
-                                    _updateNavPick(details.globalPosition),
+                                      _updateNavPick(details.globalPosition),
                             onLongPressEnd: !isCustomizable
                                 ? null
                                 : (_) => _endNavPick(),
@@ -1473,7 +1493,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     GestureLongPressEndCallback? onLongPressEnd,
     VoidCallback? onLongPressCancel,
   }) {
-    return GestureDetector(
+    final navItem = GestureDetector(
       onTap: () => context.go(destination.route),
       onLongPressStart: onLongPressStart,
       onLongPressMoveUpdate: onLongPressMoveUpdate,
@@ -1544,6 +1564,13 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
           ],
         ),
       ),
+    );
+
+    final slotPosition = destination.slotPosition;
+    if (slotPosition == null) return navItem;
+    return CompositedTransformTarget(
+      link: _navSlotLayerLinks[slotPosition],
+      child: navItem,
     );
   }
 }

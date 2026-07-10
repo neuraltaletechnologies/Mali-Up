@@ -23,6 +23,7 @@ import '../../../../shared/widgets/list_swipe_card.dart';
 import '../../../../shared/widgets/mali_components.dart';
 import '../../../../shared/widgets/nav_aware_fab.dart';
 import '../../../../shared/widgets/upgrade_sheet.dart';
+import '../../../../shared/widgets/validation_banner.dart';
 import '../../../customer/data/customer_providers.dart';
 import '../../../customer/domain/models/customer.dart';
 import '../../../customer/presentation/widgets/add_customer_dialog.dart';
@@ -1755,6 +1756,11 @@ class _ItemEntry {
   }
 }
 
+/// Where a validation error from [_NewSaleSheetState._save] belongs, so it
+/// can render right next to the field it's actually about instead of a
+/// single message far away from what needs fixing.
+enum _ErrorField { items, customer, payment, general }
+
 class _NewSaleSheet extends ConsumerStatefulWidget {
   const _NewSaleSheet();
 
@@ -1779,6 +1785,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   DateTime? _dueDate;
   bool _vatEnabled = false;
   bool _isSaving = false;
+  // Surfaced as an inline banner next to the field it's about, rather than
+  // a SnackBar: this sheet is pushed on the root Navigator and covers
+  // ~80-95% of the screen height, so a SnackBar from the underlying
+  // Scaffold renders behind it and is never seen by the user.
+  String? _errorMsg;
+  _ErrorField _errorField = _ErrorField.general;
 
   /// Value written to the invoice's `paymentMethod` field. Built-in channels
   /// keep the exact strings quick sale has always written ('bank_transfer'
@@ -1980,6 +1992,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       _customerCtrl.text = c.name;
       _customerSuggs = [];
       _showCustomerSuggs = false;
+      if (_errorField == _ErrorField.customer) _errorMsg = null;
     });
   }
 
@@ -2067,6 +2080,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
   }
 
   Future<void> _save() async {
+    if (_errorMsg != null) setState(() => _errorMsg = null);
     for (var i = 0; i < _items.length; i++) {
       final e = _items[i];
       final name = e.nameCtrl.text.trim();
@@ -2110,6 +2124,7 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           'Please select a customer before recording a credit sale.',
           'Tafadhali chagua mteja kabla ya kurekodi mauzo ya mkopo.',
         ),
+        field: _ErrorField.customer,
       );
       return;
     }
@@ -2122,7 +2137,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
       final t = _amtPaidCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '');
       amountPaid = double.tryParse(t) ?? 0;
       if (amountPaid <= 0) {
-        _snack(_tr('Enter amount paid.', 'Ingiza kiasi kilicholipwa.'));
+        _snack(
+          _tr('Enter amount paid.', 'Ingiza kiasi kilicholipwa.'),
+          field: _ErrorField.payment,
+        );
         return;
       }
       // A "partial" payment covering the full total is simply a paid sale.
@@ -2138,7 +2156,10 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     // PaymentAccountChips only lets an activated built-in or custom account
     // become selected, so a null selection here just means nothing was picked.
     if (payStatus != _PayStatus.unpaid && amountPaid > 0 && _selectedAccount == null) {
-      _snack(_tr('Select a payment account', 'Chagua akaunti ya malipo'));
+      _snack(
+        _tr('Select a payment account', 'Chagua akaunti ya malipo'),
+        field: _ErrorField.payment,
+      );
       return;
     }
 
@@ -2156,13 +2177,13 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
             'Credit limit exceeded. ${_selectedCustomer!.name} can only borrow TZS ${available.toStringAsFixed(0)} more.',
             'Kikomo cha mkopo kimezidiwa. ${_selectedCustomer!.name} anaweza kukopa TZS ${available.toStringAsFixed(0)} tu zaidi.',
           ),
+          field: _ErrorField.customer,
         );
         return;
       }
     }
 
     setState(() => _isSaving = true);
-    final messenger = ScaffoldMessenger.of(context);
 
     try {
       final now = DateTime.now();
@@ -2506,14 +2527,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     } catch (e, st) {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
-      setState(() => _isSaving = false);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr('Failed to save. Try again.', 'Imeshindikana. Jaribu tena.'),
-          ),
-        ),
-      );
+      setState(() {
+        _isSaving = false;
+        _errorMsg = _tr('Failed to save. Try again.', 'Imeshindikana. Jaribu tena.');
+        _errorField = _ErrorField.general;
+      });
     }
   }
 
@@ -2567,8 +2585,11 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
     navigator.pop();
   }
 
-  void _snack(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg, {_ErrorField field = _ErrorField.items}) =>
+      setState(() {
+        _errorMsg = msg;
+        _errorField = field;
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -2596,19 +2617,24 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildItemsSection(),
+                    _buildFieldError(_ErrorField.items),
                     const SizedBox(height: 16),
                     _buildTotalsSection(),
                     const SizedBox(height: 16),
                     _buildPaymentSection(),
+                    _buildFieldError(_ErrorField.payment),
                     const SizedBox(height: 16),
                     _buildCustomerSection(),
+                    _buildFieldError(_ErrorField.customer),
                     if (_payStatus != _PayStatus.paid) ...[
                       const SizedBox(height: 12),
                       _buildDueDateRow(),
                     ],
                     const SizedBox(height: 16),
                     _buildNotesField(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    _buildFieldError(_ErrorField.general),
+                    const SizedBox(height: 8),
                     _buildSaveButton(),
                   ],
                 ),
@@ -2668,6 +2694,18 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Renders the current [_errorMsg] right where it belongs — directly under
+  /// the section it's about — or nothing if the error is for a different
+  /// field (or there is none). Keeps validation messages next to the data
+  /// that needs fixing instead of a single message far away from it.
+  Widget _buildFieldError(_ErrorField field) {
+    if (_errorField != field) return const SizedBox.shrink();
+    return ValidationBanner(
+      message: _errorMsg,
+      onDismiss: () => setState(() => _errorMsg = null),
     );
   }
 
@@ -3675,8 +3713,12 @@ class _NewSaleSheetState extends ConsumerState<_NewSaleSheet> {
           const SizedBox(height: 8),
           PaymentAccountChips(
             selectedAccountId: _selectedAccount?.id,
-            onSelectAccount: (account) =>
-                setState(() => _selectedAccount = account),
+            onSelectAccount: (account) => setState(() {
+              _selectedAccount = account;
+              if (_errorField == _ErrorField.payment) _errorMsg = null;
+            }),
+            onActivationRequired: (message) =>
+                _snack(message, field: _ErrorField.payment),
           ),
           if (_selectedAccount?.id == PaymentMethodAccounts.mpesaId) ...[
             const SizedBox(height: 10),
@@ -3966,6 +4008,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
   final _skuCtrl = TextEditingController();
   String _selectedUnit = 'pcs';
   bool _isSaving = false;
+  String? _errorMsg;
 
   final List<String> _units = [
     'pcs',
@@ -4003,23 +4046,18 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     final category = _categoryCtrl.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_tr('Enter product name', 'Ingiza jina la bidhaaa')),
-        ),
-      );
+      setState(() => _errorMsg = _tr('Enter product name', 'Ingiza jina la bidhaaa'));
       return;
     }
     if (price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_tr('Enter a valid price', 'Ingiza bei sahihi')),
-        ),
-      );
+      setState(() => _errorMsg = _tr('Enter a valid price', 'Ingiza bei sahihi'));
       return;
     }
 
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _errorMsg = null;
+    });
     final navigator = Navigator.of(context);
 
     try {
@@ -4056,14 +4094,10 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     } catch (e, st) {
       unawaited(Sentry.captureException(e, stackTrace: st));
       if (!mounted) return;
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _tr('Failed to add product', 'Imeshindikana kuongeza bidhaaa'),
-          ),
-        ),
-      );
+      setState(() {
+        _isSaving = false;
+        _errorMsg = _tr('Failed to add product', 'Imeshindikana kuongeza bidhaaa');
+      });
     }
   }
 
@@ -4187,6 +4221,11 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                 label: _tr('SKU (Optional)', 'SKU (Hiari)'),
                 icon: Icons.tag_outlined,
                 caps: TextCapitalization.characters,
+              ),
+              ValidationBanner(
+                message: _errorMsg,
+                onDismiss: () => setState(() => _errorMsg = null),
+                margin: const EdgeInsets.only(top: 16),
               ),
               SizedBox(height: 24),
               SizedBox(
