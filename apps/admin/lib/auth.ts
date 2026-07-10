@@ -9,6 +9,12 @@ const credentialsSchema = z.object({
   idToken: z.string().min(1, 'ID token is required'),
 })
 
+// How often to re-verify the admin claim against Firebase Auth + Firestore
+// for an already-signed-in session. Every `auth()` call used to do this
+// unconditionally (2 sequential network round trips per API request); now
+// it's cached in the JWT and only re-checked once this interval elapses.
+const ADMIN_RECHECK_INTERVAL_MS = 5 * 60 * 1000
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -49,22 +55,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: '/admin/login',
   },
 
-  session: { strategy: 'jwt' },
+  // Default NextAuth session lifetime is 30 days — too long for an admin
+  // portal. Cap the cookie itself at 1 day; isAdmin is still rechecked
+  // against Firebase/Firestore every ADMIN_RECHECK_INTERVAL_MS regardless.
+  session: { strategy: 'jwt', maxAge: 24 * 60 * 60 },
 
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.uid   = user.id
-        token.email = user.email
-        token.name  = user.name
+        // Fresh sign-in: authorize() above already verified admin access.
+        token.uid           = user.id
+        token.email         = user.email
+        token.name          = user.name
+        token.isAdmin       = true
+        token.adminCheckedAt = Date.now()
+        return token
+      }
+
+      // Existing session: only hit Firebase Auth + Firestore again once the
+      // recheck interval has elapsed, so most requests stay cache-only.
+      const checkedAt = typeof token.adminCheckedAt === 'number' ? token.adminCheckedAt : 0
+      if (Date.now() - checkedAt > ADMIN_RECHECK_INTERVAL_MS) {
+        token.isAdmin        = token.uid ? await isAdminUser(token.uid as string) : false
+        token.adminCheckedAt = Date.now()
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id    = token.uid as string
-        session.user.email = token.email as string
-        session.user.name  = token.name as string
+        session.user.id      = token.uid as string
+        session.user.email   = token.email as string
+        session.user.name    = token.name as string
+        session.user.isAdmin = token.isAdmin === true
       }
       return session
     },
