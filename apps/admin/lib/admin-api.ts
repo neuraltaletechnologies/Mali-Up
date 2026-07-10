@@ -217,7 +217,7 @@ export async function saveVersionGate(config: VersionGateConfig): Promise<void> 
 
 // ─── System Health ────────────────────────────────────────────────────────────
 
-export async function fetchSystemHealth(): Promise<{ services: ServiceHealth[]; updatedAt: string; firestoreLatencyMs: number }> {
+export async function fetchSystemHealth(): Promise<{ services: ServiceHealth[]; updatedAt: string; firestoreLatencyMs: number; manualOverrideAt: string | null }> {
   return apiFetch('/api/admin/system')
 }
 
