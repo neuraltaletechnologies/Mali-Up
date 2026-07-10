@@ -10,7 +10,7 @@
     "provision:admin": "tsx --env-file=.env.local scripts/set-admin-claim.ts",
     "migrate:catalog-business-types": "tsx --env-file=.env.local scripts/migrate-catalog-business-types.ts",
     "backfill:staff-counts": "tsx --env-file=.env.local scripts/backfill-staff-counts.ts",
-    "cf:build": "npx @opennextjs/cloudflare build",
+    "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "npx wrangler dev",
     "cf:deploy": "npx wrangler deploy"
   },
