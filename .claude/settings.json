@@ -207,7 +207,14 @@
       "Bash(gh pr *)",
       "PowerShell(gh pr list --repo neuraltaletechnologies/Mali-Up --base production --head main --state all --json number,state,title,url)",
       "Read(//c/Program Files/**)",
-      "Bash(where gh *)"
+      "Bash(where gh *)",
+      "Bash(echo \"ignore-exit:$?\")",
+      "Bash(pnpm --version)",
+      "Bash(gh --version)",
+      "PowerShell(gh api repos/neuraltaletechnologies/Mali-Up/actions/permissions/workflow)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
+      "PowerShell($null)",
+      "PowerShell(gh api orgs/neuraltaletechnologies/actions/permissions/workflow)"
     ],
     "additionalDirectories": [
       "c:\\SIDE\\GIT\\Maliapp\\apps\\admin\\app\\(dashboard)\\businesses\\[uid]",
