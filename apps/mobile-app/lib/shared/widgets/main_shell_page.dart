@@ -49,6 +49,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   // slot. Empty until loaded from SharedPreferences; missing entries fall
   // back to _defaultSlotOrder.
   Map<int, String> _navSlotOverrides = {};
+  final GlobalKey _navBarKey = GlobalKey();
 
   @override
   void initState() {
@@ -85,6 +86,8 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
   void dispose() {
     LocalizationService.languageNotifier.removeListener(_languageListener);
     VersionGateService.statusNotifier.removeListener(_versionGateListener);
+    _removeNavPickOverlay();
+    _navPickHighlightIndex.dispose();
     _liveActivity.dispose();
     super.dispose();
   }
@@ -613,6 +616,24 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                           children: [
+                            _DrawerItemLight(
+                              icon: Icons.dashboard_rounded,
+                              iconColor: AppColors.secondary,
+                              label: _tr('Dashibodi', 'Dashibodi'),
+                              semanticsLabel: _tr(
+                                'Dashboard',
+                                'Dashibodi, muhtasari wa biashara',
+                              ),
+                              selected: _isSelected(
+                                location,
+                                AppRouter.dashboardPath,
+                              ),
+                              onTap: () => _closeNavigationPanelThenNavigate(
+                                dialogContext,
+                                context,
+                                AppRouter.dashboardPath,
+                              ),
+                            ),
                             if (ps.canViewSales ||
                                 ps.canViewInventory ||
                                 ps.canViewCustomers)
@@ -984,93 +1005,182 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     setState(() => _navSlotOverrides = updated);
   }
 
-  Future<void> _openNavPickerSheet(
+  // ── Hold-and-drag nav slot picker ───────────────────────────────────────
+  // Long-press a customizable icon, then without lifting the finger drag
+  // upward through a strip of alternate screens that fans up from it
+  // (dragging sideways or releasing without moving up cancels — same idea
+  // as a slide-to-cancel voice-note recorder). One continuous gesture, no
+  // second tap, no sheet.
+  static const double _navPickItemHeight = 52;
+  static const double _navPickStripWidth = 176;
+  static const double _navPickCancelDx = 56;
+
+  List<_NavDestination> _navPickCatalog = [];
+  int? _navPickSlotPosition;
+  String? _navPickCurrentKey;
+  double _navPickOriginX = 0;
+  double _navPickStripBottom = 0;
+  OverlayEntry? _navPickOverlayEntry;
+  final ValueNotifier<int> _navPickHighlightIndex = ValueNotifier<int>(-1);
+
+  void _startNavPick(
     BuildContext context,
     PermissionService ps,
-    _NavDestination current,
-  ) async {
-    final slotPosition = current.slotPosition;
+    _NavDestination destination,
+    Offset globalPosition,
+  ) {
+    final slotPosition = destination.slotPosition;
     if (slotPosition == null) return;
-    HapticFeedback.mediumImpact();
     final catalog = _fullNavCatalog(ps);
+    if (catalog.length <= 1) return;
+    HapticFeedback.mediumImpact();
 
-    final selectedKey = await showAppSheet<String>(
-      context,
-      backgroundColor: Colors.white,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tr('Choose an icon for this slot', 'Chagua aikoni kwa nafasi hii'),
-                  style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+    final navBarBox =
+        _navBarKey.currentContext?.findRenderObject() as RenderBox?;
+    final navBarTopY = navBarBox != null
+        ? navBarBox.localToGlobal(Offset.zero).dy
+        : globalPosition.dy - 40;
+
+    _navPickCatalog = catalog;
+    _navPickSlotPosition = slotPosition;
+    _navPickCurrentKey = destination.key;
+    _navPickOriginX = globalPosition.dx;
+    _navPickStripBottom = navBarTopY - 12;
+    _navPickHighlightIndex.value = -1;
+
+    _navPickOverlayEntry = OverlayEntry(builder: _buildNavPickOverlay);
+    Overlay.of(context, rootOverlay: true).insert(_navPickOverlayEntry!);
+  }
+
+  void _updateNavPick(Offset globalPosition) {
+    if (_navPickOverlayEntry == null || _navPickSlotPosition == null) return;
+    final dx = (globalPosition.dx - _navPickOriginX).abs();
+    var nextIndex = -1;
+    if (dx <= _navPickCancelDx && globalPosition.dy < _navPickStripBottom) {
+      final distanceFromBottom = _navPickStripBottom - globalPosition.dy;
+      nextIndex = (distanceFromBottom / _navPickItemHeight)
+          .floor()
+          .clamp(0, _navPickCatalog.length - 1);
+    }
+    if (nextIndex != _navPickHighlightIndex.value) {
+      HapticFeedback.selectionClick();
+      _navPickHighlightIndex.value = nextIndex;
+    }
+  }
+
+  void _endNavPick() {
+    final slotPosition = _navPickSlotPosition;
+    final index = _navPickHighlightIndex.value;
+    final catalog = _navPickCatalog;
+    final currentKey = _navPickCurrentKey;
+    _removeNavPickOverlay();
+    if (slotPosition == null || index < 0 || index >= catalog.length) return;
+    final chosen = catalog[index];
+    if (chosen.key == currentKey) return;
+    _assignNavSlot(slotPosition, chosen.key);
+  }
+
+  void _cancelNavPick() => _removeNavPickOverlay();
+
+  void _removeNavPickOverlay() {
+    _navPickOverlayEntry?.remove();
+    _navPickOverlayEntry = null;
+    _navPickSlotPosition = null;
+    _navPickCatalog = [];
+  }
+
+  Widget _buildNavPickOverlay(BuildContext overlayContext) {
+    final screenSize = MediaQuery.of(overlayContext).size;
+    final left = (_navPickOriginX - _navPickStripWidth / 2).clamp(
+      12.0,
+      screenSize.width - _navPickStripWidth - 12.0,
+    );
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(color: Colors.black.withValues(alpha: 0.32)),
+          ),
+          Positioned(
+            left: left,
+            width: _navPickStripWidth,
+            bottom: screenSize.height - _navPickStripBottom,
+            child: ValueListenableBuilder<int>(
+              valueListenable: _navPickHighlightIndex,
+              builder: (_, highlighted, _) => Container(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.navyPrimary,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: catalog.map((d) {
-                    final isSelected = d.key == current.key;
-                    return GestureDetector(
-                      onTap: () => Navigator.of(sheetContext).pop(d.key),
-                      child: Container(
-                        width: 78,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primary.withValues(alpha: 0.1)
-                              : AppColors.surface,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  // Rendered top-to-bottom in the strip, but index 0 (the
+                  // catalog entry nearest the held icon) is the *last*
+                  // child so it sits at the bottom of the strip, nearest
+                  // the finger's starting point.
+                  children: List.generate(_navPickCatalog.length, (i) {
+                    final catalogIndex = _navPickCatalog.length - 1 - i;
+                    final destination = _navPickCatalog[catalogIndex];
+                    final isSelected = catalogIndex == highlighted;
+                    final isCurrent = destination.key == _navPickCurrentKey;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      height: _navPickItemHeight,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      color: isSelected
+                          ? AppColors.yellowBrand.withValues(alpha: 0.16)
+                          : Colors.transparent,
+                      child: Row(
+                        children: [
+                          Icon(
+                            destination.activeIcon,
+                            size: 20,
                             color: isSelected
-                                ? AppColors.primary
-                                : AppColors.border,
+                                ? AppColors.yellowBrand
+                                : Colors.white70,
                           ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              d.activeIcon,
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.secondary,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              d.label,
-                              textAlign: TextAlign.center,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              destination.label,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
                                 color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.secondary,
+                                    ? AppColors.yellowBrand
+                                    : Colors.white70,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                fontSize: 13,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                          if (isCurrent)
+                            const Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: Colors.white38,
+                            ),
+                        ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ),
-              ],
+              ),
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
-
-    if (selectedKey == null || selectedKey == current.key) return;
-    await _assignNavSlot(slotPosition, selectedKey);
   }
 
   static bool _isSelected(String location, String route) {
@@ -1293,6 +1403,7 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                           : 16.0,
                     ),
                     child: Container(
+                      key: _navBarKey,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 6,
@@ -1314,18 +1425,30 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
                         children: List.generate(destinations.length, (index) {
                           final destination = destinations[index];
                           final isSelected = index == currentIndex;
+                          final isCustomizable = destination.slotPosition != null;
                           return _buildBottomNavItem(
                             context,
                             destination,
                             isSelected,
                             index,
-                            onLongPress: destination.slotPosition == null
+                            onLongPressStart: !isCustomizable
                                 ? null
-                                : () => _openNavPickerSheet(
+                                : (details) => _startNavPick(
                                     context,
                                     ps,
                                     destination,
+                                    details.globalPosition,
                                   ),
+                            onLongPressMoveUpdate: !isCustomizable
+                                ? null
+                                : (details) =>
+                                    _updateNavPick(details.globalPosition),
+                            onLongPressEnd: !isCustomizable
+                                ? null
+                                : (_) => _endNavPick(),
+                            onLongPressCancel: !isCustomizable
+                                ? null
+                                : _cancelNavPick,
                           );
                         }),
                       ),
@@ -1345,11 +1468,17 @@ class _MainShellPageState extends ConsumerState<MainShellPage>
     _NavDestination destination,
     bool isSelected,
     int index, {
-    VoidCallback? onLongPress,
+    GestureLongPressStartCallback? onLongPressStart,
+    GestureLongPressMoveUpdateCallback? onLongPressMoveUpdate,
+    GestureLongPressEndCallback? onLongPressEnd,
+    VoidCallback? onLongPressCancel,
   }) {
     return GestureDetector(
       onTap: () => context.go(destination.route),
-      onLongPress: onLongPress,
+      onLongPressStart: onLongPressStart,
+      onLongPressMoveUpdate: onLongPressMoveUpdate,
+      onLongPressEnd: onLongPressEnd,
+      onLongPressCancel: onLongPressCancel,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: 64,
