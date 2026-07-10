@@ -67,8 +67,8 @@ export default function TermsOfServicePage() {
       <LegalSection title="12. Contact Us">
         <p>
           Questions about these Terms? Contact us at{' '}
-          <a href="mailto:legal@maliup.co.tz" className="text-[#F5A623] hover:underline">
-            legal@maliup.co.tz
+          <a href="mailto:support@neuraltale.com" className="text-[#F5A623] hover:underline">
+            support@neuraltale.com
           </a>
           .
         </p>

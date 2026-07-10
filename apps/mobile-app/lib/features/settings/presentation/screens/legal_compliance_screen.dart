@@ -364,7 +364,7 @@ class LegalComplianceScreen extends StatelessWidget {
         'from Settings → Legal & Compliance.\n\n'
         '5. Third parties: we use Firebase (Google) for authentication and '
         'database services. No financial data is shared with third-party analytics.\n\n'
-        'For questions, contact: privacy@maliup.co.tz',
+        'For questions, contact: support@neuraltale.com',
         'Mali Up ("sisi", "yetu") inakusanya taarifa zinazohitajika tu '
         'kutoa huduma za usimamizi wa biashara kwako.\n\n'
         '1. Data tunayokusanya: miamala ya biashara, majina na nambari za simu za wateja, '
@@ -377,7 +377,7 @@ class LegalComplianceScreen extends StatelessWidget {
         'kutoka Mipangilio → Kisheria na Uzingatiaji.\n\n'
         '5. Watu wa tatu: tunatumia Firebase (Google) kwa huduma za uthibitishaji na hifadhidata. '
         'Hakuna data ya fedha inayoshirikiwa na uchanganuzi wa watu wengine.\n\n'
-        'Kwa maswali, wasiliana: privacy@maliup.co.tz',
+        'Kwa maswali, wasiliana: support@neuraltale.com',
       );
 
   String _termsSummary() => _tr(
@@ -395,7 +395,7 @@ class LegalComplianceScreen extends StatelessWidget {
         '6. Limitation of liability: Mali Up is not liable for financial decisions '
         'made based on app data.\n\n'
         '7. Governing law: these terms are governed by the laws of Tanzania.\n\n'
-        'Contact: legal@maliup.co.tz',
+        'Contact: support@neuraltale.com',
         'Kwa kutumia Mali Up, unakubaliana na yafuatayo:\n\n'
         '1. Kustahili: lazima uwe na umri wa miaka 18 au zaidi na uendeshe biashara halali.\n\n'
         '2. Jukumu la akaunti: unajibika kwa kuweka PIN na vitambulisho vyako vya kuingia salama. '
@@ -409,7 +409,7 @@ class LegalComplianceScreen extends StatelessWidget {
         '6. Ukomo wa dhima: Mali Up haiwajibiki kwa maamuzi ya kifedha '
         'yaliyofanywa kulingana na data ya programu.\n\n'
         '7. Sheria inayotumika: masharti haya yanasimamiwa na sheria za Tanzania.\n\n'
-        'Wasiliana: legal@maliup.co.tz',
+        'Wasiliana: support@neuraltale.com',
       );
 }
 

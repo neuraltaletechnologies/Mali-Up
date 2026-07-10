@@ -15,7 +15,7 @@ import { useAdminFetch, invalidateAdminCache } from '@/hooks/use-admin-fetch'
 import { formatDate, timeAgo } from '@/lib/format'
 import { ArrowLeft, Ban, RotateCcw, AlertCircle, Pencil, X, Loader2, Building2,
   ShoppingCart, FileText, CreditCard, RefreshCw, XCircle, Trash2, Users, UserPlus,
-  UserMinus, UserCheck, Tag, Bell, Settings, Shield, TrendingUp } from 'lucide-react'
+  UserMinus, UserCheck, Tag, Bell, Settings, Shield, TrendingUp, LogIn } from 'lucide-react'
 import Link from 'next/link'
 import type { AdminUser, Business, PlanTier } from '@/types'
 
@@ -481,6 +481,7 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   edit_user:           Settings,
   suspend_user:        Ban,
   unsuspend_user:      RotateCcw,
+  user_signed_in:      LogIn,
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -507,6 +508,7 @@ const ACTION_LABELS: Record<string, string> = {
   edit_user:           'Profile edited',
   suspend_user:        'User suspended',
   unsuspend_user:      'User unsuspended',
+  user_signed_in:      'Signed in',
 }
 
 function actionColor(action: string): string {

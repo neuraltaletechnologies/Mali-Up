@@ -86,8 +86,8 @@ export default function PrivacyPolicyPage() {
       <LegalSection title="11. Contact Us">
         <p>
           Questions about this Privacy Policy? Contact us at{' '}
-          <a href="mailto:privacy@maliup.co.tz" className="text-[#F5A623] hover:underline">
-            privacy@maliup.co.tz
+          <a href="mailto:support@neuraltale.com" className="text-[#F5A623] hover:underline">
+            support@neuraltale.com
           </a>
           . We respond to requests within 30 days.
         </p>
